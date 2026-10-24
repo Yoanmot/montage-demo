@@ -83,7 +83,7 @@ cmd_code() {
   call "$API/compte"
   if [ "$STATUS" != 200 ]; then say "CODE_REFUSÉ : $(printf '%s' "$BODY" | json erreur)"; exit 4; fi
   printf 'CODE=%s\n' "$CODE" > "$CONF"
-  say "Code enregistré pour $(printf '%s' "$BODY" | json nom). Vidéos restantes : $(printf '%s' "$BODY" | json videos_restantes)."
+  say "Code enregistré pour $(printf '%s' "$BODY" | json nom)."
 }
 
 cmd_envoyer() {
@@ -146,7 +146,8 @@ cmd_attendre() {
   if [ "$OS" = Darwin ]; then open "$out" 2>/dev/null
   elif [ "$WIN" = 1 ]; then cmd.exe /c start "" "$(cygpath -w "$out")" 2>/dev/null; fi
   call "$API/compte"
-  [ "$STATUS" = 200 ] && say "Vidéos de démo restantes : $(printf '%s' "$BODY" | json videos_restantes)."
+  local reste; reste="$(printf '%s' "$BODY" | json videos_restantes)"
+  [ "$STATUS" = 200 ] && [ "$reste" != null ] && say "Vidéos de démo restantes : $reste."
   return 0
 }
 
