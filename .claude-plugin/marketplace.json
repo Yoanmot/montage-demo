@@ -1,0 +1,11 @@
+{
+  "name": "yoan-montage",
+  "owner": { "name": "Yoan Mottier" },
+  "plugins": [
+    {
+      "name": "montage",
+      "source": "./plugins/montage",
+      "description": "Montage automatique de vidéos face caméra : blancs et reprises coupés, sous-titres posés."
+    }
+  ]
+}
