@@ -174,14 +174,14 @@ function Cmd-Rendre($w) {
   $n = 2
   while (Exists $out) { $out = [IO.Path]::Combine($dir, "$base-coupe-$n.mp4"); $n++ }
   if ($info.hdr) {   # HDR de l'iPhone : on reste en HEVC 10 bits avec ses métadonnées, sinon les couleurs se délavent
-    $enc = @("-c:v", "libx265", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p10le", "-tag:v", "hvc1",
+    $enc = @("-c:v", "libx265", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p10le", "-tag:v", "hvc1",
              "-color_primaries", $info.color_primaries, "-color_trc", $info.color_transfer, "-colorspace", $info.color_space)
   } else {
-    $enc = @("-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p")
+    $enc = @("-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p")
   }
   Say "Découpe de la vidéo en qualité d'origine ($($info.largeur)x$($info.hauteur))…"
   $t0 = Get-Date
-  & $ffmpeg -nostdin -v error -y -i $info.video "-/filter_complex" $filtre -map "[v]" -map "[a]" @enc -c:a aac -b:a 256k -movflags +faststart $out
+  & $ffmpeg -nostdin -v error -y -i $info.video "-/filter_complex" $filtre -map "[v]" -map "[a]" @enc -c:a aac -b:a 320k -movflags +faststart $out
   if ($LASTEXITCODE -ne 0) { Fail 5 "La découpe a échoué (ffmpeg code $LASTEXITCODE)." }
   $s = [Math]::Round(((Get-Date) - $t0).TotalSeconds)
   Say "PRÊT $out (découpe en $s s)"
