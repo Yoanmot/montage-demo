@@ -1,16 +1,9 @@
-# Montage automatique
+# Montage automatique (skills Claude)
 
-Coupe les blancs et les reprises d'une vidéo face caméra, pose les sous-titres, nettoie le son.
+Skills de montage pour Claude Code (app Claude, onglet Code, session locale).
 
-## Installer (une seule fois)
+- `skills/couper-silences` : coupe les silences, les reprises (garde la dernière prise) et les faux départs. Vidéo en qualité d'origine.
 
-Dans Claude Code :
+## Installer
 
-```
-/plugin marketplace add Yoanmot/montage-demo
-/plugin install montage@yoan-montage
-```
-
-## Utiliser
-
-Tape `/monter`, glisse ta vidéo, appuie sur Entrée. La vidéo montée apparaît dans le même dossier que l'originale.
+Dans l'app Claude, onglet Code, en session locale, colle le prompt d'installation fourni par Yoan.
