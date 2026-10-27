@@ -1,0 +1,55 @@
+---
+name: sous-titres
+description: Brique du skill montage. Prépare les sous-titres d'une vidéo déjà coupée, au style de l'utilisateur (blanc gras, le mot prononcé sur un pavé orange), à partir du texte calé par couper-silences, avec l'orthographe corrigée sans toucher à ce qu'il dit. Ne fabrique pas la vidéo : c'est le skill montage qui fait le rendu. Pour toute demande de sous-titres, passe par le skill montage, qui t'enverra ici.
+---
+
+# Préparer les sous-titres
+
+Tu arrives ici depuis le skill montage, une fois les coupes prêtes. Fais les étapes ci-dessous, puis retourne au skill montage pour fabriquer la vidéo.
+Parle simplement, en français, en tutoyant. Ne montre ni les commandes ni les fichiers.
+
+## La commande
+Le script est `scripts/sous-titres.ps1` dans le dossier de ce skill. Lance-le toujours ainsi, avec un **timeout de 600000 ms** :
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File "<dossier du skill>\scripts\sous-titres.ps1" <commande> "<dossier>-montage"
+```
+(depuis un terminal bash, écris le chemin avec des `/` ; `powershell` fonctionne pareil.)
+
+## Le déroulé
+
+### 1. Le texte : `texte "<dossier>"`
+Écrit `<dossier>\texte-numerote.md` : le texte de la vidéo coupée, une phrase par ligne, chaque mot précédé de son numéro (`[12]abdos`). Lis-le en entier.
+- `TEXTE_INTROUVABLE` : la vidéo n'est pas encore coupée. Retourne au skill montage pour faire les coupes d'abord.
+
+### 2. Corriger l'orthographe (c'est ton travail)
+Le texte vient d'une transcription automatique : quelques mots peuvent être mal écrits (noms propres, marques, vocabulaire de coach, mots mal entendus).
+**Tu corriges l'orthographe, tu ne réécris jamais ce qu'il dit** : pas de reformulation, pas de mot ajouté ou retiré, pas de « euh » enlevé s'il a été gardé à la coupe. Dans le doute, ne touche pas. Les nombres restent comme ils sont écrits.
+
+Écris `<dossier>\sous-titres.json` :
+```json
+{
+  "corrections": { "57": "Ekklo", "102": "squats," },
+  "masquer": [[140, 145]],
+  "taille": 1,
+  "position": 0.75
+}
+```
+- `corrections` : numéro du mot → le mot corrigé. **Garde la ponctuation du mot d'origine** (elle sert à découper les lignes).
+- `masquer` (facultatif) : des plages de numéros de mots à ne pas afficher, bornes incluses. Seulement s'il le demande.
+- `taille` (facultatif) : `1` par défaut, `1.15` = 15 % plus gros, `0.9` = plus petit.
+- `position` (facultatif) : hauteur du centre de la ligne, de `0` (tout en haut) à `1` (tout en bas). `0.75` par défaut ; `0.65` = plus haut, `0.82` = plus bas.
+- Rien à corriger : `{}` suffit.
+
+### 3. Fabriquer les sous-titres : `preparer "<dossier>"`
+Seuls les mots partent sur le serveur de Yoan (pas la vidéo). Quelques secondes.
+- `CODE_MANQUANT` : demande le code d'accès que Yoan lui a envoyé, puis enregistre-le avec le skill couper-silences (commande `code`).
+- `SOUS-TITRES_ILLISIBLE` : corrige `sous-titres.json` comme indiqué, puis relance.
+- `PRÊT` : retourne au skill montage et fabrique la vidéo avec les couches `coupes,sous-titres`.
+
+## Les retouches (à proposer quand il a vu la vidéo)
+- « tel mot est mal écrit » : une ligne dans `corrections` ;
+- « enlève cette phrase des sous-titres » : `masquer` ;
+- « plus gros », « plus petit » : `taille` ;
+- « plus haut », « plus bas » : `position`.
+Puis `preparer`, et le skill montage refait la vidéo depuis l'originale.
+Les sous-titres sont incrustés dans l'image : on ne peut pas les retoucher dans Edits. Pour changer un mot, il le demande ici et la vidéo est refaite en quelques minutes.

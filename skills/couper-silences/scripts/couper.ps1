@@ -5,7 +5,7 @@
 #   couper.ps1 code <code>                    enregistre le code d'accès
 #   couper.ps1 transcrire <vidéo>             envoie l'audio, récupère le transcript calé (dossier <nom>-montage)
 #   couper.ps1 compiler <dossier> [rythme]    compile cuts.json (rythme : normal | serre | tres-serre), affiche le discours final
-#   couper.ps1 rendre <dossier>               fabrique <nom>-coupe.mp4 à côté de la vidéo d'origine
+#   (la vidéo est fabriquée par le skill montage : montage.ps1 rendre <dossier> coupes[,sous-titres])
 #
 # Codes de sortie : 0 ok · 2 fichier introuvable · 3 code manquant · 4 code refusé · 5 erreur serveur
 #                   6 réseau · 7 outil vidéo impossible à installer · 8 coupes refusées · 10 pas encore fini
@@ -161,31 +161,7 @@ function Cmd-Compiler($w, $rythme) {
   WriteText ([IO.Path]::Combine($w, "discours.txt")) $j.sortie
   Say $j.sortie
   Say ""
-  Say ("COMPILÉ : {0} morceaux, {1} s gardées (rythme {2}). Relis chaque jointure « // », puis lance : couper.ps1 rendre `"{3}`"" -f $j.edl.stats.segments, $j.edl.stats.out_duration_s, $rythme, $w)
-}
-
-function Cmd-Rendre($w) {
-  $info = ReadText ([IO.Path]::Combine($w, "info.json")) | ConvertFrom-Json
-  $filtre = [IO.Path]::Combine($w, "filtre.txt")
-  if (-not (Exists $filtre)) { Fail 2 "Lance d'abord : couper.ps1 compiler `"$w`"" }
-  $ffmpeg = Tool "ffmpeg"
-  $dir = [IO.Path]::GetDirectoryName($info.video); $base = [IO.Path]::GetFileNameWithoutExtension($info.video)
-  $out = [IO.Path]::Combine($dir, "$base-coupe.mp4")
-  $n = 2
-  while (Exists $out) { $out = [IO.Path]::Combine($dir, "$base-coupe-$n.mp4"); $n++ }
-  if ($info.hdr) {   # HDR de l'iPhone : on reste en HEVC 10 bits avec ses métadonnées, sinon les couleurs se délavent
-    $enc = @("-c:v", "libx265", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p10le", "-tag:v", "hvc1",
-             "-color_primaries", $info.color_primaries, "-color_trc", $info.color_transfer, "-colorspace", $info.color_space)
-  } else {
-    $enc = @("-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p")
-  }
-  Say "Découpe de la vidéo en qualité d'origine ($($info.largeur)x$($info.hauteur))…"
-  $t0 = Get-Date
-  & $ffmpeg -nostdin -v error -y -i $info.video "-/filter_complex" $filtre -map "[v]" -map "[a]" @enc -c:a aac -b:a 320k -movflags +faststart $out
-  if ($LASTEXITCODE -ne 0) { Fail 5 "La découpe a échoué (ffmpeg code $LASTEXITCODE)." }
-  $s = [Math]::Round(((Get-Date) - $t0).TotalSeconds)
-  Say "PRÊT $out (découpe en $s s)"
-  try { Start-Process -FilePath $out } catch { }
+  Say ("COMPILÉ : {0} morceaux, {1} s gardées (rythme {2}). Relis chaque jointure « // », puis fais fabriquer la vidéo par le skill montage (couche coupes) : `"{3}`"" -f $j.edl.stats.segments, $j.edl.stats.out_duration_s, $rythme, $w)
 }
 
 switch ($Commande) {
@@ -193,6 +169,6 @@ switch ($Commande) {
   "transcrire" { Cmd-Transcrire $Arg1 }
   "suivre" { Cmd-Suivre $Arg1 }
   "compiler" { Cmd-Compiler $Arg1 $Arg2 }
-  "rendre" { Cmd-Rendre $Arg1 }
-  default { Say "Usage : couper.ps1 code <code> | transcrire <vidéo> | compiler <dossier> [rythme] | rendre <dossier>"; exit 1 }
+  "rendre" { Fail 2 "Le rendu a déménagé : utilise le skill montage (montage.ps1 rendre `"$Arg1`" coupes)." }
+  default { Say "Usage : couper.ps1 code <code> | transcrire <vidéo> | compiler <dossier> [rythme]"; exit 1 }
 }

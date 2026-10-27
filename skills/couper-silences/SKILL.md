@@ -1,6 +1,6 @@
 ---
 name: couper-silences
-description: Coupe les silences, les reprises et les faux départs d'une vidéo face caméra filmée d'une traite, en gardant la dernière prise de chaque phrase. La vidéo coupée sort en qualité d'origine (4K gardée), sans sous-titres ni effets, à côté de l'originale. Déclencheurs : « coupe les silences », « coupe les blancs », « dérushe cette vidéo », « enlève les reprises », une vidéo glissée avec une demande de découpe. Ne pose ni sous-titres, ni zooms, ni b-rolls.
+description: Brique du skill montage. Prépare la coupe des silences, des reprises et des faux départs d'une vidéo face caméra filmée d'une traite, en gardant la dernière prise de chaque phrase. Ne fabrique pas la vidéo : c'est le skill montage qui fait le rendu, en un seul passage avec les autres couches demandées. Pour toute demande de montage (« coupe les silences », « dérushe », « mets les sous-titres »…), passe par le skill montage, qui t'enverra ici.
 ---
 
 # Couper les silences et les reprises
@@ -9,6 +9,8 @@ L'utilisateur est un coach, pas un technicien. Parle-lui simplement, en françai
 Ne lui montre ni les commandes ni les fichiers techniques : dis ce qui se passe (« j'envoie le son », « je choisis les prises », « je coupe la vidéo »).
 
 ## Les commandes
+
+Tu arrives ici depuis le skill montage. Fais les étapes 1 à 4, puis retourne au skill montage pour fabriquer la vidéo.
 
 Le script est `scripts/couper.ps1` dans le dossier de ce skill. Lance-le toujours ainsi, avec un **timeout de 600000 ms** :
 
@@ -48,15 +50,13 @@ Le script affiche le **discours final** : les passages gardés séparés par `//
 - `COUPES_REFUSÉES` : un passage gardé fait moins de 0,3 s. Étends la coupe voisine pour l'englober, ou garde un peu plus, puis relance.
 - Les avertissements « % de la durée coupée » ou « coupes/min » sont normaux quand il y a beaucoup de reprises : ignore-les.
 
-### 5. Rendre : `rendre "<dossier>"`
-Fabrique `<nom>-coupe.mp4` à côté de la vidéo d'origine, même résolution, et l'ouvre. Compte une à quelques minutes selon la longueur et l'ordinateur.
+### 5. La suite
+Les coupes sont prêtes. Retourne au skill montage : c'est lui qui fabrique la vidéo, avec les coupes et les autres couches demandées (sous-titres…), en un seul rendu depuis la vidéo d'origine.
 
-### 6. Rendre compte
-Dis où est la vidéo, sa durée, et en une phrase ce que tu as coupé (par exemple « 6 reprises et 2 faux départs, de 4 min 44 à 52 s »).
-Propose les réglages possibles, sans jargon :
-- **le rythme** : `compiler "<dossier>" normal` (plus aéré), `serre` (par défaut), `tres-serre` (plus nerveux), puis `rendre` ;
-- **une prise précise** : « garde plutôt la 2e prise de telle phrase » se règle dans `cuts.json`, puis `compiler` et `rendre`.
-Rien de tout ça ne renvoie la vidéo au serveur ni ne consomme de crédit.
+### Réglages possibles (à proposer quand il a vu la vidéo)
+- **le rythme** : `compiler "<dossier>" normal` (plus aéré), `serre` (par défaut), `tres-serre` (plus nerveux) ;
+- **une prise précise** : « garde plutôt la 2e prise de telle phrase » se règle dans `cuts.json`, puis `compiler`.
+Ensuite, le skill montage refait la vidéo. Rien de tout ça ne renvoie la vidéo au serveur ni ne consomme de crédit.
 
 ## Ce qui reste dans le dossier `<nom>-montage`
-`words.cut.json` (le texte calé sur la vidéo coupée) servira aux prochains skills (sous-titres, zooms). Ne supprime pas ce dossier.
+`words.cut.json` (le texte calé sur la vidéo coupée) sert aux autres briques (sous-titres, zooms), et `filtre.txt` (les coupes) au rendu du skill montage. Ne supprime pas ce dossier.
