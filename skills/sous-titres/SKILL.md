@@ -44,7 +44,7 @@ Le texte vient d'une transcription automatique : quelques mots peuvent être mal
 Seuls les mots partent sur le serveur de Yoan (pas la vidéo). Quelques secondes.
 - `CODE_MANQUANT` : demande le code d'accès que Yoan lui a envoyé, puis enregistre-le avec le skill couper-silences (commande `code`).
 - `SOUS-TITRES_ILLISIBLE` : corrige `sous-titres.json` comme indiqué, puis relance.
-- `PRÊT` : retourne au skill montage et fabrique la vidéo avec les couches `coupes,sous-titres`.
+- `PRÊT` : retourne au skill montage et fabrique la vidéo avec les couches demandées : `coupes,sous-titres`, ou `coupes,zooms,sous-titres` s'il veut aussi des zooms.
 
 ## Les retouches (à proposer quand il a vu la vidéo)
 - « tel mot est mal écrit » : une ligne dans `corrections` ;

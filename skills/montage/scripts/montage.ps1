@@ -2,9 +2,10 @@
 # Un seul encodage, toujours depuis la vidéo d'origine : on applique dans le même passage les couches demandées,
 # préparées à l'avance par les briques dans <nom>-montage\ :
 #   coupes       filtre.txt       (skill couper-silences)
-#   sous-titres  sous-titres.ass  (skill sous-titres)
+#   zooms        zooms.txt        (skill zooms)
+#   sous-titres  sous-titres.ass  (skill sous-titres), posés après les zooms pour ne pas être zoomés avec l'image
 #
-#   montage.ps1 rendre <dossier> <couches>   ex. : rendre "C:\...\IMG_2180-montage" coupes,sous-titres
+#   montage.ps1 rendre <dossier> <couches>   ex. : rendre "C:\...\IMG_2180-montage" coupes,zooms,sous-titres
 #
 # Codes de sortie : 0 ok · 2 couche ou fichier manquant · 5 rendu raté · 7 outil vidéo impossible à installer
 param([string]$Commande, [string]$Arg1, [string]$Arg2)
@@ -62,7 +63,7 @@ function FFmpeg($besoinAss) {
 }
 
 function Cmd-Rendre($w, $couches) {
-  if (-not $w -or -not $couches) { Fail 2 "Usage : montage.ps1 rendre <dossier> <couches> (ex. coupes,sous-titres)" }
+  if (-not $w -or -not $couches) { Fail 2 "Usage : montage.ps1 rendre <dossier> <couches> (ex. coupes,zooms,sous-titres)" }
   $w = [IO.Path]::GetFullPath($w)
   $infoPath = [IO.Path]::Combine($w, "info.json")
   if (-not (Exists $infoPath)) { Fail 2 "DOSSIER_INCONNU : $w n'est pas un dossier de montage (lance d'abord couper-silences)." }
@@ -70,7 +71,8 @@ function Cmd-Rendre($w, $couches) {
   if (-not (Exists $info.video)) { Fail 2 "VIDÉO_INTROUVABLE : $($info.video) (la vidéo d'origine a été déplacée ?)" }
 
   $liste = @($couches.ToLower() -split "[,; ]+" | Where-Object { $_ })
-  foreach ($c in $liste) { if (@("coupes", "sous-titres") -notcontains $c) { Fail 2 "COUCHE_INCONNUE : $c (couches possibles : coupes, sous-titres)" } }
+  foreach ($c in $liste) { if (@("coupes", "zooms", "sous-titres") -notcontains $c) { Fail 2 "COUCHE_INCONNUE : $c (couches possibles : coupes, zooms, sous-titres)" } }
+  $liste = @("coupes", "zooms", "sous-titres" | Where-Object { $liste -contains $_ })
   $sousTitres = $liste -contains "sous-titres"
 
   # Coupes : toujours là pour l'instant, les sous-titres sont calés sur la vidéo coupée
@@ -78,13 +80,20 @@ function Cmd-Rendre($w, $couches) {
   if (-not ($liste -contains "coupes") -or -not (Exists $filtrePath)) { Fail 2 "COUCHE_MANQUANTE coupes : passe d'abord par couper-silences (les autres couches se calent sur la vidéo coupée)." }
   $graphe = (ReadText $filtrePath).TrimEnd()
   $sortieV = "[v]"
+  # L'ordre des couches ne dépend pas de la demande : coupes, puis zooms, puis sous-titres
+  if ($liste -contains "zooms") {
+    $zoomsPath = [IO.Path]::Combine($w, "zooms.txt")
+    if (-not (Exists $zoomsPath)) { Fail 2 "COUCHE_MANQUANTE zooms : lance d'abord le skill zooms (preparer)." }
+    $graphe += ";`n[v]" + (ReadText $zoomsPath).Trim() + "[vz]"
+    $sortieV = "[vz]"
+  }
   if ($sousTitres) {
     if (-not (Exists ([IO.Path]::Combine($w, "sous-titres.ass")))) { Fail 2 "COUCHE_MANQUANTE sous-titres : lance d'abord le skill sous-titres (preparer)." }
     # Chemins relatifs au dossier de travail : pas d'échappement des « C:\ » dans le filtre
     $polices = [IO.Path]::Combine($w, "polices")
     [IO.Directory]::CreateDirectory($polices) | Out-Null
     foreach ($f in Get-ChildItem -Path (Join-Path $Skill "assets\fonts") -Filter "*.otf") { [IO.File]::Copy($f.FullName, [IO.Path]::Combine($polices, $f.Name), $true) }
-    $graphe += ";`n[v]ass=sous-titres.ass:fontsdir=polices[vs]"
+    $graphe += ";`n$($sortieV)ass=sous-titres.ass:fontsdir=polices[vs]"
     $sortieV = "[vs]"
   }
   $graphePath = [IO.Path]::Combine($w, "rendu-filtre.txt")

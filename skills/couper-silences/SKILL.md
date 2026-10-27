@@ -51,7 +51,7 @@ Le script affiche le **discours final** : les passages gardés séparés par `//
 - Les avertissements « % de la durée coupée » ou « coupes/min » sont normaux quand il y a beaucoup de reprises : ignore-les.
 
 ### 5. La suite
-Les coupes sont prêtes. Retourne au skill montage : c'est lui qui fabrique la vidéo, avec les coupes et les autres couches demandées (sous-titres…), en un seul rendu depuis la vidéo d'origine.
+Les coupes sont prêtes. Retourne au skill montage : c'est lui qui fabrique la vidéo, avec les coupes et les autres couches demandées (zooms, sous-titres), en un seul rendu depuis la vidéo d'origine.
 
 ### Réglages possibles (à proposer quand il a vu la vidéo)
 - **le rythme** : `compiler "<dossier>" normal` (plus aéré), `serre` (par défaut), `tres-serre` (plus nerveux) ;
