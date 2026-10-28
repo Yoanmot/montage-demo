@@ -59,8 +59,19 @@ function Browser {
   Fail 9 "NAVIGATEUR_INTROUVABLE : ni Edge ni Chrome sur cet ordinateur."
 }
 
+# Le navigateur photographie une fenêtre plus haute que la slide, puis on recadre à la bonne hauteur :
+# sans cette marge, il lui arrive de rendre une page plus courte que la fenêtre (bande noire en bas).
 function Shoot($browser, $html, $png, $hauteur) {
-  $profil = Join-Path $HomeDir "navigateur-carrousel"
+  $brut = $png + ".brut.png"
+  if (-not (Shoot-Brut $browser $html $brut ($hauteur + 200))) { return $false }
+  $ffmpeg = Tool "ffmpeg"
+  & $ffmpeg -nostdin -v error -y -i $brut -vf "crop=1080:${hauteur}:0:0" $png
+  [IO.File]::Delete($brut)
+  return (Exists $png)
+}
+
+function Shoot-Brut($browser, $html, $png, $hauteur) {
+  $profil = $script:Profil
   $url = ([Uri]$html).AbsoluteUri
   if ($html.StartsWith("/")) { $url = ([Uri]("file://" + $html)).AbsoluteUri }   # tests sur Mac
   $a = @("--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
@@ -70,13 +81,30 @@ function Shoot($browser, $html, $png, $hauteur) {
   for ($essai = 1; $essai -le 2; $essai++) {
     if (Exists $png) { [IO.File]::Delete($png) }
     $opt = @{}; if ($env:OS -eq "Windows_NT") { $opt.WindowStyle = "Hidden" }
-    $log = Join-Path $HomeDir "navigateur-carrousel.log"
+    $log = $script:Profil + ".log"
     $p = Start-Process -FilePath $browser -ArgumentList $argLine -PassThru -RedirectStandardError $log @opt
     if (-not $p.WaitForExit(60000)) { try { $p.Kill() } catch {} }
     for ($i = 0; $i -lt 20 -and -not (Exists $png); $i++) { Start-Sleep -Milliseconds 250 }
     if (Exists $png) { return $true }
   }
   return $false
+}
+
+# Copie une photo dans le dossier de rendu, en JPEG si elle vient d'un iPhone (HEIC). Rend son nom dans ce dossier.
+function Photo($src, $nom, $i) {
+  if (-not [IO.Path]::IsPathRooted($src)) { $src = [IO.Path]::Combine($dossier, $src) }
+  if (-not (Exists $src)) { Fail 2 "PHOTO_INTROUVABLE (slide $i) : $src" }
+  $ext = [IO.Path]::GetExtension($src).ToLower()
+  if (@(".heic", ".heif") -contains $ext) {
+    $dst = [IO.Path]::Combine($w, "$nom.jpg")
+    $ffmpeg = Tool "ffmpeg"
+    & $ffmpeg -nostdin -v error -y -i $src -frames:v 1 -q:v 2 $dst
+    if ($LASTEXITCODE -ne 0 -or -not (Exists $dst)) { Fail 11 "PHOTO_ILLISIBLE (slide $i) : $src. Demande la photo en JPEG." }
+  } elseif (@(".jpg", ".jpeg", ".png", ".webp") -contains $ext) {
+    $dst = [IO.Path]::Combine($w, "$nom$ext")
+    [IO.File]::Copy($src, $dst, $true)
+  } else { Fail 11 "PHOTO_ILLISIBLE (slide $i) : format $ext non pris en charge. Demande une photo JPEG, PNG ou HEIC." }
+  return [IO.Path]::GetFileName($dst)
 }
 
 function Cmd-Rendre($dossier, $seule) {
@@ -97,8 +125,11 @@ function Cmd-Rendre($dossier, $seule) {
   [IO.Directory]::CreateDirectory($w) | Out-Null
   foreach ($f in Get-ChildItem -Path (Join-Path $Assets "fonts") -Filter "*.ttf") { [IO.File]::Copy($f.FullName, [IO.Path]::Combine($w, $f.Name), $true) }
   [IO.File]::Copy((Join-Path $Assets "logo.png"), [IO.Path]::Combine($w, "logo.png"), $true)
+  [IO.File]::Copy((Join-Path $Assets "avatar.jpg"), [IO.Path]::Combine($w, "avatar.jpg"), $true)   # sa photo de profil, pour le style tweet
   $gabarit = ReadText (Join-Path $Assets "slide.html")
   $browser = Browser
+  # Un profil de navigateur par rendu : deux carrousels rendus en même temps ne se bloquent pas
+  $script:Profil = Join-Path $HomeDir ("navigateur-carrousel-" + $PID)
 
   $a = 1; $b = $total
   if ($seule) {
@@ -118,24 +149,12 @@ function Cmd-Rendre($dossier, $seule) {
     $d.numero = $i; $d.total = $total
     if (-not $d.Contains("pied")) { $d.pied = $pied }
     if (-not $d.Contains("style")) { $d.style = $style }
+    # Style tweet : photo de profil, nom et @ communs à tout le carrousel
+    foreach ($k in "avatar", "nom", "pseudo") { if (-not $d.Contains($k) -and $c.$k) { $d[$k] = $c.$k } }
     $d.hauteur = $hauteur
 
-    if ($s.photo) {
-      $src = [string]$s.photo
-      if (-not [IO.Path]::IsPathRooted($src)) { $src = [IO.Path]::Combine($dossier, $src) }
-      if (-not (Exists $src)) { Fail 2 "PHOTO_INTROUVABLE (slide $i) : $src" }
-      $ext = [IO.Path]::GetExtension($src).ToLower()
-      if (@(".heic", ".heif") -contains $ext) {
-        $dst = [IO.Path]::Combine($w, "photo-$nn.jpg")
-        $ffmpeg = Tool "ffmpeg"
-        & $ffmpeg -nostdin -v error -y -i $src -frames:v 1 -q:v 2 $dst
-        if ($LASTEXITCODE -ne 0 -or -not (Exists $dst)) { Fail 11 "PHOTO_ILLISIBLE (slide $i) : $src. Demande la photo en JPEG." }
-      } elseif (@(".jpg", ".jpeg", ".png", ".webp") -contains $ext) {
-        $dst = [IO.Path]::Combine($w, "photo-$nn$ext")
-        [IO.File]::Copy($src, $dst, $true)
-      } else { Fail 11 "PHOTO_ILLISIBLE (slide $i) : format $ext non pris en charge. Demande une photo JPEG, PNG ou HEIC." }
-      $d.photo = [IO.Path]::GetFileName($dst)
-    }
+    if ($s.photo) { $d.photo = Photo ([string]$s.photo) "photo-$nn" $i }
+    if ($d.avatar) { $d.avatar = Photo ([string]$d.avatar) "avatar-$nn" $i }
 
     $html = [IO.Path]::Combine($w, "slide-$nn.html")
     WriteText $html ($gabarit.Replace("/*SLIDE*/", "window.SLIDE = " + ($d | ConvertTo-Json -Depth 5 -Compress) + ";"))
@@ -150,6 +169,7 @@ function Cmd-Rendre($dossier, $seule) {
   $planche = [IO.Path]::Combine($dossier, "planche.jpg")
   & $ffmpeg -nostdin -v error -y -framerate 1 -i ([IO.Path]::Combine($dossier, "slide-%02d.png")) -vf "scale=324:-2,tile=${cols}x${rows}:padding=12:color=0x444444" -frames:v 1 -q:v 3 $planche
 
+  try { Remove-Item -Recurse -Force -LiteralPath $script:Profil, ($script:Profil + ".log") -ErrorAction SilentlyContinue } catch { }
   Say "PRÊT dossier=$dossier slides=$total planche=$planche"
   if ($env:OS -eq "Windows_NT") { Invoke-Item $dossier }
 }

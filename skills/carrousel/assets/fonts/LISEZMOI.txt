@@ -2,3 +2,4 @@ FAR-Titres-Italic.ttf : version modifiée de Raleway Italic (variable), sous lic
 Seule modification : les chiffres 0-9 pointent vers les chiffres alignés (.lf) au lieu des chiffres bas de casse.
 Renommée comme l'exige le « Reserved Font Name » de la licence.
 Manrope.ttf : Manrope variable, non modifiée, SIL OFL 1.1 (voir OFL-Manrope.txt).
+Inter.ttf : Inter variable, non modifiée, SIL OFL 1.1 (voir OFL-Inter.txt). Sert au style tweet : la police de X (Chirp) n'est pas libre, Inter est la plus proche.

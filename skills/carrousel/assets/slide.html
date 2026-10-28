@@ -3,22 +3,36 @@
 <head>
 <meta charset="utf-8">
 <!-- Gabarit d'une slide de carrousel @fitavecromain (1080 x 1350, ou 1080 x 1440 en 3:4).
-     La DA vient de fitavecromain.com : fonds #111 / #222 avec diagonale, orange #F15A24,
+     La DA vient de fitavecromain.com : fond #111, orange #F15A24,
      titres Raleway Black italique en capitales (FAR Titres : Raleway aux chiffres alignés, voir fonts/LISEZMOI.txt), textes Manrope.
-     Deux styles : « affiche » (gros titres, fond en diagonale, logo et numéro en pied)
-     et « texte » (fond noir uni, petit intertitre, texte lu comme un post, flèche orange vers la slide suivante).
+     Styles :
+       « affiche »    titres en capitales, fond noir ou photo, logo et numéro en pied ;
+       « texte »      fond noir uni, petit intertitre, texte lu comme un post, flèche orange vers la slide suivante ;
+       « tweet »      la copie d'une capture de X (proportions de l'appli iPhone), sur fond noir ou en carte posée sur une photo ;
+       « etiquettes » photo plein cadre, texte dans des étiquettes (le style de ses carrousels « courses ») ;
+       « sombre »     photo assombrie, titre, texte lisible par-dessus, liste en cartes, phrase de chute en bas ;
+       « libre »      la mise en page écrite par Claude en HTML (pour reprendre une inspiration à l'identique), avec ses polices et couleurs.
+     Les lignes sont coupées ici, pas par le navigateur : lignes équilibrées, jamais un mot seul sur une ligne,
+     jamais une ligne qui finit par « à », « de », « et »… ni par le premier mot de la phrase suivante.
      carrousel.ps1 remplace la ligne /*SLIDE*/ par les données de la slide. -->
 <style>
 @font-face { font-family: "FAR Titres"; src: url("FAR-Titres-Italic.ttf"); font-weight: 100 900; font-style: italic; }
 @font-face { font-family: "Manrope"; src: url("Manrope.ttf"); font-weight: 200 800; font-style: normal; }
+@font-face { font-family: "Inter"; src: url("Inter.ttf"); font-weight: 100 900; font-style: normal; }
 
 :root {
   --orange: #F15A24;
   --clair: #F3F3F3;
   --noir: #111111;
   --gris: #222222;
-  --marge: 88px;
+  --marge: 96px;
   --h: 1350px;
+  /* Couleurs de X en mode sombre */
+  --x-fond: #000000;
+  --x-texte: #E7E9EA;
+  --x-gris: #71767B;
+  --x-trait: #2F3336;
+  --x-bleu: #1D9BF0;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 1080px; height: var(--h); overflow: hidden; background: var(--noir); }
@@ -26,7 +40,7 @@ body { position: relative; font-family: "Manrope", sans-serif; color: var(--clai
 
 /* Fonds */
 .fond { position: absolute; inset: 0; }
-.fond-noir { background: linear-gradient(290deg, var(--gris) 56%, var(--noir) 56%); }
+.fond-noir { background: var(--noir); }
 .fond-photo img, .bloc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .voile { position: absolute; inset: 0; }
 .bloc-photo { position: absolute; left: 0; top: 0; width: 100%; height: 60%;
@@ -34,7 +48,7 @@ body { position: relative; font-family: "Manrope", sans-serif; color: var(--clai
 .fond-photo-haut { background: var(--noir); }
 
 /* Zone de texte */
-.zone { position: absolute; left: var(--marge); right: var(--marge); top: 110px; bottom: 150px;
+.zone { position: absolute; left: var(--marge); right: var(--marge); top: 120px; bottom: 160px;
   display: flex; flex-direction: column; }
 .zone.haut { justify-content: flex-start; }
 .zone.centre { justify-content: center; }
@@ -42,38 +56,109 @@ body { position: relative; font-family: "Manrope", sans-serif; color: var(--clai
 .zone.aligne-centre { text-align: center; }
 .zone.aligne-centre .barre, .zone.aligne-centre .logo-grand { margin-left: auto; margin-right: auto; }
 
-.barre { width: 96px; height: 16px; background: var(--orange); transform: skewX(-14deg); margin-bottom: 36px; flex: none; }
-.surtitre { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-  color: var(--orange); font-size: 34px; line-height: 1.3; margin-bottom: 22px; }
+/* Les blocs mis en lignes par compose() : le navigateur ne recoupe pas derrière */
+.compo { white-space: nowrap; }
+
+.barre { width: 72px; height: 11px; background: var(--orange); transform: skewX(-14deg); margin-bottom: 30px; flex: none; }
+.surtitre { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--orange); font-size: 26px; line-height: 1.3; margin-bottom: 18px; }
 .titre { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 900; text-transform: uppercase;
-  line-height: 1.04; color: var(--clair); overflow-wrap: normal; text-wrap: balance; }
-/* Un mot trop long déborde au lieu d'être coupé : l'ajustement réduit alors la taille */
-.texte { font-weight: 400; line-height: 1.42; color: var(--clair); margin-top: 34px; text-wrap: pretty; }
-.texte p + p { margin-top: 0.7em; }
-.titre + .texte { margin-top: 38px; }
+  line-height: 1.06; color: var(--clair); }
+.texte { font-weight: 400; line-height: 1.45; color: var(--clair); margin-top: 30px; }
+.texte p + p { margin-top: 0.75em; }
+.titre-blocs > div + div { margin-top: 0.55em; }
+.titre + .texte { margin-top: 32px; }
 .surtitre + .texte, .barre + .texte { margin-top: 0; }
 em { font-style: inherit; color: var(--orange); }
 strong { font-weight: 700; }
 
 /* Pied : logo + numéro */
-.pied { position: absolute; left: var(--marge); right: var(--marge); bottom: 64px; height: 44px;
+.pied { position: absolute; left: var(--marge); right: var(--marge); bottom: 64px; height: 38px;
   display: flex; align-items: center; justify-content: space-between; }
-.pied img { height: 44px; display: block; }
-.num { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 900; font-size: 28px; letter-spacing: 1px; }
+.pied img { height: 38px; display: block; }
+.num { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 900; font-size: 24px; letter-spacing: 1px; }
 .num b { color: var(--orange); font-weight: 900; }
 
-/* Style « texte » */
+/* Sur une photo claire, le logo et le numéro restent lisibles */
+.sur-photo .pied img, .sur-photo .signature { filter: drop-shadow(0 1px 6px rgba(0,0,0,.55)); }
+.sur-photo .num { text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+
+/* Style « texte » : texte plus petit, plus d'air sur les côtés */
+.style-texte { --marge: 132px; }
 .style-texte .fond-noir { background: var(--noir); }
-.style-texte .zone { bottom: 190px; }
-.style-texte .titre { line-height: 1.12; }
-.style-texte .texte { line-height: 1.34; }
-.style-texte .texte p + p { margin-top: 1em; }
-.style-texte .titre + .texte { margin-top: 0.9em; }
-.fleche { position: absolute; right: var(--marge); bottom: 84px; width: 300px; height: 36px; }
-.signature { position: absolute; right: var(--marge); bottom: 76px; height: 48px; }
+.style-texte .zone { bottom: 200px; }
+.style-texte .titre { line-height: 1.14; }
+.style-texte .texte { line-height: 1.42; color: rgba(243,243,243,.74); }
+.style-texte .texte strong, .style-sombre .texte strong { color: #FFFFFF; font-weight: 700; }
+.style-texte .texte p + p { margin-top: 0.95em; }
+.style-texte .titre + .texte { margin-top: 0.85em; }
+.fleche { position: absolute; right: var(--marge); bottom: 86px; width: 240px; height: 30px; }
+.signature { position: absolute; right: var(--marge); bottom: 78px; height: 42px; }
+
+/* Soulignement orange (__mot__) : deux traits à main levée, dessinés sous chaque ligne après la mise en page */
+u { text-decoration: none; }
+.trait { position: absolute; pointer-events: none; overflow: visible; }
+
+/* Liste en cartes : verre dépoli, numéro orange, titre et petite ligne dessous */
+.liste { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1.2em; text-align: left; }
+.carte { display: flex; align-items: baseline; gap: 0.85em; padding: 0.8em 1.05em; border-radius: 0.55em;
+  background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); color: var(--clair); }
+.carte i { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 900; color: var(--orange);
+  font-size: 0.82em; letter-spacing: 0.04em; flex: none; }
+.carte div { min-width: 0; }
+.carte b { display: block; font-weight: 700; line-height: 1.25; }
+.carte span { display: block; font-size: 0.8em; line-height: 1.35; color: rgba(243,243,243,.62); margin-top: 0.2em; }
+
+/* Style « tweet » : proportions d'une capture de l'appli X (texte 17, nom et @ 15, photo 40, pastille 18,75) */
+.style-tweet { --marge: 72px; }
+.style-tweet .fond-noir { background: var(--x-fond); }
+.tweet { width: 100%; font-family: "Inter", sans-serif; color: var(--x-texte); }
+.tw-tete { display: flex; align-items: center; gap: 0.7em; margin-bottom: 0.72em; }
+.tw-avatar { width: 2.35em; height: 2.35em; border-radius: 50%; object-fit: cover; background: #333; flex: none; }
+.tw-noms { min-width: 0; font-size: 0.88em; line-height: 1.33; }
+.tw-nom { display: flex; align-items: center; gap: 0.13em; font-weight: 700; color: var(--x-texte); letter-spacing: -0.005em; }
+.tw-badge { width: 1.25em; height: 1.25em; flex: none; }
+.tw-pseudo { color: var(--x-gris); font-weight: 400; }
+.tw-texte { font-weight: 400; line-height: 1.41; letter-spacing: -0.003em; }
+.tw-texte p + p { margin-top: 1.41em; }
+.tw-carte { background: var(--x-fond); border: 4px solid var(--orange); border-radius: 1.5em; padding: 1.05em 1.1em;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+
+/* Style « etiquettes » */
+.eti { text-align: center; }
+.eti.gauche { text-align: left; }
+.eti-bloc { line-height: 1.5; }
+.eti-bloc + .eti-bloc { margin-top: 0.55em; }
+.eti-bloc span { background: #FFFFFF; color: var(--noir); padding: 0.08em 0.4em; border-radius: 0.16em;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* Sa DA : le titre en étiquette orange, en capitales italiques comme son site */
+.eti-titre { line-height: 1.4; }
+.eti-titre span { background: var(--orange); color: #FFFFFF; font-family: "FAR Titres", sans-serif; font-style: italic;
+  font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; padding: 0.06em 0.36em 0.02em; }
+.eti-titre em { color: var(--noir); }
+.eti-texte span { font-weight: 700; }
+
+/* Style « sombre » : minimaliste, centré, beaucoup d'air */
+.style-sombre { --marge: 104px; }
+.style-sombre .zone { text-align: center; }
+.style-sombre .titre { line-height: 1.0; letter-spacing: 0.005em; }
+.style-sombre .texte { font-weight: 300; line-height: 1.5; margin-top: 1.3em; color: rgba(243,243,243,.8); }
+.style-sombre .texte p + p { margin-top: 0.8em; }
+.style-sombre .liste { margin-left: auto; margin-right: auto; width: 100%; }
+.bandeau { text-align: center; margin-top: 0.4em; }
+.bandeau span { background: var(--orange); color: var(--noir); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0.04em 0.36em; line-height: 1.35; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.chute { padding-top: 1.3em; font-weight: 700; line-height: 1.4; }
+.chute p + p { margin-top: 0.4em; }
+
+/* Style « libre » : la page entière est écrite par Claude (classes et variables ci-dessus disponibles) */
+.libre { position: absolute; inset: 0; }
+.libre .t { font-family: "FAR Titres", sans-serif; font-style: italic; font-weight: 900; text-transform: uppercase; }
+.libre .o { color: var(--orange); }
 
 /* Logo en grand (slide de couverture) */
-.logo-grand { width: 340px; margin-bottom: 44px; flex: none; }
+.logo-grand { width: 300px; margin-bottom: 40px; flex: none; }
 </style>
 </head>
 <body>
@@ -83,97 +168,287 @@ strong { font-weight: 700; }
 <script>
 (function () {
   var s = window.SLIDE || {};
-  var fond = s.fond || "noir";
-  var aPhoto = fond !== "noir" && s.photo;
-  if (!aPhoto) fond = "noir";
-  var position = s.position || (fond === "photo" ? "bas" : fond === "photo-haut" ? "bas" : "centre");
-  var taille = s.taille || 1;
+  var style = s.style || "affiche";
   var H = s.hauteur || 1350;
-  var styleTexte = s.style === "texte";
+  var taille = s.taille || 1;
+  // Fond : en affiche et texte, il est choisi slide par slide ; dans les autres styles, la photo fait le fond
+  var fond = s.fond || "noir";
+  if (style === "tweet" || style === "etiquettes" || style === "sombre") fond = s.photo ? "photo" : "noir";
+  if (fond !== "noir" && !s.photo) fond = "noir";
+  if (style === "libre") fond = "noir";   // en libre, la photo et son voile font partie du HTML écrit par Claude
+  var surPhoto = fond === "photo";
+  var position = s.position || (style === "tweet" ? (surPhoto ? "bas" : "centre") : style === "sombre" ? "centre"
+    : fond === "photo" || fond === "photo-haut" ? "bas" : "centre");
   document.documentElement.style.setProperty("--h", H + "px");
-  if (styleTexte) document.body.className = "style-texte";
+  document.body.className = "style-" + style + (surPhoto ? " sur-photo" : "");
 
-  function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-  // *mot* = orange, **mot** = gras. Le texte reste celui écrit, au caractère près.
+  function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  // *mot* = orange, **mot** = gras, __mot__ = souligné orange. Le texte reste celui écrit, au caractère près.
   function marque(t) {
-    return esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return esc(t).replace(/__([^_]+)__/g, "<u>$1</u>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
   }
   function lignes(t) { return marque(t).replace(/\n/g, "<br>"); }
-  function paragraphes(t) {
-    return String(t).split(/\n\s*\n/).map(function (p) { return "<p>" + lignes(p.trim()) + "</p>"; }).join("");
+  function blocs(t) { return String(t).split(/\n\s*\n/).map(function (p) { return p.trim(); }).filter(Boolean); }
+  // Un bloc composé garde son texte d'origine : compose() le coupe en lignes à chaque changement de taille
+  function compo(tag, cls, t) { return "<" + tag + ' class="compo' + (cls ? " " + cls : "") + '" data-src="' + esc(t) + '">' + lignes(t) + "</" + tag + ">"; }
+  function paragraphes(t, composer) {
+    return blocs(t).map(function (p) { return composer === false ? "<p>" + lignes(p) + "</p>" : compo("p", "", p); }).join("");
+  }
+  function liste(l) {
+    return '<div class="liste">' + l.map(function (c, i) {
+      var t = typeof c === "string" ? { titre: c } : c;
+      return '<div class="carte"><i>' + (i < 9 ? "0" : "") + (i + 1) + '</i><div><b>' + lignes(t.titre || "") + '</b>' +
+        (t.texte ? '<span>' + lignes(t.texte) + '</span>' : '') + '</div></div>';
+    }).join("") + '</div>';
   }
 
+  // --- Fond ---
   var h = "";
   if (fond === "noir") h += '<div class="fond fond-noir"></div>';
   if (fond === "photo") {
     h += '<div class="fond fond-photo"><img src="' + s.photo + '" style="object-position:' + (s.cadrage || "50% 50%") + '"></div>';
-    // Voile côté texte pour la lisibilité, la photo reste visible ailleurs
-    var v = position === "haut"
-      ? "linear-gradient(180deg, rgba(17,17,17,.92) 0%, rgba(17,17,17,.6) 38%, rgba(17,17,17,0) 68%)"
-      : position === "centre"
-      ? "rgba(17,17,17,.55)"
-      : "linear-gradient(0deg, rgba(17,17,17,.95) 0%, rgba(17,17,17,.7) 34%, rgba(17,17,17,0) 64%)";
-    h += '<div class="voile" style="background:' + v + '"></div>';
+    var v = null;
+    if (style === "sombre") {
+      // Photo assombrie partout, un peu plus en bas où se lit la chute
+      var k = s.voile != null ? s.voile : 0.7;
+      v = "linear-gradient(180deg, rgba(17,17,17," + (k - 0.08) + ") 0%, rgba(17,17,17," + k + ") 45%, rgba(17,17,17," + Math.min(k + 0.24, 0.97) + ") 100%)";
+    } else if (style === "etiquettes" || style === "tweet") {
+      if (s.voile) v = "rgba(17,17,17," + s.voile + ")";   // les étiquettes et la carte se lisent seules
+    } else {
+      // Voile côté texte pour la lisibilité, la photo reste visible ailleurs
+      v = position === "haut"
+        ? "linear-gradient(180deg, rgba(17,17,17,.92) 0%, rgba(17,17,17,.6) 38%, rgba(17,17,17,0) 68%)"
+        : position === "centre"
+        ? "rgba(17,17,17,.55)"
+        : "linear-gradient(0deg, rgba(17,17,17,.95) 0%, rgba(17,17,17,.7) 34%, rgba(17,17,17,0) 64%)";
+    }
+    if (v) h += '<div class="voile" style="background:' + v + '"></div>';
   }
   if (fond === "photo-haut") {
     h += '<div class="fond fond-photo-haut"></div>';
     h += '<div class="bloc-photo"><img src="' + s.photo + '" style="object-position:' + (s.cadrage || "50% 30%") + '"></div>';
   }
 
+  // --- Contenu ---
   var zoneStyle = fond === "photo-haut" ? ' style="top:' + Math.round(H * 0.6) + 'px"' : "";
-  var cls = "zone " + (fond === "photo-haut" ? "haut" : position) + (s.aligne === "centre" ? " aligne-centre" : "");
+  // Affiche sur fond noir : composition centrée, sinon un titre court laisse tout le poids à gauche
+  var centre = s.aligne === "centre" || (style === "affiche" && fond === "noir" && s.aligne !== "gauche");
+  var cls = "zone " + (fond === "photo-haut" ? "haut" : position) + (centre ? " aligne-centre" : "");
   h += '<div class="' + cls + '"' + zoneStyle + '>';
-  if (s.logo) h += '<img class="logo-grand" src="logo.png">';
-  if (s.titre && !s.surtitre && !s.logo && !styleTexte && fond !== "photo-haut") h += '<div class="barre"></div>';
-  if (s.surtitre) h += '<div class="surtitre">' + lignes(s.surtitre) + '</div>';
-  if (s.titre) h += '<div class="titre">' + lignes(s.titre) + '</div>';
-  if (s.texte) h += '<div class="texte">' + paragraphes(s.texte) + '</div>';
+  if (style === "libre") {
+    h += '</div><div class="libre">' + String(s.html || "").split("{{photo}}").join(s.photo || "");
+  } else if (style === "tweet") {
+    var badge = s.certifie === false ? "" : '<svg class="tw-badge" viewBox="0 0 22 22" aria-hidden="true"><path fill="#1D9BF0" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.438 1.69-.882.445-.47.749-1.055.878-1.688.13-.633.08-1.29-.144-1.896.587-.274 1.087-.705 1.443-1.245.356-.54.555-1.17.574-1.817zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>';
+    var avatar = '<img class="tw-avatar" src="' + (s.avatar || "avatar.jpg") + '">';
+    // Le texte d'un tweet se coupe comme sur X : par le navigateur, pas par compose()
+    var tw = '<div class="tweet"><div class="tw-tete">' + avatar + '<div class="tw-noms"><div class="tw-nom">' + esc(s.nom || "Romain") + badge +
+      '</div><div class="tw-pseudo">' + esc(s.pseudo || "@fitavecromain") + '</div></div></div>' +
+      '<div class="tw-texte">' + paragraphes([s.titre, s.texte].filter(Boolean).join("\n\n"), false) + '</div>' +
+      (s.liste ? liste(s.liste) : "") + '</div>';
+    h += surPhoto ? '<div class="tw-carte">' + tw + '</div>' : tw;
+  } else if (style === "etiquettes") {
+    h += '<div class="eti' + (s.aligne === "gauche" ? " gauche" : "") + '">';
+    if (s.titre) h += '<div class="eti-bloc eti-titre">' + compo("span", "", s.titre) + '</div>';
+    if (s.texte) blocs(s.texte).forEach(function (p) { h += '<div class="eti-bloc eti-texte">' + compo("span", "", p) + '</div>'; });
+    h += '</div>';
+  } else {
+    if (s.logo) h += '<img class="logo-grand" src="logo.png">';
+    if (style === "affiche" && s.titre && !s.surtitre && !s.logo && fond !== "photo-haut") h += '<div class="barre"></div>';
+    if (s.surtitre) h += '<div class="surtitre">' + lignes(s.surtitre) + '</div>';
+    // Un titre en plusieurs blocs (ligne vide entre deux) : chaque bloc est composé à part, avec de l'air entre eux
+    if (s.titre) h += blocs(s.titre).length > 1
+      ? '<div class="titre titre-blocs">' + blocs(s.titre).map(function (b) { return compo("div", "", b); }).join("") + '</div>'
+      : compo("div", "titre", s.titre);
+    if (s.bandeau) h += '<div class="bandeau"><span>' + lignes(s.bandeau) + '</span></div>';
+    if (s.texte) h += '<div class="texte">' + paragraphes(s.texte) + '</div>';
+    if (s.liste) h += liste(s.liste);
+    if (s.chute) h += '<div class="chute">' + paragraphes(s.chute) + '</div>';
+  }
   h += '</div>';
 
-  if (s.pied !== false && styleTexte) {
+  // --- Pied ---
+  var fleche = style === "texte" || (style === "tweet" && !surPhoto);
+  if (s.pied !== false && style === "sombre") {
+    // Minimaliste : ni numéro ni flèche, son logo signe seulement la dernière slide
+    if (s.numero >= s.total) h += '<img class="signature" src="logo.png">';
+  } else if (s.pied !== false && fleche) {
     // Flèche vers la slide suivante ; sur la dernière, le logo signe le carrousel
-    if (s.numero < s.total) h += '<svg class="fleche" viewBox="0 0 300 36"><path d="M0 18 H290 M272 4 L292 18 L272 32" fill="none" stroke="#F15A24" stroke-width="7"/></svg>';
+    if (s.numero < s.total) h += '<svg class="fleche" viewBox="0 0 240 30"><path d="M0 15 H231 M216 4 L233 15 L216 26" fill="none" stroke="#F15A24" stroke-width="5"/></svg>';
     else h += '<img class="signature" src="logo.png">';
-  } else if (s.pied !== false) {
+  } else if (s.pied !== false && style !== "tweet" && style !== "libre") {
     h += '<div class="pied"><img src="logo.png">' +
       (s.total > 1 ? '<span class="num"><b>' + s.numero + '</b> / ' + s.total + '</span>' : '<span></span>') + '</div>';
   }
   document.body.insertAdjacentHTML("beforeend", h);
 
-  // Tailles de départ, puis on réduit jusqu'à ce que tout tienne dans la zone
+  // position : où va le bloc titre et texte (au milieu par défaut, en haut ou en bas pour dégager son visage)
   var zone = document.querySelector(".zone");
-  var titre = document.querySelector(".titre");
-  var texte = document.querySelector(".texte");
-  // Titre court = très gros ; on part grand et on réduit si ça ne tient pas
+  if (style === "sombre") {
+    var ch = zone.querySelector(".chute");
+    zone.style.justifyContent = s.position === "haut" ? "flex-start" : s.position === "bas" ? "flex-end" : "center";
+    if (ch && zone.children.length > 1) {
+      zone.style.justifyContent = "flex-start";
+      zone.children[0].style.marginTop = s.position === "haut" ? "0" : "auto";
+      ch.style.marginTop = s.position === "bas" || s.position === "haut" ? "0" : "auto";
+    }
+  }
+
+  // --- Coupure des lignes, comme un graphiste ---
+  // Largeur de ligne visée, en part de la largeur disponible : des lignes plus courtes respirent mieux
+  var mesures = { affiche: { titre: 0.94, p: 0.86 }, texte: { titre: 1, p: 1 }, etiquettes: { titre: 0.84, p: 0.78 },
+                  sombre: { titre: 0.92, p: 0.84 } };
+  // Les petits mots qui ne finissent pas une ligne (les pronoms, eux, peuvent : « Ce dont tu / n'as pas besoin »)
+  var COURTS = ("à au aux de des du la le les un une et ou en y ce ces cet cette mon ma mes ton ta tes son sa ses " +
+    "nos vos leur leurs que qui ne se pour par sur sans avec dans très plus si mais ni car").split(" ");
+  var ctx = document.createElement("canvas").getContext("2d");
+  // Les signes qui ne commencent jamais une ligne (« ? », « ! », « : », « ; », « » ») restent collés au mot d'avant, « « » au mot d'après
+  function mots(t) {
+    var m = String(t).split(/\s+/).filter(Boolean), r = [];
+    for (var i = 0; i < m.length; i++) {
+      if (r.length && /^[?!:;»%]+[*_]*$/.test(m[i].replace(/^[*_]+/, ""))) r[r.length - 1] += " " + m[i];
+      else if (r.length && /^[«]$/.test(r[r.length - 1].slice(-1))) r[r.length - 1] += " " + m[i];
+      else r.push(m[i]);
+    }
+    return r;
+  }
+  function nu(m) { return m.replace(/[*_]/g, ""); }
+  function coupe(seg, W, mesure, maj) {
+    var m = mots(seg), n = m.length;
+    if (n <= 1) return seg;
+    var w = m.map(function (x) { return mesure(maj ? nu(x).toUpperCase() : nu(x)); }), esp = mesure(" ");
+    var finPhrase = m.map(function (x) { return /[.!?…]["»”]?$/.test(nu(x)); });
+    // Après chaque mot : est-on encore dans un groupe en orange, en gras ou souligné ? On n'y coupe jamais si on peut l'éviter
+    var dedans = [], ouv = { "**": false, "*": false, "__": false };
+    m.forEach(function (x) {
+      var re = /\*\*|\*|__/g, t;
+      while ((t = re.exec(x))) ouv[t[0]] = !ouv[t[0]];
+      dedans.push(ouv["**"] || ouv["*"] || ouv["__"]);
+    });
+    var best = [0], prec = [0];
+    for (var j = 1; j <= n; j++) {
+      best[j] = Infinity;
+      for (var i = j - 1; i >= 0; i--) {
+        var lw = 0;
+        for (var q = i; q < j; q++) lw += w[q];
+        lw += esp * (j - i - 1);
+        if (lw > W && j - i > 1) break;
+        var dernier = nu(m[j - 1]).toLowerCase(), c = 0;
+        var vide = Math.max(0, W - lw) / W;
+        c += 100 * vide * vide * (j === n ? 0.55 : 1) + 22;          // lignes pleines et équilibrées, et peu de lignes
+        if (j - i === 1 && n > 2) c += 400;                          // jamais un mot seul sur une ligne
+        for (var f = i; f < j - 1; f++) if (finPhrase[f] && !finPhrase[j - 1]) { c += 50; break; }   // une phrase qui commence en fin de ligne
+        if (j < n) {
+          if (finPhrase[j - 1]) c -= 30;                             // couper après une fin de phrase
+          else if (/[,;:]$/.test(dernier)) c -= 12;                  // ou après une virgule
+          if (j - 1 > 0 && finPhrase[j - 2]) c += 120;               // jamais finir sur le premier mot de la phrase suivante
+          if (COURTS.indexOf(dernier) >= 0) c += 45;                 // ni sur « à », « de », « et »…
+          if (/['’]$/.test(dernier)) c += 300;                       // ni sur « j' », « l' »
+          if (dedans[j - 1]) c += 150;                               // ni au milieu d'un groupe mis en valeur
+        }
+        if (best[i] + c < best[j]) { best[j] = best[i] + c; prec[j] = i; }
+      }
+    }
+    var coupures = [], j2 = n;
+    while (j2 > 0) { coupures.unshift(prec[j2]); j2 = prec[j2]; }
+    coupures.push(n);
+    var out = [];
+    for (var a = 0; a < coupures.length - 1; a++) out.push(m.slice(coupures[a], coupures[a + 1]).join(" "));
+    return out.join("\n");
+  }
+  function compose(el) {
+    var src = el.getAttribute("data-src"), cs = getComputedStyle(el);
+    ctx.font = cs.fontStyle + " " + cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+    var ls = parseFloat(cs.letterSpacing) || 0;
+    function mesure(t) { return ctx.measureText(t).width + ls * t.length; }
+    var maj = cs.textTransform === "uppercase", W;
+    var cible = (mesures[style] || {})[el.classList.contains("titre") || el.parentNode.classList.contains("titre") || el.parentNode.classList.contains("eti-titre") ? "titre" : "p"] || 1;
+    if (el.tagName === "SPAN") {
+      var pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      W = (el.parentNode.clientWidth * cible - pad) * 0.97;
+    } else W = el.parentNode.clientWidth * cible * 0.97;
+    // Les retours à la ligne voulus par l'utilisateur restent ; on ne coupe que l'intérieur de chaque morceau
+    el.innerHTML = lignes(src.split("\n").map(function (seg) { return coupe(seg, W, mesure, maj); }).join("\n"));
+  }
+  var compos = document.querySelectorAll(".compo");
+  function composeTout() { for (var i = 0; i < compos.length; i++) compose(compos[i]); }
+
+  // --- Tailles de départ, puis on réduit jusqu'à ce que tout tienne dans la zone ---
+  var titre = document.querySelector(".titre, .eti-titre");
+  var corps = document.querySelectorAll(".texte, .chute, .eti-texte, .tweet, .bandeau");
+  var lst = document.querySelector(".zone > .liste");
   var n = (s.titre || "").length;
-  var tTitre = (n <= 24 ? 132 : n <= 50 ? 112 : 92) * (fond === "photo-haut" ? 0.7 : 1) * taille;
-  var tTexte = (s.titre ? 40 : 50) * taille;
-  // Style texte : l'intertitre reste petit quand il y a du texte, l'accroche seule est grande
-  if (styleTexte) { tTitre = (s.texte ? 60 : n <= 60 ? 100 : 84) * taille; tTexte = 50 * taille; }
+  var tTitre = (n <= 24 ? 100 : n <= 50 ? 84 : 72) * (fond === "photo-haut" ? 0.75 : 1) * taille;
+  var tTexte = (s.titre ? 34 : 44) * taille;
+  // Style texte : l'intertitre reste petit au-dessus d'un vrai texte ; une accroche (texte court ou absent) reste grande
+  var texteLong = s.texte && s.texte.length > 90;
+  if (style === "texte") { tTitre = (texteLong ? 46 : n <= 60 ? 84 : 72) * taille; tTexte = (texteLong ? 40 : 46) * taille; }
+  if (style === "sombre") { tTitre = (n <= 24 ? 80 : n <= 50 ? 70 : 60) * taille; tTexte = 38 * taille; }
+  if (style === "etiquettes") { tTitre = (s.texte ? 40 : 58) * taille; tTexte = 46 * taille; }
+  // Tweet : 17 pt de texte sur un écran de 390 pt, ramené à 1080 px (une vraie capture d'iPhone), un peu plus petit en carte
+  if (style === "tweet") { tTexte = (surPhoto ? 40 : 47) * taille; }
+  var mini = 26;
   function applique() {
     if (titre) titre.style.fontSize = tTitre + "px";
-    if (texte) texte.style.fontSize = tTexte + "px";
+    for (var i = 0; i < corps.length; i++) corps[i].style.fontSize = tTexte + "px";
+    if (lst) lst.style.fontSize = (tTexte * 0.86) + "px";
+    composeTout();
   }
-  // Hauteur réelle du contenu (un débordement vers le haut n'apparaît pas dans scrollHeight)
+  // Hauteur réelle du contenu (un débordement vers le haut n'apparaît pas dans scrollHeight), et lignes trop larges
   function deborde() {
     var k = zone.children;
     if (!k.length) return false;
     var haut = k[0].getBoundingClientRect().top, bas = k[k.length - 1].getBoundingClientRect().bottom;
     if (bas - haut > zone.clientHeight + 1) return true;
-    if (titre && titre.scrollWidth > titre.clientWidth + 1) return true;
+    for (var i = 0; i < compos.length; i++) {
+      var c = compos[i], large = c.tagName === "SPAN" ? c.getBoundingClientRect().width : c.scrollWidth;
+      if (large > zone.clientWidth + 1) return true;
+    }
     return false;
   }
   function ajuste() {
     applique();
-    var n = 0;
-    while (deborde() && n < 60) {
-      tTitre *= styleTexte ? 0.97 : 0.95;
-      if (!titre || tTexte > 30) tTexte *= 0.97;
-      applique(); n++;
+    var i = 0;
+    while (deborde() && i < 60) {
+      tTitre *= 0.96;
+      if (!titre || tTexte > mini) tTexte *= 0.97;
+      applique(); i++;
     }
   }
-  ajuste();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajuste);
+  // Soulignement à main levée : deux traits un peu irréguliers mais droits, effilés aux bouts, sous chaque ligne soulignée
+  function traits() {
+    var vieux = document.querySelectorAll(".trait");
+    for (var i = 0; i < vieux.length; i++) vieux[i].remove();
+    var graine = 7;
+    function hasard() { graine = (graine * 9301 + 49297) % 233280; return graine / 233280; }
+    var us = document.querySelectorAll("u");
+    for (var a = 0; a < us.length; a++) {
+      var fs = parseFloat(getComputedStyle(us[a]).fontSize), rects = us[a].getClientRects();
+      for (var b = 0; b < rects.length; b++) {
+        var rc = rects[b], ep = Math.max(5, fs * 0.13), L = rc.width + fs * 0.45, Ht = ep * 2.8;
+        var svg = '<svg class="trait" width="' + L + '" height="' + Ht + '" style="left:' + (rc.left - fs * 0.2) + 'px;top:' + (rc.bottom - fs * 0.04) + 'px">';
+        // Deux passages : le second un peu plus bas, plus fin, décalé
+        [[0.00, 0.97, 0.36, 0.28, 1], [0.03, 1.0, 0.66, 0.58, 0.8]].forEach(function (t) {
+          var x0 = t[0] * L, x1 = t[1] * L, y0 = (t[2] + (hasard() - 0.5) * 0.08) * Ht, y1 = (t[3] + (hasard() - 0.5) * 0.08) * Ht;
+          var arc = (hasard() - 0.5) * ep * 0.6, e = ep * t[4], haut = [], bas = [];
+          for (var k = 0; k <= 32; k++) {
+            var u = k / 32, x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u + arc * Math.sin(Math.PI * u);
+            var w = e / 2 * (0.35 + 0.65 * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.15 + 0.02)), 0.4));
+            haut.push(x.toFixed(1) + "," + (y - w).toFixed(1)); bas.unshift(x.toFixed(1) + "," + (y + w).toFixed(1));
+          }
+          svg += '<path d="M' + haut.join(" L") + " L" + bas.join(" L") + 'Z" fill="#F15A24"/>';
+        });
+        document.body.insertAdjacentHTML("beforeend", svg + "</svg>");
+      }
+    }
+  }
+  if (style === "libre") {
+    composeTout(); traits();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { composeTout(); traits(); });
+    return;
+  }
+  ajuste(); traits();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { ajuste(); traits(); });
 })();
 </script>
 </body>
