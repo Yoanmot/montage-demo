@@ -381,12 +381,15 @@ u { text-decoration: none; }
   var tTitre = (n <= 24 ? 100 : n <= 50 ? 84 : 72) * (fond === "photo-haut" ? 0.75 : 1) * taille;
   var tTexte = (s.titre ? 34 : 44) * taille;
   // Style texte : l'intertitre reste petit au-dessus d'un vrai texte ; une accroche (texte court ou absent) reste grande
-  var texteLong = s.texte && s.texte.length > 90;
+  // Une accroche = une phrase de chute courte sous un grand titre ; au-delà, c'est un vrai texte sous un intertitre
+  var texteLong = s.texte && s.texte.length > 45;
   if (style === "texte") { tTitre = (texteLong ? 46 : n <= 60 ? 84 : 72) * taille; tTexte = (texteLong ? 40 : 46) * taille; }
   if (style === "sombre") { tTitre = (n <= 24 ? 80 : n <= 50 ? 70 : 60) * taille; tTexte = 38 * taille; }
   if (style === "etiquettes") { tTitre = (s.texte ? 40 : 58) * taille; tTexte = 46 * taille; }
   // Tweet : 17 pt de texte sur un écran de 390 pt, ramené à 1080 px (une vraie capture d'iPhone), un peu plus petit en carte
   if (style === "tweet") { tTexte = (surPhoto ? 40 : 47) * taille; }
+  // taille-titre : ne change que le titre (taille change tout le texte de la slide)
+  if (s["taille-titre"]) tTitre *= s["taille-titre"];
   var mini = 26;
   function applique() {
     if (titre) titre.style.fontSize = tTitre + "px";

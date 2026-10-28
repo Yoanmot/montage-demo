@@ -100,6 +100,7 @@ Pour chaque slide :
 - `aligne: "centre"` (facultatif) : texte centré au lieu d'aligné à gauche.
 - `voile` (facultatif, photo assombrie, tweet et étiquettes) : à quel point la photo est assombrie, de `0` à `0.9`. En photo assombrie `0.7` par défaut (`0.55` = photo plus visible, `0.8` = texte plus lisible) ; en tweet et étiquettes, pas de voile par défaut.
 - `taille` (facultatif) : `1` par défaut, `1.15` = 15 % plus gros, `0.9` = plus petit. Le texte se réduit tout seul s'il ne tient pas.
+- `taille-titre` (facultatif) : comme `taille`, mais seulement pour le titre (`0.85` = titre 15 % plus petit, le texte ne bouge pas).
 - `pied` : son logo en petit et le numéro (« 2 / 7 ») sont en bas de chaque slide. `"pied": false` sur une slide les retire, et en tête du fichier (`{ "pied": false, "slides": [...] }`) sur toutes.
 
 #### Le style libre (inspiration)
