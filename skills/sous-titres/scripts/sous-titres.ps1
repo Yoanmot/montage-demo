@@ -4,8 +4,10 @@
 # la vidéo, elle, n'est fabriquée que par le skill montage, en un seul rendu depuis l'original.
 #
 #   sous-titres.ps1 texte <dossier>      écrit texte-numerote.md : le texte, chaque mot précédé de son numéro
-#   sous-titres.ps1 preparer <dossier>   applique sous-titres.json (corrections, mots masqués, taille, position)
-#                                        et écrit sous-titres.ass dans le dossier
+#   sous-titres.ps1 preparer <dossier>   applique sous-titres.json (corrections, mots masqués, taille, position,
+#                                        titres à l'écran) et écrit sous-titres.ass dans le dossier
+#                                        (style choisi par Romain : pavé orange qui glisse, titres en carte noire,
+#                                        *mot* = mot-clé du titre en orange)
 #
 # Codes de sortie : 0 ok · 2 fichier introuvable · 3 code manquant · 5 erreur serveur · 6 réseau
 #                   7 outil vidéo impossible à installer · 13 sous-titres.json illisible
@@ -121,8 +123,8 @@ function Cmd-Preparer($w) {
   if (Exists $rp) {
     try { $reglages = ReadText $rp | ConvertFrom-Json } catch { Fail 13 ("SOUS-TITRES_ILLISIBLE : " + $_.Exception.Message) }
   }
-  $texte = @{}; $masque = @{}
-  $taille = 1.0; $position = 0.75
+  $texte = @{}; $masque = @{}; $titres = @()
+  $taille = 1.0; $position = 0.70
   if ($reglages) {
     if ($reglages.corrections) {
       foreach ($p in $reglages.corrections.PSObject.Properties) {
@@ -134,6 +136,25 @@ function Cmd-Preparer($w) {
     foreach ($r in @($reglages.masquer | Where-Object { $_ })) {
       $a = [int]$r[0]; $b = [int]$r[-1]
       for ($k = $a; $k -le $b; $k++) { $masque[$k] = $true }
+    }
+    $n = 0
+    foreach ($t in @($reglages.titres | Where-Object { $_ })) {
+      $n++
+      $a = [int]$t.debut
+      if ($a -lt 0 -or $a -ge $words.Count) { Fail 13 "SOUS-TITRES_ILLISIBLE : titre n°$n, mot n°$a inexistant (0 à $($words.Count - 1))." }
+      # Sans fin : jusqu'au bout de la phrase où il commence
+      $b = $a
+      if ($null -ne $t.fin) { $b = [int]$t.fin } else { while ($b -lt $words.Count - 1 -and ([string]$words[$b].text).Trim() -notmatch "[.!?…]$") { $b++ } }
+      if ($b -lt $a -or $b -ge $words.Count) { Fail 13 "SOUS-TITRES_ILLISIBLE : titre n°$n, mots $a à $b invalides (début avant fin)." }
+      $txt = (([string]$t.texte) -replace "[{}\\]", "" -replace "'", "’" -replace "\s+", " ").Trim()
+      if (-not ($txt -replace "\*", "").Trim()) { Fail 13 "SOUS-TITRES_ILLISIBLE : titre n°$n sans texte." }
+      if (([regex]::Matches($txt, "\*")).Count % 2) { Fail 13 "SOUS-TITRES_ILLISIBLE : titre n°$n, mot-clé mal entouré d'étoiles (*mot*)." }
+      $d = [double]$words[$a].start; $f = [Math]::Max([double]$words[$b].end, $d + 2.0)   # au moins 2 s à l'écran
+      $titres += [pscustomobject]@{ n = $n; debut = $d; fin = $f; texte = $txt }
+    }
+    $titres = @($titres | Sort-Object debut)
+    for ($i = 1; $i -lt $titres.Count; $i++) {
+      if ($titres[$i].debut -lt $titres[$i - 1].fin) { $titres[$i - 1].fin = $titres[$i].debut }   # un titre s'efface quand le suivant arrive
     }
     if ($reglages.taille) { $taille = [double]$reglages.taille }
     if ($reglages.position) { $position = [double]$reglages.position }
@@ -149,7 +170,8 @@ function Cmd-Preparer($w) {
 
   # (les variables PowerShell ignorent la casse : $W écraserait le dossier $w)
   $Larg, $Haut = Display-Size $info.video
-  $body = @{ words = $liste; largeur = $Larg; hauteur = $Haut; taille = $taille; position = $position }
+  $envoi = @($titres | ForEach-Object { @{ debut = $_.debut; fin = $_.fin; texte = $_.texte } })
+  $body = @{ words = $liste; largeur = $Larg; hauteur = $Haut; taille = $taille; position = $position; titres = $envoi }
   $tmp = [IO.Path]::Combine($w, "requete-sous-titres.json")
   WriteText $tmp ($body | ConvertTo-Json -Depth 5 -Compress)
   Say "Fabrication des sous-titres…"
@@ -157,8 +179,10 @@ function Cmd-Preparer($w) {
   [IO.File]::Delete($tmp)
   if ($r.Status -ne 200) { Fail 5 ("ERREUR : " + (Err $r)) }
   $j = Json $r.Body
-  WriteText ([IO.Path]::Combine($w, "sous-titres.ass")) $j.ass
-  Say "PRÊT sous-titres=$([IO.Path]::Combine($w, 'sous-titres.ass')) mots=$($liste.Count) masqués=$($masque.Count) corrigés=$($texte.Count) image=${Larg}x${Haut}"
+  $ass = [string]$j.ass
+  WriteText ([IO.Path]::Combine($w, "sous-titres.ass")) $ass
+  Say "PRÊT sous-titres=$([IO.Path]::Combine($w, 'sous-titres.ass')) mots=$($liste.Count) masqués=$($masque.Count) corrigés=$($texte.Count) titres=$($titres.Count) image=${Larg}x${Haut}"
+  foreach ($t in $titres) { Say ("  titre n°{0} de {1}s à {2}s : « {3} »" -f $t.n, ([Math]::Round($t.debut, 1)), ([Math]::Round($t.fin, 1)), $t.texte) }
 }
 
 switch ($Commande) {

@@ -3,9 +3,10 @@
 # préparées à l'avance par les briques dans <nom>-montage\ :
 #   coupes       filtre.txt       (skill couper-silences)
 #   zooms        zooms.txt        (skill zooms)
-#   sous-titres  sous-titres.ass  (skill sous-titres), posés après les zooms pour ne pas être zoomés avec l'image
+#   b-roll       b-roll.txt       (skill b-roll), posés après les zooms : un B-roll n'est pas zoomé
+#   sous-titres  sous-titres.ass  (skill sous-titres), posés en dernier : ni zoomés, ni cachés par un B-roll
 #
-#   montage.ps1 rendre <dossier> <couches>   ex. : rendre "C:\...\IMG_2180-montage" coupes,zooms,sous-titres
+#   montage.ps1 rendre <dossier> <couches>   ex. : rendre "C:\...\IMG_2180-montage" coupes,zooms,b-roll,sous-titres
 #
 # Codes de sortie : 0 ok · 2 couche ou fichier manquant · 5 rendu raté · 7 outil vidéo impossible à installer
 param([string]$Commande, [string]$Arg1, [string]$Arg2)
@@ -63,7 +64,7 @@ function FFmpeg($besoinAss) {
 }
 
 function Cmd-Rendre($w, $couches) {
-  if (-not $w -or -not $couches) { Fail 2 "Usage : montage.ps1 rendre <dossier> <couches> (ex. coupes,zooms,sous-titres)" }
+  if (-not $w -or -not $couches) { Fail 2 "Usage : montage.ps1 rendre <dossier> <couches> (ex. coupes,zooms,b-roll,sous-titres)" }
   $w = [IO.Path]::GetFullPath($w)
   $infoPath = [IO.Path]::Combine($w, "info.json")
   if (-not (Exists $infoPath)) { Fail 2 "DOSSIER_INCONNU : $w n'est pas un dossier de montage (lance d'abord couper-silences)." }
@@ -71,8 +72,8 @@ function Cmd-Rendre($w, $couches) {
   if (-not (Exists $info.video)) { Fail 2 "VIDÉO_INTROUVABLE : $($info.video) (la vidéo d'origine a été déplacée ?)" }
 
   $liste = @($couches.ToLower() -split "[,; ]+" | Where-Object { $_ })
-  foreach ($c in $liste) { if (@("coupes", "zooms", "sous-titres") -notcontains $c) { Fail 2 "COUCHE_INCONNUE : $c (couches possibles : coupes, zooms, sous-titres)" } }
-  $liste = @("coupes", "zooms", "sous-titres" | Where-Object { $liste -contains $_ })
+  foreach ($c in $liste) { if (@("coupes", "zooms", "b-roll", "sous-titres") -notcontains $c) { Fail 2 "COUCHE_INCONNUE : $c (couches possibles : coupes, zooms, b-roll, sous-titres)" } }
+  $liste = @("coupes", "zooms", "b-roll", "sous-titres" | Where-Object { $liste -contains $_ })
   $sousTitres = $liste -contains "sous-titres"
 
   # Coupes : toujours là pour l'instant, les sous-titres sont calés sur la vidéo coupée
@@ -80,19 +81,31 @@ function Cmd-Rendre($w, $couches) {
   if (-not ($liste -contains "coupes") -or -not (Exists $filtrePath)) { Fail 2 "COUCHE_MANQUANTE coupes : passe d'abord par couper-silences (les autres couches se calent sur la vidéo coupée)." }
   $graphe = (ReadText $filtrePath).TrimEnd()
   $sortieV = "[v]"
-  # L'ordre des couches ne dépend pas de la demande : coupes, puis zooms, puis sous-titres
+  # L'ordre des couches ne dépend pas de la demande : coupes, puis zooms, puis B-rolls, puis sous-titres
   if ($liste -contains "zooms") {
     $zoomsPath = [IO.Path]::Combine($w, "zooms.txt")
     if (-not (Exists $zoomsPath)) { Fail 2 "COUCHE_MANQUANTE zooms : lance d'abord le skill zooms (preparer)." }
     $graphe += ";`n[v]" + (ReadText $zoomsPath).Trim() + "[vz]"
     $sortieV = "[vz]"
   }
+  $entrees = @()
+  if ($liste -contains "b-roll") {
+    $brollPath = [IO.Path]::Combine($w, "b-roll.txt")
+    if (-not (Exists $brollPath)) { Fail 2 "COUCHE_MANQUANTE b-roll : lance d'abord le skill b-roll (preparer)." }
+    foreach ($l in ((ReadText $brollPath) -split "`n")) {
+      $c = $l.TrimEnd("`r").Split("`t")
+      # chaque clip n'est lu que sur sa durée à l'écran (plus une marge), à partir de son départ
+      if ($c[0] -eq "ENTREE") { $entrees += @("-ss", $c[1], "-t", ([double]::Parse($c[2], [Globalization.CultureInfo]::InvariantCulture) + 0.5).ToString([Globalization.CultureInfo]::InvariantCulture), "-i", $c[3]) }
+      elseif ($c[0] -eq "FILTRE") { $graphe += ";`n" + $c[1].Replace("[ENTREE]", $sortieV).Replace("[SORTIE]", "[vb]"); $sortieV = "[vb]" }
+    }
+  }
   if ($sousTitres) {
     if (-not (Exists ([IO.Path]::Combine($w, "sous-titres.ass")))) { Fail 2 "COUCHE_MANQUANTE sous-titres : lance d'abord le skill sous-titres (preparer)." }
     # Chemins relatifs au dossier de travail : pas d'échappement des « C:\ » dans le filtre
     $polices = [IO.Path]::Combine($w, "polices")
     [IO.Directory]::CreateDirectory($polices) | Out-Null
-    foreach ($f in Get-ChildItem -Path (Join-Path $Skill "assets\fonts") -Filter "*.otf") { [IO.File]::Copy($f.FullName, [IO.Path]::Combine($polices, $f.Name), $true) }
+    # Polices des sous-titres (.otf) et des titres à l'écran (.ttf)
+    foreach ($f in Get-ChildItem -Path (Join-Path $Skill "assets\fonts") | Where-Object { $_.Extension -in ".otf", ".ttf" }) { [IO.File]::Copy($f.FullName, [IO.Path]::Combine($polices, $f.Name), $true) }
     $graphe += ";`n$($sortieV)ass=sous-titres.ass:fontsdir=polices[vs]"
     $sortieV = "[vs]"
   }
@@ -115,7 +128,7 @@ function Cmd-Rendre($w, $couches) {
   $t0 = Get-Date
   Push-Location -LiteralPath $w
   [Environment]::CurrentDirectory = $w
-  & $ffmpeg -nostdin -v error -y -i $info.video "-/filter_complex" "rendu-filtre.txt" -map $sortieV -map "[a]" @enc -c:a aac -b:a 320k -movflags +faststart $out
+  & $ffmpeg -nostdin -v error -y -i $info.video @entrees "-/filter_complex" "rendu-filtre.txt" -map $sortieV -map "[a]" @enc -c:a aac -b:a 320k -movflags +faststart $out
   $code = $LASTEXITCODE
   Pop-Location
   if ($code -ne 0) { Fail 5 "Le rendu a échoué (ffmpeg code $code)." }

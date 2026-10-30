@@ -1,0 +1,2 @@
+FAR-Titres-Black-Italic.ttf : instance fixe (graisse 900) de FAR Titres Italic, elle-même version modifiée de Raleway Italic, sous licence SIL OFL 1.1 (voir OFL-Raleway.txt). Sert aux titres posés sur la vidéo (le moteur de sous-titres ne sait pas choisir une graisse dans une police variable).
+Inter-Black.ttf : instance fixe (graisse 900, taille optique 32) d'Inter, renommée « Inter Black », SIL OFL 1.1 (voir OFL-Inter.txt). Sert aux sous-titres.

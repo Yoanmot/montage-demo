@@ -21,7 +21,11 @@ New-Item -ItemType Directory -Force -Path $Bin | Out-Null
 # Le saut d'un zoom sec se cale sur la coupe la plus proche si elle est à moins de ça : il se lit alors comme la coupe
 $AimantCoupe = 0.35
 $EchelleMin = 1.05; $EchelleMax = 1.6
-$RampeMax = 3.0   # un zoom progressif atteint son échelle en 3 s au plus, puis tient
+# Mouvements repris du moteur de zooms de Yoan : courbe « ease-out » (rapide au départ, qui se pose
+# en douceur), départ calé sur une coupe, jamais un mouvement linéaire. Au-delà de ces vitesses
+# moyennes, un zoom lent se voit au lieu de se sentir.
+$VitesseMaxProgressif = 0.04   # par image, départ en douceur depuis 100 %
+$VitesseMaxRecul = 0.08        # par image, recul qui part d'un saut sur la coupe
 
 function Say($m) { Write-Output $m }
 # Fichiers lus et écrits sans interprétation des crochets (« Rush [1].MOV ») et en UTF-8 sans BOM
@@ -117,7 +121,7 @@ function Cmd-Preparer($w) {
     $s = if ($null -ne $z.echelle) { [double]$z.echelle } else { 1.2 }
     if ($s -lt $EchelleMin -or $s -gt $EchelleMax) { Fail 13 "ZOOMS_ILLISIBLE : zoom n°$n, échelle $s hors de $EchelleMin à $EchelleMax." }
     $entree = if ($z.entree) { [string]$z.entree } else { "sec" }
-    if (@("sec", "progressif") -notcontains $entree) { Fail 13 "ZOOMS_ILLISIBLE : zoom n°$n, entrée « $entree » inconnue (sec ou progressif)." }
+    if (@("sec", "progressif", "recul") -notcontains $entree) { Fail 13 "ZOOMS_ILLISIBLE : zoom n°$n, entrée « $entree » inconnue (sec, progressif ou recul)." }
     $px = 0.5; $py = 0.35
     if ($z.cadrage) {
       $px = [double]$z.cadrage[0]; $py = [double]$z.cadrage[1]
@@ -126,10 +130,16 @@ function Cmd-Preparer($w) {
     # Fenêtre en frames de la vidéo coupée : du début du premier mot à la fin du dernier
     $f0 = [int][Math]::Round([double]$words[$a].start * $fps)
     $f1 = [int][Math]::Round([double]$words[$b].end * $fps)
-    if ($entree -eq "sec") { $f0 = Aimante $f0 $coupes $fps }
-    $f1 = Aimante $f1 $coupes $fps
+    # Le départ se cale sur la coupe la plus proche : un saut, ou le départ vif de la courbe, se lit comme la coupe.
+    # La sortie aussi, sauf pour le recul, qui finit déjà à 100 % (rien ne saute).
+    $f0 = Aimante $f0 $coupes $fps
+    if ($entree -ne "recul") { $f1 = Aimante $f1 $coupes $fps }
     $f0 = [Math]::Max(0, $f0); $f1 = [Math]::Min($totalF, $f1)
     if ($f1 - $f0 -lt [Math]::Round(0.5 * $fps)) { Fail 13 "ZOOMS_ILLISIBLE : zoom n°$n trop court (moins d'une demi-seconde) : prends quelques mots de plus." }
+    if ($entree -ne "sec") {
+      $vitesse = ($s - 1) / ($f1 - $f0); $max = if ($entree -eq "recul") { $VitesseMaxRecul } else { $VitesseMaxProgressif }
+      if ($vitesse -gt $max) { Fail 13 "ZOOMS_ILLISIBLE : zoom n°$n trop rapide pour un zoom $entree (il se verrait) : prends plus de mots ou baisse l'échelle." }
+    }
     $phrase = (@($a..$b | ForEach-Object { [string]$words[$_].text }) -join " ").Trim()
     $zooms += [pscustomobject]@{ n = $n; f0 = $f0; f1 = $f1; s = $s; entree = $entree; px = $px; py = $py; phrase = $phrase }
   }
@@ -144,12 +154,11 @@ function Cmd-Preparer($w) {
   for ($i = $zooms.Count - 1; $i -ge 0; $i--) {
     $z = $zooms[$i]
     $dans = "between(on,$($z.f0),$($z.f1 - 1))"
-    if ($z.entree -eq "progressif") {
-      # Rampe lissée (départ et arrivée en douceur), puis l'échelle tient jusqu'à la fin
-      $r = [Math]::Max(1, [Math]::Min($z.f1 - $z.f0, [int][Math]::Round($RampeMax * $fps)))
-      $p = "min((on-$($z.f0))/$r,1)"
-      $val = "1+$(Num ($z.s - 1))*$p*$p*(3-2*$p)"
-    } else { $val = Num $z.s }
+    # Courbe ease-out sur toute la durée du zoom : 1-(1-p)² (celle du moteur de Yoan)
+    $p = "min((on-$($z.f0))/$($z.f1 - $z.f0),1)"
+    if ($z.entree -eq "progressif") { $val = "1+$(Num ($z.s - 1))*(1-pow(1-$p,2))" }       # s'avance vers l'échelle, puis sortie sèche sur la coupe
+    elseif ($z.entree -eq "recul") { $val = "1+$(Num ($z.s - 1))*pow(1-$p,2)" }             # part serré sur la coupe et recule jusqu'à 100 %
+    else { $val = Num $z.s }
     $zExpr = "if($dans,$val,$zExpr)"
     $xExpr = "if($dans,$(Num $z.px),$xExpr)"
     $yExpr = "if($dans,$(Num $z.py),$yExpr)"
@@ -163,7 +172,7 @@ function Cmd-Preparer($w) {
   if ([IO.Directory]::Exists($apercu)) { [IO.Directory]::Delete($apercu, $true) }
   [IO.Directory]::CreateDirectory($apercu) | Out-Null
   foreach ($z in $zooms) {
-    $f = if ($z.entree -eq "progressif") { $z.f1 - 2 } else { [int](($z.f0 + $z.f1) / 2) }
+    $f = if ($z.entree -eq "progressif") { $z.f1 - 2 } elseif ($z.entree -eq "recul") { $z.f0 } else { [int](($z.f0 + $z.f1) / 2) }
     $seg = $segs | Where-Object { $f -ge [int]$_.outInF -and $f -lt [int]$_.outOutF } | Select-Object -First 1
     $t = Num (([int]$seg.srcInF + $f - [int]$seg.outInF) / $fps)
     $s = Num $z.s
