@@ -45,11 +45,18 @@ function Gyan($name) {
   }
   return $exe
 }
+# Le rendu lit son filtre dans un fichier (« -/filter_complex »), ce que ffmpeg ne sait faire que depuis la version 7
+function Recent($exe) {
+  $v = (& $exe -hide_banner -version 2>$null | Select-Object -First 1)
+  if ($v -match "version n?(\d+)\.") { return [int]$Matches[1] -ge 7 }
+  return $true   # version de développement (« N-12345 ») : récente
+}
 # ffmpeg de la machine s'il sait faire ce qu'on lui demande, sinon la version autonome.
 # Les sous-titres demandent libass, absent de certaines installations.
 function FFmpeg($besoinAss) {
   if ($env:MONTAGE_FFMPEG -and (Exists $env:MONTAGE_FFMPEG)) { return $env:MONTAGE_FFMPEG }   # tests
   $sys = Get-Command "ffmpeg.exe", "ffmpeg" -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($sys -and -not (Recent $sys.Source)) { $sys = $null }
   if ($sys) {
     if (-not $besoinAss) { return $sys.Source }
     $f = (& $sys.Source -hide_banner -filters 2>$null) -join "`n"
