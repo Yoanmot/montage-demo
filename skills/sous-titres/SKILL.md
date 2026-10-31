@@ -25,6 +25,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<dossier du skill>\scripts\
 Le texte vient d'une transcription automatique : quelques mots peuvent être mal écrits (noms propres, marques, vocabulaire de coach, mots mal entendus).
 **Tu corriges l'orthographe, tu ne réécris jamais ce qu'il dit** : pas de reformulation, pas de mot ajouté ou retiré, pas de « euh » enlevé s'il a été gardé à la coupe. Dans le doute, ne touche pas. Les nombres restent comme ils sont écrits.
 
+**Les noms d'exercices, de matériel et le jargon de coach** sont les mots que la transcription rate le plus (« DJH sit up » pour « GHD sit-up »). Écris-les comme dans son script ou son plan de montage s'il en a donné un, sinon sous leur forme connue dans le monde du sport. Si tu n'es pas sûr de ce qu'il a voulu dire, demande-lui plutôt que de deviner.
+
 Écris `<dossier>\sous-titres.json` :
 ```json
 {
@@ -38,7 +40,7 @@ Le texte vient d'une transcription automatique : quelques mots peuvent être mal
   ]
 }
 ```
-- `corrections` : numéro du mot → le mot corrigé. **Garde la ponctuation du mot d'origine** (elle sert à découper les lignes).
+- `corrections` : numéro du mot → le mot corrigé (la ponctuation du mot d'origine est gardée toute seule). Pour réunir deux mots en un (« sit » « up » → « sit-up »), mets le mot entier sur le premier et `""` sur le second.
 - `masquer` (facultatif) : des plages de numéros de mots à ne pas afficher, bornes incluses. Seulement s'il le demande.
 - `taille` (facultatif) : `1` par défaut, `1.15` = 15 % plus gros, `0.9` = plus petit.
 - `position` (facultatif) : hauteur du centre de la ligne, de `0` (tout en haut) à `1` (tout en bas). `0.70` par défaut ; `0.62` = plus haut, `0.80` = plus bas.

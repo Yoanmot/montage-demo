@@ -130,7 +130,11 @@ function Cmd-Preparer($w) {
       foreach ($p in $reglages.corrections.PSObject.Properties) {
         $k = 0
         if (-not [int]::TryParse($p.Name, [ref]$k) -or $k -lt 0 -or $k -ge $words.Count) { Fail 13 "SOUS-TITRES_ILLISIBLE : mot n°$($p.Name) inexistant (0 à $($words.Count - 1))." }
-        $texte[$k] = [string]$p.Value
+        $c = [string]$p.Value
+        # La ponctuation de fin découpe les sous-titres : un mot corrigé garde celle du mot d'origine
+        $fin = [regex]::Match(([string]$words[$k].text).Trim(), "[.!?…,;:]+$").Value
+        if ($fin -and $c.Trim() -and $c.Trim() -notmatch "[.!?…,;:]$") { $c = $c.Trim() + $fin }
+        $texte[$k] = $c
       }
     }
     foreach ($r in @($reglages.masquer | Where-Object { $_ })) {
@@ -163,7 +167,11 @@ function Cmd-Preparer($w) {
   for ($i = 0; $i -lt $words.Count; $i++) {
     if ($masque[$i]) { continue }
     $t = [string]$words[$i].text; if ($texte.ContainsKey($i)) { $t = $texte[$i] }
-    if (-not $t.Trim()) { continue }
+    if (-not $t.Trim()) {
+      # mot réuni au précédent (« sit » « up » → « sit-up ») : le précédent dure jusqu'à la fin de celui-ci
+      if ($texte.ContainsKey($i) -and $liste.Count) { $liste[$liste.Count - 1].end = [double]$words[$i].end }
+      continue
+    }
     [void]$liste.Add(@{ text = $t; start = [double]$words[$i].start; end = [double]$words[$i].end })
   }
   if ($liste.Count -eq 0) { Fail 13 "SOUS-TITRES_ILLISIBLE : tous les mots sont masqués." }
