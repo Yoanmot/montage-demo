@@ -7,6 +7,7 @@ Skills de montage pour Claude Code (app Claude, onglet Code, session locale).
 - `skills/zooms` (brique) : zooms repérés par la phrase dite (depuis le plan de montage s'il y en a un), secs sur une coupe ou progressifs.
 - `skills/sous-titres` (brique) : sous-titres au style de Romain, orthographe corrigée par Claude.
 - `skills/carrousel` : met en page un carrousel Instagram (1080 × 1350) au style Fit avec Romain, à partir de ses photos et de son texte exact. Fond noir ou photo.
+- `skills/carrousels-en-attente` : met en page, un par un, les carrousels validés avec le head of content, puis les range pour qu'ils ne reviennent jamais (état tenu par un script, pas par Claude).
 
 ## Installer
 
