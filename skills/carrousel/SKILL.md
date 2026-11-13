@@ -19,6 +19,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<dossier du skill>\scripts\
 ```
 
 (depuis un terminal bash, écris le chemin avec des `/` ; `powershell` fonctionne pareil.)
+
+**Sur Mac** : `pwsh -NoProfile -File "<dossier du skill>/scripts/carrousel.ps1" rendre "<dossier du carrousel>"` (si `pwsh` n'est pas trouvé : `~/.montage-yoan/bin/pwsh`, posé par l'installation de Yoan).
 Ajoute un numéro à la fin (`rendre "<dossier>" 3`) pour ne refaire qu'une slide.
 
 ## Le déroulé
@@ -52,7 +54,7 @@ Le reste (où placer le texte sur la photo, le cadrage, la taille, les mots en o
 ### 3. Préparer le dossier
 Crée un dossier `carrousel-<sujet en deux ou trois mots>` (sans `#` ni `%`) :
 - à côté de ses photos s'il en a donné ;
-- sinon dans `%USERPROFILE%\Pictures\Carrousels\`.
+- sinon dans `%USERPROFILE%\Pictures\Carrousels\` (sur Mac : `~/Pictures/Carrousels/`).
 
 Regarde chaque photo (les JPEG et PNG se lisent directement ; les HEIC d'iPhone, tu les verras après le premier rendu, convertis dans `<dossier>\_rendu\photo-NN.jpg`). Repère où est son visage et où il reste de la place pour le texte.
 
