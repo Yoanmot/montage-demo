@@ -1,0 +1,15 @@
+{
+ "source": "ElevenLabs / entree-v3.mp3",
+ "coupe_s": [
+  0.025,
+  0.155
+ ],
+ "duree_ms": 130.0,
+ "debut_ms": 11.1,
+ "debut_echantillon": 533,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -21.0,
+ "crete_2ms_dbfs": -14.5,
+ "centre_spectre_hz": 2642,
+ "sous_2khz_pct": 69.4
+}

@@ -1,0 +1,126 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+@font-face{font-family:'Liberation Sans';src:url('../../fonts/LiberationSans-Regular.ttf');font-weight:400;font-style:normal;}
+.planche{position:absolute;left:91px;top:238px;width:898px;height:868px;background:#000;}
+.rangee{position:absolute;left:3px;width:892px;height:170px;background:#1A1A17;}
+.etiq{position:absolute;left:0;top:0;width:170px;height:170px;display:flex;align-items:center;justify-content:center;font:400 56px/1 'Liberation Sans';color:#000;}
+.filet{position:absolute;left:170px;top:0;width:3px;height:170px;background:#000;}
+.reserve{position:absolute;left:91px;top:1146px;width:808px;height:176px;background:#1A1A17;}
+.it{position:absolute;width:162px;height:162px;overflow:hidden;}.it img{width:100%;height:100%;object-fit:cover;display:block;}
+.sub{position:absolute;left:91px;right:90px;top:1430px;transform:translateY(-50%);text-align:center;
+  color:#F6F0E7;font:800 66px/1.12 'Bricolage Grotesque';font-variation-settings:"opsz" 96;
+  letter-spacing:-0.012em;text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);visibility:hidden;word-spacing:normal;}
+.sub.saut .m{border-radius:10px;padding:0 14px 4px;margin:0 -7px;}
+.sub .m.on{background:#F15A24;color:#1A1612;text-shadow:none;box-shadow:0 4px 0 #B8400F;}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="5.666666666666667">
+  <div class="planche"><div class="rangee" style="top:3px"><div class="etiq" style="background:#FF7F7F">S</div><div class="filet"></div></div><div class="rangee" style="top:176px"><div class="etiq" style="background:#FFBF7F">A</div><div class="filet"></div></div><div class="rangee" style="top:349px"><div class="etiq" style="background:#FFDF7F">B</div><div class="filet"></div></div><div class="rangee" style="top:522px"><div class="etiq" style="background:#FFFF7F">C</div><div class="filet"></div></div><div class="rangee" style="top:695px"><div class="etiq" style="background:#BFFF7F">D</div><div class="filet"></div></div></div>
+  <div class="reserve"></div>
+  <div class="it" id="a0" style="left:271px;top:245px;z-index:5"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 1 (poulet), photo de Romain"></div>
+  <div class="it" id="a1" style="left:271px;top:418px;z-index:5"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 2 (patate douce), photo de Romain"></div>
+  <div class="it" id="a2" style="left:441px;top:418px;z-index:5"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 3 (ratatouille), photo de Romain"></div>
+  <div class="it" id="a3" style="left:271px;top:591px;z-index:5"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo carrée d'un aliment (mélange de légumes), photo de Romain"></div>
+  <div class="sub" id="st0">poulet</div>
+  <div class="sub" id="st1">patate douce</div>
+  <div class="sub" id="st2">ratatouille !</div>
+  <div class="sub" id="st3">mélange de légumes</div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 0.3333,   // #a0 bouge
+  t02: 0.4328,   // #st0 visible
+  t03: 0.4333,   // #a0 bouge
+  t04: 0.4933,   // #a1 bouge, #a2 bouge, #a3 bouge
+  t05: 0.8333,   // #a0 bouge
+  t06: 0.9133,   // #a0 bouge
+  t07: 1.5000,   // #a1 bouge
+  t08: 1.5328,   // #st0 caché
+  t09: 1.5995,   // #st1 visible
+  t10: 1.6000,   // #a1 bouge
+  t11: 1.6600,   // #a2 bouge, #a3 bouge
+  t12: 2.0000,   // #a1 bouge
+  t13: 2.0800,   // #a1 bouge
+  t14: 2.7667,   // #a2 bouge
+  t15: 2.8662,   // #st1 caché, #st2 visible
+  t16: 2.8667,   // #a2 bouge
+  t17: 2.9267,   // #a3 bouge
+  t18: 3.2667,   // #a2 bouge
+  t19: 3.3467,   // #a2 bouge
+  t20: 3.7995,   // #st2 caché
+  t21: 3.8000,   // #a3 bouge
+  t22: 3.8995,   // #st3 visible
+  t23: 3.9000,   // #a3 bouge
+  t24: 4.3000,   // #a3 bouge
+  t25: 4.3800,   // #a3 bouge
+  t26: 5.2995,   // #st3 caché
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.set('#a0', { x: -173, y: 908 }, 0);
+tl.set('#a0', { zIndex: 10 }, T.t01);
+tl.to('#a0', { scale: 1.08, boxShadow: '0 18px 30px rgba(0,0,0,0.55)', duration: 0.1, ease: 'power2.out' }, T.t01);
+tl.to('#a0', { x: 0, y: 0, duration: 0.4, ease: 'power3.inOut' }, T.t03);
+tl.to('#a0', { scale: 1, boxShadow: '0 0px 0px rgba(0,0,0,0)', duration: 0.08, ease: 'power2.out' }, T.t05);
+tl.set('#a0', { zIndex: 5 }, T.t06);
+tl.to('#a1', { x: -173, duration: 0.28, ease: 'power3.out' }, T.t04);
+tl.to('#a2', { x: -173, duration: 0.28, ease: 'power3.out' }, T.t04);
+tl.to('#a3', { x: 167, duration: 0.28, ease: 'power3.out' }, T.t04);
+tl.set('#a1', { x: -3, y: 735 }, 0);
+tl.set('#a1', { zIndex: 10 }, T.t07);
+tl.to('#a1', { scale: 1.08, boxShadow: '0 18px 30px rgba(0,0,0,0.55)', duration: 0.1, ease: 'power2.out' }, T.t07);
+tl.to('#a1', { x: 0, y: 0, duration: 0.4, ease: 'power3.inOut' }, T.t10);
+tl.to('#a1', { scale: 1, boxShadow: '0 0px 0px rgba(0,0,0,0)', duration: 0.08, ease: 'power2.out' }, T.t12);
+tl.set('#a1', { zIndex: 5 }, T.t13);
+tl.to('#a2', { x: -343, duration: 0.28, ease: 'power3.out' }, T.t11);
+tl.to('#a3', { x: -3, duration: 0.28, ease: 'power3.out' }, T.t11);
+tl.set('#a2', { x: -3, y: 735 }, 0);
+tl.set('#a2', { zIndex: 10 }, T.t14);
+tl.to('#a2', { scale: 1.08, boxShadow: '0 18px 30px rgba(0,0,0,0.55)', duration: 0.1, ease: 'power2.out' }, T.t14);
+tl.to('#a2', { x: 0, y: 0, duration: 0.4, ease: 'power3.inOut' }, T.t16);
+tl.to('#a2', { scale: 1, boxShadow: '0 0px 0px rgba(0,0,0,0)', duration: 0.08, ease: 'power2.out' }, T.t18);
+tl.set('#a2', { zIndex: 5 }, T.t19);
+tl.to('#a3', { x: -173, duration: 0.28, ease: 'power3.out' }, T.t17);
+tl.set('#a3', { x: 337, y: 562 }, 0);
+tl.set('#a3', { zIndex: 10 }, T.t21);
+tl.to('#a3', { scale: 1.08, boxShadow: '0 18px 30px rgba(0,0,0,0.55)', duration: 0.1, ease: 'power2.out' }, T.t21);
+tl.to('#a3', { x: 0, y: 0, duration: 0.4, ease: 'power3.inOut' }, T.t23);
+tl.to('#a3', { scale: 1, boxShadow: '0 0px 0px rgba(0,0,0,0)', duration: 0.08, ease: 'power2.out' }, T.t24);
+tl.set('#a3', { zIndex: 5 }, T.t25);
+tl.set('#st0', { visibility: 'hidden' }, 0);
+tl.set('#st0', { visibility: 'visible' }, T.t02);
+tl.set('#st0', { visibility: 'hidden' }, T.t08);
+tl.set('#st1', { visibility: 'hidden' }, 0);
+tl.set('#st1', { visibility: 'visible' }, T.t09);
+tl.set('#st1', { visibility: 'hidden' }, T.t15);
+tl.set('#st2', { visibility: 'hidden' }, 0);
+tl.set('#st2', { visibility: 'visible' }, T.t15);
+tl.set('#st2', { visibility: 'hidden' }, T.t20);
+tl.set('#st3', { visibility: 'hidden' }, 0);
+tl.set('#st3', { visibility: 'visible' }, T.t22);
+tl.set('#st3', { visibility: 'hidden' }, T.t26);
+tl.set({}, {}, 5.666666666666667);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

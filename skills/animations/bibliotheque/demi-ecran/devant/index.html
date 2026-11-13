@@ -1,0 +1,73 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+#voile{position:absolute;left:0;top:-1120px;width:1080px;height:2200px;z-index:10;opacity:0;-webkit-mask-image:linear-gradient(to bottom,#000 0,#000 calc(100% - 260px),rgba(0,0,0,0) 100%);mask-image:linear-gradient(to bottom,#000 0,#000 calc(100% - 260px),rgba(0,0,0,0) 100%);background:#1A1612;}
+#haut{position:absolute;left:0;top:0;width:1080px;height:1920px;z-index:15;opacity:0;}
+#contenu{position:absolute;left:0;top:0;width:1080px;height:1920px;}
+#flash{position:absolute;left:-560px;top:-640px;width:2200px;height:3200px;transform-origin:50% 50%;z-index:30;
+  background:linear-gradient(90deg,rgba(246,240,231,0) 0%,#F6F0E7 16%,#F6F0E7 84%,rgba(246,240,231,0) 100%);}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="4">
+  <div id="voile" class="fd"></div>
+  <div id="haut"><div id="contenu">
+    <div class="a tx c-cr" id="e1" style="left:91px;top:250px;font-size:66px">perdre du gras</div>
+    <div class="a ti c-or" id="e2" style="left:91px;top:338.0px;font-size:170.9px">globalement</div>
+  </div></div>
+  <div id="flash" class="fd"></div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+const P = { sortie: 'faisceau' };   // 'faisceau' (le panneau sort sous le faisceau craie) | 'bascule' (le panneau chasse son visage, plein écran)
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  bascule: 2.0000,   // sortie « bascule » : le panneau grandit (DEMI.bascule, 0,5 s power2.inOut)
+  t01: 0.3667,   // #voile, #haut bouge
+  t02: 1.0000,   // #e1 apparaît
+  t03: 1.5600,   // #e2 apparaît
+  t04: 2.9330,   // #flash bouge
+  t05: 2.9995,   // #voile, #haut bouge
+  t06: 3.0010,   // #flash bouge
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.set('#voile, #haut', { opacity: 1, y: -1080 }, T.t01);
+tl.to('#voile, #haut', { y: 0, duration: 0.7, ease: ((T) => (p) => { const x = Math.min(1, Math.max(0, p)) * (T.length - 1), i = Math.min(T.length - 2, Math.floor(x)); return T[i] + (T[i + 1] - T[i]) * (x - i); })([0,0.00679,0.01364,0.02083,0.0282,0.03576,0.04356,0.05165,0.05977,0.06764,0.07558,0.08392,0.09299,0.10312,0.11464,0.12864,0.14664,0.16739,0.18949,0.21155,0.2343,0.25883,0.28366,0.30729,0.32827,0.34664,0.36336,0.37911,0.39458,0.41046,0.42745,0.44623,0.46854,0.4937,0.51912,0.54226,0.56073,0.57585,0.58913,0.60122,0.61281,0.62455,0.63712,0.65119,0.66712,0.68424,0.70168,0.71854,0.73414,0.74964,0.7648,0.77885,0.791,0.80079,0.8091,0.81642,0.82313,0.82964,0.83633,0.84362,0.85195,0.86166,0.87189,0.88163,0.88988,0.89615,0.9015,0.90621,0.91054,0.91473,0.91902,0.92364,0.92884,0.93454,0.94042,0.94613,0.9513,0.95591,0.96032,0.96443,0.9681,0.9712,0.97384,0.97619,0.97832,0.9803,0.98219,0.98406,0.98597,0.98801,0.99013,0.99214,0.99386,0.99512,0.99616,0.99716,0.99807,0.99885,0.99946,0.99986,1]) }, T.t01);
+tl.set('#voile, #haut', { opacity: 0 }, T.t05);
+tl.fromTo('#e1', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#e1', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#e1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#e2', { y: 17.8 }, { y: 0, duration: 0.425, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#e2', { opacity: 0 }, { opacity: 1, duration: 0.357, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#e2', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.507, ease: 'power2.out', immediateRender: true }, T.t03);
+if (P.sortie === 'faisceau') {
+tl.set('#flash', { rotation: 12, x: 2300 }, 0);
+tl.to('#flash', { x: 0, duration: 0.067, ease: 'power1.in' }, T.t04);
+tl.to('#flash', { x: -2500, duration: 0.09, ease: 'none' }, T.t06);
+} else {
+document.getElementById('flash').remove();
+tl.to('#voile', { y: 1120, duration: 0.5, ease: 'power2.inOut' }, T.bascule);
+tl.to('#contenu', { y: 594.2, duration: 0.5, ease: 'power2.inOut' }, T.bascule);
+}
+tl.set({}, {}, 4);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

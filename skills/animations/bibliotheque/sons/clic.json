@@ -1,0 +1,18 @@
+{
+ "source": "ElevenLabs / clic-a-v2.mp3",
+ "coupe_s": [
+  0.012,
+  0.066
+ ],
+ "duree_ms": 54.0,
+ "debut_ms": 1.25,
+ "debut_echantillon": 60,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -21.4,
+ "crete_2ms_dbfs": -14.4,
+ "centre_spectre_hz": 5466,
+ "sous_1khz_pct": 2.0,
+ "passe_haut_hz": 300,
+ "entree_ms": 2,
+ "sortie_ms": 15
+}

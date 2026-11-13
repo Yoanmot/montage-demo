@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#3A3734"/>
+  <rect x="14" y="14" width="372" height="372" fill="none" stroke="#F6F0E7" stroke-opacity=".5" stroke-width="6" stroke-dasharray="22 14"/>
+  <text x="200" y="190" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="40" fill="#F6F0E7">IMAGE</text>
+  <text x="200" y="240" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="40" fill="#F6F0E7">À FOURNIR</text>
+</svg>

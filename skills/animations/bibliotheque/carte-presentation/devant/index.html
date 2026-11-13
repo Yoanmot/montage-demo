@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3.3">
+  <div class="a" style="inset:0;background:linear-gradient(to top,rgba(10,8,6,0.55) 0px,rgba(10,8,6,0) 760px)"></div>
+  <div class="a" style="left:97px;top:1150px;display:flex;align-items:center;gap:26px"><div id="pf"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo de profil Instagram de Romain (carrée)" style="display:block;width:150px;height:150px;border-radius:50%;box-shadow:0 0 0 6px #F15A24"></div><div><div class="ti c-cr" id="nom" style="font-size:110px">Romain</div><div class="tx c-cr" id="li" style="font-size:38px;margin-top:8px">coach sportif, Suisse</div><div class="tx c-or" id="ps" style="font-size:34px;margin-top:4px">@fitavecromain</div></div></div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 0.3000,   // #pf apparaît
+  t02: 0.4700,   // #nom apparaît
+  t03: 0.6400,   // #li apparaît
+  t04: 0.8100,   // #ps apparaît
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#pf', { y: 19.5 }, { y: 0, duration: 0.437, ease: 'power3.out', immediateRender: true }, T.t01);
+tl.fromTo('#pf', { opacity: 0 }, { opacity: 1, duration: 0.365, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#pf', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.539, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#nom', { y: 11.4 }, { y: 0, duration: 0.383, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#nom', { opacity: 0 }, { opacity: 1, duration: 0.325, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#nom', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.391, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#li', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#li', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#li', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#ps', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t04);
+tl.fromTo('#ps', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#ps', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.set({}, {}, 3.3);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

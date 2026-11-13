@@ -1,0 +1,14 @@
+{
+ "source": "ElevenLabs / obtu-v2.mp3",
+ "filtre": "highpass=f=400:p=2,lowpass=f=7000:p=2,equalizer=f=3000:t=q:w=1:g=4",
+ "duree_ms": 63.2,
+ "pic_ms": 23.6,
+ "pic_echantillon": 1134,
+ "debut_ms": 4.9,
+ "debut_echantillon": 234,
+ "crete_dbfs": -6.0,
+ "centre_spectre_hz": 3971,
+ "sous_300hz_pct": 0.0,
+ "b1_5khz_pct": 75.9,
+ "sur_6khz_pct": 17.6
+}

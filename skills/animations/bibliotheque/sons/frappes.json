@@ -1,0 +1,62 @@
+{
+ "t1": {
+  "source": "ElevenLabs / touche-a-v1.mp3",
+  "coupe_s": [
+   0.085,
+   0.155
+  ],
+  "duree_ms": 70.0,
+  "debut_ms": 8.5,
+  "debut_echantillon": 408,
+  "crete_dbfs": -6.0,
+  "rms_actif_dbfs": -20.0,
+  "crete_2ms_dbfs": -13.9,
+  "centre_spectre_hz": 3799,
+  "sous_2khz_pct": 51.3
+ },
+ "t2": {
+  "source": "ElevenLabs / touche-a-v2.mp3",
+  "coupe_s": [
+   0.045,
+   0.115
+  ],
+  "duree_ms": 70.0,
+  "debut_ms": 8.31,
+  "debut_echantillon": 399,
+  "crete_dbfs": -6.0,
+  "rms_actif_dbfs": -21.3,
+  "crete_2ms_dbfs": -13.1,
+  "centre_spectre_hz": 3959,
+  "sous_2khz_pct": 50.5
+ },
+ "t3": {
+  "source": "ElevenLabs / touche-a-v2.mp3",
+  "coupe_s": [
+   0.275,
+   0.345
+  ],
+  "duree_ms": 70.0,
+  "debut_ms": 8.96,
+  "debut_echantillon": 430,
+  "crete_dbfs": -6.0,
+  "rms_actif_dbfs": -21.7,
+  "crete_2ms_dbfs": -14.3,
+  "centre_spectre_hz": 3956,
+  "sous_2khz_pct": 53.7
+ },
+ "t4": {
+  "source": "ElevenLabs / touche-a-v1.mp3",
+  "coupe_s": [
+   0.168,
+   0.238
+  ],
+  "duree_ms": 70.0,
+  "debut_ms": 8.79,
+  "debut_echantillon": 422,
+  "crete_dbfs": -6.0,
+  "rms_actif_dbfs": -21.4,
+  "crete_2ms_dbfs": -14.0,
+  "centre_spectre_hz": 6662,
+  "sous_2khz_pct": 8.9
+ }
+}

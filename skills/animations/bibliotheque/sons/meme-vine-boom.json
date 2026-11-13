@@ -1,0 +1,19 @@
+{
+ "source": "son-pop-reference.wav fourni par Yoan le 2026-11-13 (« Vine boom »), pas ElevenLabs",
+ "coupe_s": [
+  0.0338,
+  0.9337
+ ],
+ "duree_ms": 900.0,
+ "debut_ms": 3.0,
+ "debut_echantillon": 144,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -13.0,
+ "entree_ms": 2,
+ "sortie_ms": 250,
+ "centre_spectre_hz": 74,
+ "sous_300hz_pct": 97.8,
+ "b1_5khz_pct": 0.2,
+ "sur_6khz_pct": 0.0,
+ "note": "0,9 s avec fondu de sortie de 0,25 s, comme au test v3 validé par Yoan ; impact grave qui résonne : seule exception à la règle « rien sous 300 Hz » (images de réaction)"
+}

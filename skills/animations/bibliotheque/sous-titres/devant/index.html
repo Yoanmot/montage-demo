@@ -1,0 +1,124 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.c-cr{color:#F6F0E7;}
+.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+/* SOUS_TITRES : Bricolage 800 66 px, centre y 1430, x 91 à 990, interligne 1,12, craie, ombre dure */
+.sub{position:absolute;left:91px;right:90px;top:1430px;transform:translateY(-50%);text-align:center;
+  color:#F6F0E7;font:800 66px/1.12 'Bricolage Grotesque';font-variation-settings:"opsz" 96;
+  letter-spacing:-0.012em;text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);visibility:hidden;word-spacing:normal;}
+/* classique : mots resserrés à 18 px (SOUS_TITRES_ECART.tresSerre), pavé orange qui glisse sous le mot en cours */
+.sub.saut{word-spacing:-0.14em;}
+.sub.saut .m{border-radius:10px;padding:0 14px 4px;margin:0 -7px;position:relative;z-index:1;}
+.sub .m.ac{color:#1A1612;text-shadow:none;}
+.pv{position:absolute;left:0;top:0;width:0;height:0;z-index:0;background:#F15A24;border-radius:10px;box-shadow:0 4px 0 #B8400F;visibility:hidden;}
+</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3.3"></div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Trois réglages verrouillés (les trois aperçus) :
+//   classique (r21-01a) : style 'classique', groupes [4, 7, 11, 14], motFort null
+//   formelle  (r19-01b) : style 'formelle',  groupes [2, 4, 7, 9, 11, 14], motFort null
+//   mot fort  (r22-01a) : style 'formelle',  groupes [2, 4, 7, 9, 11, 14], motFort { groupe: 4, finPhrase: 13 }
+// Garder data-duration de #root = images / 30.
+const P = {
+  style: 'classique',
+  // mots de la voix : texte tel que dit, début s et fin e en secondes depuis le début du calque (transcription calée)
+  mots: [
+    { w: 'Mais', s: 0.28, e: 0.36 }, { w: 'faire', s: 0.36, e: 0.66 }, { w: 'des', s: 0.66, e: 0.82 }, { w: 'abdos', s: 0.82, e: 1.08 },
+    { w: 'ne', s: 1.08, e: 1.2 }, { w: 'suffit', s: 1.2, e: 1.48 }, { w: 'pas', s: 1.48, e: 1.6 }, { w: 'à', s: 1.6, e: 1.66 },
+    { w: 'enlever', s: 1.66, e: 1.88 }, { w: 'la', s: 1.88, e: 2.02 }, { w: 'graisse', s: 2.02, e: 2.26 }, { w: 'qui', s: 2.26, e: 2.38 },
+    { w: 'les', s: 2.38, e: 2.52 }, { w: 'recouvre.', s: 2.52, e: 3.02 },
+  ],
+  // fin (exclue) de chaque groupe, en indice de mot. Classique : une ligne par groupe dit d'un trait. Formelle : 3 mots au plus.
+  groupes: [4, 7, 11, 14],
+  // formelle seulement : le groupe dit en MOT FORT (Big Shoulders 128 au-dessus de la ligne restée affichée), et l'indice
+  // du dernier mot de sa phrase : le mot fort et la ligne en cours disparaissent ensemble à la fin de ce mot.
+  motFort: null,
+  images: 99,   // durée du calque en images (30 i/s)
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+// Constantes (commun.mjs) : SOUS_TITRES_TEMPS.avancePave 1/30, SOUS_TITRES_GLISSE { d 0,12, power2.inOut },
+// MOT_FORT { taille 128, ecart 22 }, APPARITION (recette de la ref), SOUS_TITRES (centreY 1430, taille 66, interligne 1,12).
+const FPS = 30, AVANCE_PAVE = 1 / 30, GLISSE = { d: 0.12, courbe: 'power2.inOut' }, AV = 0.04;
+const FORT = { taille: 128, ecart: 22 }, ST = { centreY: 1430, taille: 66, interligne: 1.12 };
+const GEO = { base_titre: 0.8055, cap_titre: 0.8, base_texte: 0.86, interligne_texte: 1.06 };   // mesures des polices
+const img = (t) => Math.max(0, Math.round(t * FPS));
+const tImg = (n) => Math.max(0, n / FPS - 0.0005);   // posé 0,5 ms avant : tombe pile sur l'image n
+const propre = (w) => w.toLowerCase().replace(/[.,!?]+$/, '');
+function reglages(h) {   // apparitionReglages(h) de commun.mjs
+  const k = Math.min(1, Math.max(0, (h - 50) / 230)), mix = (a, b) => a + (b - a) * k;
+  return { dy: Math.max(10, 0.13 * h), flou: Math.max(8, 0.05 * h), dM: mix(0.35, 0.55), dO: mix(0.30, 0.45), dF: mix(0.30, 0.85) };
+}
+const root = document.getElementById('root');
+const tl = gsap.timeline({ paused: true });
+const N = P.images;
+let gr = [], i0 = 0;
+for (const c of P.groupes) { gr.push({ i0, mots: P.mots.slice(i0, c) }); i0 = c; }
+
+if (P.style === 'classique') {
+  gr.forEach((g, gi) => {
+    const d = document.createElement('div'); d.className = 'sub saut'; d.id = `g${gi}`;
+    d.innerHTML = `<span class="pv" id="p${gi}"></span>` + g.mots.map((m, wi) => `<span class="m" id="g${gi}m${wi}">${propre(m.w)}</span>`).join(' ');
+    root.appendChild(d);
+    const on = img(g.mots[0].s - AVANCE_PAVE), off = gi < gr.length - 1 ? img(gr[gi + 1].mots[0].s - AVANCE_PAVE) : N;
+    tl.set(`#g${gi}`, { visibility: 'hidden' }, 0); tl.set(`#g${gi}`, { visibility: 'visible' }, tImg(on)); tl.set(`#g${gi}`, { visibility: 'hidden' }, tImg(off));
+    const geo = (wi) => { const id = `g${gi}m${wi}`; return { left: () => document.getElementById(id).offsetLeft, top: () => document.getElementById(id).offsetTop,
+      width: () => document.getElementById(id).offsetWidth, height: () => document.getElementById(id).offsetHeight }; };
+    const arr = g.mots.map((m, wi) => (wi === 0 ? on : img(m.s - AVANCE_PAVE)));
+    tl.set(`#p${gi}`, { ...geo(0), visibility: 'visible' }, tImg(on));
+    tl.set(`#p${gi}`, { visibility: 'hidden' }, tImg(off));
+    g.mots.forEach((m, wi) => {
+      const a = tImg(arr[wi]), b = wi < g.mots.length - 1 ? tImg(arr[wi + 1]) : tImg(off);
+      if (wi === 0) tl.set(`#g${gi}m0`, { attr: { class: 'm ac' } }, a);
+      if (wi < g.mots.length - 1) {
+        const dd = Math.min(GLISSE.d, b - a - 0.02), t0 = b - dd, mi = t0 + dd / 2;   // les deux mots changent de couleur à mi-glissé
+        tl.set(`#g${gi}m${wi}`, { attr: { class: 'm' } }, mi); tl.set(`#g${gi}m${wi + 1}`, { attr: { class: 'm ac' } }, mi);
+        tl.to(`#p${gi}`, { ...geo(wi + 1), duration: dd, ease: GLISSE.courbe, immediateRender: false }, t0);
+      } else tl.set(`#g${gi}m${wi}`, { attr: { class: 'm' } }, b);
+    });
+  });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => tl.invalidate());
+} else {
+  const F = P.motFort, fort = F ? gr[F.groupe] : null;
+  const lignes = F ? gr.filter((_, k) => k !== F.groupe) : gr;
+  const finPhrase = F ? img(P.mots[F.finPhrase].e) : null;
+  lignes.forEach((g, gi) => {
+    const d = document.createElement('div'); d.className = 'sub'; d.id = `g${gi}`;
+    d.textContent = g.mots.map((m) => propre(m.w)).join(' ');
+    root.appendChild(d);
+    const on = img(g.mots[0].s);
+    let off = gi < lignes.length - 1 ? img(lignes[gi + 1].mots[0].s) : N;
+    if (F && g.i0 <= F.finPhrase && F.finPhrase < g.i0 + g.mots.length) off = finPhrase;   // la ligne de fin de phrase part avec le mot fort
+    tl.set(`#g${gi}`, { visibility: 'hidden' }, 0); tl.set(`#g${gi}`, { visibility: 'visible' }, tImg(on)); tl.set(`#g${gi}`, { visibility: 'hidden' }, tImg(off));
+  });
+  if (F) {
+    // bas des capitales du mot fort = haut des minuscules hautes de la ligne - ecart
+    const baseLigne = ST.centreY - ST.interligne * ST.taille / 2 + (GEO.base_texte + (ST.interligne - GEO.interligne_texte) / 2) * ST.taille;
+    const top = baseLigne - 0.70 * ST.taille - FORT.ecart - GEO.base_titre * FORT.taille;
+    const d = document.createElement('div'); d.className = 'a ti c-cr dure'; d.id = 'fort';
+    d.style.cssText = `left:91px;width:899px;text-align:center;top:${top.toFixed(1)}px;font-size:${FORT.taille}px`;
+    d.textContent = fort.mots.map((m) => propre(m.w)).join(' ');
+    root.appendChild(d);
+    const t = fort.mots[0].s - AV, R = reglages(GEO.cap_titre * FORT.taille);
+    tl.fromTo('#fort', { y: R.dy }, { y: 0, duration: R.dM, ease: 'power3.out', immediateRender: true }, t);
+    tl.fromTo('#fort', { opacity: 0 }, { opacity: 1, duration: R.dO, ease: 'power2.out', immediateRender: true }, t);
+    tl.fromTo('#fort', { filter: `blur(${R.flou}px)` }, { filter: 'blur(0px)', duration: R.dF, ease: 'power2.out', immediateRender: true }, t);
+    tl.set('#fort', { visibility: 'hidden' }, tImg(finPhrase));
+  }
+}
+tl.set({}, {}, N / FPS);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

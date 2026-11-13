@@ -1,0 +1,84 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="4.4">
+  <div id="vf" class="a fd" style="inset:0;background:#F15A24"></div>
+  <div id="v0" class="a" style="inset:0;visibility:hidden">
+    <div class="a ti c-ch num" id="p0" style="left:86.5px;top:250.0px;font-size:150px;z-index:1;">des abdos en</div>
+    <div class="a ti c-cr fd num" id="c0" style="left:60.0px;top:392.0px;font-size:980px;z-index:1;line-height:.8;opacity:0.92;z-index:0">2</div>
+    <div class="a ti c-ch num" id="s0" style="left:426.8px;top:697.0px;font-size:150px;z-index:1;">semaines</div>
+  </div>
+  <div id="v1" class="a" style="inset:0;visibility:hidden">
+    <div class="a ti c-ch num" id="p1" style="left:87.2px;top:250.0px;font-size:126px;z-index:1;">un ventre plat en</div>
+    <div class="a ti c-cr fd num" id="c1" style="left:65.4px;top:371.8px;font-size:949.1px;z-index:1;line-height:.8;opacity:0.92;z-index:0">30</div>
+    <div class="a ti c-ch num" id="s1" style="left:632.7px;top:697.0px;font-size:150px;z-index:1;">jours</div>
+  </div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 0.2662,   // #vf visible, #v0 visible
+  t02: 0.4200,   // #p0 apparaît
+  t03: 1.1500,   // #c0 apparaît
+  t04: 1.2500,   // #s0 apparaît
+  t05: 2.0995,   // #v0 caché, #v1 visible
+  t06: 2.2200,   // #p1 apparaît
+  t07: 3.1800,   // #c1 apparaît
+  t08: 3.4200,   // #s1 apparaît
+  t09: 4.1995,   // #vf caché, #v1 caché
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#p0', { y: 15.6 }, { y: 0, duration: 0.411, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#p0', { opacity: 0 }, { opacity: 1, duration: 0.346, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#p0', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.467, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#c0', { y: 36.4 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#c0', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#c0', { filter: 'blur(14.0px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#s0', { y: 15.6 }, { y: 0, duration: 0.411, ease: 'power3.out', immediateRender: true }, T.t04);
+tl.fromTo('#s0', { opacity: 0 }, { opacity: 1, duration: 0.346, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#s0', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.467, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#p1', { y: 13.1 }, { y: 0, duration: 0.394, ease: 'power3.out', immediateRender: true }, T.t06);
+tl.fromTo('#p1', { opacity: 0 }, { opacity: 1, duration: 0.333, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.fromTo('#p1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.421, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.fromTo('#c1', { y: 36.4 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t07);
+tl.fromTo('#c1', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t07);
+tl.fromTo('#c1', { filter: 'blur(14.0px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t07);
+tl.fromTo('#s1', { y: 15.6 }, { y: 0, duration: 0.411, ease: 'power3.out', immediateRender: true }, T.t08);
+tl.fromTo('#s1', { opacity: 0 }, { opacity: 1, duration: 0.346, ease: 'power2.out', immediateRender: true }, T.t08);
+tl.fromTo('#s1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.467, ease: 'power2.out', immediateRender: true }, T.t08);
+tl.set('#vf', { visibility: 'hidden' }, 0);
+tl.set('#vf', { visibility: 'visible' }, T.t01);
+tl.set('#vf', { visibility: 'hidden' }, T.t09);
+tl.set('#v0', { visibility: 'hidden' }, 0);
+tl.set('#v0', { visibility: 'visible' }, T.t01);
+tl.set('#v0', { visibility: 'hidden' }, T.t05);
+tl.set('#v1', { visibility: 'hidden' }, 0);
+tl.set('#v1', { visibility: 'visible' }, T.t05);
+tl.set('#v1', { visibility: 'hidden' }, T.t09);
+tl.set({}, {}, 4.4);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

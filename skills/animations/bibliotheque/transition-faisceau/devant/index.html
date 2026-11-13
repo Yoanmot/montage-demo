@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+.pav.cr{background:#F6F0E7;box-shadow:0 5px 0 rgba(26,22,18,.35);}
+#flash{position:absolute;left:-560px;top:-640px;width:2200px;height:3200px;transform-origin:50% 50%;
+  background:linear-gradient(90deg,rgba(246,240,231,0) 0%,#F6F0E7 16%,#F6F0E7 84%,rgba(246,240,231,0) 100%);}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="4.5">
+  <div id="flash"></div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+const P = { couleur: 'craie', largeur: 2200 };   // couleur 'craie' | 'orange' ; largeur 2200 (plein) | 1000 (étroit, laisse deviner la coupe)
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 3.1330,   // #flash bouge
+  t02: 3.2010,   // #flash bouge
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+{ const c = P.couleur === 'orange' ? [241, 90, 36] : [246, 240, 231], f = document.getElementById('flash'), x = `rgba(${c.join(',')},`;
+  f.style.width = P.largeur + 'px'; f.style.left = (540 - P.largeur / 2) + 'px';
+  f.style.background = `linear-gradient(90deg,${x}0) 0%,${x}1) 16%,${x}1) 84%,${x}0) 100%)`; }
+const tl = gsap.timeline({ paused: true });
+tl.set('#flash', { rotation: 12, x: 2300 }, 0);
+tl.to('#flash', { x: 0, duration: 0.067, ease: 'power1.in' }, T.t01);
+tl.to('#flash', { x: -2500, duration: 0.09, ease: 'none' }, T.t02);
+tl.set({}, {}, 4.5);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

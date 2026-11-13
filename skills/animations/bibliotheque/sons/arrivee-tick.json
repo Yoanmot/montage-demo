@@ -1,0 +1,14 @@
+{
+ "source": "ElevenLabs / tick-v3.mp3",
+ "filtre": "passe-haut 500 Hz, passe-bas 6 kHz (deux fois), +5 dB à 3 kHz",
+ "duree_ms": 57.6,
+ "pic_ms": 9.3,
+ "pic_echantillon": 446,
+ "debut_ms": 4.2,
+ "debut_echantillon": 203,
+ "crete_dbfs": -6.0,
+ "centre_spectre_hz": 2408,
+ "sous_300hz_pct": 5.1,
+ "b1_5khz_pct": 48.7,
+ "sur_6khz_pct": 7.0
+}

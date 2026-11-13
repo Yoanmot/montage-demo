@@ -1,0 +1,76 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+.cad{position:absolute;left:91px;width:899px;box-sizing:border-box;border:3px solid rgba(246,240,231,.22);border-radius:18px;padding:34px;text-align:center;background:rgba(246,240,231,.05);}
+#sch{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:540px 0;}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="7.1">
+  <div class="fd" id="fondp" style="position:absolute;inset:0;background:#1A1612;visibility:hidden"></div>
+  <div id="pl" style="visibility:hidden"><div id="sch">
+      <div class="cad tx c-cr" id="c1" style="top:520px;font-size:60px">déficit calorique</div>
+      <div class="a ti c-cr" id="plus" style="left:0;width:1080px;text-align:center;top:677.6px;font-size:110px;line-height:.7">+</div>
+      <div class="cad tx c-cr" id="c2" style="top:780.6px;font-size:60px">activité physique régulière</div>
+      <svg class="a" style="left:530px;top:985px;overflow:visible" width="20" height="150" viewBox="0 0 20 150"><line id="li" x1="10" y1="10" x2="10" y2="140" stroke="#F6F0E7" stroke-width="5" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132"/><circle id="pa" cx="10" cy="10" r="9" fill="#F6F0E7" opacity="0"/><circle id="pb" cx="10" cy="140" r="9" fill="#F6F0E7" opacity="0"/></svg>
+      <div class="a" id="effW" style="left:191px;width:699px;top:817.4px"><div id="eff"><span class="pav ti" style="display:block;text-align:center;white-space:normal;font-size:140px;padding:28px 30px 22px">perdre du gras</span></div></div>
+    </div>
+  </div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 0.6328,   // #fondp visible, #pl visible
+  t02: 0.6600,   // #eff apparaît
+  t03: 2.6000,   // #effW bouge
+  t04: 3.6000,   // #c1 apparaît
+  t05: 4.9900,   // #plus apparaît
+  t06: 5.1600,   // #c2 apparaît
+  t07: 5.7400,   // #pa bouge
+  t08: 6.0900,   // #pb bouge
+  t09: 6.5995,   // #fondp caché, #pl caché
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#eff', { y: 37.1 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#eff', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#eff', { filter: 'blur(14.3px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.to('#effW', { y: 342.6, duration: 0.55, ease: 'power3.inOut' }, T.t03);
+tl.fromTo('#c1', { y: 17.1 }, { y: 0, duration: 0.421, ease: 'power3.out', immediateRender: true }, T.t04);
+tl.fromTo('#c1', { opacity: 0 }, { opacity: 1, duration: 0.353, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#c1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.495, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#plus', { y: 10.0 }, { y: 0, duration: 0.373, ease: 'power3.out', immediateRender: true }, T.t05);
+tl.fromTo('#plus', { opacity: 0 }, { opacity: 1, duration: 0.318, ease: 'power2.out', immediateRender: true }, T.t05);
+tl.fromTo('#plus', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.365, ease: 'power2.out', immediateRender: true }, T.t05);
+tl.fromTo('#c2', { y: 17.1 }, { y: 0, duration: 0.421, ease: 'power3.out', immediateRender: true }, T.t06);
+tl.fromTo('#c2', { opacity: 0 }, { opacity: 1, duration: 0.353, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.fromTo('#c2', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.495, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.set('#pa', { opacity: 1 }, T.t07);
+tl.fromTo('#li', { attr: { 'stroke-dashoffset': 132 } }, { attr: { 'stroke-dashoffset': 0 }, duration: 0.35, ease: 'power2.inOut', immediateRender: true }, T.t07);
+tl.set('#pb', { opacity: 1 }, T.t08);
+tl.set('#fondp', { visibility: 'visible' }, T.t01);
+tl.set('#fondp', { visibility: 'hidden' }, T.t09);
+tl.set('#pl', { visibility: 'visible' }, T.t01);
+tl.set('#pl', { visibility: 'hidden' }, T.t09);
+tl.set({}, {}, 7.1);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

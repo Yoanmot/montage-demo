@@ -1,0 +1,136 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+#chiW{position:absolute;left:91px;top:780px;width:528px;height:277.2px;}#chi{position:absolute;inset:0;}
+#chi span{position:absolute;left:0;top:0;width:100%;text-align:left;font-size:330px;opacity:0;}
+#chi #v15{opacity:1;}
+#lab{position:absolute;left:91px;top:1150px;font-size:52px;color:rgba(246,240,231,0.62);}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="5">
+  <div id="pl" style="visibility:hidden">
+    <div id="chiW"><div id="chi"><span class="ti c-cr douce" id="v15">15</span><span class="ti c-cr douce" id="v14">14</span><span class="ti c-cr douce" id="v13">13</span><span class="ti c-cr douce" id="v12">12</span><span class="ti c-cr douce" id="v11">11</span><span class="ti c-cr douce" id="v10">10</span><span class="ti c-cr douce" id="v9">09</span><span class="ti c-cr douce" id="v8">08</span><span class="ti c-cr douce" id="v7">07</span><span class="ti c-cr douce" id="v6">06</span><span class="ti c-cr douce" id="v5">05</span><span class="ti c-cr douce" id="v4">04</span><span class="ti c-cr douce" id="v3">03</span><span class="ti c-cr douce" id="v2">02</span><span class="ti c-cr douce" id="v1">01</span><span class="ti c-cr douce" id="v0">00</span></div></div>
+    <div class="tx douce" id="lab">jours</div>
+    <div id="barre" style="position:absolute;left:91px;top:1080px;width:899px;height:44px;"><div style="position:absolute;inset:0;background:rgba(246,240,231,.14);border-radius:10px;overflow:hidden"><div id="jauge" style="position:absolute;inset:0;background:#F15A24;border-radius:10px;transform-origin:0 50%;"></div></div><div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(15,1fr)"><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style="border-right:4px solid #120f0c"></i><i style=""></i></div></div>
+  </div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 2.2600,   // #chiW apparaît
+  t02: 2.2995,   // #pl visible
+  t03: 2.4300,   // #barre apparaît
+  t04: 2.5800,   // #lab apparaît
+  t05: 2.8167,   // #v15 bouge
+  t06: 2.8417,   // #jauge bouge
+  t07: 3.0167,   // #v14 bouge
+  t08: 3.0417,   // #jauge bouge
+  t09: 3.1833,   // #v13 bouge
+  t10: 3.2083,   // #jauge bouge
+  t11: 3.3167,   // #v12 bouge
+  t12: 3.3417,   // #jauge bouge
+  t13: 3.4500,   // #v11 bouge
+  t14: 3.4750,   // #jauge bouge
+  t15: 3.5500,   // #v10 bouge
+  t16: 3.5750,   // #jauge bouge
+  t17: 3.6500,   // #v9 bouge
+  t18: 3.6750,   // #jauge bouge
+  t19: 3.7500,   // #v8 bouge
+  t20: 3.7750,   // #jauge bouge
+  t21: 3.8167,   // #v7 bouge
+  t22: 3.8417,   // #jauge bouge
+  t23: 3.8833,   // #v6 bouge
+  t24: 3.9083,   // #jauge bouge
+  t25: 3.9500,   // #v5 bouge
+  t26: 3.9750,   // #jauge bouge
+  t27: 4.0167,   // #v4 bouge
+  t28: 4.0417,   // #jauge bouge
+  t29: 4.0833,   // #v3 bouge
+  t30: 4.1083,   // #jauge bouge
+  t31: 4.1500,   // #v2 bouge
+  t32: 4.1750,   // #jauge bouge
+  t33: 4.2167,   // #v1 bouge
+  t34: 4.2417,   // #jauge bouge
+  t35: 4.6662,   // #pl caché
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#chiW', { y: 34.3 }, { y: 0, duration: 0.536, ease: 'power3.out', immediateRender: true }, T.t01);
+tl.fromTo('#chiW', { opacity: 0 }, { opacity: 1, duration: 0.440, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#chiW', { filter: 'blur(13.2px)' }, { filter: 'blur(0px)', duration: 0.812, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#lab', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t04);
+tl.fromTo('#lab', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#lab', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#barre', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#barre', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#barre', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.to('#v15', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t05);
+tl.fromTo('#v14', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.2000, ease: 'expo.out', immediateRender: false }, T.t06);
+tl.to('#jauge', { scaleX: 0.93333, duration: 0.2000, ease: 'expo.out' }, T.t06);
+tl.to('#v14', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t07);
+tl.fromTo('#v13', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1667, ease: 'expo.out', immediateRender: false }, T.t08);
+tl.to('#jauge', { scaleX: 0.86667, duration: 0.1667, ease: 'expo.out' }, T.t08);
+tl.to('#v13', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t09);
+tl.fromTo('#v12', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1333, ease: 'expo.out', immediateRender: false }, T.t10);
+tl.to('#jauge', { scaleX: 0.80000, duration: 0.1333, ease: 'expo.out' }, T.t10);
+tl.to('#v12', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t11);
+tl.fromTo('#v11', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1333, ease: 'expo.out', immediateRender: false }, T.t12);
+tl.to('#jauge', { scaleX: 0.73333, duration: 0.1333, ease: 'expo.out' }, T.t12);
+tl.to('#v11', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t13);
+tl.fromTo('#v10', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t14);
+tl.to('#jauge', { scaleX: 0.66667, duration: 0.1000, ease: 'expo.out' }, T.t14);
+tl.to('#v10', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t15);
+tl.fromTo('#v9', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t16);
+tl.to('#jauge', { scaleX: 0.60000, duration: 0.1000, ease: 'expo.out' }, T.t16);
+tl.to('#v9', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t17);
+tl.fromTo('#v8', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t18);
+tl.to('#jauge', { scaleX: 0.53333, duration: 0.1000, ease: 'expo.out' }, T.t18);
+tl.to('#v8', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t19);
+tl.fromTo('#v7', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t20);
+tl.to('#jauge', { scaleX: 0.46667, duration: 0.0667, ease: 'expo.out' }, T.t20);
+tl.to('#v7', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t21);
+tl.fromTo('#v6', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t22);
+tl.to('#jauge', { scaleX: 0.40000, duration: 0.0667, ease: 'expo.out' }, T.t22);
+tl.to('#v6', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t23);
+tl.fromTo('#v5', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t24);
+tl.to('#jauge', { scaleX: 0.33333, duration: 0.0667, ease: 'expo.out' }, T.t24);
+tl.to('#v5', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t25);
+tl.fromTo('#v4', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t26);
+tl.to('#jauge', { scaleX: 0.26667, duration: 0.0667, ease: 'expo.out' }, T.t26);
+tl.to('#v4', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t27);
+tl.fromTo('#v3', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t28);
+tl.to('#jauge', { scaleX: 0.20000, duration: 0.0667, ease: 'expo.out' }, T.t28);
+tl.to('#v3', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t29);
+tl.fromTo('#v2', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t30);
+tl.to('#jauge', { scaleX: 0.13333, duration: 0.0667, ease: 'expo.out' }, T.t30);
+tl.to('#v2', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t31);
+tl.fromTo('#v1', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t32);
+tl.to('#jauge', { scaleX: 0.06667, duration: 0.0667, ease: 'expo.out' }, T.t32);
+tl.to('#v1', { opacity: 0, y: -52.8, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t33);
+tl.fromTo('#v0', { opacity: 0, y: 66.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.2200, ease: 'expo.out', immediateRender: false }, T.t34);
+tl.to('#jauge', { scaleX: 0.00000, duration: 0.2600, ease: 'expo.out' }, T.t34);
+tl.set('#pl', { visibility: 'visible' }, T.t02);
+tl.set('#pl', { visibility: 'hidden' }, T.t35);
+tl.set({}, {}, 5);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

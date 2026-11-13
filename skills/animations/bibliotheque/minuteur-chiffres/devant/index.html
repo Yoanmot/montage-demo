@@ -1,0 +1,119 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+#chiW{position:absolute;left:0;width:1080px;top:762.6px;height:394.8px;}#chi{position:absolute;inset:0;}
+#chi span{position:absolute;left:0;top:0;width:100%;text-align:center;font-size:470px;opacity:0;}
+#chi #v15{opacity:1;}
+#lab{position:absolute;left:0;width:1080px;text-align:center;top:1230px;font-size:52px;color:rgba(246,240,231,0.62);}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="5">
+  <div class="fd" id="fondp" style="position:absolute;inset:0;background:#1A1612;visibility:hidden"></div>
+  <div id="pl" style="visibility:hidden">
+    <div id="chiW"><div id="chi"><span class="ti c-cr " id="v15">15</span><span class="ti c-cr " id="v14">14</span><span class="ti c-cr " id="v13">13</span><span class="ti c-cr " id="v12">12</span><span class="ti c-cr " id="v11">11</span><span class="ti c-cr " id="v10">10</span><span class="ti c-cr " id="v9">09</span><span class="ti c-cr " id="v8">08</span><span class="ti c-cr " id="v7">07</span><span class="ti c-cr " id="v6">06</span><span class="ti c-cr " id="v5">05</span><span class="ti c-cr " id="v4">04</span><span class="ti c-cr " id="v3">03</span><span class="ti c-cr " id="v2">02</span><span class="ti c-cr " id="v1">01</span><span class="ti c-cr " id="v0">00</span></div></div>
+    <div class="tx " id="lab">jours</div>
+  </div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 2.2600,   // #chiW apparaît
+  t02: 2.2995,   // #fondp visible, #pl visible
+  t03: 2.5800,   // #lab apparaît
+  t04: 2.8167,   // #v15 bouge
+  t05: 2.8417,   // geste
+  t06: 3.0167,   // #v14 bouge
+  t07: 3.0417,   // geste
+  t08: 3.1833,   // #v13 bouge
+  t09: 3.2083,   // geste
+  t10: 3.3167,   // #v12 bouge
+  t11: 3.3417,   // geste
+  t12: 3.4500,   // #v11 bouge
+  t13: 3.4750,   // geste
+  t14: 3.5500,   // #v10 bouge
+  t15: 3.5750,   // geste
+  t16: 3.6500,   // #v9 bouge
+  t17: 3.6750,   // geste
+  t18: 3.7500,   // #v8 bouge
+  t19: 3.7750,   // geste
+  t20: 3.8167,   // #v7 bouge
+  t21: 3.8417,   // geste
+  t22: 3.8833,   // #v6 bouge
+  t23: 3.9083,   // geste
+  t24: 3.9500,   // #v5 bouge
+  t25: 3.9750,   // geste
+  t26: 4.0167,   // #v4 bouge
+  t27: 4.0417,   // geste
+  t28: 4.0833,   // #v3 bouge
+  t29: 4.1083,   // geste
+  t30: 4.1500,   // #v2 bouge
+  t31: 4.1750,   // geste
+  t32: 4.2167,   // #v1 bouge
+  t33: 4.2417,   // geste
+  t34: 4.6662,   // #fondp caché, #pl caché
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#chiW', { y: 48.9 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t01);
+tl.fromTo('#chiW', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#chiW', { filter: 'blur(18.8px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#lab', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#lab', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#lab', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.to('#v15', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t04);
+tl.fromTo('#v14', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.2000, ease: 'expo.out', immediateRender: false }, T.t05);
+tl.to('#v14', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t06);
+tl.fromTo('#v13', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1667, ease: 'expo.out', immediateRender: false }, T.t07);
+tl.to('#v13', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t08);
+tl.fromTo('#v12', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1333, ease: 'expo.out', immediateRender: false }, T.t09);
+tl.to('#v12', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t10);
+tl.fromTo('#v11', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1333, ease: 'expo.out', immediateRender: false }, T.t11);
+tl.to('#v11', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t12);
+tl.fromTo('#v10', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t13);
+tl.to('#v10', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t14);
+tl.fromTo('#v9', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t15);
+tl.to('#v9', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t16);
+tl.fromTo('#v8', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.1000, ease: 'expo.out', immediateRender: false }, T.t17);
+tl.to('#v8', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t18);
+tl.fromTo('#v7', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t19);
+tl.to('#v7', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t20);
+tl.fromTo('#v6', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t21);
+tl.to('#v6', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t22);
+tl.fromTo('#v5', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t23);
+tl.to('#v5', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t24);
+tl.fromTo('#v4', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t25);
+tl.to('#v4', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t26);
+tl.fromTo('#v3', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t27);
+tl.to('#v3', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t28);
+tl.fromTo('#v2', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t29);
+tl.to('#v2', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t30);
+tl.fromTo('#v1', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.0667, ease: 'expo.out', immediateRender: false }, T.t31);
+tl.to('#v1', { opacity: 0, y: -75.2, filter: 'blur(8px)', duration: 0.05, ease: 'power3.in' }, T.t32);
+tl.fromTo('#v0', { opacity: 0, y: 94.0, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.2200, ease: 'expo.out', immediateRender: false }, T.t33);
+tl.set('#fondp', { visibility: 'visible' }, T.t02);
+tl.set('#fondp', { visibility: 'hidden' }, T.t34);
+tl.set('#pl', { visibility: 'visible' }, T.t02);
+tl.set('#pl', { visibility: 'hidden' }, T.t34);
+tl.set({}, {}, 5);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

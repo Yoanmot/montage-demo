@@ -1,0 +1,81 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+.pav.cr{background:#F6F0E7;box-shadow:0 5px 0 rgba(26,22,18,.35);}
+#champ{position:absolute;left:91px;top:1120px;width:899px;box-sizing:border-box;display:flex;align-items:center;gap:22px;
+  background:#FFFFFF;border-radius:999px;padding:18px 30px 18px 18px;box-shadow:0 14px 40px rgba(0,0,0,.35);
+  font-family:'Roboto';font-weight:500;visibility:hidden;}
+#champ img{width:84px;height:84px;border-radius:50%;display:block;}
+#txt{flex:1;font-size:46px;color:#000000;line-height:52px;height:52px;}
+#cur{display:inline-block;width:4px;height:52px;background:#0095F6;vertical-align:top;margin-left:4px;}
+#pub{font-size:40px;color:#0095F6;}
+.l{display:none;}
+.sub{position:absolute;left:91px;right:90px;top:1430px;transform:translateY(-50%);text-align:center;
+  color:#F6F0E7;font:800 66px/1.12 'Bricolage Grotesque';font-variation-settings:"opsz" 96;
+  letter-spacing:-0.012em;text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);visibility:hidden;}
+.sub.saut .m{border-radius:10px;padding:0 14px 4px;margin:0 -7px;}
+/* marge négative de la moitié du rembourrage : la ligne ne bouge pas quand le pavé saute, et le pavé garde l'écart d'une espace avec ses voisins (planche) */
+.sub .m.on{background:#F15A24;color:#1A1612;text-shadow:none;box-shadow:0 4px 0 #B8400F;}
+.sub .m.or{color:#F15A24;}
+.sub .big{display:block;font:900 128px/0.86 'Big Shoulders Display';text-transform:uppercase;
+  color:#F6F0E7;margin-top:6px;letter-spacing:0;}
+.sub.fort{top:1386px;}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3">
+  <div id="champ"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo de profil Instagram de Romain (carrée)" alt=""><span id="txt"><span class="l" id="l0">A</span><span class="l" id="l1">B</span><span class="l" id="l2">D</span><span class="l" id="l3">O</span><span class="l" id="l4">S</span><span id="cur"></span></span><span id="pub">Publier</span></div>
+  <div class="sub saut" id="st">commente <span class="m">ABDOS</span></div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 1.4328,   // #champ visible, #st visible
+  t02: 1.5328,   // #l0 bouge, #pub bouge
+  t03: 1.5995,   // #l1 bouge
+  t04: 1.6328,   // #l2 bouge
+  t05: 1.6662,   // #l3 bouge
+  t06: 1.7328,   // #l4 bouge
+  t07: 2.2328,   // #cur bouge
+  t08: 2.7328,   // #cur bouge
+  t09: 1.4995,   // pavé sur le mot (une image avant son attaque, comme les sous-titres classiques)
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.set('#champ', { visibility: 'hidden' }, 0);
+tl.set('#champ', { visibility: 'visible' }, T.t01);
+tl.set('#l0', { display: 'inline' }, T.t02);
+tl.set('#l1', { display: 'inline' }, T.t03);
+tl.set('#l2', { display: 'inline' }, T.t04);
+tl.set('#l3', { display: 'inline' }, T.t05);
+tl.set('#l4', { display: 'inline' }, T.t06);
+tl.set('#pub', { opacity: 0.4 }, 0);
+tl.set('#pub', { opacity: 1 }, T.t02);
+tl.set('#cur', { opacity: 0 }, T.t07);
+tl.set('#cur', { opacity: 1 }, T.t08);
+tl.set('#st', { visibility: 'hidden' }, 0);
+tl.set('#st', { visibility: 'visible' }, T.t01);
+tl.set('#st .m', { attr: { class: 'm' } }, 0);
+tl.set('#st .m', { attr: { class: 'm on' } }, T.t09);   // SOUS_TITRES_TEMPS.avancePave
+tl.set({}, {}, 3);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>

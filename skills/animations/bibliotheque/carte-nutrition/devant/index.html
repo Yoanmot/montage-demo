@@ -1,0 +1,79 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+@font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
+html,body{margin:0;background:transparent;}
+#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
+.a{position:absolute;white-space:nowrap;}
+.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
+  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
+.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
+  font-variation-settings:"opsz" 96;}
+.c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
+.douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
+.pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
+  padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
+
+.card{position:absolute;background:#1A1612;color:#F6F0E7;border-radius:18px;box-shadow:inset 0 0 0 2px rgba(246,240,231,.08),0 18px 50px rgba(0,0,0,.5);font-family:'Bricolage Grotesque';box-sizing:border-box;}
+.card.tabbed{border-top-left-radius:0;}
+.tab{position:absolute;left:0;bottom:100%;height:64px;padding:0 26px;background:#F15A24;color:#1A1612;font:800 46px/68px 'Big Shoulders Display';text-transform:uppercase;letter-spacing:.01em;border-radius:10px 10px 0 0;white-space:nowrap;}
+.tab .n{opacity:0.62;margin-left:14px;}
+.rw{display:grid;grid-template-columns:56px 132px minmax(0,1fr);align-items:center;gap:24px;padding:14px;border-radius:12px;}
+.rw + .rw{margin-top:8px;}
+.rw .i{font:900 72px/1 'Big Shoulders Display';color:#F15A24;text-align:center;}
+.rw img{width:132px;height:132px;border-radius:10px;object-fit:cover;display:block;}
+.rw .nm{font:800 46px/1.05 'Bricolage Grotesque';font-variation-settings:"opsz" 96;letter-spacing:-.01em;}
+.rw .sm{display:block;font:500 30px/1.2 'Bricolage Grotesque';color:rgba(246,240,231,0.62);margin-top:6px;letter-spacing:0;}
+.rw.on{background:#F6F0E7;color:#1A1612;}
+.rw.on .sm{color:rgba(26,22,18,.6);}
+.num{font-variant-numeric:tabular-nums;}.lc{text-transform:none;}</style></head>
+<body>
+<div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3.5">
+  <div class="card tabbed" id="cd" style="left:91px;top:1008px;width:820px;padding:26px">
+    <div class="tab">au menu</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px"><div id="f0"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 1 (poulet), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">poulet</div></div><div id="f1"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 2 (patate douce), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">patates douces</div></div><div id="f2"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 3 (ratatouille), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">ratatouille</div></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:22px;padding-top:18px;border-top:2px solid rgba(246,240,231,0.14)"><span class="ti c-or num" id="t1" style="font-size:96px"><span id="t1n">120</span> <span class="lc" id="t1u">g</span><span class="tx c-cr" id="t1l" style="font-size:34px;text-transform:none;margin-left:12px">de protéines</span></span><span class="ti c-cr num" id="t2" style="font-size:96px"><span id="t2n">14</span> <span class="lc" id="t2u">min</span></span></div>
+  </div>
+</div>
+<script>
+// ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
+// Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30). Chacun se cale sur l'attaque d'un mot de la voix
+// (moins APPARITION.avance = 0,04 s pour une entrée animée). Les durées des tweens viennent de apparitionReglages(h).
+const T = {
+  t01: 0.2000,   // #cd apparaît
+  t02: 0.3700,   // #f0 apparaît
+  t03: 0.5400,   // #f1 apparaît
+  t04: 0.7100,   // #f2 apparaît
+  t05: 0.8800,   // #t1 apparaît
+  t06: 1.0500,   // #t2 apparaît
+};
+</script>
+<script src="../../vendor/gsap.min.js"></script>
+<script>
+const tl = gsap.timeline({ paused: true });
+tl.fromTo('#cd', { y: 36.4 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t01);
+tl.fromTo('#cd', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#cd', { filter: 'blur(14.0px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#f0', { y: 32.0 }, { y: 0, duration: 0.520, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#f0', { opacity: 0 }, { opacity: 1, duration: 0.428, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#f0', { filter: 'blur(12.3px)' }, { filter: 'blur(0px)', duration: 0.769, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#f1', { y: 32.0 }, { y: 0, duration: 0.520, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#f1', { opacity: 0 }, { opacity: 1, duration: 0.428, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#f1', { filter: 'blur(12.3px)' }, { filter: 'blur(0px)', duration: 0.769, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#f2', { y: 32.0 }, { y: 0, duration: 0.520, ease: 'power3.out', immediateRender: true }, T.t04);
+tl.fromTo('#f2', { opacity: 0 }, { opacity: 1, duration: 0.428, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#f2', { filter: 'blur(12.3px)' }, { filter: 'blur(0px)', duration: 0.769, ease: 'power2.out', immediateRender: true }, T.t04);
+tl.fromTo('#t1', { y: 10.0 }, { y: 0, duration: 0.373, ease: 'power3.out', immediateRender: true }, T.t05);
+tl.fromTo('#t1', { opacity: 0 }, { opacity: 1, duration: 0.317, ease: 'power2.out', immediateRender: true }, T.t05);
+tl.fromTo('#t1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.364, ease: 'power2.out', immediateRender: true }, T.t05);
+tl.fromTo('#t2', { y: 10.0 }, { y: 0, duration: 0.373, ease: 'power3.out', immediateRender: true }, T.t06);
+tl.fromTo('#t2', { opacity: 0 }, { opacity: 1, duration: 0.317, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.fromTo('#t2', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.364, ease: 'power2.out', immediateRender: true }, T.t06);
+tl.set({}, {}, 3.5);
+window.__timelines = window.__timelines || {};
+window.__timelines['root'] = tl;
+</script>
+</body></html>
