@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """verifier.py : contrôles image par image d'un calque rendu (appelé par verifier.mjs).
 
-  verifier.py analyse <calque_encre.mov> <calque.json> <sortie.json> [--sans-zone]
+  verifier.py analyse <calque_encre.mov> <calque.json> <sortie.json> [--sans-zone] [--zone-des <image>]
       Encre = pixels d'alpha >= 0,7 (les ombres douces, voiles et fonds marqués .fd ne comptent pas : le rendu « encre »
       les a cachés). Zone sûre de commun.mjs : boîte de l'encre de chaque image, les 4 coins de la boîte de toute la durée.
       Arrivées : images où de l'encre neuve apparaît, comparées aux éléments attendus (calque.json « attendus ») et à
       l'image de leur mot (« mot_image ») : un élément ne s'affiche jamais avant que Romain dise son mot.
+      --zone-des <image> : la zone sûre se contrôle à partir de cette image du calque (titre qui suit le dézoom
+      d'ouverture : il dépasse légitimement pendant le dézoom, il doit tenir une fois la caméra à 100 %).
   verifier.py tete <video_coupee> <image_debut> <nb_images>
       Haut du crâne de Romain sur ces images (pour poser un mot géant derrière sa tête).
   verifier.py apercu <video_coupee> <calque.mov> <calque.json> <sortie.mp4> <planche.png> [ffmpeg]
@@ -50,7 +52,7 @@ def frames(video, w=W, h=H, debut=None, n=None, fmt="rgba"):
 
 
 # ---------------------------------------------------------------------------------------------- analyse
-def analyse(mov, fiche_f, sortie, sans_zone=False):
+def analyse(mov, fiche_f, sortie, sans_zone=False, zone_des=0):
     fiche = json.loads(Path(fiche_f).read_text())
     tol = 3
     boites, compte, neuf = [], [], []
@@ -77,6 +79,8 @@ def analyse(mov, fiche_f, sortie, sans_zone=False):
     hors = []
     if not sans_zone:
         for k, b in enumerate(boites):
+            if k < zone_des:
+                continue
             if b and (b[0] < ZS["x0"] - tol or b[2] > ZS["x1"] + tol or b[1] < ZS["y0"] - tol or b[3] > ZS["y1"] + tol):
                 hors.append({"image": k, "boite": b})
     tout = [b for b in boites if b]
@@ -101,6 +105,7 @@ def analyse(mov, fiche_f, sortie, sans_zone=False):
         attendus.append(r)
     imprevues = [a for a in arrivees if not any(-2 <= a - at["image"] <= 2 for at in fiche.get("attendus", []))]
     res = {"images": n, "hors_zone": hors[:20], "nb_hors_zone": len(hors), "zone_controlee": not sans_zone,
+           "zone_des": zone_des,
            "boite_totale": union, "coins": coins, "arrivees_detectees": arrivees, "attendus": attendus,
            "arrivees_imprevues": imprevues, "image0_vide": compte[0] == 0 if n else True}
     Path(sortie).write_text(json.dumps(res, indent=1, ensure_ascii=False))
@@ -228,7 +233,8 @@ def masque_vision_brut(rgb):
 if __name__ == "__main__":
     a = sys.argv[1:]
     if a and a[0] == "analyse":
-        analyse(a[1], a[2], a[3], "--sans-zone" in a)
+        zd = int(a[a.index("--zone-des") + 1]) if "--zone-des" in a else 0
+        analyse(a[1], a[2], a[3], "--sans-zone" in a, zd)
     elif a and a[0] == "apercu":
         apercu(*a[1:])
     elif a and a[0] == "tete":

@@ -43,6 +43,8 @@ Ce que le script répond (une ligne par carrousel, puis le total) :
   À refaire avec le nouveau texte.
 - `DEJA_FAIT slug=… rendu_le="…"` : trouvé déjà mis en page (le `termine` avait été oublié, ou pas
   envoyé) : le script l'a rangé. Rien à refaire.
+- `TEXTE_REPORTE slug=… : slide N (…) : « avant » -> « après »` : une correction faite sur le Mac
+  pendant la mise en page a été reportée dans le texte du head of content. Rien à faire.
 - `RESTE n` ou `RIEN_EN_ATTENTE`.
 - `HORS_LIGNE` : pas d'internet. Le script travaille avec la dernière copie ; dis à Romain que la
   liste n'est peut-être pas à jour.
@@ -95,8 +97,11 @@ Lance `attente`. Puis dis à Romain, en quelques lignes :
      toujours te demander une retouche dans ce dossier).
 
 ### Si Romain change un mot ici, sur son Mac
-C'est son texte : fais-le dans `carrousel.json`. Cela ne change rien à la liste. S'il veut que son
-head of content le sache, dis-lui de le lui dire la prochaine fois qu'il lui parle.
+C'est son texte : fais-le dans `carrousel.json` (seulement ce qu'il demande, au caractère près). Tu
+n'as rien d'autre à faire : au moment de `termine`, le script compare le texte rendu au texte validé
+et reporte la correction dans le texte de son head of content (ligne `TEXTE_REPORTE`). Dis-lui
+seulement : « C'est corrigé, et ton head of content a la nouvelle version. » La légende ne se
+change pas ici : elle se change avec son head of content.
 
 ### « Où en sont mes carrousels ? »
 Lance `attente` et réponds avec ce qu'il dit, sans rien mettre en page.

@@ -98,8 +98,10 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
      s'effacent pendant ce moment-là. Pendant un plein écran (et tout geste qui couvre l'écran du texte qu'il dit), les
      sous-titres s'effacent aussi : rien à faire, la brique le marque.
    - CTA : le pavé orange de « commente MOT » se cale sur le mot (`{ "pave": "<mot>" }`), comme dit le skill.
-   - Image de réaction : tu la télécharges toi-même. Photo de lui qui manque : l'emplacement est posé, tu la lui
-     demandes avec la planche (ce qu'elle doit montrer).
+   - Image de réaction (mème, `MEME_A_TELECHARGER` au calage) : tu la trouves et la télécharges toi-même, le mème
+     exact nommé dans le plan, jamais une autre image du web ; tu ne la demandes jamais à Romain. Photo de lui qui
+     manque (`PHOTO_A_FOURNIR`) : l'emplacement est posé, tu la lui demandes avec la planche (ce qu'elle doit montrer).
+   - Titre de l'accroche qui suit le dézoom : composé à 100 % comme le gabarit, `suit_ouverture` (voir le skill).
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
    couvrent l'écran) : style du plan (`sous_titres`), orthographe guidée par `vocabulaire`. Une animation qui change
@@ -132,6 +134,11 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
    animation, les sous-titres, un zoom, un clip), tu relances la planche (seules les vignettes touchées sont refaites)
    et tu lui remontres en disant ce qui a changé (« le 4 est parti, le 6 est en orange »). Il valide : tu fabriques.
    Tout ce qui a été préparé pour la planche sert tel quel à la fabrication.
+   **Correction et validation dans le même message** (« change le 6 en orange et c'est bon ») : tu appliques la
+   correction, tu refais les vignettes touchées et tu les lui montres avec une ligne : « Voilà le 6 en orange. Je
+   fabrique si c'est bon pour toi. » Tu attends son ok. Seule exception : une correction qui ne fait que retirer
+   (« enlève le 2, et c'est bon ») : rien de neuf à voir, tu fabriques directement et tu le dis (« le 2 est parti,
+   je fabrique »).
 
 ### 7. Fabriquer
 1. **Sons** (`sound-design`) : c'est ta décision, discrète, jamais partout. Un clic sur chaque transition (chaque

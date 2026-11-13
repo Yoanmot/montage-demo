@@ -124,6 +124,9 @@ l'élément) en px vidéo. Trois mouvements en même temps, partis au même inst
   dont l'encre couvre la zone sûre (x 94 à 987), **16 px** entre la ligne de base de la phrase et le haut des capitales,
   pavé orange 22 px sous le mot géant ; **toute la composition passe derrière lui** (trouée par son masque), le mot géant
   au-dessus de sa tête, bas des capitales environ 30 % sous le haut du crâne. Voile standard, ombre douce.
+  Avec le dézoom d'ouverture (caméra de 120 % à 100 %), le titre suit la caméra : il se compose à 100 % (encre du mot
+  géant sur la zone sûre) et dépasse pendant le dézoom, c'est voulu ; la zone sûre se juge à l'image où le dézoom est
+  fini (`suit_ouverture`, contrôlé par `verifier.mjs`).
 - **Mot géant derrière la tête** → `hook-mot-geant/` : petits mots Bricolage 52 px devant (en haut à gauche, puis en bas
   à droite vers y 640), le mot géant derrière sa tête, en trois temps, chacun sur sa voix avec l'apparition ; tick sur
   le mot géant.
@@ -281,6 +284,8 @@ l'élément) en px vidéo. Trois mouvements en même temps, partis au même inst
 - Tout texte dans **x 91 à 990, y 237 à 1479**. À droite, sous y 997, la colonne des boutons Instagram : rien au-delà
   de x 990.
 - Les mots géants calculent leur taille pour que l'encre couvre x 94 à 987.
+- Seule exception : le titre derrière lui qui suit le dézoom d'ouverture dépasse pendant le dézoom ; il tient dans la
+  zone (et la couvre) à l'image où la caméra est revenue à 100 %.
 
 ## Animations sur mesure : qualité et placement (Yoan, 2026-11-12, tests v3 et v4)
 Retours de Yoan : « ça fait un peu cheap dans les formes utilisées, les mouvements » (v3), puis sur la v4 : le puzzle en
@@ -340,7 +345,10 @@ seulement :
   brèves sur les textes, faisceau sans son, et les quatre musiques proposées.
 - Jamais de reel complet ni de reel témoin dans le labo : le labo montre des effets isolés.
 - Jamais rien d'inventé sur Romain : textes, chiffres, ordres de classement viennent de lui.
-- Jamais une photo trouvée sur le web dans un reel : en production, photos de Romain.
+- Jamais une photo trouvée sur le web dans un reel : en production, photos de Romain. **Seule exception : l'image de
+  réaction (mème)** (décision de Yoan, 2026-11-11, confirmée le 2026-11-13) : le monteur la trouve et la télécharge
+  lui-même, le mème exact et connu nommé dans le plan (Mr Bean qui attend, Pikachu surpris), jamais une autre image du
+  web à sa place, jamais une photo de Romain ni d'une vraie personne présentée comme un client.
 
 ## À valider par Romain
 - Carte présentation : « coach sportif, **Suisse** » écrit à la place de « Lausanne » (non vérifié) ; confirmer la ville

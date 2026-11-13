@@ -111,7 +111,14 @@ for (const [k, d] of demandes.entries()) {
     }
     r.elements.push({ ...e, sur: s });
   }
-  for (const [j, p] of r.photos.entries()) if (!p.fichier) A(`${id}.photos[${j}]`, 'PHOTO_A_FOURNIR', `${p.pour || 'photo'} : emplacement posé, à demander à Romain`);
+  // Une image de réaction (mème) n'est pas une photo de Romain : le monteur la télécharge lui-même (STYLE.md, décision de
+  // Yoan du 2026-11-11). Le plan la signale par « quoi » qui commence par « à télécharger par le monteur ».
+  const estMeme = (p) => /^\s*a telecharger par le monteur/.test(String(p.quoi || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  for (const [j, p] of r.photos.entries()) {
+    if (p.fichier) continue;
+    if (estMeme(p)) A(`${id}.photos[${j}]`, 'MEME_A_TELECHARGER', `${p.pour || 'image de réaction'} : à trouver et télécharger par le monteur (${p.quoi}), pas à demander à Romain`);
+    else A(`${id}.photos[${j}]`, 'PHOTO_A_FOURNIR', `${p.pour || 'photo'} : emplacement posé, à demander à Romain`);
+  }
   sortie.push(r);
 }
 

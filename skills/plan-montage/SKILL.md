@@ -42,8 +42,9 @@ Lis avant d'écrire :
    `<nom>-montage`).
 2. **Le texte numéroté** : `node "$SK/sous-titres/scripts/sous-titres.mjs" texte "<nom>-montage"`
    écrit `texte-sous-titres.md` (une phrase par ligne, `[12]abdos`, un `/` devant un mot qui suit une
-   pause). Lis-le en entier. Les ancres du plan sont des morceaux de ce texte ; les `/` te disent où
-   il y a une coupe, donc où un flash peut se poser.
+   coupe de la vidéo). Lis-le en entier. Les ancres du plan sont des morceaux de ce texte ; les `/`
+   sont les coupes, calculées comme le calage des transitions : un flash posé sur un mot précédé
+   d'un `/` passe, ailleurs il est refusé (`PAS_DE_COUPE`).
 3. **Ses clips** (B-rolls), s'il en a donné : ce que montre chacun (tu as regardé les vignettes de la
    brique b-roll) et sa durée. S'il a collé son **brief de tournage**, il dit sur quelle phrase va
    chaque plan filmé : sers-t'en, en vérifiant sur la vignette que le clip montre bien ça.
@@ -154,14 +155,17 @@ une simple trace dans le dossier de montage.
 - [ ] Chaque animation nomme l'original exact à reproduire (appli Calendrier d'Apple), ou elle est
   minimaliste (texte mis en forme comme un titre, une ou deux formes nettes) ; jamais de
   personnages, de fausse 3D, de stylo qui dessine les marques.
-- [ ] Le titre d'accroche se comprend sans le son ; l'objet du désir est surligné.
+- [ ] Le titre d'accroche se comprend sans le son ; l'objet du désir est surligné ; il ne promet rien
+  que Romain ne dit pas dans la vidéo, reprend ses mots quand c'est possible, et l'`intention` cite
+  la phrase de lui d'où il vient.
 - [ ] Images de réaction : 1 ou 2, mème nommé précisément avec les mots pour le chercher.
 - [ ] Chaque plein écran a une raison écrite dans son `intention` (`regles.md`).
 - [ ] Demi-écran : zéro, ou un seul avec sa raison.
 - [ ] Chaque flash est posé sur un mot précédé d'un `/` (une coupe) ; sinon le flash fait partie de
   l'animation.
 - [ ] Rien ne s'affiche avant que Romain dise le mot (sauf le titre d'accroche, qui peut ne pas
-  être dit) ; chaque chiffre affiché est dit.
+  être une phrase dite, mais ne promet rien qu'il ne dit pas : `regles.md`, « L'accroche ») ; chaque
+  chiffre affiché est dit.
 - [ ] `mots_forts` vide (l'ancien mot fort doublait les sous-titres).
 - [ ] Jamais deux accents en même temps (sauf exceptions de `regles.md`) ; jamais trois pleins
   écrans de suite, deux de suite seulement avec des fonds différents.

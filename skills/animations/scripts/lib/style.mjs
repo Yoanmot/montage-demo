@@ -227,7 +227,7 @@ export function photosAFournir(html) {
   return [...html.matchAll(/<img[^>]*src="images\/image-a-fournir\.svg"[^>]*data-a-fournir="([^"]*)"/g)].map((m) => m[1]);
 }
 // entree : { id, demande, debut (image de la vidéo coupée), images, couche, ordre, plan?, sons_suggeres?, attendus?,
-//            origine : { gabarit } | { sur_mesure : intention }, params? }
+//            origine : { gabarit } | { sur_mesure : intention }, params?, suit_ouverture? (titre qui suit le dézoom) }
 export function ecrireCalque(dossierMontage, entree, html, extra = {}) {
   const dc = path.join(dossierMontage, 'calques', entree.id);
   fs.mkdirSync(dc, { recursive: true });
@@ -242,6 +242,8 @@ export function ecrireCalque(dossierMontage, entree, html, extra = {}) {
   c.sons_suggeres = (entree.sons_suggeres || []).map((x) => ({ ...x, calque: entree.id }));
   const fiche = { ...c, demande: entree.demande, origine: entree.origine, attendus: entree.attendus || [],
     a_fournir: photosAFournir(html), params: entree.params || null, ecrit_le: new Date().toISOString().slice(0, 10) };
+  // titre qui suit le dézoom d'ouverture : verifier.mjs contrôle sa zone sûre une fois le dézoom fini
+  if (entree.suit_ouverture) fiche.suit_ouverture = true;
   fs.writeFileSync(path.join(dc, 'calque.json'), JSON.stringify(fiche, null, 2) + '\n');
   return { dossier: dc, fiche };
 }

@@ -18,6 +18,10 @@ L'état vit à deux endroits qui se recoupent :
      plus récents que lui) et le journal local ~/.montage-yoan/rendus-journal.json.
 Si termine est oublié, ou si l'envoi échoue, attente retrouve le rendu par les preuves et le range.
 
+Une correction de texte faite sur le Mac pendant la mise en page (dans carrousel.json) est reportée
+dans le texte du head of content au moment où il est rangé : rendus/<type>/<slug>.md porte le texte
+tel qu'il a été rendu, avec une ligne « Corrigé sur le Mac », et le registre son empreinte.
+
 Python 3.9 et bibliothèque standard seulement (le Python fourni avec les outils de développement
 d'Apple, qui fournissent aussi git).
 
@@ -68,6 +72,10 @@ TYPES = {
 }
 
 SLUG_OK = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+# Les clés de texte d'une slide (celles qui seront publiées). Les autres (photo, cadrage, position,
+# fond, style…) sont de la mise en page : elles restent sur le Mac et ne remontent jamais.
+CLES_TEXTE = ("surtitre", "titre", "texte", "liste", "chute", "bandeau")
 
 
 # ---------------------------------------------------------------- outils
@@ -266,9 +274,11 @@ def appliquer(operations):
     for op in operations:
         t, slug = op["type"], op["slug"]
         entree = reg[t].get(slug)
-        if not entree or entree.get("empreinte") != op["empreinte"]:
+        # empreinte du texte tel qu'il a été rendu : celle du texte validé, ou du texte corrigé sur le Mac
+        emp_rendu = op.get("empreinte_rendu") or op["empreinte"]
+        if not entree or entree.get("empreinte") != emp_rendu:
             nouvelle = {
-                "empreinte": op["empreinte"],
+                "empreinte": emp_rendu,
                 "rendu_le": op["rendu_le"],
                 "dossier": op["dossier"],
                 "fichiers": op["fichiers"],
@@ -276,6 +286,9 @@ def appliquer(operations):
                 "enregistre_par": op["par"],
                 "precedents": [],
             }
+            if op.get("texte_rendu"):
+                nouvelle["corrige_sur_le_mac"] = {"empreinte_validee": op["empreinte"],
+                                                  "corrections": op.get("corrections", [])}
             if entree:
                 nouvelle["precedents"] = entree.get("precedents", []) + [
                     {"empreinte": entree.get("empreinte"), "rendu_le": entree.get("rendu_le")}]
@@ -285,7 +298,13 @@ def appliquer(operations):
         if os.path.exists(src) and empreinte_fichier(src) == op["empreinte"]:
             dst_dir = os.path.join(DEPOT, "rendus", t)
             os.makedirs(dst_dir, exist_ok=True)
-            os.replace(src, os.path.join(dst_dir, slug + ".md"))
+            dst = os.path.join(dst_dir, slug + ".md")
+            if op.get("texte_rendu"):
+                with open(dst, "w", encoding="utf-8") as f:
+                    f.write(op["texte_rendu"])
+                os.remove(src)
+            else:
+                os.replace(src, dst)
             change = True
     if change:
         ecrire_json(os.path.join(DEPOT, REGISTRE), reg)
@@ -373,8 +392,12 @@ def preuves(t, slug, reg):
                         "dossier": court(d), "fichiers": len(f)})
     for e in journal():
         if e.get("type") == t and e.get("slug") == slug:
-            res.append({"empreinte": e["empreinte"], "rendu_le": e["rendu_le"],
-                        "dossier": e["dossier"], "fichiers": e.get("fichiers", 0)})
+            p = {"empreinte": e["empreinte"], "rendu_le": e["rendu_le"],
+                 "dossier": e["dossier"], "fichiers": e.get("fichiers", 0)}
+            for k in ("texte_rendu", "empreinte_rendu", "corrections"):
+                if k in e:
+                    p[k] = e[k]
+            res.append(p)
     return res
 
 
@@ -415,6 +438,85 @@ def en_attente(t):
     return [(n[:-3], os.path.join(d, n)) for n in noms]
 
 
+# ---------------------------------------------------------------- correction faite sur le Mac
+
+def _plat(v):
+    return (v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)).replace("\n", " ")
+
+
+def _ecart(a, b, n=50):
+    """Les deux versions autour de l'endroit où elles diffèrent (lisible dans une ligne)."""
+    a, b = _plat(a), _plat(b)
+    i = 0
+    while i < min(len(a), len(b)) and a[i] == b[i]:
+        i += 1
+    d = max(0, i - 20)
+    coupe = lambda x: ("…" if d else "") + x[d:d + n] + ("…" if len(x) > d + n else "")
+    return coupe(a), coupe(b)
+
+
+def texte_rendu(t, chemin_texte, dossier, rendu_le):
+    """Le texte validé (a-rendre) comparé à ce qui a été rendu (carrousel.json du dossier).
+    Rend None si les textes des slides sont identiques, sinon (contenu du fichier à ranger dans
+    rendus/, liste des corrections lisibles). Seules les clés de texte remontent."""
+    conf = TYPES[t]
+    if not conf["json"] or not os.path.exists(chemin_texte):
+        return None
+    rendu = lire_json(os.path.join(long(dossier), conf["json"]), None)
+    with open(chemin_texte, "r", encoding="utf-8") as f:
+        txt = f.read()
+    valide, err = bloc_json(txt)
+    if err or not isinstance(rendu, dict) or not isinstance(valide, dict):
+        return None
+    sv, sr = valide.get("slides") or [], rendu.get("slides") or []
+    texte = lambda s: {k: s[k] for k in CLES_TEXTE if isinstance(s, dict) and k in s}
+    corrections = []
+    for i in range(max(len(sv), len(sr))):
+        a = texte(sv[i]) if i < len(sv) else None
+        b = texte(sr[i]) if i < len(sr) else None
+        if a == b:
+            continue
+        if a is None:
+            corrections.append("slide %d ajoutée" % (i + 1))
+        elif b is None:
+            corrections.append("slide %d retirée" % (i + 1))
+        else:
+            for k in CLES_TEXTE:
+                if a.get(k) != b.get(k):
+                    corrections.append("slide %d (%s) : « %s » -> « %s »"
+                                       % ((i + 1, k) + _ecart(a.get(k, ""), b.get(k, ""))))
+    if not corrections:
+        return None
+    slides = []
+    for i, s in enumerate(sr):
+        base = sv[i] if i < len(sv) and isinstance(sv[i], dict) else {}
+        n = {k: v for k, v in base.items() if k not in CLES_TEXTE}
+        n.update(texte(s))
+        slides.append(n)
+    nouveau = dict(valide)
+    nouveau["slides"] = slides
+    bloc = json.dumps(nouveau, ensure_ascii=False, indent=2)
+    m = re.search(r"```json\s*\n(.*?)\n```", txt, re.S)
+    avant, apres = txt[:m.start()], txt[m.end():]
+    note = "- Corrigé sur le Mac à la mise en page, le %s : %s" % (
+        lisible(rendu_le)[:10], " ; ".join(corrections))
+    contenu = avant.rstrip("\n") + "\n" + note + "\n\n```json\n" + bloc + "\n```" + apres
+    return contenu, corrections
+
+
+def avec_texte_rendu(op, t, chemin_texte):
+    """Ajoute à l'opération le texte rendu s'il diffère du texte validé (et rien sinon)."""
+    if op.get("texte_rendu") or not os.path.exists(chemin_texte):
+        return op
+    if empreinte_fichier(chemin_texte) != op["empreinte"]:
+        return op
+    tr = texte_rendu(t, chemin_texte, op["dossier"], op["rendu_le"])
+    if tr:
+        op = dict(op, texte_rendu=tr[0], corrections=tr[1],
+                  empreinte_rendu="sha256:" + hashlib.sha256(tr[0].encode("utf-8")).hexdigest())
+    return op
+
+
 # ---------------------------------------------------------------- commandes
 
 def cmd_attente(t):
@@ -431,7 +533,13 @@ def cmd_attente(t):
         meme = [p for p in trouves if p["empreinte"] == emp]
         sans_marqueur = [p for p in trouves if p["empreinte"] is None]
 
-        if entree and entree.get("empreinte") == emp:
+        validee = (entree or {}).get("corrige_sur_le_mac", {}).get("empreinte_validee")
+        if entree and validee == emp:
+            # le texte validé d'un carrousel corrigé sur le Mac : déjà rendu, on le range (texte rendu)
+            a_ranger.append((slug, info, {"empreinte": emp, "rendu_le": entree["rendu_le"],
+                                          "dossier": entree.get("dossier", ""),
+                                          "fichiers": entree.get("fichiers", 0)}, "registre"))
+        elif entree and entree.get("empreinte") == emp:
             a_ranger.append((slug, info, {"empreinte": emp, "rendu_le": entree["rendu_le"],
                                           "dossier": entree.get("dossier", ""),
                                           "fichiers": entree.get("fichiers", 0)}, "registre"))
@@ -453,9 +561,14 @@ def cmd_attente(t):
             nouveaux.append((slug, chemin, info))
 
     if a_ranger:
-        ops = [{"type": t, "slug": s, "empreinte": p["empreinte"], "rendu_le": p["rendu_le"],
-                "dossier": p["dossier"], "fichiers": p["fichiers"],
-                "par": "attente (%s)" % par} for s, _, p, par in a_ranger]
+        ops = []
+        for s, _, p, par in a_ranger:
+            op = {"type": t, "slug": s, "empreinte": p["empreinte"], "rendu_le": p["rendu_le"],
+                  "dossier": p["dossier"], "fichiers": p["fichiers"], "par": "attente (%s)" % par}
+            for k in ("texte_rendu", "empreinte_rendu", "corrections"):
+                if k in p:
+                    op[k] = p[k]
+            ops.append(avec_texte_rendu(op, t, os.path.join(DEPOT, "a-rendre", t, s + ".md")))
         if en_ligne:
             etat = transaction(ops, "Mac de Romain : %s déjà rendu(s), rangé(s) : %s"
                                % (t, ", ".join(o["slug"] for o in ops)))
@@ -467,6 +580,9 @@ def cmd_attente(t):
                 continue
             dire('DEJA_FAIT slug=%s rendu_le="%s" dossier="%s" titre="%s"'
                  % (s, lisible(p["rendu_le"]), p["dossier"], info["titre"]))
+        for op in ops:
+            if op.get("corrections"):
+                dire('TEXTE_REPORTE slug=%s : %s' % (op["slug"], " ; ".join(op["corrections"])))
         if etat == "pas_envoye":
             dire("PAS_ENVOYE : rangement noté, il sera envoyé au prochain lancement avec connexion.")
 
@@ -544,11 +660,14 @@ def cmd_termine(t, slug):
         stop(30, "AUCUN_RENDU %s : aucun fichier rendu dans le dossier préparé. Rien n'est enregistré."
              % slug)
     d, emp, f = rendu
-    if not os.path.exists(chemin) and reg[t].get(slug, {}).get("empreinte") == emp:
+    entree = reg[t].get(slug, {})
+    if not os.path.exists(chemin) and emp in (entree.get("empreinte"),
+                                              entree.get("corrige_sur_le_mac", {}).get("empreinte_validee")):
         dire("DEJA_ENREGISTRE slug=%s" % slug)
         return
     op = {"type": t, "slug": slug, "empreinte": emp, "rendu_le": iso(maintenant()),
           "dossier": court(d), "fichiers": len(f), "par": "termine"}
+    op = avec_texte_rendu(op, t, chemin)
     noter_journal(op)
     if en_ligne:
         etat = transaction([op], "Mac de Romain : %s rendu (%s), sorti de la liste" % (slug, t))
@@ -560,6 +679,8 @@ def cmd_termine(t, slug):
              "il reste dans la liste comme « mis à jour »." % slug)
     else:
         dire('TERMINE slug=%s dossier="%s" fichiers=%d' % (slug, d, len(f)))
+        if op.get("corrections"):
+            dire("TEXTE_REPORTE slug=%s : %s" % (slug, " ; ".join(op["corrections"])))
     if etat == "pas_envoye":
         dire("PAS_ENVOYE : pas de connexion. C'est noté sur ce Mac, l'envoi se fera au prochain lancement.")
     dire("RESTE %d" % len(en_attente(t)))

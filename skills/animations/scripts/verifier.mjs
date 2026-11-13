@@ -54,9 +54,27 @@ if (!natif) {
   for (const c of vues) if (!permises.has(c)) pb.push(`STYLE couleur hors palette : rgb(${c})`);
 }
 const familles = new Set([S.POLICES.titre.family, S.POLICES.texte.family, S.POLICES.natif.family, 'Liberation Sans']);
-for (const m of html.matchAll(/font-family:\s*'([^']+)'/g)) if (!familles.has(m[1])) pb.push(`STYLE police hors style : ${m[1]}`);
-for (const m of html.matchAll(/font:\s*\d+\s+[\d.]+px(?:\/[\d.]+(?:px)?)?\s+'([^']+)'/g)) if (!familles.has(m[1])) pb.push(`STYLE police hors style : ${m[1]}`);
+// Polices : la première famille de chaque déclaration, écrite entre apostrophes, entre guillemets ou sans rien (CSS
+// font-family et raccourci font, style en ligne, fontFamily en JS). Les familles génériques de secours qui suivent
+// (sans-serif…) ne comptent pas ; une générique seule ou en premier est refusée (le navigateur choisirait la police).
+const GENERIQUES = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-sans-serif', 'ui-serif', 'ui-monospace', 'ui-rounded', '-apple-system', 'blinkmacsystemfont', 'inherit', 'initial', 'unset', 'revert']);
+const premiereFamille = (liste) => liste.split(',')[0].trim().replace(/^\\?["']|\\?["']$/g, '').replace(/\s+/g, ' ').trim();
+const policesVues = [];
+for (const m of html.matchAll(/font-family\s*:\s*([^;}<]+)/gi)) policesVues.push(premiereFamille(m[1]));
+for (const m of html.matchAll(/fontFamily\s*[:=]\s*(["'`])([^"'`]+)\1/g)) policesVues.push(premiereFamille(m[2]));
+for (const m of html.matchAll(/(?<![\w-])font\s*:\s*([^;}<]+)/gi)) {
+  const f = m[1].match(/[\d.]+(?:px|em|rem|%)(?:\s*\/\s*[\d.]+(?:px|em|rem|%)?)?\s+(.+)$/);
+  if (f) policesVues.push(premiereFamille(f[1]));
+}
+for (const f of new Set(policesVues)) {
+  if (!f || familles.has(f)) continue;
+  if (GENERIQUES.has(f.toLowerCase())) { if (!natif || !['-apple-system', 'system-ui', 'blinkmacsystemfont'].includes(f.toLowerCase())) pb.push(`STYLE police générique en premier : ${f} (le navigateur choisirait la police)`); continue; }
+  // Un format réel reproduit garde la police du vrai (Georgia d'une une de journal, Arial de Google) (Yoan, 2026-11-13).
+  if (natif) continue;
+  pb.push(`STYLE police hors style : ${f}`);
+}
 if (!natif && /-apple-system|system-ui|BlinkMacSystemFont|SF Pro/.test(html)) pb.push('STYLE police système (réservée à un format réel reproduit à l\'identique : origine.natif dans calque.json)');
+if (/font-style\s*:\s*italic/i.test(html) && /Georgia|Times|Playfair|Fraunces|Bodoni|Instrument Serif|DM Serif|serif['"\s,;]/i.test(html.replace(/sans-serif/gi, ''))) pb.push('STYLE serif en italique : interdite partout, même dans un format réel (Yoan)');
 const courbes = new Set([...Object.values(S.COURBES), 'power2.inOut', 'power3.inOut', 'sine.inOut', 'expo.out', 'power3.in', 'power2.in', 'power1.in', 'power2.out', 'power3.out']);
 for (const m of html.matchAll(/duration:\s*([\d.]+),\s*ease:\s*'([^']+)'/g)) {
   if (m[2] === 'none' && +m[1] > 0.1) pb.push(`STYLE mouvement linéaire de ${m[1]} s (seule la sortie du faisceau, 0,09 s, l'est)`);
@@ -77,6 +95,19 @@ for (const f of [...html.matchAll(/(?:src="|url\(')([^"')]+)/g)].map((m) => m[1]
 const dur = +html.match(/data-duration="([\d.]+)"/)[1];
 if (Math.abs(dur * 30 - fiche.images) > 0.01) pb.push(`durée du HTML (${dur} s) différente de calque.json (${fiche.images} images)`);
 if (fiche.a_fournir.length) notes.push(`photos à demander à Romain : ${fiche.a_fournir.join(' ; ')}`);
+// Titre qui suit le dézoom d'ouverture (suit_ouverture dans calque.json) : pendant le dézoom (caméra de 120 % à 100 %) il
+// grossit avec elle et dépasse la zone sûre, c'est voulu. La zone se contrôle à partir de l'image où le dézoom est fini
+// (ouverture.json de la brique zooms : « images »), là où il doit couvrir la zone sûre comme le gabarit.
+let zoneDes = 0;
+if (fiche.suit_ouverture) {
+  const fo = path.join(dossier, 'ouverture.json');
+  if (!fs.existsSync(fo)) pb.push('suit_ouverture sans ouverture.json : prépare d\'abord le zoom « ouverture » (brique zooms)');
+  else {
+    zoneDes = Math.max(0, JSON.parse(fs.readFileSync(fo, 'utf8')).images - fiche.debut);
+    if (zoneDes >= fiche.images) { pb.push(`le calque part (image ${fiche.debut + fiche.images}) avant la fin du dézoom (image ${fiche.debut + zoneDes}) : la zone sûre ne peut pas se contrôler à 100 %`); zoneDes = 0; }
+    else notes.push(`suit le dézoom d'ouverture : zone sûre contrôlée à partir de l'image ${zoneDes} du calque (dézoom fini)`);
+  }
+}
 
 // ------------------------------------------------------------------ 2. lint
 const lint = spawnSync('npx', [...HF, 'lint'], { cwd: dc, encoding: 'utf8' });
@@ -109,7 +140,7 @@ if (!sansRendu && !pb.some((p) => p.startsWith('lint'))) {
       fs.rmSync(ed, { recursive: true, force: true });
     }
     const sansZone = gab && ['transition-faisceau', 'transition-flash', 'recherche-google'].includes(gab);
-    const out = execFileSync('python3', [path.join(ICI, 'verifier.py'), 'analyse', encre, path.join(dc, 'calque.json'), path.join(vd, 'analyse.json'), ...(sansZone ? ['--sans-zone'] : [])], { encoding: 'utf8' });
+    const out = execFileSync('python3', [path.join(ICI, 'verifier.py'), 'analyse', encre, path.join(dc, 'calque.json'), path.join(vd, 'analyse.json'), ...(sansZone ? ['--sans-zone'] : []), ...(zoneDes ? ['--zone-des', String(zoneDes)] : [])], { encoding: 'utf8' });
     console.log(out.trim());
     analyse = JSON.parse(fs.readFileSync(path.join(vd, 'analyse.json'), 'utf8'));
     if (analyse.nb_hors_zone) pb.push(`ZONE ${analyse.nb_hors_zone} image(s) avec de l'encre hors zone sûre (x ${S.ZONE_SURE.x0}-${S.ZONE_SURE.x1}, y ${S.ZONE_SURE.y0}-${S.ZONE_SURE.y1}), première : image ${analyse.hors_zone[0].image} boîte ${analyse.hors_zone[0].boite}`);

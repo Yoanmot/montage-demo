@@ -45,7 +45,15 @@ entendre Romain, il dit ce que la personne veut obtenir. Il part donc de son env
 phrase de Romain : « Comment avoir / la meilleure / transformation physique » (Yoan, 2026-11-11),
 pas « Qui a les meilleurs résultats ? ». Le **surlignage orange va sur l'objet du désir** (la ligne
 « transformation physique »), pas sur un adjectif. Il nomme l'envie que la vidéo sert, sans promettre
-un résultat chiffré qu'elle ne donne pas. 3 à 7 mots, sur 2 ou 3 lignes (forme habituelle :
+un résultat chiffré qu'elle ne donne pas.
+**Ce qu'il a le droit de faire** : c'est le seul texte de la vidéo qui peut ne pas être une phrase
+dite (il se lit sans le son). Mais il ne promet **rien que Romain ne dit pas** dans la vidéo : l'envie
+du titre est celle que sa vidéo traite, avec ce qu'il y dit (« des résultats qui durent » seulement
+s'il parle de tenir sur le long terme ; jamais « perdre 5 kilos », « en 2 semaines » ou un bénéfice
+qu'il n'aborde pas). Et il **reprend ses mots quand c'est possible** : cherche d'abord dans le texte
+de la vidéo le mot qui porte l'envie (« long terme », « douze semaines », « sans douleur ») et
+construis le titre autour ; une reformulation seulement quand aucun de ses mots ne se lit sans le
+son. Écris dans l'`intention` la phrase de lui d'où vient le titre. 3 à 7 mots, sur 2 ou 3 lignes (forme habituelle :
 « Comment avoir » / « la meilleure » / « <ce qu'on veut> »), la plus grande ligne sur toute la
 largeur. Il reste jusqu'à la fin de sa première phrase et
 part sur la première coupe (au plus tard vers 6 s).
@@ -151,10 +159,11 @@ visage, sa voix et son énergie qu'on vient chercher.
   changent de fond ; avec lui entre les deux, le fond est libre. Le message principal garde
   l'orange.
 - **Entrée et sortie par un flash** (règle de Yoan) : un flash sur la coupe juste avant le plein
-  écran, un autre sur la coupe qui revient sur lui. Une coupe n'existe que là où il marque une
-  pause : dans `texte-sous-titres.md`, c'est un mot précédé d'un `/`. Ancre le plein écran sur un
+  écran, un autre sur la coupe qui revient sur lui. Une coupe n'existe que là où la vidéo a
+  été coupée (un blanc ou une reprise retirés) : dans `texte-sous-titres.md`, c'est un mot précédé
+  d'un `/`, et seulement là. Ancre le plein écran sur un
   **début de phrase** précédé d'un `/`, et le flash de sortie sur le début de la phrase suivante,
-  lui aussi après un `/`. Là où il enchaîne sans pause, il n'y a pas de coupe : pour un plein écran,
+  lui aussi après un `/`. Là où il n'y a pas de `/`, il n'y a pas de coupe : pour un plein écran,
   le flash fait alors **partie de l'animation** (écris-le dans son `intention` au lieu d'un geste
   `transition-flash`, qui exige une coupe). **Chaque flash a son clic** (règle de Yoan, 2026-11-11,
   dans le style depuis le 2026-11-13) : tu le poses à l'étape sons, rien à écrire dans le plan.
@@ -378,5 +387,5 @@ brique animations les compose. Ne les retire pas d'un plan parce que la biblioth
 - Le pop des mèmes (son Vine boom : dans la bibliothèque depuis le 2026-11-13, posé à l'étape sons).
 - Les images de réaction trouvées sur internet (décision de Yoan du 2026-11-11 : on les prend).
 - Le plein écran du message principal avec ses petites animations.
-- Flash sans coupe : là où il n'a pas fait de pause (pas de `/` dans le texte), le flash fait
+- Flash sans coupe : là où il n'y a pas de coupe (pas de `/` dans le texte), le flash fait
   partie de l'animation.

@@ -20,7 +20,6 @@ const FPS = 30;
 const LARGEUR_MAX = 899;        // SOUS_TITRES x 91 à 990
 const MARGE_MESURE = 0.98;      // la mesure ignore le crénage : 2 % de marge
 const MOTS_MAX_FORMELLE = 3;    // SOUS_TITRES.motsParGroupe
-const PAUSE = 0.25;             // s : pause marquée « / » dans le texte numéroté
 
 // Chasses mesurées (unités pour 1000) : Bricolage Grotesque opsz 96 wght 800, Big Shoulders Display wght 900.
 const CHASSE_TEXTE = {"a":543,"b":576,"c":539,"d":576,"e":537,"f":376,"g":549,"h":562,"i":234,"j":244,"k":541,"l":234,"m":860,"n":562,"o":567,"p":574,"q":574,"r":400,"s":517,"t":368,"u":557,"v":530,"w":799,"x":543,"y":539,"z":483,"à":543,"â":543,"ä":543,"ç":539,"é":537,"è":537,"ê":537,"ë":537,"î":234,"ï":234,"ô":567,"ö":567,"ù":557,"û":557,"ü":557,"ÿ":539,"œ":928,"æ":858,"0":594,"1":310,"2":551,"3":565,"4":607,"5":565,"6":592,"7":498,"8":608,"9":603,"'":174,"’":193,"-":313,".":246,",":193,";":235,":":250,"!":268,"?":396,"…":757,"«":466,"»":466,"\"":340,"(":303,")":303,"%":948,"/":349,"+":486,"&":697,"€":680,"$":575,"°":342," ":203};
@@ -56,17 +55,21 @@ function imagesCoupees(w) {
 }
 
 // ---------------------------------------------------------------- texte
-function cmdTexte(w) {
+// « / » = une vraie coupe de la vidéo juste avant le mot : la même règle que celle qui pose une transition
+// (coupeAvant de ../animations/scripts/lib/style.mjs, sur edl.json). Une seule vérité : un mot marqué « / » accepte un
+// flash, un mot sans « / » le refuse (PAS_DE_COUPE).
+async function cmdTexte(w) {
   const W = mots(w);
+  const { coupeAvant, img } = await import(path.join(ici, '..', '..', 'animations', 'scripts', 'lib', 'style.mjs'));
+  if (!fs.existsSync(path.join(w, 'edl.json'))) fail(2, `COUPES_INTROUVABLES : il manque edl.json dans ${w} (relance la compilation des coupes).`);
   const lignes = ['# Texte des sous-titres, chaque mot précédé de son numéro',
-    '# « / » = pause de plus de 0,25 s avant le mot. Les signes seuls (« ? », « : », guillemets) ne s\'affichent pas.', ''];
-  let ligne = [], prec = null;
+    '# « / » = une coupe de la vidéo juste avant ce mot (un flash peut s\'y poser). Les signes seuls (« ? », « : », guillemets) ne s\'affichent pas.', ''];
+  let ligne = [];
   W.forEach((m, i) => {
     const t = String(m.text).trim();
     if (!t) return;
-    const pause = prec !== null && m.start - prec >= PAUSE ? '/ ' : '';
-    ligne.push(`${pause}[${i}]${t}`);
-    prec = m.end;
+    const coupe = i > 0 && coupeAvant(w, { premier: i, image: img(m.start) }, W) !== null ? '/ ' : '';
+    ligne.push(`${coupe}[${i}]${t}`);
     if (finDePhrase(t)) { lignes.push(ligne.join(' ')); ligne = []; }
   });
   if (ligne.length) lignes.push(ligne.join(' '));

@@ -54,9 +54,10 @@ seconde, image 0 = début de la vidéo coupée. Toute position s'exprime en **im
 | Fichier | Écrit par | Contenu |
 |---|---|---|
 | `words.cut.json`, `filtre.txt` | couper-silences | mots calés sur la vidéo coupée (numérotés), coupes |
+| `edl.json` | couper-silences | les morceaux gardés : `segments` (`srcInF`/`srcOutF` dans l'original, `outInF`/`outOutF` dans la vidéo coupée, `words` premier et dernier mot), `stats` (`out_frames`…). **La source des coupes** : `outInF` > 0 de chaque morceau = une coupe (lu par `coupes()` et `coupeAvant()` de `scripts/lib/style.mjs`, donc par le calage des transitions et le `/` de `texte-sous-titres.md`) |
 | `draft.md`, `cuts.json`, `discours.txt` | couper-silences | transcript à trancher, coupes décidées, dernière sortie de `compiler` |
 | `texte-zooms.md`, `texte-sous-titres.md`, `texte-b-roll.md` | zooms, sous-titres, b-roll | texte numéroté de la brique (un fichier par brique : leurs formats diffèrent) |
-| `texte-sous-titres.md` | sous-titres (`texte`) | aussi le texte sur lequel l'agent monteur écrit le plan (pauses marquées `/`) |
+| `texte-sous-titres.md` | sous-titres (`texte`) | aussi le texte sur lequel l'agent monteur écrit le plan (`/` = une coupe de la vidéo juste avant le mot, même règle que `coupeAvant` : un flash s'y pose) |
 | `plan-montage.json` | agent monteur (skill plan-montage) | le plan validé par Romain (format : `skills/plan-montage/references/format.md`) |
 | `remarques-plan.md` | animations (`caler.mjs`), agent monteur | trace : ce que le plan demandait et que le style a remplacé (voir « Plan contre style ») |
 | `zooms.json`, `zooms.txt` | zooms | zooms demandés, et ce que lit le rendu |
@@ -163,6 +164,49 @@ dans la brique touchée (une animation qui change : relancer `sous-titres prepar
 `calques.json` complet) ; 10. rendu avec les couches préparées. `agents/monteur.md` suit cet ordre ; les lignes datées
 ci-dessous qui en citent un autre sont l'historique. Exemple de plan complet : `format.md` du skill plan-montage.
 
+### Poser une image dans un effet sur mesure (exemple : image de réaction)
+L'image vit dans `M/animations/images/` (téléchargée par le monteur pour un mème, ou photo donnée par Romain), est
+recopiée **dans le dossier du calque** après `ecrireCalque` (qui crée `calques/<id>/images/`), et le HTML la cite en
+chemin relatif `images/<fichier>` (jamais de chemin absolu ni `../` : `verifier.mjs` les refuse). Squelette, à lancer
+comme les autres sur-mesure (`node M/animations/sur-mesure/<id>.mjs "$M" "$SK"`, où `$SK` = le dossier du skill
+animations) :
+```js
+import fs from 'node:fs';
+import path from 'node:path';
+const [M, SK] = process.argv.slice(2);
+const { S, Couche, chargerMots, resoudre, son, ecrireCalque } = await import(path.join(SK, 'scripts', 'lib', 'style.mjs'));
+const mots = chargerMots(M);
+const a = resoudre('pourquoi', mots), b = resoudre('douze semaines#1', mots);      // ancres du plan
+const debut = a.image, images = b.fin_image - debut + 1;
+const fichier = 'mr-bean-montre.jpg', w = 432, h = Math.round(w * 702 / 958);     // ratio de l'image
+const x = S.ZONE_SURE.x1 - w, y = 262;                                             // en haut à droite, dans la zone sûre
+const c = new Couche(images);
+c.css = `#m{position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;border-radius:${S.RAYONS.vignette}px;object-fit:cover;box-shadow:${S.OMBRES.carte};}`;
+c.html = `  <img id="m" src="images/${fichier}">\n`;
+c.montre('#m', 0, 'image de réaction');          // pop : posée d'un coup sur l'image du mot
+c.attendus.at(-1).mot_image = a.image;
+const r = ecrireCalque(M, { id: 'a03', demande: 'a03', debut, images, couche: 'devant', ordre: 25,
+  sons_suggeres: [son('meme', debut, 'image de réaction sur « pourquoi »')],
+  attendus: c.attendus.map(({ mi, ...q }) => q),
+  origine: { sur_mesure: 'image de réaction : Mr Bean qui regarde sa montre', gestes_repris: ['image de réaction'] } }, c.page());
+fs.copyFileSync(path.join(M, 'animations', 'images', fichier), path.join(r.dossier, 'images', fichier));
+```
+Une photo de Romain qui manque encore : `<img src="images/image-a-fournir.svg" data-a-fournir="<ce qu'elle doit
+montrer>">` (l'emplacement est déjà dans `images/`) ; `calque.json` la liste dans `a_fournir`.
+
+### Les réglages valides des gestes de base
+La seule liste est le commentaire de l'objet `const P` de chaque gabarit (`bibliotheque/<geste>/*/index.html`), lu par
+`reglagesGabarit()` de `scripts/lib/style.mjs` (calage et instanciation) ; elle est recopiée pour le plan dans
+`skills/plan-montage/references/gestes.md`. À ce jour (vérifié le 2026-11-13) :
+| Geste | Réglage | Valeurs (défaut en premier) |
+|---|---|---|
+| `hook-paves` | `couleur` | `craie`, `orange` |
+| `transition-faisceau` | `couleur` ; `largeur` | `craie`, `orange` ; `2200`, `1000` |
+| `demi-ecran` | `sortie` | `faisceau`, `bascule` |
+| `plein-ecran-fond` | `fond` | `charbon`, `orange`, `craie`, `flou` |
+Tous les autres gestes n'ont aucun réglage. Pour relire la liste à jour :
+`node -e "import('$SK/scripts/lib/style.mjs').then(m=>{for(const g in m.GESTES)if(!g.startsWith('_')){const r=m.reglagesGabarit(g);if(Object.keys(r).length)console.log(g,JSON.stringify(r))}})"`.
+
 ## Extensions
 (Ajoutées par les briques, une ligne datée chacune.)
 - 2026-11-11 (sous-titres) : le plan de montage dit le style des sous-titres (`classique` ou `formelle`) et, en formelle, les mots forts (texte exact) ; sans indication, classique sans mot fort. La brique écrit aussi `texte-sous-titres.md` et `sous-titres.json` (style, corrections, groupes, motsForts : numéros de mots de `words.cut.json`). `calques/st/` est autonome (polices et gsap recopiés à côté de `index.html`), sa durée `images` = somme des morceaux de `filtre.txt`.
@@ -214,6 +258,12 @@ ci-dessous qui en citent un autre sont l'historique. Exemple de plan complet : `
 - 2026-11-13 (rendu) : HDR et 60 i/s convertis, sortie 1080 x 1920 sous 20 Mo (débit maximal tiré de la durée),
   limiteur de crête du mix (au-delà de 3 dB : `MIX_SATURÉ`), masque de Romain borné à sa tête au-dessus du menton
   (correctif du test v3 resté dans les copies de test, perdu au v8). Plus de `VIDÉO_NON_PRISE_EN_CHARGE`.
+- 2026-11-13 (animations, zooms : titre qui suit le dézoom, décision Yoan) : `calque.json` peut porter
+  `suit_ouverture: true` (passé à `ecrireCalque`) : le titre de l'accroche suit le dézoom d'ouverture et dépasse
+  légitimement la zone sûre pendant le dézoom. `verifier.mjs` contrôle sa zone sûre à partir de l'image `images` de
+  `ouverture.json` (moins `debut` du calque), quand la caméra est revenue à 100 % ; à cette image, le mot géant couvre
+  la zone sûre comme le gabarit (STYLE.md, « Titre derrière lui »). Un calque qui part avant la fin du dézoom est
+  refusé (zone incontrôlable).
 - 2026-11-13 (animations) : `calques.mjs` laisse hors de `calques.json` un dossier de calque dont la demande n'est plus
   dans `plan-resolu.json` ; `verifier.mjs` : un `#xxx` qui nomme un élément n'est pas une couleur, un format réel
   (`origine.natif`) garde ses rayons et la police système, la classe `objet` sort un objet qui quitte le cadre exprès du

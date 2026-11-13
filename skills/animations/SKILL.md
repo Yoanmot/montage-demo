@@ -47,6 +47,9 @@ node "$SK/scripts/caler.mjs" "$M"
   ces lignes retournent à l'étape plan (skill `plan-montage`), qui corrige le plan ; si la correction change ce que
   Romain a validé, on le lui redit. Les demandes non refusées peuvent avancer.
 - `AVERTISSEMENT PHOTO_A_FOURNIR` : l'emplacement sera posé et la photo demandée à Romain.
+- `AVERTISSEMENT MEME_A_TELECHARGER` : image de réaction (`quoi` commence par « à télécharger par le monteur ») : c'est
+  le monteur qui la trouve et la télécharge (le mème exact nommé), dans `M/animations/images/`, puis la pose (exemple
+  dans `CONTRAT.md`, « Poser une image dans un sur-mesure »). Jamais demandée à Romain.
 - `AVERTISSEMENT STYLE_GAGNE` : le plan demande ce que le style ne permet pas (réglage que le gabarit ne prévoit pas,
   valeur hors style, durée que le style fixe : hook pavés 2 s). **Le style gagne** (contrat, « Plan contre style ») :
   la demande reste exécutable, tu appliques ce que `plan-resolu.json` donne (`reglages` = réglages à passer dans `P`,
@@ -135,7 +138,10 @@ constantes), `resoudre` (ancres), `Couche` (calque, `app` = apparition v2 sur un
    - **Titre derrière lui avec le dézoom d'ouverture** : le dézoom de la caméra est fait par la brique zooms (type
      `ouverture`, préparée avant les animations) ; elle écrit `M/ouverture.json`. Le titre le suit : `transform-origin`
      sur `ancre_1080x1920`, et à chaque image n de 0 à `images`, `scale` = `echelle_depart - (echelle_depart - 1) * n /
-     images` (un `tl.set` par image), puis 1.
+     images` (un `tl.set` par image), puis 1. Le titre se compose **à 100 %** comme le gabarit (mot géant dont l'encre
+     couvre la zone sûre) : pendant le dézoom il grossit et dépasse, c'est voulu ; ne le réduis pas pour qu'il tienne à
+     120 %. Passe `suit_ouverture: true` à `ecrireCalque` : `verifier.mjs` contrôle alors la zone sûre à partir de
+     l'image où le dézoom est fini (`images` de `ouverture.json`), et refuse un titre qui part avant.
    - **Un objet qui sort du cadre exprès** (pièce qui tombe, post-it qui glisse, objet qui entre par le bord) porte la
      classe `objet` : le contrôle de zone sûre ne le compte pas. Jamais sur un texte.
    - **Un format réel reproduit** (`origine.natif: true`) garde ses couleurs, ses coins arrondis et la police système
@@ -231,7 +237,8 @@ image de réaction. Les sous-titres et les zooms ne passent pas par ce skill.
 Français, tutoiement, zéro jargon, zéro nom d'outil, zéro nom de fichier. Exemples : « je pose les animations sur tes
 mots », « il me manque une photo : une photo carrée de toi à l'entraînement », « le plan demande un chiffre que tu ne dis
 pas dans la vidéo, je vérifie avec toi avant de l'afficher ». Une photo manquante se demande en disant ce qu'elle doit
-montrer, jamais en inventant une image ou en en prenant une sur le web.
+montrer, jamais en inventant une image ou en en prenant une sur le web. Seule exception : l'image de réaction (mème) du
+plan, que le monteur télécharge lui-même (`STYLE.md`) ; on ne la demande jamais à Romain.
 
 ## Dépendances
 À installer sur le Mac de Romain par le prompt de réinstallation (rien n'est vérifié chez lui) :

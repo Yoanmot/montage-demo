@@ -22,14 +22,21 @@ Rien ne part sur internet : tout se fait sur l'ordinateur, en une seconde.
 
 ### 1. Le texte : `texte`
 Écrit `<dossier>/texte-sous-titres.md` : le texte de la vidéo coupée, une phrase par ligne, chaque mot précédé de son
-numéro (`[12]abdos`), et un `/` devant un mot qui suit une pause de plus de 0,25 s. Lis-le en entier.
+numéro (`[12]abdos`), et un `/` devant un mot qui suit une **coupe de la vidéo** (la même règle que celle qui pose un
+flash : un `/` = une coupe, rien d'autre). Lis-le en entier.
 - `TEXTE_INTROUVABLE` : la vidéo n'est pas encore coupée. Le monteur doit d'abord passer par couper-silences.
 
 ### 2. Corriger l'orthographe (c'est ton travail)
 Le texte vient d'une transcription automatique : quelques mots peuvent être mal écrits (noms propres, marques,
 vocabulaire de coach, mots mal entendus).
 **Tu corriges l'orthographe, tu ne réécris jamais ce qu'il dit** : pas de reformulation, pas de mot ajouté ou retiré,
-pas de « euh » enlevé s'il a été gardé à la coupe. Dans le doute, ne touche pas. Les nombres restent comme ils sont écrits.
+pas de « euh » enlevé s'il a été gardé à la coupe. Dans le doute, ne touche pas.
+**Chiffres toujours en chiffres** (règle de Yoan, comme dans le plan : `plan-montage/references/regles.md`) : un nombre
+que la transcription a écrit en lettres passe en chiffres dans `corrections` (« douze » -> « 12 », « trois » ->
+« 3 », « vingt-cinq » -> « 25 », en gardant la ponctuation de fin du mot). Ce n'est pas réécrire ce qu'il dit : c'est
+la même chose, écrite comme le style l'affiche. Un nombre en deux mots (« deux » « mille ») : le chiffre entier sur
+le premier, `""` sur le second. Restent en lettres seulement « un » et « une » quand ils ne comptent rien
+(« un client », « une fois »).
 
 **Les noms d'exercices, de matériel et le jargon de coach** sont les mots que la transcription rate le plus (« DJH sit
 up » pour « GHD sit-up »). Écris-les comme dans le `vocabulaire` du plan de montage, sinon sous leur forme connue dans le
@@ -50,7 +57,7 @@ Le plan de montage (écrit par le monteur avec le skill plan-montage) dit le sty
 
 ### 4. Choisir les groupes (c'est ton travail)
 Un groupe = les mots affichés ensemble sur une ligne.
-- **Classique** : une ligne par morceau dit d'un trait, 2 à 4 mots en général. Coupe aux pauses (`/`), aux virgules,
+- **Classique** : une ligne par morceau dit d'un trait, 2 à 4 mots en général. Coupe aux coupes de la vidéo (`/`), aux virgules,
   aux fins de phrase, et entre deux idées. Ne laisse pas un petit mot seul (« de », « et ») en bout de ligne s'il va
   avec la suite.
 - **Formelle** : **3 mots au plus**, coupés au même endroit qu'on respirerait en lisant.
