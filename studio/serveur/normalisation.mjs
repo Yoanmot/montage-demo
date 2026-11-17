@@ -1,12 +1,13 @@
 // Traduit le flux stream-json de `claude` en messages du studio (contrat, section 10) :
 // texte relayé au fil de l'eau, activité en une phrase humaine (jamais de chemin, jamais de nom
 // d'outil, jamais le contenu d'une commande), fin de tour.
+import { contact, clientActif } from "./client.mjs";
 
 function bas(t) {
   return String(t || "").toLowerCase();
 }
 
-// Une phrase courte, en français, pour Romain. Déduite de l'outil appelé et de son entrée, sans
+// Une phrase courte, en français, pour le client. Déduite de l'outil appelé et de son entrée, sans
 // jamais recopier l'entrée.
 export function phraseActivite(outil, entree = {}) {
   const fichier = bas(entree.file_path || entree.path || entree.notebook_path || "");
@@ -17,7 +18,7 @@ export function phraseActivite(outil, entree = {}) {
       if (/\.(png|jpe?g|heic|webp)$/.test(fichier)) return "je regarde les images";
       if (/\.(mov|mp4|m4v)$/.test(fichier)) return "je regarde ta vidéo";
       if (fichier.includes("/veille/")) return "je regarde ce qui marche en ce moment";
-      if (fichier.includes("/matiere/") || fichier.endsWith("romain.md")) return "je relis tes notes";
+      if (fichier.includes("/matiere/") || fichier.endsWith(`${clientActif().id}.md`)) return "je relis tes notes";
       if (fichier.includes("/skills/") || fichier.includes("/.claude/")) return "je relis ma méthode";
       return "je relis ce qu'on a déjà";
     case "Write":
@@ -71,7 +72,7 @@ export function phraseActivite(outil, entree = {}) {
 // Ce que claude écrit lui-même (modèle « <synthetic> ») quand il n'est pas ou plus connecté au compte
 // (lot 11) : jamais montré tel quel, remplacé par une phrase pour Romain.
 const CONNEXION = /not logged in|run \/login|oauth token|token has expired|invalid api key|authentication_error|revoked/i;
-export const PHRASE_CONNEXION = "Ton studio n'est plus connecté à ton compte Claude. Préviens Yoan : la reconnexion prend deux minutes.";
+export const PHRASE_CONNEXION = `Ton studio n'est plus connecté à ton compte Claude. Préviens ${contact()} : la reconnexion prend deux minutes.`;
 
 // Un normaliseur par processus `claude`. `allouer()` donne le numéro du prochain message du chat.
 export class Normaliseur {
@@ -142,7 +143,7 @@ export class Normaliseur {
       const erreur = connexion ? PHRASE_CONNEXION : evt.is_error || (evt.subtype && evt.subtype !== "success")
         ? (limite
           ? "Ton abonnement a atteint sa limite pour le moment. Ça reprendra tout seul plus tard."
-          : "Quelque chose a coincé de mon côté. Réessaie, et si ça recommence, préviens Yoan.")
+          : `Quelque chose a coincé de mon côté. Réessaie, et si ça recommence, préviens ${contact()}.`)
         : null;
       sortie.push({ genre: "fin", erreur, limite: Boolean(limite) });
     }

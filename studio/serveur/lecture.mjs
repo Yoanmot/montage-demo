@@ -8,6 +8,7 @@ import {
   SLUG_RE, EXT_IMAGE, EXT_VIDEO, lireDate, jourZurich, isoZurich as iso,
 } from "./outils.mjs";
 import { stade, libelle, estMonte, estOriginale } from "./stades.mjs";
+import { contact } from "./client.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -117,7 +118,8 @@ const enDate = (iso) => {
 
 // Le fichier Idée sans trace technique : ni la ligne « Écrit par ... » des anciens fichiers, ni les
 // identifiants (outlier, proposition), ni les lignes vides de sens. Le fichier, lui, ne change pas.
-export function ideePourRomain(md, titreDuSlug = () => null) {
+// Le prénom du client n'y est pas écrit en dur : « idée de Romain du », « ce que Yoan en a dit ».
+export function ideePourClient(md, titreDuSlug = () => null) {
   const r = [];
   for (const brut of String(md || "").replace(/\r\n/g, "\n").split("\n")) {
     const l = brut.trimEnd();
@@ -131,14 +133,14 @@ export function ideePourRomain(md, titreDuSlug = () => null) {
       let s = v;
       const o = /^outlier\s+\S+?,\s*(@[\w.]+|\?)\s*,\s*(https:\/\/\S+|\?)/i.exec(v);
       const d = /^d[ée]clinaison de ([a-z0-9-]+)(.*)$/i.exec(v);
-      const i = /^id[ée]e de Romain du (\d{4}-\d{2}-\d{2})/i.exec(v);
+      const i = /^id[ée]e de [\p{L}-]+ du (\d{4}-\d{2}-\d{2})/iu.exec(v);
       if (o) s = `une vidéo qui a bien marché${o[1] !== "?" ? ` chez ${o[1]}` : ""}${o[2] !== "?" ? ` ([voir la vidéo](${o[2]}))` : ""}`;
       else if (d) s = `tirée de « ${titreDuSlug(d[1]) || "un de tes contenus"} »${/republication/.test(d[2]) ? " (à republier)" : ""}`;
       else if (i) s = `ton idée du ${enDate(i[1]).slice(0, 5)}`;
       r.push(`- D'où elle vient : ${s}`);
       continue;
     }
-    if (/^ce que romain en a dit$/i.test(cle)) { r.push(`- Ce que tu en as dit : ${v}`); continue; }
+    if (/^ce que [\p{L}-]+ en a dit$/iu.test(cle)) { r.push(`- Ce que tu en as dit : ${v}`); continue; }
     if (/^(propos[ée]e le|gard[ée]e le|jour pr[ée]vu)$/i.test(cle)) {
       r.push(`- ${cle} : ${enDate(v.replace(/\s*\([^)]*\)\s*$/, ""))}`);
       continue;
@@ -147,6 +149,8 @@ export function ideePourRomain(md, titreDuSlug = () => null) {
   }
   return r.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+export const ideePourRomain = ideePourClient;
 
 function titreDe(config, slug) {
   const e = lireJson(path.join(config.depot, "contenus", slug, "etat.json"), null);
@@ -294,7 +298,7 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     libelle: libelle(r.stade, contenu.format, fichiers.publication),
     activite: r.activite,
     a_toi: r.a_toi,
-    ...(r.activite === "erreur" ? { erreur_message: r.erreur_message || "Ça n'a pas marché. Réessaie, et si ça recommence, préviens Yoan." } : {}),
+    ...(r.activite === "erreur" ? { erreur_message: r.erreur_message || `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${contact()}.` } : {}),
     jour_prevu: etat?.jour_prevu || null,
     semaine: null,
     declinaison_de: etat?.declinaison_de || null,
@@ -413,7 +417,7 @@ export function detail(config, slug, etatLocal) {
   const dossier = path.join(config.depot, "contenus", slug);
   const textes = {};
   const idee = lireTexte(path.join(dossier, "idee.md"), null);
-  if (idee) textes.idee = ideePourRomain(idee, (s) => (lu.contenus.includes(s) ? titreDe(config, s) : null));
+  if (idee) textes.idee = ideePourClient(idee, (s) => (lu.contenus.includes(s) ? titreDe(config, s) : null));
   Object.assign(textes, decouperScript(lireTexte(path.join(dossier, "script.md"), null)));
   // Le texte validé (a-rendre/, puis rendus/) s'il existe, sinon le brouillon.
   const carrousel = lireTexte(path.join(config.depot, "a-rendre", "carrousels", `${slug}.md`), null)

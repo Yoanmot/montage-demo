@@ -11,7 +11,15 @@ export const PHOTOS = new Set(['.jpg', '.jpeg', '.heic', '.heif', '.png', '.dng'
 // Fichiers pas encore arrivés en entier (téléchargement ou transfert en cours).
 export const PARTIELS = new Set(['.download', '.crdownload', '.part', '.partial', '.tmp']);
 
-export const STUDIO_HOME = path.join(os.homedir(), '.montage-yoan', 'studio');
+import { chargerClient } from '../../serveur/client.mjs';
+
+// Le client du studio (STUDIO_CLIENT, défaut romain) : racine d'installation et dossier de config Claude.
+const CLIENT = chargerClient({ maison: os.homedir() });
+export const STUDIO_HOME = process.env.STUDIO_HOME ? deplierTot(process.env.STUDIO_HOME) : path.join(CLIENT.racineAbs, 'studio');
+
+function deplierTot(p) {
+  return p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : path.resolve(p);
+}
 
 export function deplier(p) {
   if (p == null) return p;
@@ -44,7 +52,7 @@ export function lireConfig(fichier) {
     media: deplier(c.media || '~/Contenu'),
     arrivees: deplier(c.arrivees || '~/Downloads'),
     disque: c.disque_externe ? deplier(c.disque_externe) : null,
-    skills: deplier(c.skills || '~/.claude/skills'),
+    skills: deplier(c.skills || path.join(CLIENT.dossierClaude, 'skills')),
     // Le regard sur les vignettes prend claude.modele_rangement (sonnet par défaut, contrat section 11).
     claude: { binaire: c.claude?.binaire || 'claude', modele: c.claude?.modele || null,
       modeleRangement: c.claude?.modele_rangement === undefined ? 'sonnet' : (c.claude.modele_rangement || null) },

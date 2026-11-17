@@ -11,6 +11,7 @@ import { decouperScript, accrochesDe, accrocheDansTexte } from "./lecture.mjs";
 import { estOriginale } from "./stades.mjs";
 import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
+import { contact } from "./client.mjs";
 
 const VIDE = { version: 1, coches: [], sautees: [], envoi: false, verification: null, valide_le: null, rangement: null };
 
@@ -82,7 +83,7 @@ export function verifierArrivees(config, t, suivi) {
   if (manque.videos) morceaux.push(pluriel(manque.videos, "vidéo", "vidéos"));
   if (manque.photos) morceaux.push(pluriel(manque.photos, "photo", "photos"));
   let message;
-  if (!config.arrivees) message = "Je ne sais pas encore où arrivent tes fichiers sur ce Mac. Préviens Yoan.";
+  if (!config.arrivees) message = `Je ne sais pas encore où arrivent tes fichiers sur ce Mac. Préviens ${contact()}.`;
   else if (morceaux.length) {
     message = `Je ne vois pas encore tous tes fichiers : il manque ${morceaux.join(" et ")} (j'en vois ${pluriel(recu.videos, "vidéo", "vidéos")}${attendu.photos || recu.photos ? ` et ${pluriel(recu.photos, "photo", "photos")}` : ""}). Attends que l'envoi soit fini, puis recoche.`;
   } else if (partiels.length) message = "Un envoi est encore en cours. Attends qu'il soit fini, puis recoche.";

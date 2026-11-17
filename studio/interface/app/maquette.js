@@ -2,7 +2,7 @@
 // Données fabriquées pour développer et faire des captures sans le serveur : rien ici n'est vrai.
 // Même interface que creerApiServeur() dans api.js. Tous les stades d'un dossier y sont (lot 9).
 
-import { aujourdhui, ajouterJours, lundiDe } from "./outils.js";
+import { aujourdhui, ajouterJours, lundiDe, CONTACT } from "./outils.js";
 import { ErreurStudio } from "./api.js";
 
 const LIBELLES = {
@@ -228,7 +228,7 @@ export function creerApiMaquette() {
     c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.semaine = c.jour_prevu ? lundiDe(c.jour_prevu) : null;
     emettre("carte", { ...c });
   };
-  const config = { prenom: "Romain", jours_par_defaut: ["mardi", "jeudi", "dimanche"], heures_par_defaut: { reel: "18:30", carrousel: "12:15" } };
+  const config = { prenom: document.documentElement.dataset.prenom || "Romain", jours_par_defaut: ["mardi", "jeudi", "dimanche"], heures_par_defaut: { reel: "18:30", carrousel: "12:15" } };
   let nAction = 10; const recaps = {};
 
   function chatDe(id) { return (d.chats[id] ||= { etat: null, messages: [] }); }
@@ -336,7 +336,7 @@ export function creerApiMaquette() {
   function detail(slug) {
     const c = parSlug(slug);
     if (!c) throw new ErreurStudio("INTROUVABLE", "Ce contenu n'existe plus.", 404);
-    const textes = { idee: `# ${c.titre}\n\n- Format : ${c.format}\n- Source : idée de Romain du 12/11\n\n**L'angle** : ce que tu fais faire à tes clients, montré simplement, avec une erreur fréquente et sa correction.\n\n**Ce que tu en as dit** : « je le vois tout le temps en séance ».` };
+    const textes = { idee: `# ${c.titre}\n\n- Format : ${c.format}\n- Source : idée de ${config.prenom} du 12/11\n\n**L'angle** : ce que tu fais faire à tes clients, montré simplement, avec une erreur fréquente et sa correction.\n\n**Ce que tu en as dit** : « je le vois tout le temps en séance ».` };
     const medias = { rushs: [] };
     const res = { ...c, textes, medias };
     if (c.stade !== "gardee") res.brief = briefDe(c);
@@ -550,7 +550,7 @@ export function creerApiMaquette() {
       // ?stats=absent : l'écran quand les chiffres ne sont pas encore lus (capture).
       if (new URLSearchParams(location.search).get("stats") === "absent") {
         return { disponible: false, source: "instagram", en_cours: false, historique: [], publications: [],
-          erreur: "Je n'arrive pas à lire tes chiffres Instagram pour l'instant. Je réessaie dans une heure ; si ça dure, préviens Yoan." };
+          erreur: `Je n'arrive pas à lire tes chiffres Instagram pour l'instant. Je réessaie dans une heure ; si ça dure, préviens ${CONTACT}.` };
       }
       return { ...d.stats };
     },

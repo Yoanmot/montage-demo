@@ -2,6 +2,7 @@
 // d'environnement. Le pourquoi est dans PERMISSIONS.md (à garder d'accord avec ce fichier).
 import path from "node:path";
 import { SLUG_RE } from "./outils.mjs";
+import { clientActif, VARIABLES_ECRITURE } from "./client.mjs";
 
 // Outils toujours permis (lecture, recherche, skills, sous-agents). Les écritures de fichiers
 // sont bornées par des règles Edit(...) ajoutées selon le dossier de la session.
@@ -10,13 +11,22 @@ const OUTILS_DE_BASE = [
   "WebFetch", "WebSearch", "Monitor", "TaskOutput", "TaskStop", "SendMessage",
 ];
 
-// Refus valables pour toutes les sessions (ils gagnent sur toute permission).
-export function refusCommuns() {
-  const secrets = ["~/.ssh/**", "~/.montage-yoan/*.env", "~/.config/monteur-romain/**", "~/.aws/**", "~/.gnupg/**"];
+// Refus valables pour toutes les sessions (ils gagnent sur toute permission). Secrets et configuration
+// Claude tirés du client : pour Romain (racine ~/.montage-yoan, config Claude dans ~/.claude), la liste
+// d'avant, plus le garde-fou générique de publication.
+export function refusCommuns(client = clientActif()) {
+  const maison = client.racine === "~/.montage-yoan" || !client.racine;
+  const racine = maison ? "~/.montage-yoan" : absolu(client.racineAbs);
+  const secrets = ["~/.ssh/**", `${racine}/*.env`, "~/.config/monteur-romain/**", "~/.aws/**", "~/.gnupg/**"];
+  // Dossiers de configuration Claude protégés : ~/.claude toujours, plus celui du client s'il en a un.
+  const configs = ["~/.claude", ...(client.configClaudeAbs ? [absolu(client.configClaudeAbs)] : [])];
+  if (client.configClaudeAbs) secrets.push(`${absolu(client.configClaudeAbs)}/.credentials.json`);
   return [
     ...secrets.flatMap((s) => [`Read(${s})`, `Edit(${s})`]),
-    "Edit(~/.claude/settings.json)", "Edit(~/.claude/settings.local.json)", "Edit(~/.claude/CLAUDE.md)",
-    "Edit(~/.claude/agents/**)", "Edit(~/.claude/skills/**)", "Edit(~/.claude/hooks/**)",
+    ...configs.flatMap((c) => [
+      `Edit(${c}/settings.json)`, `Edit(${c}/settings.local.json)`, `Edit(${c}/CLAUDE.md)`,
+      `Edit(${c}/agents/**)`, `Edit(${c}/skills/**)`, `Edit(${c}/hooks/**)`,
+    ]),
     "Edit(~/.zshrc)", "Edit(~/.bash_profile)", "Edit(~/.profile)",
     "Edit(~/Library/LaunchAgents/**)",
     // Suppressions hors du dossier de la session : chemin absolu, maison, ou remontée.
@@ -28,8 +38,10 @@ export function refusCommuns() {
     "Bash(git push --force-with-lease*)", "Bash(git push * --force-with-lease*)",
     "Bash(git reset --hard*)", "Bash(git clean *)",
     "Bash(*/.ssh*)", "Bash(*~/.ssh*)", "Bash(*zernio.env*)", "Bash(*monteur-romain/.env*)",
-    // La publication ne part que d'un clic de Romain sur le récapitulatif du studio.
-    "Bash(*ZERNIO_ECRITURE_ROMAIN*)", "Bash(*zernio.py publier*--envoyer*)",
+    ...(maison ? [] : ["Bash(*elevenlabs.env*)", "Bash(*claude.env*)"]),
+    // La publication ne part que d'un clic sur le récapitulatif du studio (ZERNIO_ECRITURE=<compte>, et
+    // l'ancien ZERNIO_ECRITURE_ROMAIN=oui).
+    "Bash(*ZERNIO_ECRITURE_ROMAIN*)", "Bash(*ZERNIO_ECRITURE*)", "Bash(*zernio.py publier*--envoyer*)",
     "Bash(security *)", "Bash(launchctl *)", "Bash(defaults write*)",
   ];
 }
@@ -47,13 +59,16 @@ export function typeDeChat(chatId) {
 // de chat est étroite et tout ce que la session enregistre s'affiche déjà à gauche (arborescence) ou au
 // milieu (fichier ouvert). Hors studio (téléphone, cloud), rien ne l'ajoute : le chat y reste la seule
 // interface et montre le contenu.
-export const CONSIGNE_STUDIO = [
-  "Tu parles à Romain dans son studio, une appli de son Mac. Son chat est une colonne étroite à droite.",
-  "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Publier sur Instagram ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
-  "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
-  "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
-  "S'il te demande expressément de lui montrer ou de lui expliquer quelque chose dans le chat, fais-le, court. Quand tu n'enregistres rien (une question, un conseil), réponds normalement, court aussi.",
-].join("\n");
+export function consigneStudio(prenom = clientActif().prenom) {
+  return [
+    `Tu parles à ${prenom} dans son studio, une appli de son Mac. Son chat est une colonne étroite à droite.`,
+    "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Publier sur Instagram ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
+    "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
+    "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
+    "S'il te demande expressément de lui montrer ou de lui expliquer quelque chose dans le chat, fais-le, court. Quand tu n'enregistres rien (une question, un conseil), réponds normalement, court aussi.",
+  ].join("\n");
+}
+export const CONSIGNE_STUDIO = consigneStudio();
 
 function absolu(p) {
   return `//${path.resolve(p).replace(/^\/+/, "")}`;
@@ -63,16 +78,20 @@ function absolu(p) {
 export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   const t = typeDeChat(chatId);
   if (!t) throw new Error(`chat inconnu : ${chatId}`);
+  const client = config.client || clientActif();
+  const memoire = client.configClaudeAbs ? `${absolu(client.configClaudeAbs)}/agent-memory/**` : "~/.claude/agent-memory/**";
   const autorises = [
     ...OUTILS_DE_BASE, "Edit(./**)", "Write(./**)", "NotebookEdit(./**)",
     // La mémoire des agents (préférences apprises du monteur) vit hors du dossier de travail.
-    "Edit(~/.claude/agent-memory/**)", "Write(~/.claude/agent-memory/**)",
+    `Edit(${memoire})`, `Write(${memoire})`,
   ];
   const dossiersEnPlus = [];
   let cwd = config.depot;
   let agent = null;
   // Toutes les sessions du studio le savent (le head of content aussi : le même dépôt sert le téléphone).
   const env = { STUDIO: "1" };
+  // Client à configuration Claude isolée : chaque session la reçoit, même si le serveur l'a perdue.
+  if (client.configClaudeAbs) env.CLAUDE_CONFIG_DIR = client.configClaudeAbs;
   if (t.genre === "monteur") {
     cwd = path.join(config.media, t.slug);
     agent = config.agents?.montage || "monteur";
@@ -98,7 +117,7 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   // de DEPOT/.claude/settings.json (head of content), on ne le force pas.
   if (t.genre !== "monteur" && config.agents?.idees && config.agents.forcer === true) agent = config.agents.idees;
 
-  const reglages = { permissions: { deny: refusCommuns() } };
+  const reglages = { permissions: { deny: refusCommuns(client) } };
   const args = [
     "-p",
     "--input-format", "stream-json",
@@ -108,7 +127,7 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
     "--permission-mode", "dontAsk",
     "--allowedTools", autorises.join(" "),
     "--settings", JSON.stringify(reglages),
-    "--append-system-prompt", CONSIGNE_STUDIO,
+    "--append-system-prompt", consigneStudio(client.prenom),
   ];
   if (agent) args.push("--agent", agent);
   for (const d of dossiersEnPlus) args.push("--add-dir", d);
@@ -117,10 +136,10 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
 }
 
 // Variables d'environnement d'une session : celles du serveur, sans clé d'API (la session tourne
-// sur l'abonnement de Romain) ni verrou de publication.
+// sur l'abonnement du client) ni verrou de publication.
 export function environnement(base, ajout) {
   const env = { ...base, ...ajout };
-  for (const k of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ZERNIO_ECRITURE_ROMAIN", "ZERNIO_API_KEY", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"]) {
+  for (const k of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", ...VARIABLES_ECRITURE, "ZERNIO_API_KEY", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"]) {
     delete env[k];
   }
   return env;

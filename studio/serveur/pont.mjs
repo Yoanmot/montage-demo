@@ -10,6 +10,7 @@ import path from "node:path";
 import { isoZurich, lireJson, ecrireJson } from "./outils.mjs";
 import { reglagesChat, environnement, typeDeChat } from "./reglages.mjs";
 import { Normaliseur } from "./normalisation.mjs";
+import { contact } from "./client.mjs";
 
 const DELAI_KILL_MS = 3000;
 
@@ -146,7 +147,7 @@ export class Pont extends EventEmitter {
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (e) {
-      this.finir(chatId, null, "Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens Yoan.");
+      this.finir(chatId, null, `Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens ${contact()}.`);
       this.journal("lancement_impossible", { chat_id: chatId, erreur: e.code || String(e) });
       return;
     }
@@ -160,7 +161,7 @@ export class Pont extends EventEmitter {
 
     enfant.on("error", (e) => {
       this.journal("session_erreur", { chat_id: chatId, erreur: e.code || String(e) });
-      this.finir(chatId, p, "Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens Yoan.");
+      this.finir(chatId, p, `Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens ${contact()}.`);
     });
     enfant.stdin.on("error", () => {});
     enfant.stdin.write(ligne);
@@ -185,7 +186,7 @@ export class Pont extends EventEmitter {
       this.journal("session_terminee", { chat_id: chatId, pid: enfant.pid, code, signal, stderr: p.stderr.slice(-300) || undefined });
       if (!p.fini) {
         if (p.arret) this.finir(chatId, p, null, "arrete");
-        else if (p.enAttente > 0) this.finir(chatId, p, "La conversation s'est coupée d'un coup. Réessaie, et si ça recommence, préviens Yoan.");
+        else if (p.enAttente > 0) this.finir(chatId, p, `La conversation s'est coupée d'un coup. Réessaie, et si ça recommence, préviens ${contact()}.`);
         else this.finir(chatId, p, null, null);
       }
     });

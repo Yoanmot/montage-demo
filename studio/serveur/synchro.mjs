@@ -6,11 +6,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { executer } from "./commandes.mjs";
 import { isoZurich, attendre } from "./outils.mjs";
+import { contact } from "./client.mjs";
 
 const MESSAGES = {
   hors_ligne: "Pas d'internet pour l'instant : tes textes se remettront à jour tout seuls.",
-  conflit: "Une modification faite ailleurs ne se raccorde pas à celle de ton Mac. Rien n'est perdu : préviens Yoan.",
-  absent: "Tes textes ne sont pas encore installés sur ce Mac. Préviens Yoan.",
+  conflit: `Une modification faite ailleurs ne se raccorde pas à celle de ton Mac. Rien n'est perdu : préviens ${contact()}.`,
+  absent: `Tes textes ne sont pas encore installés sur ce Mac. Préviens ${contact()}.`,
 };
 
 function horsLigne(texte) {

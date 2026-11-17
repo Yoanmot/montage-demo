@@ -48,12 +48,12 @@ Un refus gagne sur toute permission, y compris celles des réglages de l'utilisa
 
 | Refus | Pourquoi |
 |---|---|
-| `Read`/`Edit` de `~/.ssh/**`, `~/.montage-yoan/*.env`, `~/.config/monteur-romain/**`, `~/.aws/**`, `~/.gnupg/**` | secrets (clés Zernio, serveur, SSH) |
-| `Edit` de `~/.claude/settings*.json`, `~/.claude/CLAUDE.md`, `~/.claude/agents/**`, `~/.claude/skills/**`, `~/.claude/hooks/**`, fichiers de démarrage du shell, `~/Library/LaunchAgents/**` | une session ne change pas ses propres règles ni ce qui se lance au démarrage |
+| `Read`/`Edit` de `~/.ssh/**`, `<racine>/*.env` (`~/.montage-yoan/*.env` chez Romain), `~/.config/monteur-romain/**`, `~/.aws/**`, `~/.gnupg/**`, et `<config_claude>/.credentials.json` pour un client à configuration Claude isolée | secrets (clés Zernio, serveur, SSH, connexion Claude) |
+| `Edit` de `settings*.json`, `CLAUDE.md`, `agents/**`, `skills/**`, `hooks/**` dans `~/.claude` et dans le dossier `config_claude` du client, fichiers de démarrage du shell, `~/Library/LaunchAgents/**` | une session ne change pas ses propres règles ni ce qui se lance au démarrage |
 | `Bash(rm -rf /*)`, `Bash(rm -rf ~*)`, `Bash(rm -rf ..*)`, `Bash(rm -rf $HOME*)` et les variantes `-fr`, `-r -f`, `-Rf`, `-r` | pas de suppression hors du dossier de la session (chemin absolu, maison, remontée) |
-| `Bash(git push --force*)`, `-f`, `--force-with-lease`, `git reset --hard*`, `git clean *` | jamais de force sur le dépôt de Romain |
-| `Bash(*/.ssh*)`, `Bash(*~/.ssh*)`, `Bash(*zernio.env*)`, `Bash(*monteur-romain/.env*)` | les secrets ne passent pas non plus par une commande |
-| `Bash(*ZERNIO_ECRITURE_ROMAIN*)`, `Bash(*zernio.py publier*--envoyer*)` | rien ne part sur Instagram depuis un chat : seulement par le clic de confirmation du studio |
+| `Bash(git push --force*)`, `-f`, `--force-with-lease`, `git reset --hard*`, `git clean *` | jamais de force sur le dépôt du client |
+| `Bash(*/.ssh*)`, `Bash(*~/.ssh*)`, `Bash(*zernio.env*)`, `Bash(*monteur-romain/.env*)` (et, hors Romain, `Bash(*elevenlabs.env*)`, `Bash(*claude.env*)`) | les secrets ne passent pas non plus par une commande |
+| `Bash(*ZERNIO_ECRITURE*)` (garde-fou générique `ZERNIO_ECRITURE=<compte>`), `Bash(*ZERNIO_ECRITURE_ROMAIN*)`, `Bash(*zernio.py publier*--envoyer*)` | rien ne part sur Instagram depuis un chat : seulement par le clic de confirmation du studio |
 | `Bash(sudo *)`, `Bash(security *)`, `Bash(launchctl *)`, `Bash(defaults write*)` | trousseau, services, réglages du Mac |
 
 Vérifié avec le vrai `claude` : les refus `Bash` s'appliquent aussi dans une commande composée
@@ -62,8 +62,11 @@ Vérifié avec le vrai `claude` : les refus `Bash` s'appliquent aussi dans une c
 ## L'environnement
 
 Le serveur retire de l'environnement de chaque session `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`
-(la session tourne sur l'abonnement de Romain, jamais sur une clé d'API), `ZERNIO_ECRITURE_ROMAIN`
-et `ZERNIO_API_KEY`, et les variables d'une session Claude parente.
+(la session tourne sur l'abonnement du client, jamais sur une clé d'API), `ZERNIO_ECRITURE`,
+`ZERNIO_ECRITURE_ROMAIN` et `ZERNIO_API_KEY`, et les variables d'une session Claude parente. Pour un
+client à configuration Claude isolée (`config_claude` non nul), il pose `CLAUDE_CONFIG_DIR` sur ce
+dossier dans chaque session ; la mémoire des agents permise en écriture est `<config_claude>/agent-memory/**`
+(au lieu de `~/.claude/agent-memory/**`).
 
 ## Limites connues (à savoir, pas à cacher)
 
@@ -77,4 +80,5 @@ et `ZERNIO_API_KEY`, et les variables d'une session Claude parente.
   doit passer par un chemin relatif. Gêne mineure, voulue.
 - Les motifs `Bash(...)` sont des correspondances de texte : une variante écrite autrement
   (variable, alias) peut passer. Le studio ne compte pas sur eux seuls pour la publication : la
-  vraie garde est que `ZERNIO_ECRITURE_ROMAIN` n'est jamais dans l'environnement d'une session.
+  vraie garde est que `ZERNIO_ECRITURE` (ni `ZERNIO_ECRITURE_ROMAIN`) n'est jamais dans l'environnement
+  d'une session.

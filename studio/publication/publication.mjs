@@ -7,8 +7,9 @@
 //                                    puis rend recap(...) de ces propositions
 //
 // Sécurité :
-//   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE_ROMAIN=oui n'est
-//     posé que sur cet appel-là (il est retiré de l'environnement de tous les autres).
+//   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE=<compte> (plus
+//     ZERNIO_ECRITURE_ROMAIN=oui chez Romain) n'est posé que sur cet appel-là (il est retiré de
+//     l'environnement de tous les autres).
 //   - Simulation : config.publication.simulation === true, ou STUDIO_SIMULATION=1 (prioritaire). Alors
 //     confirmer() lance `publier` sans --envoyer ni --pousser : rien ne part, rien n'est écrit (verifier
 //     --pousser aligne seulement la copie des scripts du Mac, depot_mac, sur le dépôt en ligne).
@@ -20,6 +21,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
+import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 
 export const RECAP_MINUTES = 30;
 const MONTE = /-monte(?:-\d+)?\.mp4$/;
@@ -94,14 +96,17 @@ export const DEPOT_MAC_DEFAUT = '~/.montage-yoan/head-of-content';
 
 function chemins(config) {
   const depot = path.resolve(developper(config.depot_hoc));
-  const depotMac = path.resolve(developper(config.depot_mac || DEPOT_MAC_DEFAUT));
+  const client = config.client || clientActif();
+  const depotMac = path.resolve(developper(config.depot_mac || `${client.racine}/head-of-content`));
   return { depot, depotMac, media: path.resolve(developper(config.media)), zernio: path.join(depotMac, 'outils', 'zernio.py') };
 }
 
-function environnement(depot, ecriture) {
+// Garde-fou d'écriture : ZERNIO_ECRITURE=<compte du client> (et ZERNIO_ECRITURE_ROMAIN=oui pour Romain,
+// que son zernio.py demande encore), posé sur le seul appel de confirmation, retiré de tous les autres.
+function environnement(depot, ecriture, client) {
   const env = { ...process.env, HOC_DEPOT: depot, PYTHONIOENCODING: 'utf-8' };
-  delete env.ZERNIO_ECRITURE_ROMAIN;
-  if (ecriture) env.ZERNIO_ECRITURE_ROMAIN = 'oui';
+  for (const k of VARIABLES_ECRITURE) delete env[k];
+  if (ecriture) Object.assign(env, variablesEcriture(client));
   return env;
 }
 
@@ -112,7 +117,7 @@ export function lancerZernio(config, args, { ecriture = false, timeoutMs = 12000
     let sortie = '';
     let fini = false;
     const p = spawn('python3', [zernio, ...args], {
-      cwd: depot, env: environnement(depot, ecriture), detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: depot, env: environnement(depot, ecriture, config.client || clientActif()), detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     });
     const minuterie = setTimeout(() => {
       try { process.kill(-p.pid, 'SIGTERM'); } catch { /* déjà fini */ }
@@ -168,7 +173,7 @@ export function lireVerifier(sortie) {
 // d'arrêt de cmd_publier / appel / main, traduit en une phrase claire. Les motifs suivent le texte
 // exact du script : un texte inconnu donne une phrase générique, jamais le message brut.
 const BLOQUES = [
-  [/^slug invalide/, () => "Ce contenu a un nom que je ne reconnais pas : préviens Yoan."],
+  [/^slug invalide/, () => `Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`],
   [/^légende : .*introuvable|^légende : pas de section|^légende : aucun texte de carrousel/,
     () => "Il n'y a pas encore de légende validée pour ce contenu : demande-la à ton head of content dans la carte."],
   [/^légende : /, () => "Je ne trouve pas la légende de ce contenu : demande-la à ton head of content dans la carte."],
@@ -182,7 +187,7 @@ const BLOQUES = [
   [/^dossier des slides introuvable|^aucune slide-/, () => "Je ne retrouve pas les images du carrousel sur ton Mac : refais la mise en page."],
   [/^un carrousel a 2 à 20 slides \((\d+)/, (m) => `Un carrousel doit avoir entre 2 et 20 images (il en a ${m[1]}).`],
   [/^les slides n'ont pas toutes la même taille/, () => "Les images du carrousel n'ont pas toutes la même taille : refais la mise en page."],
-  [/^déjà (programmé|publié) le (.+?) \(zernio_post/, (m) => `Ce contenu est déjà ${m[1]} (${dateCourte(m[2])}). Pour le décaler, préviens Yoan.`],
+  [/^déjà (programmé|publié) le (.+?) \(zernio_post/, (m) => `Ce contenu est déjà ${m[1]} (${dateCourte(m[2])}). Pour le décaler, préviens ${contact()}.`],
   [/^le mot (\S+) n'est pas en attente/, (m) => `Le message automatique du mot ${m[1]} n'est pas prêt : demande à ton head of content de le mettre en attente, sinon personne ne recevra ta ressource.`],
   [/^le mot (\S+) ne sera pas branché \((.*)\) :/, (m) => `Le mot ${m[1]} ne pourra pas encore envoyer ta ressource (${m[2]}) : la légende promettrait un message que personne ne recevrait. Attends que ce soit réglé, ou demande à ton head of content une légende sans le mot.`],
   [/^le mot du script \((\S+)\) n'est pas celui en attente \((\S+)\)/, (m) => `Le mot de ton script (${m[1]}) n'est pas celui qui attend (${m[2]}) : demande à ton head of content de remettre le bon mot en attente.`],
@@ -198,11 +203,11 @@ const ATTENTIONS = [
 const ARRETS = [
   [/^QUAND_PASSE/, () => "L'heure choisie est déjà passée, ou dans moins de 10 minutes : choisis une heure plus tard."],
   [/^QUAND_ILLISIBLE|^QUAND_MANQUANT/, () => "Je n'ai pas compris la date choisie : choisis-la à nouveau."],
-  [/^VERROU/, () => "Rien n'est parti : la publication n'a pas été autorisée de mon côté. Préviens Yoan."],
-  [/^CLE_ABSENTE|^CLE_REFUSEE|^DROITS|^COMPTE_ABSENT/, () => "Rien n'est parti : l'accès à ton compte Instagram ne marche pas de mon côté. Préviens Yoan avec le message ci-dessous."],
+  [/^VERROU/, () => `Rien n'est parti : la publication n'a pas été autorisée de mon côté. Préviens ${contact()}.`],
+  [/^CLE_ABSENTE|^CLE_REFUSEE|^DROITS|^COMPTE_ABSENT/, () => `Rien n'est parti : l'accès à ton compte Instagram ne marche pas de mon côté. Préviens ${contact()} avec le message ci-dessous.`],
   [/^HORS_LIGNE/, () => "Rien n'est parti : pas d'internet. Vérifie ta connexion et refais le récapitulatif."],
-  [/^ECHEC_PUBLICATION/, () => "Instagram a refusé la publication. Ne la relance pas : préviens Yoan avec le message ci-dessous."],
-  [/^ERREUR_ZERNIO/, () => "Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens Yoan avec le message ci-dessous."],
+  [/^ECHEC_PUBLICATION/, () => `Instagram a refusé la publication. Ne la relance pas : préviens ${contact()} avec le message ci-dessous.`],
+  [/^ERREUR_ZERNIO/, () => `Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens ${contact()} avec le message ci-dessous.`],
 ];
 
 function dateCourte(iso) {
@@ -217,8 +222,8 @@ export function phrase(genre, texte) {
     const m = motif.exec(texte);
     if (m) return f(m);
   }
-  if (genre === 'ATTENTION') return 'Un point est à vérifier sur ce contenu : préviens Yoan si tu as un doute.';
-  return "Ce contenu ne peut pas partir pour l'instant : préviens Yoan avec le message ci-dessous.";
+  if (genre === 'ATTENTION') return `Un point est à vérifier sur ce contenu : préviens ${contact()} si tu as un doute.`;
+  return `Ce contenu ne peut pas partir pour l'instant : préviens ${contact()} avec le message ci-dessous.`;
 }
 
 // La première ligne d'arrêt reconnue dans une sortie de `publier` (ou null).
@@ -304,7 +309,7 @@ async function verifierUn(demande, config, maintenant, executer) {
   const el = { slug, quand, type: 'reel', titre: slug || '', legende: null, mot: null, messages: [], bloque: false, attention: false };
 
   if (!slugValide(slug)) {
-    el.messages.push("Ce contenu a un nom que je ne reconnais pas : préviens Yoan.");
+    el.messages.push(`Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`);
     el.bloque = true;
     return el;
   }
@@ -341,7 +346,7 @@ async function verifierUn(demande, config, maintenant, executer) {
   el.legende = v.legende;
   el.mot = v.mot;
   if (code !== 0 && code !== 1 && !v.bloque.length) {
-    el.messages.push("Je n'arrive pas à vérifier ce contenu : préviens Yoan.");
+    el.messages.push(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
     el.detail = sortie.trim().split('\n').slice(-3).join(' / ');
     el.bloque = true;
   }
@@ -356,7 +361,7 @@ async function verifierUn(demande, config, maintenant, executer) {
     el.attention = true;
   }
   if (code === 0 && !v.ok && !el.bloque) {
-    el.messages.push("Je n'arrive pas à vérifier ce contenu : préviens Yoan.");
+    el.messages.push(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
     el.bloque = true;
   }
   return el;
@@ -481,7 +486,7 @@ export async function confirmer(recapOuId, config, opts = {}) {
     const b = lireVerifier(sortie).bloque[0];
     if (!a && b) { res('bloque', 'Pas programmé : ' + phrase('BLOQUE', b)); continue; }
     // Une erreur pendant l'envoi : on ne sait pas toujours ce qui est parti. On s'arrête là, sans relance.
-    res('erreur', a ? phrase('ARRET', a) : "Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens Yoan avec le message ci-dessous.",
+    res('erreur', a ? phrase('ARRET', a) : `Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens ${contact()} avec le message ci-dessous.`,
       (a || sortie.trim().split('\n').slice(-2).join(' / ')).slice(0, 300));
     stop = true;
   }

@@ -1,5 +1,8 @@
 // Petites fonctions communes à toute l'interface : éléments, dates, texte, icônes.
 
+// Qui prévenir quand quelque chose coince : posé par le serveur sur <html> (client du studio).
+export const CONTACT = document.documentElement.dataset.contact || "Yoan";
+
 export function el(tag, attrs = {}, ...enfants) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {

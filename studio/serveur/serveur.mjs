@@ -34,6 +34,23 @@ const TYPES_MIME = {
   ".txt": "text/plain; charset=utf-8", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
 };
 
+const echapper = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// L'accueil du studio aux couleurs du client : nom de l'appli (titre, marque), thème, prénom et contact
+// (lus par l'interface sur <html>). Le fichier index.html garde les valeurs de Romain (maquette sans serveur).
+export function pageAccueil(html, config) {
+  const nom = echapper(config.appli?.nom || "Studio");
+  const theme = /^[a-z0-9-]+$/.test(config.theme || "") ? config.theme : "romain";
+  const liens = theme === "romain"
+    ? '<link rel="preload" href="/app/polices/manrope.woff2" as="font" type="font/woff2" crossorigin>\n  <link rel="stylesheet" href="/app/themes/romain.css">'
+    : `<link rel="stylesheet" href="/app/themes/${theme}.css">`;
+  return html
+    .replace(/<!-- theme :[^>]*-->[\s\S]*?<!-- \/theme -->/, liens)
+    .replace("<title>Studio</title>", `<title>${nom}</title>`)
+    .replace(/(<(span|p) class="mot">)Studio(<\/\2>)/g, `$1${nom}$3`)
+    .replace('<html lang="fr">', `<html lang="fr" data-prenom="${echapper(config.prenom)}" data-contact="${echapper(config.contact)}" data-theme-client="${theme}">`);
+}
+
 const PAGE_ATTENTE = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family: -apple-system, system-ui, sans-serif; padding: 48px; background: #f6f5f2; color: #1d1d1b">
@@ -348,7 +365,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   function messagePourModele(chatId, t, texte) {
     if (pont.aUneSession(chatId)) {
       if (t.genre === "hoc" && briefRetouche(chatId, t.slug)) {
-        return `Romain a retouché son texte dans le studio depuis ton dernier message : relis le fichier avant d'y toucher.\n\n${texte}`;
+        return `${config.client?.prenom || config.prenom} a retouché son texte dans le studio depuis ton dernier message : relis le fichier avant d'y toucher.\n\n${texte}`;
       }
       return texte;
     }
@@ -376,6 +393,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         tournages: listeTournages(config),
         config: {
           prenom: config.prenom,
+          contact: config.contact,
+          appli: config.appli?.nom || "Studio",
           jours_par_defaut: config.publication?.jours_par_defaut || [],
           heures_par_defaut: config.publication?.heures_par_defaut || {},
         },
@@ -760,9 +779,11 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       const index = path.join(interfaceDir, "index.html");
       if (!existe(index)) {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-        return res.end(PAGE_ATTENTE);
+        return res.end(PAGE_ATTENTE.replace("<title>Studio</title>", `<title>${echapper(config.appli?.nom || "Studio")}</title>`));
       }
-      return servirFichier(req, res, index, { cache: "no-store" });
+      const html = Buffer.from(pageAccueil(fs.readFileSync(index, "utf8"), config), "utf8");
+      res.writeHead(200, { "Content-Type": TYPES_MIME[".html"], "Cache-Control": "no-store", "Content-Length": html.length });
+      return res.end(req.method === "HEAD" ? undefined : html);
     }
     if (url.pathname.startsWith("/app/")) {
       const seg = segmentsSurs(url.pathname.slice(5).split("/").filter(Boolean));
@@ -810,7 +831,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return res.end();
       }
       res.writeHead(401, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-      return res.end(PAGE_JETON);
+      return res.end(PAGE_JETON.replace("<title>Studio</title>", `<title>${echapper(config.appli?.nom || "Studio")}</title>`));
     }
     if (url.pathname.startsWith("/api/")) {
       if (!egalConstant(cookies(req).studio, jeton)) {

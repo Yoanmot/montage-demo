@@ -17,6 +17,8 @@ export function configBrute(config) {
     media: config.media,
     carrousels: config.carrousels,
     skills: config.skills,
+    // Le client (compte Zernio du garde-fou d'écriture) : jamais écrit dans un fichier.
+    client: config.client,
     publication: { ...(config.brut.publication || {}), simulation: config.simulation },
   };
 }

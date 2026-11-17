@@ -13,6 +13,7 @@ import path from "node:path";
 import { lireJson, ecrireJson, jourZurich, ajouterJours, existe } from "./outils.mjs";
 import { lancerZernio } from "../publication/publication.mjs";
 import { configBrute } from "./publication.mjs";
+import { contact } from "./client.mjs";
 
 const JOUR_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -149,7 +150,7 @@ export class Stats {
       })),
     };
     if (!source && !d) r.erreur = "Les chiffres d'Instagram ne se lisent pas dans ce studio d'essai.";
-    else if (c.erreur && !d) r.erreur = "Je n'arrive pas à lire tes chiffres Instagram pour l'instant. Je réessaie dans une heure ; si ça dure, préviens Yoan.";
+    else if (c.erreur && !d) r.erreur = `Je n'arrive pas à lire tes chiffres Instagram pour l'instant. Je réessaie dans une heure ; si ça dure, préviens ${contact()}.`;
     else if (c.erreur) r.erreur = "La dernière mise à jour n'a pas marché : ce sont les chiffres d'avant. Je réessaie dans une heure.";
     return r;
   }

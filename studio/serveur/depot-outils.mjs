@@ -5,6 +5,7 @@ import path from "node:path";
 import { executer, lireVerdict } from "./commandes.mjs";
 import { existe } from "./outils.mjs";
 import { CODE } from "./config.mjs";
+import { contact } from "./client.mjs";
 
 export class ErreurStudio extends Error {
   constructor(code, message, statut = 409) {
@@ -15,8 +16,8 @@ export class ErreurStudio extends Error {
   }
 }
 
-export const MESSAGE_GENERIQUE = "Ça n'a pas marché. Réessaie, et si ça recommence, préviens Yoan.";
-const ABSENT = "Cette partie n'est pas encore installée sur ton Mac. Préviens Yoan.";
+export const MESSAGE_GENERIQUE = `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${contact()}.`;
+const ABSENT = `Cette partie n'est pas encore installée sur ton Mac. Préviens ${contact()}.`;
 
 // Retire les chemins d'un message avant de le montrer à Romain.
 export function sansChemins(texte) {
@@ -47,7 +48,7 @@ const PHRASES = {
   ACCROCHE: "Je ne trouve plus cette accroche : recharge le brief.",
   SUPPRIMEE: "Cette idée a été supprimée.",
   STATUT: "Cette idée a déjà changé de place : recharge.",
-  ENTREE: "Ça n'a pas marché. Réessaie, et si ça recommence, préviens Yoan.",
+  ENTREE: `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${contact()}.`,
 };
 
 export async function outilDepot(config, script, args, { delaiMs = 120000 } = {}) {
@@ -91,7 +92,7 @@ export async function lancerRangement(config, { tournage } = {}) {
     cwd: CODE, env: { ...process.env, STUDIO_CONFIG: config.fichier }, delaiMs: 30 * 60000,
   });
   const lu = lireSortieRangement(r.sortie);
-  if (r.code !== 0 && !lu.fin) throw new ErreurStudio("RANGEMENT_ECHEC", "Le rangement de tes vidéos n'a pas abouti. Réessaie, et si ça recommence, préviens Yoan.", 500);
+  if (r.code !== 0 && !lu.fin) throw new ErreurStudio("RANGEMENT_ECHEC", `Le rangement de tes vidéos n'a pas abouti. Réessaie, et si ça recommence, préviens ${contact()}.`, 500);
   return lu;
 }
 
@@ -105,7 +106,7 @@ export async function placerManuel(config, { fichier, slug, type }) {
   if (r.code !== 0 || lu.a_ranger.length) {
     const v = lireVerdict(r.sortie);
     throw new ErreurStudio(v?.code || "PLACEMENT_ECHEC",
-      v?.message ? sansChemins(v.message) : "Je n'ai pas pu ranger ce fichier là. Réessaie, et si ça recommence, préviens Yoan.", 409);
+      v?.message ? sansChemins(v.message) : `Je n'ai pas pu ranger ce fichier là. Réessaie, et si ça recommence, préviens ${contact()}.`, 409);
   }
   return lu;
 }
@@ -120,7 +121,7 @@ export async function retirerRush(config, { slug, type, nom }) {
   if (r.code !== 0 || !/^RETIRE /m.test(r.sortie)) {
     const v = lireVerdict(r.sortie);
     throw new ErreurStudio(v?.code || "RETRAIT_ECHEC",
-      v?.message ? sansChemins(v.message) : "Je n'ai pas pu le retirer. Réessaie, et si ça recommence, préviens Yoan.", 409);
+      v?.message ? sansChemins(v.message) : `Je n'ai pas pu le retirer. Réessaie, et si ça recommence, préviens ${contact()}.`, 409);
   }
   return true;
 }

@@ -30,7 +30,7 @@ Variables :
                alphabétique ; « - aucune » s'il n'y en a pas.
   {{skills}}   le dossier des skills du Mac (config « skills », ~ développé).
 -->
-Mets en page le carrousel {{slug}} : « {{titre}} » (mode studio). Romain voit ta réponse dans la carte du
+Mets en page le carrousel {{slug}} : « {{titre}} » (mode studio). {{prenom}} voit ta réponse dans la carte du
 carrousel : parle-lui comme d'habitude (tutoiement, court, jamais de commande, de chemin ni de nom de fichier).
 
 Son texte validé : {{texte}}

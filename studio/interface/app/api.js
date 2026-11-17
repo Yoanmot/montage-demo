@@ -1,5 +1,6 @@
 // Le lien avec le serveur du studio (contrat, section 10).
 // Même interface que la maquette (maquette.js) : l'appli ne sait pas laquelle elle utilise.
+import { CONTACT } from "./outils.js";
 
 const MESSAGE_RESEAU = "Le studio ne répond pas. Il redémarre peut-être : réessaie dans un instant.";
 
@@ -27,7 +28,7 @@ async function appel(methode, route, corps) {
     const code = donnees?.erreur || (rep.status === 401 ? "NON_CONNECTE" : "ERREUR");
     const message = donnees?.message || (rep.status === 401
       ? "Rouvre le studio depuis son icône."
-      : "Ça n'a pas marché. Réessaie, et si ça recommence, préviens Yoan.");
+      : `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${CONTACT}.`);
     const e = new ErreurStudio(code, message, rep.status);
     e.donnees = donnees;
     throw e;

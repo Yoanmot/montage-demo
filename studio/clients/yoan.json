@@ -1,0 +1,18 @@
+{
+  "id": "yoan",
+  "prenom": "Yoan",
+  "contact": "Yoan",
+  "racine": "/Users/Shared/studio-yoan",
+  "label_launchd": "com.ia-yoan.studio",
+  "appli": { "nom": "Studio", "icone": "yoan" },
+  "port": 4748,
+  "theme": "yoan",
+  "head_of_content": {
+    "depot": "git@github.com:Yoanmot/studio-hoc-yoan.git",
+    "cle_ssh": "~/.ssh/studio_hoc_yoan"
+  },
+  "zernio": { "compte": "ia.yoan", "profil": "6ab94a628e03c511f58e6cff" },
+  "ressources": { "site": "https://ressources.yoanmottier.com" },
+  "branche_mise_a_jour": "studio-multi-clients",
+  "config_claude": "/Users/Shared/studio-yoan/claude"
+}

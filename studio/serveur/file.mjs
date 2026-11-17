@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { lireJson, ecrireJson, isoZurich, horodatage, lireTexte, existe, lister } from "./outils.mjs";
 import { attenduPresent, formatDuContenu } from "./attendus.mjs";
 import { lireDepot, videoFace, videosFace, brolls } from "./lecture.mjs";
+import { contact, clientActif } from "./client.mjs";
 
 const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page"]);
 const GARDER_TERMINEES = 300;
@@ -26,10 +27,14 @@ export function chatDeAction(a) {
   }
 }
 
-// Un gabarit peut commencer par un commentaire pour qui le maintient (<!-- ... -->) : retiré.
+// Un gabarit peut commencer par un commentaire pour qui le maintient (<!-- ... -->) : retiré jusqu'à la
+// ligne « --> » seule (le commentaire cite lui-même « --> » dans son texte : le premier ne le ferme pas).
 export function remplir(gabarit, valeurs) {
-  const corps = gabarit.startsWith("<!--") && gabarit.includes("-->")
-    ? gabarit.slice(gabarit.indexOf("-->") + 3).replace(/^\r?\n/, "") : gabarit;
+  const fin = /\r?\n-->[ \t]*(\r?\n|$)/.exec(gabarit);
+  const corps = gabarit.startsWith("<!--") && fin
+    ? gabarit.slice(fin.index + fin[0].length)
+    : gabarit.startsWith("<!--") && gabarit.includes("-->")
+      ? gabarit.slice(gabarit.indexOf("-->") + 3).replace(/^\r?\n/, "") : gabarit;
   return corps.replace(/\{\{(\w+)\}\}/g, (_, k) => (valeurs[k] ?? "")).replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }
 
@@ -45,9 +50,11 @@ function titreDe(config, slug) {
 // Le premier message d'une action (gabarits/).
 export function messageAction(a, config) {
   const titre = a.slug ? titreDe(config, a.slug) : "";
+  // Le prénom du client dans les gabarits ({{prenom}}).
+  const prenom = (config.client || clientActif()).prenom;
   if (a.type === "script") {
     const format = formatDuContenu(config, a.slug);
-    return remplir(gabarit("script.md"), {
+    return remplir(gabarit("script.md"), { prenom,
       slug: a.slug, titre, format,
       skill: format === "carrousel" ? "carrousel-script" : "reel-script",
       ou_ecrire: format === "carrousel"
@@ -57,7 +64,7 @@ export function messageAction(a, config) {
   }
   if (a.type === "tournage") {
     const liste = (a.slugs || []).map((s) => `${s} (« ${titreDe(config, s)} »)`).join(", ");
-    return remplir(gabarit("tournage.md"), { slugs: liste });
+    return remplir(gabarit("tournage.md"), { prenom, slugs: liste });
   }
   if (a.type === "montage") {
     const video = videoFace(config, a.slug);
@@ -65,7 +72,7 @@ export function messageAction(a, config) {
     const clips = brolls(config, a.slug).sort();
     const tournages = lireDepot(config.depot).tournages.filter((x) => x.contenus.includes(a.slug))
       .sort((x, y) => String(y.cree_le || "").localeCompare(String(x.cree_le || "")));
-    return remplir(gabarit("montage.md"), {
+    return remplir(gabarit("montage.md"), { prenom,
       slug: a.slug, titre: titre.replace(/\*/g, ""),
       video: (video || "aucune") + (autres.length ? ` (autres prises : ${autres.join(", ")})` : ""),
       clips: clips.length ? clips.map((c) => `- ${c}`).join("\n") : "- aucun",
@@ -79,7 +86,7 @@ export function messageAction(a, config) {
       : path.join(config.depot, "rendus", "carrousels", `${a.slug}.md`);
     const dossierPhotos = path.join(config.media, a.slug, "photos");
     const photos = lister(dossierPhotos).filter((e) => !e.name.startsWith(".")).map((e) => path.join(dossierPhotos, e.name)).sort();
-    return remplir(gabarit("mise-en-page.md"), {
+    return remplir(gabarit("mise-en-page.md"), { prenom,
       slug: a.slug, titre: titre.replace(/\*/g, ""), texte,
       photos: photos.length ? photos.map((f) => `- ${f}`).join("\n") : "- aucune",
       skills: config.skills || "",
@@ -199,7 +206,7 @@ export class File extends EventEmitter {
       return r;
     } catch (e) {
       a.statut = "erreur";
-      a.erreur = e.messageRomain || "Ça n'a pas marché. Réessaie, et si ça recommence, préviens Yoan.";
+      a.erreur = e.messageRomain || `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${contact()}.`;
       throw e;
     } finally {
       a.fin = isoZurich();
@@ -303,7 +310,7 @@ export class File extends EventEmitter {
       envoi = reprise ? REPRISE : messageAction(a, this.config);
     } catch (e) {
       a.statut = "erreur";
-      a.erreur = "Je n'ai pas pu préparer ce travail. Préviens Yoan.";
+      a.erreur = `Je n'ai pas pu préparer ce travail. Préviens ${contact()}.`;
       a.fin = isoZurich();
       this.sauver();
       this.journal("action_impossible", { id: a.id, erreur: String(e.message || e) });

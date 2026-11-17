@@ -1,9 +1,9 @@
-// Le studio de Romain (lot 9) : trois colonnes, comme un explorateur de fichiers.
+// Le studio (lot 9) : trois colonnes, comme un explorateur de fichiers.
 // À gauche l'arborescence (un dossier par idée), au milieu le fichier ouvert, à droite le chat,
 // dont la portée suit ce qui est sélectionné (contrat, section 14).
 
 import { creerApiServeur } from "./api.js";
-import { el, icone, annoncer, ilYa, pluriel } from "./outils.js";
+import { el, icone, annoncer, ilYa, pluriel, CONTACT } from "./outils.js";
 import { Chat } from "./chat.js";
 import { Arbre } from "./arbre.js";
 import { Vue } from "./vue.js";
@@ -19,7 +19,7 @@ class Studio {
     this.api = api;
     this.cartes = new Map();
     this.a_ranger = []; this.file = []; this.sync = null; this.tournages = []; this.stats = null;
-    this.config = { prenom: "Romain", jours_par_defaut: [], heures_par_defaut: { reel: "18:30", carrousel: "12:15" } };
+    this.config = { prenom: document.documentElement.dataset.prenom || "", jours_par_defaut: [], heures_par_defaut: { reel: "18:30", carrousel: "12:15" } };
     this.filtres = { format: "tous" };
     this.ouverts = new Set();
     this.sel = { genre: "accueil" };
@@ -252,7 +252,7 @@ class Studio {
     else if (!this.sync) { texte = ""; }
     else if (this.sync.etat === "en_cours") { texte = "Mise à jour"; genre = "cours"; }
     else if (this.sync.etat === "hors_ligne") { texte = this.sync.message || "Pas d'internet : tes changements partiront au retour"; genre = "coupe"; ico = "horsligne"; }
-    else if (this.sync.etat === "conflit") { texte = this.sync.message || "Un changement fait ailleurs coince. Préviens Yoan."; genre = "conflit"; ico = "attention"; }
+    else if (this.sync.etat === "conflit") { texte = this.sync.message || `Un changement fait ailleurs coince. Préviens ${CONTACT}.`; genre = "conflit"; ico = "attention"; }
     else texte = `À jour, ${ilYa(this.sync.derniere)}`;
     z.className = `sync sync-${genre}`;
     z.innerHTML = texte ? `${icone(ico)}<span>${texte}</span>` : "";

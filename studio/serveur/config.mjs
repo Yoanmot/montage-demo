@@ -1,18 +1,37 @@
-// Configuration du studio (contrat, section 7) : STUDIO_HOME/studio.config.json, créé depuis
-// CODE/studio.config.exemple.json s'il manque. Aucune clé ici.
+// Configuration du studio (contrat, section 7) : STUDIO_HOME/studio.config.json, créé s'il manque depuis
+// CODE/studio.config.exemple.json et les valeurs du client (clients/<id>.json, STUDIO_CLIENT). Aucune clé ici.
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { etendre, lireJson, ecrireJson } from "./outils.mjs";
+import { chargerClient } from "./client.mjs";
 
 export const CODE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function studioHome(env = process.env) {
-  return etendre(env.STUDIO_HOME || "~/.montage-yoan/studio");
+  if (env.STUDIO_HOME) return etendre(env.STUDIO_HOME);
+  return path.join(chargerClient({ env, maison: os.homedir() }).racineAbs, "studio");
 }
 
-const DEFAUTS = lireJson(path.join(CODE, "studio.config.exemple.json"), {});
+const EXEMPLE = lireJson(path.join(CODE, "studio.config.exemple.json"), {});
+
+// Ce que le client fixe dans un studio.config.json neuf. Pour Romain : exactement les valeurs de
+// l'exemple (prénom, port 4747, dépôts sous ~/.montage-yoan, skills dans ~/.claude, pas d'aperçu).
+export function defautsDuClient(client) {
+  const r = String(client.racine).replace(/\/+$/, "");
+  return {
+    prenom: client.prenom,
+    port: client.port,
+    depot_hoc: `${r}/studio/head-of-content`,
+    depot_mac: `${r}/head-of-content`,
+    skills: client.config_claude ? `${String(client.config_claude).replace(/\/+$/, "")}/skills` : "~/.claude/skills",
+    apercu_ressources: client.ressources?.site || null,
+    // Client à configuration Claude isolée : le dossier média (dossier des sessions du monteur) vit sous
+    // la racine, hors de la maison, pour que claude n'y trouve en remontant ni ~/.claude ni un CLAUDE.md.
+    ...(client.config_claude ? { media: `${r}/Contenu` } : {}),
+  };
+}
 
 function fusion(base, ajout) {
   if (!ajout || typeof ajout !== "object" || Array.isArray(ajout)) return ajout ?? base;
@@ -24,6 +43,8 @@ function fusion(base, ajout) {
 }
 
 export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
+  const client = chargerClient({ env });
+  const DEFAUTS = fusion(EXEMPLE, defautsDuClient(client));
   const fichier = path.join(home, "studio.config.json");
   fs.mkdirSync(home, { recursive: true });
   if (!fs.existsSync(fichier)) ecrireJson(fichier, DEFAUTS);
@@ -35,12 +56,17 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
     fichier,
     home,
     brut,
-    prenom: brut.prenom || "",
-    port: Number(env.STUDIO_PORT || brut.port || 4747),
+    prenom: brut.prenom || client.prenom || "",
+    // Le client (identité, appli, thème, compte, dossier de config Claude) : clients/<id>.json.
+    client,
+    appli: { nom: client.appli?.nom || "Studio", icone: client.appli?.icone || null },
+    theme: client.theme || "romain",
+    contact: client.contact || "",
+    port: Number(env.STUDIO_PORT || brut.port || client.port || 4747),
     depot: etendre(brut.depot_hoc, maison),
     // Copie du dépôt gérée par les scripts du Mac (zernio.py, a-rendre.py) : ils l'alignent de force
     // sur le dépôt en ligne, donc ils n'y tournent que là, jamais dans DEPOT (contrat, section 12).
-    depotMac: etendre(brut.depot_mac || "~/.montage-yoan/head-of-content", maison),
+    depotMac: etendre(brut.depot_mac || DEFAUTS.depot_mac, maison),
     media: etendre(brut.media, maison),
     // Dossier où la mise en page écrit les slides (carrousel-<slug>/) : a-rendre.py le reçoit par
     // RENDUS_CARROUSELS, le lien MEDIA/<slug>/slides y mène (contrat, sections 2 et 7).
