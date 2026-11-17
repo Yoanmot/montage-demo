@@ -79,6 +79,15 @@ function lireArbre(d) {
   return r;
 }
 
+test("syntaxe : chaque script se lit avec le bash 3.2 de macOS (/bin/bash)", () => {
+  const scripts = [...fs.readdirSync(path.join(DEPOT, "installation")).filter((f) => f.endsWith(".sh")).map((f) => `installation/${f}`),
+    ...fs.readdirSync(path.join(DEPOT, "studio/lancement")).filter((f) => f.endsWith(".sh")).map((f) => `studio/lancement/${f}`)];
+  for (const f of scripts) {
+    const r = spawnSync("/bin/bash", ["-n", path.join(DEPOT, f)], { encoding: "utf8" });
+    assert.equal(r.status, 0, `${f} : ${r.stderr}`);
+  }
+});
+
 test("client.sh : Romain garde ses valeurs historiques, avec ou sans fichier de client", () => {
   const maison = tmp();
   for (const env of [envDe(maison), envDe(maison, { STUDIO_CLIENT: "romain" })]) {

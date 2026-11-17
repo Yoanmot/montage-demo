@@ -126,7 +126,8 @@ if [ -z "$SANS_MODELE" ]; then
 fi
 
 # ------------------------------------------------------------------ l'analyse
-RAPPORT="$("$PY" - "$TRAVAIL" "$n" "$BASE" "$CLIENT_CLAUDE" "$HOME" "$CLIENT_ID" "$ORIGINE_ENV" "$MODELE" "${ENV_SERVICE[@]}" <<'PYEOF'
+# (Écrit dans un fichier : le bash 3.2 de macOS lit mal un document en ligne avec apostrophes dans $(...).)
+"$PY" - "$TRAVAIL" "$n" "$BASE" "$CLIENT_CLAUDE" "$HOME" "$CLIENT_ID" "$ORIGINE_ENV" "$MODELE" "${ENV_SERVICE[@]}" > "$TRAVAIL/rapport.md" <<'PYEOF'
 import glob, json, os, re, sys
 travail, n, racine, cfg, maison, client, origine, modele = sys.argv[1:9]
 env_service = sys.argv[9:]
@@ -241,7 +242,7 @@ lignes.append("")
 lignes.append("ISOLATION %s" % ("OK" if not raisons else "ECHEC " + " | ".join(raisons)))
 print("\n".join(lignes))
 PYEOF
-)"
+RAPPORT="$(cat "$TRAVAIL/rapport.md")"
 if [ -n "$SORTIE" ]; then
   mkdir -p "$(dirname "$SORTIE")"; printf '%s\n' "$RAPPORT" > "$SORTIE"
 else
