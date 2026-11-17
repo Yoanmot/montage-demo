@@ -153,6 +153,12 @@ main() {
       "$CLONE"/*|"$HOC"/*) [ -e "$l" ] || { rm -f "$l"; journal "RETIRE ${l#$CC/} (plus dans le dépôt)"; } ;;
     esac
   done
+  # Le skill de mise en page d'un autre client (carrousel-<client>), relié sous son nom par une version
+  # d'avant ce script (premier passage après la mise à jour) : seul « carrousel » doit rester.
+  for l in "$SKILLS"/carrousel-*; do
+    [ -L "$l" ] || continue
+    case "$(readlink "$l")" in "$CLONE"/skills/*) rm -f "$l"; journal "RETIRE ${l#$CC/} (mise en page d'un autre client)";; esac
+  done
 
   # 3. La copie du head of content (comme ses scripts : exactement le dépôt en ligne)
   if [ -d "$HOC/.git" ]; then
