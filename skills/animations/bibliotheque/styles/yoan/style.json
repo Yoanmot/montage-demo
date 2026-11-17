@@ -1,0 +1,37 @@
+{
+ "nom": "ia.yoan",
+ "_source": "Style de Yoan (@ia.yoan), traduit le 2026-11-17 (studio de Yoan, lot 3B) depuis projets/perso/content/monteur/style/ (style.json et REGLES.md). Seules les valeurs qui se traduisent directement dans le moteur de Romain ; le reste est proposé dans studio-yoan/rapports/lot-3.md.",
+ "COULEURS": { "orange": "#F2B544", "charbon": "#1C0F08", "craie": "#F4EFE4", "braise": "#F2B544",
+   "_note": "orange = le doré, charbon = le fond des pleins écrans, craie = la crème. Pas de marche sous les pavés chez Yoan : braise = le doré et MARCHE à 0." },
+ "MARCHE": { "pave": { "hauteur": 0 }, "sousTitre": { "hauteur": 0 }, "paveCraie": { "hauteur": 0 } },
+ "POLICES": {
+   "sousTitres": { "family": "Satoshi", "file": "Satoshi-Black.ttf", "ofl": "LICENCE-Satoshi.txt", "poids": 900 },
+   "titre": { "interligne": 1.083, "approche": "-0.01em" },
+   "texte": { "interligne": 1.12, "approche": "0em" }
+ },
+ "OMBRES": { "texteDouce": "0 0.03em 0.3em rgba(20,10,4,0.30)" },
+ "SOUS_TITRES": {
+   "taille": 0.0648, "couleur": "#F2EEE6", "position": 0.147, "largeurMax": 0.815, "approche": 0,
+   "entree": { "duree": 0.22, "montee": 0 },
+   "ombre": { "bord": 0, "flou": 12, "flouCss": 6, "texte": 0.28, "bordure": 0 },
+   "pave": { "actif": false },
+   "_note": "Satoshi Black 70 px, blanc cassé, en haut (haut des capitales à y 256 : centre des capitales à 0,147 de la hauteur), bloc de 880 px, sans pavé, sans montée, ombre douce 12 px à 28 %."
+ },
+ "APPARITION": {
+   "montee": { "part": 0, "min": 0 },
+   "flou": { "part": 0.05, "min": 14 },
+   "petit": { "montee": 0.22, "opacite": 0.22, "flou": 0.22 },
+   "gros": { "montee": 0.32, "opacite": 0.32, "flou": 0.32 },
+   "_note": "Yoan : tout texte entre en fondu depuis un flou, sans montée (14 px en 0,22 s ; hook 22 px en 0,32 s)."
+ },
+ "SONS": {
+   "faisceau": { "fichier": "flash.wav" },
+   "arrivee": { "fichier": "clic.wav" },
+   "clic": { "fichier": "clic.wav", "ecartRmsDb": 18 },
+   "transition": { "fichier": "whoosh.wav", "ecartRmsDb": 21 },
+   "ecran": { "fichier": "clic.wav", "ecartRmsDb": 18 },
+   "pose": { "fichier": "pop.wav", "ecartRmsDb": 18 },
+   "_note": "Famille de Yoan (motion premium) : niveaux en dB RMS sous la voix parlée, la même mesure des deux côtés. Faisceau et arrivée gardent leur niveau en LU de Romain (Yoan règle le flash à la crête) : à écouter. Coches, montée, Vine boom, frappes et touche Entrée : pas d'équivalent chez Yoan, ceux de Romain restent. glisse, shimmer, curseur et cta-apparition sont dans sons/ pour les sons sur mesure."
+ },
+ "ETALONNAGE": "colortemperature=temperature=5020:mix=0.640,curves=all='0/0.0020 0.2/0.1836 0.5/0.4680 0.8/0.7340 1/0.9040',colorbalance=rs=0.0480:gs=0.0040:bs=-0.0560:rm=0.0440:bm=-0.0440:rh=0.0100:bh=-0.0120,huesaturation=saturation=-0.4200:colors=b+c,eq=contrast=1.0120:saturation=1.0100,vignette=angle=0.6488:x0=w/2:y0=h*0.42,noise=c0s=1:c0f=t"
+}

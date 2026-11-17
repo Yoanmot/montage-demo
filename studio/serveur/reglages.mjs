@@ -17,7 +17,7 @@ const OUTILS_DE_BASE = [
 export function refusCommuns(client = clientActif()) {
   const maison = client.racine === "~/.montage-yoan" || !client.racine;
   const racine = maison ? "~/.montage-yoan" : absolu(client.racineAbs);
-  const secrets = ["~/.ssh/**", `${racine}/*.env`, "~/.config/monteur-romain/**", "~/.aws/**", "~/.gnupg/**"];
+  const secrets = ["~/.ssh/**", `${racine}/*.env`, "~/.config/monteur-romain/**", "~/.aws/**", "~/.gnupg/**", ...(maison ? [] : [`${racine}/monteur/**`])];
   // Dossiers de configuration Claude protégés : ~/.claude toujours, plus celui du client s'il en a un.
   const configs = ["~/.claude", ...(client.configClaudeAbs ? [absolu(client.configClaudeAbs)] : [])];
   if (client.configClaudeAbs) secrets.push(`${absolu(client.configClaudeAbs)}/.credentials.json`);

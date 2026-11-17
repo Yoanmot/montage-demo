@@ -1,0 +1,8 @@
+{
+ "source": "style @ia.yoan (ElevenLabs, voir SOURCES.md du style de Yoan)",
+ "duree_ms": 500.0,
+ "debut_ms": 100.0,
+ "debut_echantillon": 4800,
+ "crete_dbfs": -12.2,
+ "_note": "repère du style de Yoan (son.flash.repere 0,1 s) : l'image de la coupe tombe 0,1 s après le début du fichier"
+}

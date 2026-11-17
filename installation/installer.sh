@@ -276,7 +276,10 @@ PYEOF
   # Mémoire du monteur : les modèles seulement s'ils manquent (jamais écrasée).
   local MEM="$CC/agent-memory/monteur" m nm=0
   mkdir -p "$MEM"
-  for m in "$CLONE"/agents/monteur-memoire/*.md; do
+  # Modèles du client s'il en a (agents/monteur-memoire/<id>/), sinon ceux de Romain.
+  local MODELES="$CLONE/agents/monteur-memoire"
+  [ -d "$MODELES/$CLIENT_ID" ] && MODELES="$MODELES/$CLIENT_ID"
+  for m in "$MODELES"/*.md; do
     [ -f "$MEM/$(basename "$m")" ] || { cp "$m" "$MEM/"; nm=$((nm + 1)); }
   done
   ok "memoire-monteur ($nm modèles posés, rien d'écrasé)"

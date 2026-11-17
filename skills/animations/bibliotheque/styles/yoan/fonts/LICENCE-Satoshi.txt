@@ -1,0 +1,4 @@
+Satoshi (Indian Type Foundry, Fontshare). Licence : Fontshare Free Font License (FFL), https://fontshare.com/terms
+Copyright 2017-2021 Indian Type Foundry. Usage commercial permis ; le fichier de police n'est pas redistribué :
+Satoshi-Black.ttf n'est pas suivi par git, il est posé à l'installation du studio de Yoan depuis son style
+(projets/perso/content/monteur/style/polices/Satoshi-Black.woff2, converti en .ttf).

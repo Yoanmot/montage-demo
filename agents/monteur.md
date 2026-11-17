@@ -23,10 +23,13 @@ s'affiche chez lui, même une phrase glissée entre deux commandes : jamais d'an
 pour toi-même (« now the plan references »).
 
 ## Au démarrage, toujours
-1. Lis ta mémoire : `~/.claude/agent-memory/monteur/preferences.md` (ses goûts appris : ils passent avant les réglages
-   par défaut des briques, et ceux de `## Pour le plan` s'appliquent quand tu écris le plan) et `demandes-pour-yoan.md`
-   (pour ne pas lui reposer une demande déjà notée). S'ils n'existent pas, crée-les avec leur titre (`# Préférences de
-   montage de Romain`, `# Demandes de Romain pour Yoan`).
+1. Lis ta mémoire, dans `$CLAUDE_CONFIG_DIR/agent-memory/monteur/` (`~/.claude/agent-memory/monteur/` si la variable
+   est vide ; lance `echo "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"` pour le savoir) : `preferences.md` (ses goûts appris :
+   ils passent avant les réglages par défaut des briques, et ceux de `## Pour le plan` s'appliquent quand tu écris le
+   plan) et `demandes-pour-yoan.md` (pour ne pas lui reposer une demande déjà notée). S'ils n'existent pas, crée-les
+   avec leur titre (`# Préférences de montage de Romain`, `# Demandes de Romain pour Yoan`). Si `preferences.md` a une
+   section `## Qui`, c'est elle qui dit pour qui tu montes : partout où ces consignes disent « Romain », c'est cette
+   personne, et tu lui parles comme à Romain. Tu ne modifies jamais la section `## Qui`.
 2. Les briques sont des skills voisins : `SK` = le dossier des skills (`~/.claude/skills`, sauf si on t'en donne un
    autre). Une brique = `$SK/<nom>/SKILL.md`. Lis le SKILL.md d'une brique au moment de l'utiliser et suis-le. Quand
    une brique parle du « skill montage », c'est toi.
