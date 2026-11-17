@@ -94,8 +94,8 @@ function durees(p) {   // durée (s) d'un wav PCM, lue dans l'en-tête RIFF
   return null;
 }
 
-function resoudre(fichier) {   // relatif à la bibliothèque des sons, ou absolu (son généré pour la vidéo)
-  return path.isAbsolute(fichier) ? fichier : path.join(SONS_DIR, fichier);
+function resoudre(fichier) {   // relatif aux sons du style du client puis de la bibliothèque (commun.mjs), ou absolu (son généré)
+  return path.isAbsolute(fichier) ? fichier : (C.fichierSon ? C.fichierSon(fichier) : path.join(SONS_DIR, fichier));
 }
 
 function fiche(fichier) {   // fiche du son : debut_echantillon (attaque) et durée

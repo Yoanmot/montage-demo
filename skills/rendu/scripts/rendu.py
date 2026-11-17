@@ -142,11 +142,22 @@ def bibliotheque():
 
 def constantes(node, biblio):
     code = ("import(require('url').pathToFileURL(process.argv[1]).href)"
-            ".then(m=>console.log(JSON.stringify({ETALONNAGE:m.ETALONNAGE,SONS:m.SONS,RENDU:m.RENDU})))")
+            ".then(m=>console.log(JSON.stringify({ETALONNAGE:m.ETALONNAGE,SONS:m.SONS,RENDU:m.RENDU,POLICES:m.POLICES,STYLE:m.STYLE||{}})))")
     r = subprocess.run([node, "-e", code, str(biblio / "commun.mjs")], capture_output=True, text=True)
     if r.returncode != 0:
         echec(7, f"OUTIL_MANQUANT : lecture de commun.mjs impossible : {r.stderr.strip()[:300]}")
     return json.loads(r.stdout)
+
+
+def fichier_style(C, biblio, sous, nom):
+    """Un son ou une police : celui du style du client (commun.mjs, STYLE) s'il l'a, sinon celui de la bibliothèque."""
+    f = Path(str(nom))
+    if f.is_absolute():
+        return f
+    d = (C.get("STYLE") or {}).get("dossier")
+    if d and (Path(d) / sous / f).exists():
+        return Path(d) / sous / f
+    return biblio / sous / f
 
 
 # ------------------------------------------------------------------------------------------------ lecture du dossier
@@ -740,8 +751,7 @@ def bande_son(ff, w, info, total, sons, C, biblio, cache):
         vl = vr = float(C["SONS"]["voix"]["lufs"])
     bus = np.zeros(N); poses = []
     for i, s in enumerate(sons):
-        f = Path(str(s.get("fichier", "")))
-        f = f if f.is_absolute() else biblio / "sons" / f
+        f = fichier_style(C, biblio, "sons", s.get("fichier", ""))
         if not f.exists():
             echec(2, f"SON_INTROUVABLE : son n°{i + 1}, {f}")
         try:

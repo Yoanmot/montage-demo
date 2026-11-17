@@ -30,8 +30,8 @@ export const IMAGES_MIN = 3;        // un défaut compte s'il se voit sur au moi
 // métriques (capitales, ascendante) de chaque famille connue
 export function metriquesFamilles() {
   const f = {};
-  for (const p of Object.values(S.POLICES)) { const m = lirePolice(path.join(BIB, 'fonts', p.file)); f[p.family] = { cap: m.capEm, asc: m.ascEm }; }
-  const l = lirePolice(path.join(BIB, 'fonts', 'LiberationSans-Regular.ttf'));
+  for (const p of Object.values(S.POLICES)) { const m = lirePolice(S.fichierPolice(p.file)); f[p.family] = { cap: m.capEm, asc: m.ascEm }; }
+  const l = lirePolice(S.fichierPolice('LiberationSans-Regular.ttf'));
   f['Liberation Sans'] = { cap: l.capEm, asc: l.ascEm };
   return f;
 }

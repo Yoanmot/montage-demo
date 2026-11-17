@@ -27,10 +27,16 @@ GX0, GX1 = ZS["x0"] + 3, ZS["x1"] - 3
 _F = {}
 
 
+def fichier_police(f):
+    """Police du style du client (commun.mjs, STYLE) s'il l'a, sinon celle de la bibliothèque."""
+    d = (C.get("STYLE") or {}).get("dossier")
+    return Path(d) / "fonts" / f if d and (Path(d) / "fonts" / f).exists() else BIB / "fonts" / f
+
+
 def police(cle):
     p = C["POLICES"][cle]
     if cle not in _F:
-        t = TTFont(BIB / "fonts" / p["file"])
+        t = TTFont(fichier_police(p["file"]))
         if "fvar" in t:
             t = instancer.instantiateVariableFont(t, {"wght": p["poids"]})
         gs, cm, u = t.getGlyphSet(), t.getBestCmap(), t["head"].unitsPerEm
@@ -58,7 +64,7 @@ def encre_hb(cle, texte, taille):
     import uharfbuzz as hb
     p = C["POLICES"][cle]
     if cle not in _HB:
-        blob = hb.Blob.from_file_path(str(BIB / "fonts" / p["file"]))
+        blob = hb.Blob.from_file_path(str(fichier_police(p["file"])))
         face = hb.Face(blob); font = hb.Font(face)
         font.set_variations({"wght": p["poids"]})
         _HB[cle] = (font, face.upem)

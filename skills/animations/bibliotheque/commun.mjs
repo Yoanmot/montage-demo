@@ -5,6 +5,38 @@
 // lesquelles de ces constantes il utilise.
 // Polices : ./fonts/ (OFL). Sons : ./sons/ (ElevenLabs, licence : sons/LICENCE.md).
 // Règle : aucun effet ne met une de ces valeurs en dur ; il l'importe d'ici.
+//
+// Style par client (studio de Yoan, lot 3A, 2026-11-17) : les valeurs ci-dessous sont celles de Romain, le style par
+// défaut. Un autre client a son dossier de style : styles/<id>/ (ou un chemin absolu), choisi par MONTEUR_STYLE, sinon
+// par STUDIO_CLIENT (posé par le studio). Le dossier contient style.json (mêmes noms que les constantes de ce fichier,
+// seules les valeurs qui changent, fusionnées en profondeur ; ETALONNAGE en texte) et, s'il en a, ses polices (fonts/)
+// et ses sons (sons/), cherchés là d'abord puis dans ceux de la bibliothèque. Les couleurs de Romain (COULEURS et leurs
+// triplets rgb) sont remplacées partout par celles du style, dans ces constantes comme dans les gabarits (recolorer).
+// Sans dossier de style (Romain) : rien ne change, valeur pour valeur.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ICI = path.dirname(fileURLToPath(import.meta.url));
+function dossierStyle() {
+  const explicite = process.env.MONTEUR_STYLE, v = explicite || process.env.STUDIO_CLIENT || '';
+  if (!v || v === 'romain') return null;
+  const d = v.includes('/') ? path.resolve(v) : path.join(ICI, 'styles', v);
+  if (fs.existsSync(path.join(d, 'style.json'))) return d;
+  if (explicite) throw new Error(`STYLE_INTROUVABLE ${d} : pas de style.json (MONTEUR_STYLE)`);
+  return null;
+}
+const DOSSIER_STYLE = dossierStyle();
+const R = DOSSIER_STYLE ? JSON.parse(fs.readFileSync(path.join(DOSSIER_STYLE, 'style.json'), 'utf8')) : {};
+export const STYLE = { id: DOSSIER_STYLE ? path.basename(DOSSIER_STYLE) : 'romain', dossier: DOSSIER_STYLE,
+  bibliotheque: ICI, nom: R.nom || 'fitavecromain' };
+// Un fichier de police ou de son : celui du style s'il l'a, sinon celui de la bibliothèque.
+function fichierDe(sous, f) {
+  if (path.isAbsolute(f)) return f;
+  const d = DOSSIER_STYLE && path.join(DOSSIER_STYLE, sous, f);
+  return d && fs.existsSync(d) ? d : path.join(ICI, sous, f);
+}
+export const fichierPolice = (f) => fichierDe('fonts', f);
+export const fichierSon = (f) => fichierDe('sons', f);
 
 export const VIDEO = { w: 1080, h: 1920, fps: 30 };
 
@@ -175,7 +207,7 @@ export const FRAPPE = { base: 0.036, alea: [0.7, 1.3], pause: [0.03, 0.07], avan
 // l'intervalle de base devient 1/18 s, sinon chaque lettre tombe sur l'image suivante à cadence fixe.
 
 // ---------------------------------------------------------------- étalonnage (v1, r1-01c « contrasté net »)
-export const ETALONNAGE = "curves=all='0/0 0.22/0.185 0.5/0.5 0.78/0.81 1/1',huesaturation=saturation=-0.18:colors=g+c+b,eq=saturation=1.02,unsharp=7:7:0.55:5:5:0";
+export const ETALONNAGE = R.ETALONNAGE ?? "curves=all='0/0 0.22/0.185 0.5/0.5 0.78/0.81 1/1',huesaturation=saturation=-0.18:colors=g+c+b,eq=saturation=1.02,unsharp=7:7:0.55:5:5:0";
 
 // ---------------------------------------------------------------- sons (v1), niveaux par rapport à la voix
 export const SONS = {
@@ -364,3 +396,55 @@ export const VERT = { phraseMax: 150, chiffreA: 729, chiffreOpacite: 0.92, phras
 // posée dans la rangée), étiquettes Liberation Sans 56 (métrique d'Arial, même dessin qu'Arimo).
 export const TIER = { x: 91, y: 238, w: 898, filet: 3, etiquette: 170, rangee: 170, vignette: 162, taille: 56, reserveEcart: 40,
   rangs: [['S', '#FF7F7F'], ['A', '#FFBF7F'], ['B', '#FFDF7F'], ['C', '#FFFF7F'], ['D', '#BFFF7F']], fond: '#1A1A17', noir: '#121212' };
+
+// ================================================================ style du client (voir l'en-tête)
+// 1. Couleurs : chaque couleur de Romain (hex et triplet rgb) devient celle du style qui porte le même nom.
+const PALETTE_ROMAIN = { orange: '#F15A24', charbon: '#1A1612', craie: '#F6F0E7', braise: '#B8400F' };
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const REMPLACEMENTS = [];
+for (const [nom, ancien] of Object.entries(PALETTE_ROMAIN)) {
+  const neuf = R.COULEURS && R.COULEURS[nom];
+  if (!neuf || neuf.toUpperCase() === ancien) continue;
+  REMPLACEMENTS.push([new RegExp(ancien, 'gi'), neuf.toUpperCase()]);
+  const [a, b] = [rgb(ancien), rgb(neuf)];
+  REMPLACEMENTS.push([new RegExp(`(rgba?\\(\\s*)${a[0]}\\s*,\\s*${a[1]}\\s*,\\s*${a[2]}(?=\\s*[,)])`, 'g'), `$1${b.join(',')}`]);
+  // triplet écrit en tableau dans le script d'un gabarit (faisceau : [246, 240, 231])
+  REMPLACEMENTS.push([new RegExp(`\\[\\s*${a[0]}\\s*,\\s*${a[1]}\\s*,\\s*${a[2]}\\s*\\]`, 'g'), `[${b.join(', ')}]`]);
+}
+// Texte (CSS, HTML d'un gabarit) recoloré dans la palette du style ; identique pour Romain.
+export function recolorer(texte) {
+  let t = texte;
+  for (const [re, v] of REMPLACEMENTS) t = t.replace(re, v);
+  return t;
+}
+// 2. Valeurs du style fusionnées dans les constantes (objets et tableaux remplacés à leur niveau), puis recoloration.
+function fusion(cible, ajout) {
+  for (const [k, v] of Object.entries(ajout)) {
+    if (k.startsWith('_')) continue;   // notes du style
+    if (v && typeof v === 'object' && !Array.isArray(v) && cible[k] && typeof cible[k] === 'object' && !Array.isArray(cible[k])) fusion(cible[k], v);
+    else cible[k] = v;
+  }
+}
+function recolorerTout(o) {
+  for (const k of Object.keys(o)) {
+    if (typeof o[k] === 'string') o[k] = recolorer(o[k]);
+    else if (o[k] && typeof o[k] === 'object') recolorerTout(o[k]);
+  }
+}
+const CONSTANTES = { VIDEO, ZONE_SURE, COULEURS, NATIF, POLICES, RAYONS, OMBRES, MARCHE, ONGLET, CARTE, VOILE, SOUS_TITRES, HOOKS,
+  CTA, COURBES, MATIERES, DESSIN, ENTREES, SOUS_TITRES_TEMPS, HOOK_TEMPS, CTA_TEMPS, FAISCEAU, FLASH, FRAPPE, SONS, RENDU,
+  ATTAQUE, APPARITION, MONTEE_ACCENT, APPARITION_LIGNE, SOULIGNE, ENRICHI, TITRE_DERRIERE, FONDS, PLEIN, DEMI, LISTE, MINUTEUR,
+  CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
+  NUTRITION, CHRONO, BROLL, ANGLE, TAMPON, ANATOMIE, VERT, TIER };
+if (DOSSIER_STYLE) {
+  const inconnus = Object.keys(R).filter((k) => !(k in CONSTANTES) && !['nom', 'ETALONNAGE'].includes(k) && !k.startsWith('_'));
+  if (inconnus.length) throw new Error(`STYLE_CLE_INCONNUE ${inconnus.join(', ')} dans ${DOSSIER_STYLE}/style.json`);
+  // la police des sous-titres est LA police : titre et texte la suivent si le style ne les donne pas
+  if (R.POLICES && R.POLICES.sousTitres) {
+    for (const k of ['titre', 'texte']) Object.assign(POLICES[k], R.POLICES.sousTitres, (R.POLICES[k] || {}));
+    SOUS_TITRES.police = POLICES.sousTitres;
+  }
+  for (const [k, v] of Object.entries(R)) if (k in CONSTANTES && v && typeof v === 'object') fusion(CONSTANTES[k], v);
+  if (R.POLICES && R.POLICES.sousTitres) SOUS_TITRES.police = POLICES.sousTitres;
+  for (const k of Object.keys(CONSTANTES)) if (k !== 'COULEURS' && k !== 'NATIF' && k !== 'TIER') recolorerTout(CONSTANTES[k]);
+}

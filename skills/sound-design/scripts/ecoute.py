@@ -34,7 +34,7 @@ TOL_MS = 2.0
 
 
 def commun(biblio):
-    out = subprocess.run(["node", "-e", f"import('{(biblio / 'commun.mjs').as_uri()}').then(m=>console.log(JSON.stringify({{SONS:m.SONS,VIDEO:m.VIDEO}})))"],
+    out = subprocess.run(["node", "-e", f"import('{(biblio / 'commun.mjs').as_uri()}').then(m=>console.log(JSON.stringify({{SONS:m.SONS,VIDEO:m.VIDEO,STYLE:m.STYLE||{{}}}})))"],
                          capture_output=True, text=True, check=True).stdout
     return json.loads(out)
 
@@ -75,7 +75,7 @@ def main():
 
     bus = np.zeros(N); poses = []
     for s in S["sons"]:
-        nom = s["fichier"]; p = Path(nom) if Path(nom).is_absolute() else sons_dir / nom
+        nom = s["fichier"]; p = R.fichier_style(K, biblio, "sons", nom)
         c = A.lit(p); F = fiche(p, sons_dir, nom)
         deb = F["debut_echantillon"] if F and "debut_echantillon" in F else A.attaque(c)
         a = A.actif(c); (cle, val), = s["niveau"].items()

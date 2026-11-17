@@ -5,7 +5,7 @@
 
 Tous les sons du monteur sont générés avec ElevenLabs (ceux de la bibliothèque aussi). Ce script génère un son qui
 manque à la bibliothèque. Clé : variable d'environnement ELEVENLABS_API_KEY, sinon la ligne ELEVENLABS_API_KEY=... de
-~/.config/monteur-romain/.env (jamais écrite dans un fichier du dépôt, jamais affichée).
+$MONTEUR_CONFIG/.env, défaut ~/.config/monteur-romain/.env (jamais écrite dans un fichier du dépôt, jamais affichée).
 Cache : le brut de chaque génération est gardé sous l'empreinte de sa description (prompt, durée, influence) dans
 ~/.config/monteur-romain/sons-generes/ (ou $MONTEUR_SONS_CACHE) : la même description ne rappelle jamais l'API
 (« CACHE » dans la sortie), d'une vidéo à l'autre. Le brut est aussi copié à côté du son (<sortie>.brut.mp3).
@@ -38,11 +38,11 @@ CRETE = -6.0
 ENTREE_MS, SORTIE_MS, AVANT_MS = 2, 15, 3
 
 
-CONFIG = Path.home() / ".config" / "monteur-romain"
+CONFIG = Path(os.environ.get("MONTEUR_CONFIG") or Path.home() / ".config" / "monteur-romain")   # dossier du client (studio)
 
 
 def cle_api():
-    """La clé ElevenLabs : variable d'environnement, sinon ~/.config/monteur-romain/.env. Jamais affichée."""
+    """La clé ElevenLabs : variable d'environnement, sinon CONFIG/.env ($MONTEUR_CONFIG, défaut ~/.config/monteur-romain). Jamais affichée."""
     cle = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     env = CONFIG / ".env"
     if not cle and env.exists():
@@ -51,7 +51,7 @@ def cle_api():
             if k.strip() == "ELEVENLABS_API_KEY":
                 cle = v.strip().strip('"').strip("'")
     if not cle:
-        sys.exit("ERREUR CLE_MANQUANTE : pas de clé ElevenLabs (ELEVENLABS_API_KEY dans ~/.config/monteur-romain/.env) : préviens Yoan.")
+        sys.exit(f"ERREUR CLE_MANQUANTE : pas de clé ElevenLabs (ELEVENLABS_API_KEY dans {CONFIG}/.env) : préviens Yoan.")
     return cle
 
 

@@ -85,11 +85,11 @@ const outils = async () => import(pathToFileURL(path.join(ici, '..', '..', 'anim
 // les effets qui affichent une phrase en sous-titres, comme la phrase du bas du plein écran puzzle)
 
 // ---------------------------------------------------------------- calque
-function calque(bib, html, sortie, ST) {
+function calque(bib, html, sortie, ST, police = (f) => path.join(bib, 'fonts', f)) {
   fs.rmSync(sortie, { recursive: true, force: true });
   fs.mkdirSync(path.join(sortie, 'fonts'), { recursive: true });
   fs.mkdirSync(path.join(sortie, 'vendor'), { recursive: true });
-  for (const f of [ST.police.file, ST.police.ofl]) fs.copyFileSync(path.join(bib, 'fonts', f), path.join(sortie, 'fonts', f));
+  for (const f of [ST.police.file, ST.police.ofl]) fs.copyFileSync(police(f), path.join(sortie, 'fonts', f));
   fs.copyFileSync(path.join(bib, 'vendor', 'gsap.min.js'), path.join(sortie, 'vendor', 'gsap.min.js'));
   ecrire(path.join(sortie, 'index.html'), html);
 }
@@ -289,7 +289,8 @@ async function cmdPreparer(w) {
   html = html.split('../../vendor/').join('vendor/');
   try { html = L.poserBlocSousTitres(html, { taille, position, pave }, ''); } catch (e) { fail(9, `GABARIT_INATTENDU : ${e.message}. Préviens Yoan.`); }
   const dossier = path.join(w, 'calques', 'st');
-  calque(bib, html, dossier, ST);
+  if (L.S.STYLE.dossier) html = L.S.recolorer(html);   // couleurs du style d'un autre client (commun.mjs)
+  calque(bib, html, dossier, ST, L.S.fichierPolice);
   majCalques(w, { id: 'st', source: 'sous-titres', dossier: 'calques/st', debut: 0, images, couche: 'devant', ordre: 100,
     masques: masques.map((c) => ({ id: c.id, debut: c.debut, images: c.images })) });
 

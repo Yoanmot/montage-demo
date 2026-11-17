@@ -40,7 +40,7 @@
 // masque_sous_titres, les sous-titres de la vidéo restent pendant le calque.
 import fs from 'node:fs';
 import path from 'node:path';
-import { S, BIB, GESTES, FPS, AV, chargerMots, resoudre, coupeAvant, img, tImg, son, planFlou, decalageDemi, ecrireCalque, texteSousTitres, attaquesSousTitres, poserBlocSousTitres, reglagesSousTitres, reglagesGabarit, dureeStyle } from './lib/style.mjs';
+import { S, BIB, GESTES, FPS, AV, chargerMots, resoudre, coupeAvant, img, tImg, son, planFlou, decalageDemi, ecrireCalque, texteSousTitres, attaquesSousTitres, poserBlocSousTitres, reglagesSousTitres, reglagesGabarit, dureeStyle, poserBlocPolice } from './lib/style.mjs';
 
 const [dossier, paramsF] = process.argv.slice(2);
 if (!dossier || !paramsF) { console.log('Usage : node instancier.mjs <dossier -montage> <params.json>'); process.exit(3); }
@@ -56,6 +56,8 @@ const anc = (a) => resoudre(a, mots);
 
 let html = fs.readFileSync(path.join(BIB, Q.gabarit, Q.couche, 'index.html'), 'utf8')
   .replaceAll('../../fonts/', 'fonts/').replaceAll('../../vendor/', 'vendor/').replaceAll('../../images/', 'images/');
+// Style d'un autre client (commun.mjs, STYLE) : sa police dans le bloc POLICE et ses couleurs à la place de celles de Romain.
+if (S.STYLE.dossier) html = S.recolorer(poserBlocPolice(html, ''));
 
 // ------------------------------------------------------------------ fenêtre du calque
 const debut = typeof Q.debut === 'number' ? Q.debut : img(anc(Q.debut.mot).debut_s - (Q.debut.avance_s || 0));

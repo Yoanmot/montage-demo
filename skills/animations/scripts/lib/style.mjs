@@ -141,7 +141,7 @@ export function attaquesSousTitres(dossierMontage, ancre, mots, t0 = 0) {
 // sous-titres et les gabarits qui portent leur propre ligne. Changer la police ou une valeur dans commun.mjs, puis
 // `node scripts/maj-sous-titres.mjs` (bibliothèque) ; les calques se refont avec `sous-titres preparer` et instancier.
 export function geoSousTitres({ taille = 1, position = S.SOUS_TITRES.position, pave = S.SOUS_TITRES.pave.actif } = {}) {
-  const ST = S.SOUS_TITRES, pol = lirePolice(path.join(BIB, 'fonts', ST.police.file));
+  const ST = S.SOUS_TITRES, pol = lirePolice(S.fichierPolice(ST.police.file));
   if (pol.capEm === null) throw new Error(`POLICE_SANS_CAPITALES ${ST.police.file} : table OS/2 trop ancienne`);
   const px = Math.round(ST.taille * W * taille), k = W / 1080;
   const cy = Math.min(0.95, Math.max(0.05, position)) * H;
@@ -424,7 +424,7 @@ export function stager(dc) {
   fs.mkdirSync(path.join(dc, 'fonts'), { recursive: true });
   fs.mkdirSync(path.join(dc, 'vendor'), { recursive: true });
   fs.mkdirSync(path.join(dc, 'images'), { recursive: true });
-  for (const f of POLICES_FICHIERS) fs.copyFileSync(path.join(BIB, 'fonts', f), path.join(dc, 'fonts', f));
+  for (const f of POLICES_FICHIERS) fs.copyFileSync(S.fichierPolice(f), path.join(dc, 'fonts', f));
   fs.copyFileSync(path.join(BIB, 'vendor', 'gsap.min.js'), path.join(dc, 'vendor', 'gsap.min.js'));
   fs.copyFileSync(path.join(BIB, 'images', 'image-a-fournir.svg'), path.join(dc, 'images', 'image-a-fournir.svg'));
 }

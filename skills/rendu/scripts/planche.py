@@ -236,9 +236,11 @@ def minutage(n):
     return f"{s // 60}:{s % 60:02d}"
 
 
-def polices(biblio):
+def polices(biblio, C=None):
     from PIL import ImageFont
-    f = biblio / "fonts" / "Inter-Black.ttf"   # police unique de la vidéo (POLICES.sousTitres)
+    # police unique de la vidéo (POLICES.sousTitres, celle du style du client s'il en a un)
+    f = R.fichier_style(C, biblio, "fonts", C["POLICES"]["sousTitres"]["file"]) if C and C.get("STYLE", {}).get("dossier") \
+        else biblio / "fonts" / "Inter-Black.ttf"
     def p(taille, poids):
         x = ImageFont.truetype(str(f), taille)
         try:
@@ -264,11 +266,11 @@ def coupe_lignes(draw, texte, police, largeur, max_lignes):
     return lignes
 
 
-def planche_png(vignettes, titre, biblio, out):
+def planche_png(vignettes, titre, biblio, out, C=None):
     from PIL import Image, ImageDraw
     COL, TW, G = 4, 420, 36
     TH = TW * 16 // 9
-    P = polices(biblio)
+    P = polices(biblio, C)
     f_titre, f_aide, f_num, f_temps, f_mots, f_ligne = P(56, 800), P(30, 500), P(44, 800), P(30, 700), P(27, 600), P(27, 450)
     mesure = ImageDraw.Draw(Image.new("RGB", (10, 10)))
     blocs = []
@@ -464,7 +466,7 @@ def main():
     t_compo = time.time() - t0
 
     titre = f"Ta vidéo{(' « ' + titre_video + ' »') if titre_video else ''}, moment par moment"
-    planche_png(vignettes, titre, biblio, P / "planche.png")
+    planche_png(vignettes, titre, biblio, P / "planche.png", C)
     planche_html(vignettes, titre, P / "planche.html")
 
     # cache : ne garde que ce qui sert à cette planche (calques à jour, images de plan et vignettes utilisées)
