@@ -69,7 +69,7 @@ la vérification de ses vidéos, puis de ta planche).
 ## Montage complet ou montage simple
 - **Montage complet** (le cas normal, « monte cette vidéo ») : tout le déroulé ci-dessous, avec un plan.
 - **Montage simple** (« coupe et sous-titre », « juste les sous-titres », « monte vite ») : coupes, sous-titres
-  classiques sans mot fort et quelques zooms avec retenue, sans plan ni animation. Dis-le-lui en une phrase avant de
+  et quelques zooms avec retenue, sans plan ni animation. Dis-le-lui en une phrase avant de
   commencer (« je coupe, je sous-titre et je mets quelques zooms »).
 
 ## Le déroulé
@@ -133,14 +133,26 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
      s'effacent pendant ce moment-là. Pendant un plein écran (et tout geste qui couvre l'écran du texte qu'il dit), les
      sous-titres s'effacent aussi : rien à faire, la brique le marque.
    - CTA : le pavé orange de « commente MOT » se cale sur le mot (`{ "pave": "<mot>" }`), comme dit le skill.
+   - Tout texte animé calé sur un mot part à son **attaque**, 3 images (0,1 s) avant le début transcrit (`resoudre` /
+     `attaqueMot` le calculent, ne le refais pas à la main). Tout texte d'un effet qui reprend ses mots se comporte comme des sous-titres (chaque mot sur sa voix, jamais
+     avant, les mots repartent ensemble sur la voix) et **chaque mot dit ne s'affiche qu'une fois** : l'effet déclare
+     les mots qu'il écrit (`mots_repris`, les textes `{ mots }` d'un gabarit comptent seuls), les sous-titres les
+     retirent ; après les sous-titres, `verifier.mjs <dossier> --mots` doit dire `CONFORME` (`MOT_DOUBLE` = un mot vu
+     deux fois : fais déclarer ses mots à l'effet, relance `sous-titres preparer`). La montée du bas (`c.accent`,
+     toujours en saccade 12 i/s) est un accent rare sur une phrase qui compte, jamais l'apparition des sous-titres
+     enrichis ni des pleins écrans texte. Captions (sa phrase au fil de sa voix : sous-titres enrichis,
+     pleins écrans texte) : une seule taille et une seule police par ligne, ce qui ressort prend sa propre ligne ;
+     déclare-les `data-captions`, `verifier.mjs` refuse une ligne mêlée (`LIGNE`). Une seule police dans toute la
+     vidéo (`POLICES.sousTitres`), sauf un format natif recopié. Corrige l'effet, pas le contrôle.
    - Image de réaction (mème, `MEME_A_TELECHARGER` au calage) : tu la trouves et la télécharges toi-même, le mème
      exact nommé dans le plan, jamais une autre image du web ; tu ne la demandes jamais à Romain. Photo de lui qui
      manque (`PHOTO_A_FOURNIR`) : l'emplacement est posé, tu la lui demandes avec la planche (ce qu'elle doit montrer).
    - Titre de l'accroche qui suit le dézoom : composé à 100 % comme le gabarit, `suit_ouverture` (voir le skill).
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
-   couvrent l'écran) : style du plan (`sous_titres`), orthographe guidée par `vocabulaire`. Une animation qui change
-   ensuite : relance `sous-titres preparer`.
+   couvrent l'écran, et retirent les mots qu'une animation affiche déjà) : un seul style (le sien, groupes découpés
+   tout seuls), orthographe guidée par `vocabulaire`, `masquer` si le plan le demande, `citations` recopiées du plan
+   en numéros de mots (une pensée qu'il cite fait ses propres groupes ; rien ne s'affiche en plus, pas de guillemets). Le pavé (`pave`) est un réglage fixé avec Yoan : n'y touche pas. Une animation qui change ensuite : relance `sous-titres preparer`.
 4. **B-rolls** (`b-roll`), si le plan en a : ses clips, posés sur les ancres du plan, calés sur les coupes, avec la
    `vitesse` du plan (`"ajuster"` pour qu'une scène tienne tout le passage) :
    `/usr/bin/python3 "$SK/b-roll/scripts/b-roll.py" preparer "<nom>-montage"`.
@@ -179,7 +191,10 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
 ### 7. Fabriquer
 1. **Sons** (`sound-design`) : c'est ta décision, discrète, jamais partout. Un clic sur chaque transition (chaque
    flash, l'entrée et la sortie de chaque plein écran), le Vine boom sur chaque image de réaction, un son sur
-   l'accroche, et deux ou trois moments importants au plus (le message principal, un chiffre clé). Jamais de son sur
+   l'accroche ; un petit clic à chaque changement d'écran des captures qui défilent, un clac sur un objet qui se pose,
+   un tick par case cochée (de plus en plus aigu), et une seule montée qui s'arrête net sur le son d'entrée du moment
+   fort principal. Un son suit toujours un mouvement visible, jamais la voix seule ; jamais de son sur les sous-titres
+   enrichis, de swipe sur des pages ni de son de conclusion (refusés par Yoan). Jamais de son sur
    un zoom ni sur les sous-titres. Dans le doute, pas de son. Un son qui manque à la bibliothèque se génère avec
    ElevenLabs (`generer.py`, avec cache : réutilise mot pour mot la description d'un son qui a déjà servi). N'avance
    pas sans `CONTROLE_OK` puis `ECOUTE_OK`.
@@ -234,7 +249,7 @@ Après une validation corrigée ou une retouche, demande-toi si c'est un **goût
 
 ## Ce qui ne bouge pas
 - Le plan validé par Romain dit quoi et où : une fois validé, tu n'ajoutes ni animation, ni zoom, ni B-roll qu'il ne
-  contient pas (en montage simple : coupes, sous-titres classiques, quelques zooms).
+  contient pas (en montage simple : coupes, sous-titres, quelques zooms).
 - Le style dit comment : le plan s'écrit dans ce que le style permet ; pour autre chose, on change le style avec Yoan.
 - Rien d'inventé sur Romain : pas de chiffre qu'il ne dit pas, pas de photo de lui prise ailleurs, pas de B-roll généré
   par IA, pas de mot changé dans ce qu'il dit (les sous-titres corrigent l'orthographe, jamais le propos).

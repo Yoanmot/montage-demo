@@ -23,7 +23,14 @@ décore pas. Jamais partout. Dans le doute, pas de son.
   son généré, voir plus bas).
 - **Quelques moments importants** à faire ressortir, pas plus de deux ou trois par vidéo : le message principal qui
   arrive, un chiffre clé. Le reste du plan n'a pas de son.
-- **Jamais** sur un zoom ni sur les sous-titres (ni le mot fort). Les scripts refusent ces gestes.
+- **Gestes retenus par Yoan sur le test v17** (2026-11-14, table ci-dessous) : captures d'écran qui défilent (un clic
+  court par changement d'écran), objet qui se pose (un clac), cases cochées (un tick par case, de plus en plus aigu),
+  et la **montée du moment fort principal** (une seule par vidéo, elle s'arrête net sur son son d'entrée).
+- **Un son suit un mouvement visible, jamais la voix seule.**
+- **Jamais** sur un zoom, sur les sous-titres ni sur les sous-titres enrichis. Les scripts refusent ces gestes.
+- **Refusés par Yoan** (2026-11-14), jamais : impact sourd ou « punch » sur les sous-titres enrichis (« pas top »,
+  « nul ») ; souffle de défilement continu sur des pages (swipe) ; son de conclusion en fin de vidéo (le contrôle refuse
+  tout son autre qu'une transition dans la dernière seconde).
 
 ## Les sons du style (STYLE.md « Sons et niveaux », bibliothèque `../animations/bibliotheque/sons/`)
 
@@ -34,6 +41,10 @@ décore pas. Jamais partout. Dans le doute, pas de son.
 | Faisceau (transition, sortie faisceau du demi-écran) | `faisceau-obtu.wav` (obturateur, 18 ms) | celle où la bande couvre l'écran = la coupe | 9 LU |
 | Arrivée d'un texte ou d'une carte qui compte : mot géant (hook mot géant, CTA mot derrière lui), chiffre (hook chiffre, carte chrono), tampon verdict, message principal | `arrivee-tick.wav` | celle où l'élément passe 50 % d'opacité (`apparitionMiOpacite`) | 8 LU |
 | Photo qui se pose (tier list, vignettes de la comparaison) | `clic.wav` (appareil photo, 54 ms) | celle où la photo se pose, une par photo | 14 dB RMS |
+| Captures d'écran qui défilent (`ecran`, effet journaux) | `clic-court.wav` (clic de transition raccourci à 28 ms) | une par changement d'écran, pas celle du flash d'entrée (qui a son clic de transition) ; série = un seul geste | 21 dB RMS |
+| Objet qui se pose (`pose`, pièce de puzzle) | `pose-clac.wav` (clac sec de carton) | celle où l'objet est posé, une par objet | 8 dB RMS (niveau du Vine boom) |
+| Cases cochées (`coche`) | `coche-1.wav`, `coche-2.wav`, `coche-3.wav` (de plus en plus aigu ; au-delà de 3 cases, le plus aigu) | celle où chaque case se remplit ; série = un seul geste | 8 dB RMS |
+| Moment fort principal, un seul par vidéo (`montee`) | `montee.wav` (0,55 s) | `fin` = l'image de son son d'entrée (le clic du flash qui l'ouvre) : le script la pose pour qu'elle s'arrête net dessus | 10 dB RMS |
 | Frappe (champ Instagram du CTA, recherche Google) | `frappes/t1` à `t4`, tournantes, jamais deux fois la même de suite, ±1,5 dB | une par lettre, à l'image de la lettre | 23 dB RMS |
 | Touche Entrée (recherche Google) | `entree.wav` | celle de l'Entrée | 17 dB RMS |
 
@@ -45,15 +56,19 @@ décore pas. Jamais partout. Dans le doute, pas de son.
   transition ; une image de réaction = meme). Si rien ne ressemble et que le moment fait partie de ceux à faire
   ressortir (accroche, moment important), génère le son (plus bas). Sinon, pas de son.
 - **Rejetés par Yoan en contexte**, à ne jamais générer : souffles (graves, feutrés, aérés), impacts sourds, swish
-  aigus, scintillements, montées brèves sur les textes.
+  aigus, scintillements, montées brèves sur les textes. Seule montée admise : celle de la table (`montee.wav`, moment
+  fort principal, finit sur son son d'entrée).
+- **Échelle commune des niveaux** : dB RMS sous la voix parlée, celle des clics (clics 14 ; le Vine boom, réglé en
+  12 LU, vaut 8,2 sur cette échelle). Les gestes retenus en v17 y sont réglés : écrans 21, montée 10, coches et clac 8.
 - **Calage** : les positions sont des **images de la vidéo coupée** (30 i/s, image 0 = début). Chaque son est posé de
   sorte que son attaque (`debut_echantillon` de sa fiche `.json`) tombe pile sur l'instant `image / 30`.
 - **Niveaux** : `lu_sous_voix` = sonie K de la partie active du son sous la sonie intégrée de la voix ;
   `rms_db_sous_voix` = RMS actif du son sous le RMS de la voix parlée. Jamais plus de 12 LU sous la voix (inaudible au
   téléphone). Voix : -16 LUFS, crête -1,5 dBTP ; crête du mix sous -1 dBFS (un limiteur de crête rattrape un son posé
   sur un pic de voix ; plus de 3 dB à retirer = sons trop forts ou empilés, refusé).
-- **Deux gestes** à moins de 3 images (0,1 s) : on n'en entend qu'un, garde le plus important. Les lettres d'une même
-  frappe sont la seule exception.
+- **Deux gestes** à moins de 3 images (0,1 s) : on n'en entend qu'un, garde le plus important. Exceptions : les lettres
+  d'une même frappe, les changements d'écran d'une même série et les cases d'une même série (un seul geste, à moins de
+  0,2 s l'un de l'autre, `SONS.serieMaxS`).
 - **Musique de fond** : pas encore choisie. `sons.json` garde `"musique": null`, n'y mets rien.
 
 ## Le déroulé
@@ -87,13 +102,17 @@ Formes d'un geste (images de la vidéo coupée) :
   { "geste": "frappe", "images": [1530, 1532, 1533, 1535, 1537], "calque": "a20-cta" },
   { "geste": "frappe", "mot_seul": "ABDOS", "mot": 214 },
   { "geste": "entree", "image": 1545 },
+  { "geste": "ecran", "images": [247, 250, 253, 256, 260, 263, 265, 268, 271, 275], "calque": "a06" },
+  { "geste": "pose", "images": [826, 838, 869, 898], "calque": "a14" },
+  { "geste": "coche", "images": [482, 487, 491], "calque": "a09" },
+  { "geste": "montee", "fin": 359, "calque": "a08", "pourquoi": "moment fort principal : finit net sur le clic du flash" },
   { "geste": "sur_mesure", "fichier": "/chemin/absolu/<dossier>/sons/coche.wav", "image": 1238,
     "niveau": { "lu_sous_voix": 8 }, "calque": "a15-coche", "pourquoi": "coche qui se trace" }
 ] }
 ```
 - `arrivee` : donne l'`image`, ou le numéro du `mot` (`words.cut.json`) ou le `depart` de l'apparition (s), avec `h`, la
   hauteur des capitales ou de l'élément en px vidéo ; le script calcule l'image où il passe 50 % d'opacité (l'élément
-  démarre 0,04 s avant l'attaque de son mot).
+  démarre à l'attaque de son mot, 0,1 s avant le début transcrit : `attaqueMot`).
 - `frappe` : les images des lettres viennent du calque (la frappe d'une phrase a des pauses tirées au hasard dans
   l'animation). Pour un mot seul, `mot_seul` + `mot` ou `depart` : 18 lettres/s, première lettre au départ.
 - `sur_mesure` : son généré pour cette vidéo, chemin absolu ; niveau 8 LU pour une arrivée, 9 LU pour un coup plus

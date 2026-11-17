@@ -33,4 +33,9 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-04b, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-04b, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.
+
+## Lignes de sous-titre (2026-11-13)
+`#st0` à `#st3` ont le style des sous-titres de la vidéo (bloc `SOUS-TITRES` de `scripts/lib/style.mjs` : Inter Black
+71 px blanc, ombre douce, pavé orange) ; remplies avec `{ "mots": "<ancre>" }`, elles reçoivent l'attaque de chaque mot
+(`data-attaques`) et le pavé glisse de mot en mot comme dans les sous-titres.

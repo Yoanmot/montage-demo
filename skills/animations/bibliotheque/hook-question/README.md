@@ -3,7 +3,7 @@
 Carte verrouillée : r19-02i (Style Lab v2). Calque tiré du build du tour 19.
 
 ## Ce qu'il montre
-Un sujet en mot géant Big Shoulders sur toute la largeur de la zone sûre (« SUPERSETS ») et la question sur pavé orange dessous (« gain de temps ? »), posés d'un coup sur sa démo.
+Un sujet en mot géant sur toute la largeur de la zone sûre (« SUPERSETS ») et la question sur pavé orange dessous (« gain de temps ? »), posés d'un coup sur sa démo.
 
 ## Quand l'utiliser
 Hook d'une démo d'exercice ou d'une vidéo qui répond à une question.
@@ -28,4 +28,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-02i, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-02i, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

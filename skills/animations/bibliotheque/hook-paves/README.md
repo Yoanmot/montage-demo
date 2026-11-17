@@ -3,7 +3,7 @@
 Cartes verrouillées : r19-02a, r19-02b (Style Lab v2). Calque tiré du build du tour 19.
 
 ## Ce qu'il montre
-Le hook « basique » qui imite son montage actuel dans Edits : une ligne par pavé, Bricolage Grotesque capitales, posé d'un coup en haut du cadre, retiré à 2 s (image 60).
+Le hook « basique » qui imite son montage actuel dans Edits : une ligne par pavé, capitales, posé d'un coup en haut du cadre, retiré à 2 s (image 60).
 
 ## Quand l'utiliser
 Vidéos simples, organiques. Une idée en deux lignes courtes.
@@ -28,5 +28,5 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu-craie.mp4` : aperçu muet 540 x 960 de la carte r19-02a, rendu dans le labo.
-- `apercu-orange.mp4` : aperçu muet 540 x 960 de la carte r19-02b, rendu dans le labo.
+- `apercu-craie.mp4` : aperçu muet 540 x 960 de la carte r19-02a, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.
+- `apercu-orange.mp4` : aperçu muet 540 x 960 de la carte r19-02b, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

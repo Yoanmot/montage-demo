@@ -1,39 +1,39 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
-@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+/* POLICE:debut (bloc écrit par scripts/lib/style.mjs depuis POLICES de commun.mjs : ne pas le modifier à la main) */
+@font-face{font-family:'Inter Black';src:url('../../fonts/Inter-Black.ttf');font-weight:900;font-style:normal;}
+.ti{font-family:'Inter Black';font-weight:900;text-transform:uppercase;line-height:0.92;
+  letter-spacing:-0.02em;margin:0;}
+.tx{font-family:'Inter Black';font-weight:900;line-height:1.06;letter-spacing:-0.02em;}
+/* POLICE:fin */
 @font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
 html,body{margin:0;background:transparent;}
 #root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
 .a{position:absolute;white-space:nowrap;}
-.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
-  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
-.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
-  font-variation-settings:"opsz" 96;}
 .c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
 .douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
 .pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
   padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
 
-.card{position:absolute;background:#1A1612;color:#F6F0E7;border-radius:18px;box-shadow:inset 0 0 0 2px rgba(246,240,231,.08),0 18px 50px rgba(0,0,0,.5);font-family:'Bricolage Grotesque';box-sizing:border-box;}
+.card{position:absolute;background:#1A1612;color:#F6F0E7;border-radius:18px;box-shadow:inset 0 0 0 2px rgba(246,240,231,.08),0 18px 50px rgba(0,0,0,.5);font-family:'Inter Black';box-sizing:border-box;}
 .card.tabbed{border-top-left-radius:0;}
-.tab{position:absolute;left:0;bottom:100%;height:64px;padding:0 26px;background:#F15A24;color:#1A1612;font:800 46px/68px 'Big Shoulders Display';text-transform:uppercase;letter-spacing:.01em;border-radius:10px 10px 0 0;white-space:nowrap;}
+.tab{position:absolute;left:0;bottom:100%;height:64px;padding:0 26px;background:#F15A24;color:#1A1612;font:900 46px/68px 'Inter Black';text-transform:uppercase;letter-spacing:.01em;border-radius:10px 10px 0 0;white-space:nowrap;}
 .tab .n{opacity:0.62;margin-left:14px;}
 .rw{display:grid;grid-template-columns:56px 132px minmax(0,1fr);align-items:center;gap:24px;padding:14px;border-radius:12px;}
 .rw + .rw{margin-top:8px;}
-.rw .i{font:900 72px/1 'Big Shoulders Display';color:#F15A24;text-align:center;}
+.rw .i{font:900 72px/1 'Inter Black';color:#F15A24;text-align:center;}
 .rw img{width:132px;height:132px;border-radius:10px;object-fit:cover;display:block;}
-.rw .nm{font:800 46px/1.05 'Bricolage Grotesque';font-variation-settings:"opsz" 96;letter-spacing:-.01em;}
-.rw .sm{display:block;font:500 30px/1.2 'Bricolage Grotesque';color:rgba(246,240,231,0.62);margin-top:6px;letter-spacing:0;}
+.rw .nm{font:900 46px/1.05 'Inter Black';letter-spacing:-.01em;}
+.rw .sm{display:block;font:900 30px/1.2 'Inter Black';color:rgba(246,240,231,0.62);margin-top:6px;letter-spacing:0;}
 .rw.on{background:#F6F0E7;color:#1A1612;}
 .rw.on .sm{color:rgba(26,22,18,.6);}
 .num{font-variant-numeric:tabular-nums;}.lc{text-transform:none;}</style></head>
 <body>
 <div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3">
-  <div class="card tabbed" id="cd" style="left:520px;top:300px;width:470px;padding:26px 32px 30px">
+  <div class="card tabbed" id="cd" style="left:500px;top:300px;width:490px;padding:26px 32px 30px">
     <div class="tab">chrono</div>
-    <div class="ti c-cr num" id="ch" style="font-size:190px">14:12</div>
+    <div class="ti c-cr num" id="ch" style="font-size:144.88px">14:12</div>
     <div class="tx" id="lg" style="font-size:34px;color:rgba(246,240,231,0.7);margin-top:10px">petit déjeuner et déjeuner</div>
   </div>
 </div>
@@ -54,9 +54,9 @@ const tl = gsap.timeline({ paused: true });
 tl.fromTo('#cd', { y: 36.4 }, { y: 0, duration: 0.550, ease: 'power3.out', immediateRender: true }, T.t01);
 tl.fromTo('#cd', { opacity: 0 }, { opacity: 1, duration: 0.450, ease: 'power2.out', immediateRender: true }, T.t01);
 tl.fromTo('#cd', { filter: 'blur(14.0px)' }, { filter: 'blur(0px)', duration: 0.850, ease: 'power2.out', immediateRender: true }, T.t01);
-tl.fromTo('#ch', { y: 19.8 }, { y: 0, duration: 0.439, ease: 'power3.out', immediateRender: true }, T.t02);
-tl.fromTo('#ch', { opacity: 0 }, { opacity: 1, duration: 0.367, ease: 'power2.out', immediateRender: true }, T.t02);
-tl.fromTo('#ch', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.544, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#ch', { y: 13.7 }, { y: 0, duration: 0.398, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#ch', { opacity: 0 }, { opacity: 1, duration: 0.336, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#ch', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.432, ease: 'power2.out', immediateRender: true }, T.t02);
 tl.fromTo('#lg', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t03);
 tl.fromTo('#lg', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);
 tl.fromTo('#lg', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t03);

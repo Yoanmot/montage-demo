@@ -1,16 +1,16 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
-@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+/* POLICE:debut (bloc écrit par scripts/lib/style.mjs depuis POLICES de commun.mjs : ne pas le modifier à la main) */
+@font-face{font-family:'Inter Black';src:url('../../fonts/Inter-Black.ttf');font-weight:900;font-style:normal;}
+.ti{font-family:'Inter Black';font-weight:900;text-transform:uppercase;line-height:0.92;
+  letter-spacing:-0.02em;margin:0;}
+.tx{font-family:'Inter Black';font-weight:900;line-height:1.06;letter-spacing:-0.02em;}
+/* POLICE:fin */
 @font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
 html,body{margin:0;background:transparent;}
 #root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
 .a{position:absolute;white-space:nowrap;}
-.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
-  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
-.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
-  font-variation-settings:"opsz" 96;}
 .c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
 .douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
 .pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
@@ -19,9 +19,9 @@ html,body{margin:0;background:transparent;}
 <body>
 <div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="4">
   <div class="fd" id="fondp" style="position:absolute;inset:0;background:#1A1612;visibility:hidden"></div>
-  <div id="pl" style="visibility:hidden">
-    <div class="a ti c-cr " id="e1" style="left:88.1px;top:825.9px;font-size:148.5px">perdre du gras</div>
-    <div class="a ti c-cr " id="e2" style="left:88.0px;top:950.6px;font-size:170.9px">globalement</div>
+  <div id="pl" data-captions style="visibility:hidden">
+    <div class="a ti c-cr " id="e1" style="left:89.76px;top:854.34px;font-size:108.46px">perdre du gras</div>
+    <div class="a ti c-cr " id="e2" style="left:91.63px;top:954.13px;font-size:121.23px">globalement</div>
   </div>
 </div>
 <script>
@@ -44,12 +44,12 @@ const T = {
   if (F[0]) fd.style.background = F[0]; else fd.remove();
   document.querySelectorAll('#pl .ti').forEach((e) => { e.classList.remove('c-cr', 'c-ch'); e.classList.add(F[1]); if (!F[0]) e.classList.add('douce'); }); }
 const tl = gsap.timeline({ paused: true });
-tl.fromTo('#e1', { y: 15.4 }, { y: 0, duration: 0.410, ease: 'power3.out', immediateRender: true }, T.t02);
-tl.fromTo('#e1', { opacity: 0 }, { opacity: 1, duration: 0.345, ease: 'power2.out', immediateRender: true }, T.t02);
-tl.fromTo('#e1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.465, ease: 'power2.out', immediateRender: true }, T.t02);
-tl.fromTo('#e2', { y: 17.8 }, { y: 0, duration: 0.425, ease: 'power3.out', immediateRender: true }, T.t03);
-tl.fromTo('#e2', { opacity: 0 }, { opacity: 1, duration: 0.357, ease: 'power2.out', immediateRender: true }, T.t03);
-tl.fromTo('#e2', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.507, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#e1', { y: 10.3 }, { y: 0, duration: 0.375, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#e1', { opacity: 0 }, { opacity: 1, duration: 0.319, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#e1', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.369, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#e2', { y: 11.5 }, { y: 0, duration: 0.383, ease: 'power3.out', immediateRender: true }, T.t03);
+tl.fromTo('#e2', { opacity: 0 }, { opacity: 1, duration: 0.325, ease: 'power2.out', immediateRender: true }, T.t03);
+tl.fromTo('#e2', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.391, ease: 'power2.out', immediateRender: true }, T.t03);
 tl.set('#fondp', { visibility: 'visible' }, T.t01);
 tl.set('#fondp', { visibility: 'hidden' }, T.t04);
 tl.set('#pl', { visibility: 'visible' }, T.t01);

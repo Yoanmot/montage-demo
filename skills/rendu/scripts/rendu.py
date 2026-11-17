@@ -37,6 +37,33 @@ COUCHES = ["coupes", "zooms", "b-roll", "animations", "sous-titres", "sons"]
 FPS, SR = 30, 48000
 BASE_W, BASE_H = 1080, 1920          # définition des calques (CONTRAT) et de sortie minimale
 HYPERFRAMES = "hyperframes@0.7.55"
+
+
+# Arrêt propre (2026-11-14 : un rendu interrompu laissait HyperFrames et son Chrome headless tourner seuls) : le rendu
+# mène son propre groupe de processus ; sur Ctrl+C, SIGTERM ou SIGHUP, tout le groupe reçoit SIGTERM (HyperFrames ferme
+# alors son navigateur), puis le script s'arrête.
+import signal as _signal
+
+
+def _arret(sig, _frame):
+    for s_ in (_signal.SIGINT, _signal.SIGTERM, _signal.SIGHUP):
+        _signal.signal(s_, _signal.SIG_IGN)
+    try:
+        os.killpg(os.getpgrp(), _signal.SIGTERM)
+    except OSError:
+        pass
+    time.sleep(2)
+    sys.exit(130 if sig == _signal.SIGINT else 143)
+
+
+def _garder_les_enfants():
+    try:
+        if os.getpgrp() != os.getpid():
+            os.setpgid(0, 0)
+    except OSError:
+        pass
+    for s_ in (_signal.SIGINT, _signal.SIGTERM, _signal.SIGHUP):
+        _signal.signal(s_, _arret)
 # Resserrement du masque (repris du labo, detourage.py et vert21.py) : sous le seuil bas le calque reste plein,
 # au-dessus du seuil haut Romain passe devant, rampe douce entre les deux.
 SERRE_TROU = (0.40, 0.80)
@@ -956,4 +983,5 @@ def main():
 
 
 if __name__ == "__main__":
+    _garder_les_enfants()
     main()

@@ -35,6 +35,8 @@ if (!fs.existsSync(path.join(BIBLIO, 'commun.mjs'))) {
   process.exit(1);
 }
 const C = await import(pathToFileURL(path.join(BIBLIO, 'commun.mjs')).href);
+// attaque d'un mot : la fonction commune des animations (attaqueMot de animations/scripts/lib/style.mjs)
+const { attaqueMot } = await import(pathToFileURL(path.join(path.dirname(BIBLIO), 'scripts', 'lib', 'style.mjs')).href);
 const FPS = C.VIDEO.fps;
 
 // ------------------------------------------------------------------ table des gestes sonorisés (depuis commun.mjs)
@@ -56,6 +58,15 @@ const GESTES = {
     regle: "image de la coupe que le flash couvre (100 %), ou entrée / sortie d'un plein écran" },
   meme: { fichier: C.SONS.meme.fichier, niveau: { lu_sous_voix: C.SONS.meme.ecartLU },
     regle: "image où l'image de réaction apparaît (le pop)" },
+  // retenus par Yoan sur le test v17 (2026-11-14)
+  ecran: { fichier: C.SONS.ecran.fichier, niveau: { rms_db_sous_voix: C.SONS.ecran.ecartRmsDb }, serie: true,
+    regle: "captures d'écran qui défilent : une image par changement d'écran (pas celle du flash d'entrée, qui a son clic)" },
+  pose: { fichier: C.SONS.pose.fichier, niveau: { rms_db_sous_voix: C.SONS.pose.ecartRmsDb },
+    regle: "image où l'objet est posé (fin de son mouvement), une par objet" },
+  coche: { fichiers: C.SONS.coche.fichiers, niveau: { rms_db_sous_voix: C.SONS.coche.ecartRmsDb }, serie: true,
+    regle: 'image où chaque case se remplit, dans l\'ordre : de plus en plus aigu' },
+  montee: { fichier: C.SONS.montee.fichier, niveau: { rms_db_sous_voix: C.SONS.montee.ecartRmsDb },
+    regle: "« fin » = l'image du son d'entrée du moment fort principal (un seul par vidéo) : la montée s'arrête net dessus" },
   sur_mesure: { regle: 'son généré pour la vidéo (generer.py), niveau choisi par le monteur' },
 };
 // Jamais de son sur un zoom ni sur les sous-titres. Le flash a son clic depuis le 2026-11-13 (geste « transition »).
@@ -167,7 +178,7 @@ function imageArrivee(g, W) {
   let depart = g.depart;
   if (depart === undefined && Number.isInteger(g.mot)) {
     if (!W || !W[g.mot]) throw new Error(`arrivee : mot ${g.mot} introuvable dans words.cut.json`);
-    depart = W[g.mot].start - C.APPARITION.avance;   // l'élément démarre 0,04 s avant l'attaque de son mot
+    depart = attaqueMot(W, g.mot) - C.APPARITION.avance;   // l'élément démarre à l'attaque de son mot (0,1 s avant la transcription)
   }
   if (typeof depart !== 'number' || typeof g.h !== 'number') throw new Error('arrivee : il faut image, ou (depart ou mot) et h');
   return img(C.apparitionMiOpacite(Math.max(0, depart), g.h));
@@ -210,6 +221,19 @@ function poser() {
       const ims = Array.isArray(g.images) ? g.images : [g.image];
       ims.forEach((k, i) => sons.push({ fichier: T.fichier, image: k, niveau: { ...T.niveau },
         pourquoi: ims.length > 1 ? `${pourquoi} (photo ${i + 1}/${ims.length})` : pourquoi, ...base }));
+    } else if (nom === 'ecran' || nom === 'pose' || nom === 'coche') {
+      const ims = Array.isArray(g.images) ? g.images : [g.image];
+      if (!ims.length || ims.some((k) => !Number.isInteger(k))) { console.log(`ERREUR IMAGE_MANQUANTE ${nom} : images entières attendues (${T.regle}).`); process.exit(1); }
+      const serie = `${nom}:${g.calque || ''}:${ims[0]}`;
+      ims.forEach((k, i) => sons.push({ fichier: T.fichiers ? T.fichiers[Math.min(i, T.fichiers.length - 1)] : T.fichier, image: k,
+        niveau: { ...T.niveau }, pourquoi: ims.length > 1 ? `${pourquoi} (${i + 1}/${ims.length})` : pourquoi,
+        ...(T.serie && ims.length > 1 ? { serie } : {}), ...base }));
+    } else if (nom === 'montee') {
+      if (!Number.isInteger(g.fin)) { console.log(`ERREUR IMAGE_MANQUANTE montee : « fin » = image du son d'entrée du moment fort (${T.regle}).`); process.exit(1); }
+      const F = fiche(T.fichier), d = durees(resoudre(T.fichier)) || 0, a = F.debut_echantillon / 48000;
+      // attaque à l'image k : le son finit à k - a*30 + d*30, au plus tard sur « fin » (finAvantImages d'avance au plus)
+      const k = Math.floor(g.fin + (a - d) * FPS - 0.03);
+      sons.push({ fichier: T.fichier, image: k, fin: g.fin, niveau: { ...T.niveau }, pourquoi, ...base });
     } else if (nom === 'arrivee') {
       sons.push({ fichier: T.fichier, image: imageArrivee(g, W), niveau: { ...T.niveau }, pourquoi, ...base });
     } else if (nom === 'sur_mesure') {
@@ -248,6 +272,11 @@ function verifier() {
     if (s.calque && !cq) av.push(`${id} : calque ${s.calque} absent de calques.json`);
     if (cq && cq.source === 'sous-titres') err.push(`${id} : son sur les sous-titres (calque ${cq.id})`);
     if (cq && /zoom/i.test(`${cq.id} ${cq.dossier || ''}`)) err.push(`${id} : son sur un zoom (calque ${cq.id})`);
+    // sous-titres enrichis : jamais d'impact ni d'autre son (Yoan, 2026-11-14 : « pas top », « nul »)
+    if (cq && cq.dossier) {
+      const fc = lireJson(path.join(DOSSIER, cq.dossier, 'calque.json'), null);
+      if (fc && fc.origine && /^sous-titre enrichi/.test(String(fc.origine.sur_mesure || ''))) err.push(`${id} : son sur un sous-titre enrichi (calque ${cq.id}) : refusé`);
+    }
     // image
     if (!Number.isInteger(s.image) || s.image < 0) err.push(`${id} : image entière positive attendue`);
     else if (N && s.image >= N) err.push(`${id} : image après la fin de la vidéo coupée (${N} images)`);
@@ -275,17 +304,29 @@ function verifier() {
       }
     }
     const d = durees(p) || 0.1, a = F && Number.isInteger(F.debut_echantillon) ? F.debut_echantillon / 48000 : 0;
-    poses.push({ id, geste, image: s.image, t0: s.image / FPS - a, t1: s.image / FPS - a + d });
+    poses.push({ id, geste, image: s.image, t0: s.image / FPS - a, t1: s.image / FPS - a + d, serie: s.serie, fin: s.fin });
   }
   // sons qui se marchent dessus
   poses.sort((x, y) => x.t0 - y.t0);
   for (let i = 1; i < poses.length; i++) {
     const A = poses[i - 1], B = poses[i];
-    const memeSaisie = A.geste === 'frappe' && B.geste === 'frappe' && B.t0 - A.t0 < GROUPE_FRAPPE_S;
+    const memeSaisie = (A.geste === 'frappe' && B.geste === 'frappe' && B.t0 - A.t0 < GROUPE_FRAPPE_S)
+      || (A.serie && A.serie === B.serie && B.t0 - A.t0 < C.SONS.serieMaxS + 1e-6);   // série d'écrans ou de cases : un seul geste
     if (memeSaisie) { if (A.image === B.image) av.push(`${B.id} : deux lettres sur la même image`); continue; }
     if (B.image - A.image < ECART_MIN_IMAGES) err.push(`${A.id} et ${B.id} : moins de ${ECART_MIN_IMAGES} images entre deux gestes, on n'en entend qu'un`);
     else if (B.t0 < A.t1 - 0.0005) err.push(`${A.id} et ${B.id} : les deux sons se chevauchent`);
   }
+  // montée (moment fort principal) : une seule par vidéo, elle finit net sur un son d'entrée (transition, arrivée, pose)
+  const montees = poses.filter((P) => P.geste === 'montee');
+  if (montees.length > 1) err.push(`${montees.length} montées : une seule, sur le moment fort principal de la vidéo`);
+  for (const M of montees) {
+    const cible = poses.find((P) => P !== M && Number.isInteger(M.fin) && P.image === M.fin);
+    if (!cible) err.push(`${M.id} : la montée doit finir sur le son d'entrée du moment fort (aucun son à l'image ${M.fin})`);
+    else if (!['transition', 'arrivee', 'pose', 'meme', 'faisceau'].includes(cible.geste)) err.push(`${M.id} : finit sur un ${cible.geste}, attendu le son d'entrée du moment fort (transition, arrivée)`);
+    else if (M.t1 > cible.image / FPS + 0.002 || cible.image / FPS - M.t1 > C.SONS.montee.finAvantImages / FPS) err.push(`${M.id} : finit à ${(M.t1 * FPS).toFixed(2)}, pas net sur l'image ${cible.image}`);
+  }
+  // son de conclusion (refusé par Yoan, 2026-11-14) : rien dans la dernière seconde qui ne soit une transition
+  for (const P of poses) if (N && P.image > N - FPS && !['transition', 'faisceau'].includes(P.geste)) err.push(`${P.id} : son dans la dernière seconde de la vidéo (pas de son de conclusion)`);
   // sons tombés sur le début d'un zoom (avertissement : le son peut appartenir à un autre geste au même instant)
   const Z = lireJson(path.join(DOSSIER, 'zooms.json'), null);
   const imagesZoom = new Set();

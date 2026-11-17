@@ -38,19 +38,23 @@ texte (l'orthographe se corrige dans les sous-titres, pas dans l'ancre).
 | `video` | facultatif | titre court, pour reconnaître la vidéo |
 | `notes` | facultatif | le niveau choisi, ce qui compte le plus. Pas de consigne de style : aucune brique ne l'exécute |
 | `coupes` | `serre` | `{ "rythme": "normal" \| "serre" \| "tres-serre" }` : le rythme utilisé aux coupes |
-| `sous_titres` | classique, sans mot fort | `{ "style", "mots_forts", "masquer", "vocabulaire" }` (ci-dessous) |
+| `sous_titres` | ses sous-titres (un seul style) | `{ "masquer", "vocabulaire", "citations" }` (ci-dessous) |
 | `zooms` | quelques zooms avec retenue | `[{ "type": "eclair" \| "rapprochement" \| "ouverture", "sur": ancre, "pourquoi"? }]` ; `[]` = aucun zoom |
 | `b_roll` | aucun B-roll | `[{ "id", "clip", "quoi", "de", "a"?, "depart"?, "vitesse"? }]` (ci-dessous) |
 | `animations` | aucune animation | liste de demandes (ci-dessous) |
 
 Pas de clé `sons` : tu les places à l'étape sons (skill sound-design).
 
-- `sous_titres` : `style` = `classique` | `formelle` ; `mots_forts` = ancres, formelle seulement, une
-  par phrase au plus, jamais au tout début, l'ancre commence par le mot fort (aujourd'hui vide : les
-  sous-titres enrichis le remplacent, `regles.md`) ; `masquer` = `[{ "de": ancre, "a": ancre }]`,
+- `sous_titres` : un seul style depuis le 2026-11-13 (ceux de son ancien skill : Inter Black, pavé
+  orange qui glisse, groupes découpés tout seuls) ; `style` et `mots_forts` n'existent plus (un ancien
+  plan qui les donne : ignorés) ; `masquer` = `[{ "de": ancre, "a": ancre }]`,
   passages à ne pas sous-titrer (rare) ; `vocabulaire` = l'orthographe exacte des noms d'exercices,
   des mots de coach et des chiffres tels qu'ils doivent s'écrire (« GHD sit-up », « 12 », « 3 mois ») ;
-  rappelle aussi dans `notes` : « chiffres toujours en chiffres dans les sous-titres ».
+  rappelle aussi dans `notes` : « chiffres toujours en chiffres dans les sous-titres » ; `citations` =
+  `[{ "de": ancre, "a": ancre }]`, chaque passage où il cite une pensée ou une phrase (« tu vas te dire : Mince,
+  c'est passé vite » : `{ "de": "mince", "a": "passé vite" }`) : facultatif, il fait ses propres groupes de
+  sous-titres ; rien ne s'affiche en plus (pas de guillemets). Une animation qui affiche ses mots les retire des sous-titres
+  (chaque mot n'est vu qu'une fois) : rien à écrire dans le plan pour ça.
 - `zooms` : éclair = part sur le premier mot de l'ancre (le mot qui claque) ; rapprochement = l'ancre
   est le début de la phrase qui monte ; ouverture = le dézoom de l'accroche (120 % vers 100 % depuis
   l'image 0), l'ancre est le mot clé où il s'arrête net.
@@ -138,7 +142,7 @@ n'y a rien à afficher, et la photo à télécharger par le monteur.
 s'il revient).
 ```json
 { "id": "a03", "geste": "sur-mesure",
-  "intention": "Sous-titre enrichi, à la place des sous-titres de ces mots (même hauteur, même comportement : chaque mot sur sa voix, part avec la phrase). « pourquoi » en sous-titre normal, puis « 12 semaines » en plus gros à la même hauteur, souligné à main levée en orange. Les sous-titres ne redisent pas ces mots. La suite de la phrase reprend en sous-titres normaux.",
+  "intention": "Sous-titre enrichi, à la place des sous-titres de ces mots (même hauteur, même comportement : chaque mot sur sa voix, part avec la phrase). « pourquoi » en sous-titre normal, puis, sur sa propre ligne, « 12 semaines » en plus gros à la même hauteur, souligné à main levée en orange. Les sous-titres ne redisent pas ces mots. La suite de la phrase reprend en sous-titres normaux.",
   "de": "pourquoi", "a": "semaines#2",
   "elements": [ { "texte": "pourquoi", "sur": "pourquoi", "role": "sous-titre" },
                 { "texte": "12 semaines", "sur": "douze semaines#2", "role": "mot en grand souligné" } ] }
@@ -171,7 +175,7 @@ s'il revient).
   "video": "Trois erreurs qui bloquent ta perte de poids",
   "notes": "Niveau travaillé. Le moment fort est la deuxième erreur. Chiffres toujours en chiffres dans les sous-titres.",
   "coupes": { "rythme": "serre" },
-  "sous_titres": { "style": "formelle", "mots_forts": [], "vocabulaire": ["3"] },
+  "sous_titres": { "vocabulaire": ["3"] },
   "zooms": [
     { "type": "eclair", "sur": "trois erreurs", "pourquoi": "le chiffre de l'accroche" },
     { "type": "rapprochement", "sur": "et c'est là", "pourquoi": "il parle directement à la personne" }

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// Sous-titres d'une vidéo coupée par couper-silences, au style verrouillé des reels de Romain (bibliothèque
-// sous-titres : classique avec pavé orange qui glisse, ou formelle avec mots forts). Rien ne part sur un serveur.
+// Sous-titres d'une vidéo coupée par couper-silences, au style choisi par Romain le 29/10 (blanc très gras, groupes de
+// 1 à 4 mots, pavé orange qui glisse sous le mot dit ; repris de captions_romain.py, refait en calque HyperFrames le
+// 2026-11-13). Rien ne part sur un serveur.
 //
 //   node sous-titres.mjs texte <dossier>      écrit texte-sous-titres.md : le texte, chaque mot précédé de son numéro
-//   node sous-titres.mjs preparer <dossier>   lit sous-titres.json (style, corrections, groupes, mots forts), écrit le
-//                                             calque calques/st/ (projet HyperFrames prêt à rendre) et son entrée
-//                                             dans calques.json (source « sous-titres », ordre 100)
+//   node sous-titres.mjs preparer <dossier>   lit sous-titres.json (corrections, masquer, citations, taille, position,
+//                                             pave), retire les mots qu'une animation affiche déjà (mots_repris), découpe
+//                                             les groupes, écrit le calque calques/st/ (projet HyperFrames prêt à
+//                                             rendre) et son entrée dans calques.json (source « sous-titres », ordre 100)
 //
 // <dossier> = le dossier <nom>-montage de la vidéo. Base de temps : la vidéo coupée, 30 images par seconde.
 // Le gabarit vient de ../animations/bibliotheque/sous-titres/devant/index.html (skill voisin). Pour les tests
@@ -14,16 +16,10 @@
 // Codes de sortie : 0 ok · 1 usage · 2 fichier introuvable · 9 gabarit inattendu · 13 sous-titres.json à corriger
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { decouper, instants, finDePhrase, coupeLignes } from './groupes.mjs';
 
 const FPS = 30;
-const LARGEUR_MAX = 899;        // SOUS_TITRES x 91 à 990
-const MARGE_MESURE = 0.98;      // la mesure ignore le crénage : 2 % de marge
-const MOTS_MAX_FORMELLE = 3;    // SOUS_TITRES.motsParGroupe
-
-// Chasses mesurées (unités pour 1000) : Bricolage Grotesque opsz 96 wght 800, Big Shoulders Display wght 900.
-const CHASSE_TEXTE = {"a":543,"b":576,"c":539,"d":576,"e":537,"f":376,"g":549,"h":562,"i":234,"j":244,"k":541,"l":234,"m":860,"n":562,"o":567,"p":574,"q":574,"r":400,"s":517,"t":368,"u":557,"v":530,"w":799,"x":543,"y":539,"z":483,"à":543,"â":543,"ä":543,"ç":539,"é":537,"è":537,"ê":537,"ë":537,"î":234,"ï":234,"ô":567,"ö":567,"ù":557,"û":557,"ü":557,"ÿ":539,"œ":928,"æ":858,"0":594,"1":310,"2":551,"3":565,"4":607,"5":565,"6":592,"7":498,"8":608,"9":603,"'":174,"’":193,"-":313,".":246,",":193,";":235,":":250,"!":268,"?":396,"…":757,"«":466,"»":466,"\"":340,"(":303,")":303,"%":948,"/":349,"+":486,"&":697,"€":680,"$":575,"°":342," ":203};
-const CHASSE_TITRE = {"A":478,"B":473,"C":490,"D":495,"E":408,"F":406,"G":493,"H":485,"I":230,"J":453,"K":497,"L":402,"M":745,"N":543,"O":497,"P":471,"Q":497,"R":477,"S":474,"T":419,"U":487,"V":494,"W":800,"X":471,"Y":465,"Z":418,"À":478,"Â":478,"Ä":478,"Ç":490,"É":408,"È":408,"Ê":408,"Ë":408,"Î":230,"Ï":230,"Ô":497,"Ö":497,"Ù":487,"Û":487,"Ü":487,"Ÿ":465,"Œ":681,"Æ":684,"0":507,"1":274,"2":490,"3":504,"4":511,"5":515,"6":499,"7":485,"8":501,"9":499,"'":203,"’":251,"-":446,".":250,",":251,";":251,":":250,"!":250,"?":480,"…":700,"%":682," ":220};
 
 const ici = path.dirname(fileURLToPath(import.meta.url));
 const say = (m) => process.stdout.write(m + '\n');
@@ -39,7 +35,6 @@ function mots(w) {
 }
 // Ce qui s'affiche d'un mot : sans guillemets ni ponctuation autour (le style retire la ponctuation de fin).
 const affiche = (t) => String(t).trim().replace(/^[«"“(\s]+/, '').replace(/[.,;:!?…»"”)\s]+$/, '');
-const finDePhrase = (t) => /[.!?…]\s*[»"”)]?\s*$/.test(String(t).trim());
 
 // Images de la vidéo coupée : somme des morceaux gardés de filtre.txt
 function imagesCoupees(w) {
@@ -78,91 +73,23 @@ async function cmdTexte(w) {
   say(`PRÊT texte=${out} mots=${W.length}`);
 }
 
-// ---------------------------------------------------------------- mesure d'une ligne (px vidéo)
-function largeurTexte(txt, style) {
-  const t = txt.toLowerCase(), k = 66 / 1000;
-  let l = 0;
-  for (const c of t) l += (CHASSE_TEXTE[c] ?? 560) * k - 0.012 * 66;   // approche -0,012 em
-  const nMots = t.split(' ').length;
-  if (style === 'classique') l += (nMots - 1) * (-0.14 * 66) + nMots * 14;   // mots resserrés, pavé (14 px de chaque côté, marge -7)
-  return l;
-}
-const largeurFort = (txt) => { let l = 0; for (const c of txt.toUpperCase()) l += (CHASSE_TITRE[c] ?? 480) * 128 / 1000; return l; };
-
-// ---------------------------------------------------------------- bibliothèque et gabarit
+// ---------------------------------------------------------------- bibliothèque et boîte à outils du style
 function bibliotheque() {
   const essais = [process.env.SOUS_TITRES_BIBLIOTHEQUE, path.resolve(ici, '..', '..', 'animations', 'bibliotheque')].filter(Boolean);
   for (const b of essais) if (fs.existsSync(path.join(b, 'sous-titres', 'devant', 'index.html'))) return b;
   fail(2, `BIBLIOTHEQUE_INTROUVABLE : le skill animations (et sa bibliotheque/) doit être installé à côté de ce skill (cherché : ${essais.join(' ; ')}).`);
 }
+const outils = async () => import(pathToFileURL(path.join(ici, '..', '..', 'animations', 'scripts', 'lib', 'style.mjs')).href);
 
-// Formelle : le gabarit gère un seul mot fort. Cette version en gère plusieurs, à la même règle : chaque mot fort part
-// avec la ligne affichée à la fin de sa phrase, à la fin du dernier mot de la phrase.
-const FORMELLE_ORIGINE_DEBUT = "} else {\n  const F = P.motFort, fort = F ? gr[F.groupe] : null;";
-const FORMELLE_ORIGINE_FIN = "\ntl.set({}, {}, N / FPS);";
-const FORMELLE = `} else {
-  // (brique sous-titres) motFort : null, un objet { groupe, finPhrase } ou une liste de ces objets.
-  const FS = P.motFort ? [].concat(P.motFort) : [];
-  const forts = new Set(FS.map((F) => F.groupe));
-  const lignes = gr.filter((_, k) => !forts.has(k));
-  const fins = FS.map((F) => img(P.mots[F.finPhrase].e));
-  lignes.forEach((g, gi) => {
-    const id = \`g\${gr.indexOf(g)}\`;   // numéro du groupe d'origine (P.caches s'y réfère)
-    const d = document.createElement('div'); d.className = 'sub'; d.id = id;
-    d.textContent = g.mots.map((m) => propre(m.w)).join(' ');
-    root.appendChild(d);
-    const on = img(g.mots[0].s);
-    let off = gi < lignes.length - 1 ? img(lignes[gi + 1].mots[0].s) : N;
-    for (const fp of fins) if (on < fp && fp < off) off = fp;   // la ligne affichée en fin de phrase part avec le mot fort
-    tl.set(\`#\${id}\`, { visibility: 'hidden' }, 0); tl.set(\`#\${id}\`, { visibility: 'visible' }, tImg(on)); tl.set(\`#\${id}\`, { visibility: 'hidden' }, tImg(off));
-  });
-  if (FS.length) {
-    // bas des capitales du mot fort = haut des minuscules hautes de la ligne - ecart
-    const baseLigne = ST.centreY - ST.interligne * ST.taille / 2 + (GEO.base_texte + (ST.interligne - GEO.interligne_texte) / 2) * ST.taille;
-    const top = baseLigne - 0.70 * ST.taille - FORT.ecart - GEO.base_titre * FORT.taille;
-    const R = reglages(GEO.cap_titre * FORT.taille);
-    FS.forEach((F, fi) => {
-      const fort = gr[F.groupe], id = \`fort\${fi}\`;
-      const d = document.createElement('div'); d.className = 'a ti c-cr dure'; d.id = id; d.dataset.groupe = F.groupe;
-      d.style.cssText = \`left:91px;width:899px;text-align:center;top:\${top.toFixed(1)}px;font-size:\${FORT.taille}px\`;
-      d.textContent = fort.mots.map((m) => propre(m.w)).join(' ');
-      root.appendChild(d);
-      const t = fort.mots[0].s - AV;
-      tl.fromTo(\`#\${id}\`, { y: R.dy }, { y: 0, duration: R.dM, ease: 'power3.out', immediateRender: true }, t);
-      tl.fromTo(\`#\${id}\`, { opacity: 0 }, { opacity: 1, duration: R.dO, ease: 'power2.out', immediateRender: true }, t);
-      tl.fromTo(\`#\${id}\`, { filter: \`blur(\${R.flou}px)\` }, { filter: 'blur(0px)', duration: R.dF, ease: 'power2.out', immediateRender: true }, t);
-      tl.set(\`#\${id}\`, { visibility: 'hidden' }, tImg(fins[fi]));
-    });
-  }
-}
-// (brique sous-titres) Calques marqués masque_sous_titres dans calques.json. P.caches : groupes qui apparaîtraient
-// pendant le calque, retirés en entier. P.coupes : groupes déjà affichés à l'entrée du calque, coupés net à son
-// image d'entrée (ligne, pavé et mot fort), sans revenir à sa sortie.
-for (const k of P.caches || []) document.querySelectorAll(\`#g\${k}, #p\${k}, [data-groupe="\${k}"]\`).forEach((e) => { e.style.display = 'none'; });
-for (const c of P.coupes || []) {
-  const sel = [\`#g\${c.groupe}\`, \`#p\${c.groupe}\`, \`[data-groupe="\${c.groupe}"]\`].filter((q) => document.querySelector(q)).join(', ');
-  if (sel) tl.set(sel, { display: 'none' }, tImg(c.image));
-}`;
+// ---------------------------------------------------------------- groupes : groupes.mjs (découpe et instants, partagés avec
+// les effets qui affichent une phrase en sous-titres, comme la phrase du bas du plein écran puzzle)
 
-function calque(bib, P, images, sortie) {
-  let html = lire(path.join(bib, 'sous-titres', 'devant', 'index.html'));
-  const attendu = (ok, quoi) => { if (!ok) fail(9, `GABARIT_INATTENDU : le gabarit des sous-titres a changé (${quoi}). Préviens Yoan.`); };
-  const reP = /const P = \{[\s\S]*?\n\};\n/;
-  attendu(reP.test(html), 'paramètres P');
-  html = html.replace(reP, () => `const P = ${JSON.stringify(P)};\n`);
-  attendu(/data-duration="[\d.]+"/.test(html), 'data-duration');
-  html = html.replace(/data-duration="[\d.]+"/, `data-duration="${(images / FPS).toFixed(4)}"`);
-  const a = html.indexOf(FORMELLE_ORIGINE_DEBUT), b = html.indexOf(FORMELLE_ORIGINE_FIN);
-  attendu(a > 0 && b > a, 'partie formelle');
-  html = html.slice(0, a) + FORMELLE + html.slice(b);
-  attendu(html.includes("'../../fonts/") && html.includes('../../vendor/gsap.min.js'), 'chemins des polices');
-  html = html.split("'../../fonts/").join("'fonts/").split('../../vendor/').join('vendor/');
-
+// ---------------------------------------------------------------- calque
+function calque(bib, html, sortie, ST) {
   fs.rmSync(sortie, { recursive: true, force: true });
   fs.mkdirSync(path.join(sortie, 'fonts'), { recursive: true });
   fs.mkdirSync(path.join(sortie, 'vendor'), { recursive: true });
-  for (const f of ['BricolageGrotesque.ttf', 'BigShouldersDisplay.ttf', 'OFL-bricolage.txt', 'OFL-bigshoulders.txt'])
-    fs.copyFileSync(path.join(bib, 'fonts', f), path.join(sortie, 'fonts', f));
+  for (const f of [ST.police.file, ST.police.ofl]) fs.copyFileSync(path.join(bib, 'fonts', f), path.join(sortie, 'fonts', f));
   fs.copyFileSync(path.join(bib, 'vendor', 'gsap.min.js'), path.join(sortie, 'vendor', 'gsap.min.js'));
   ecrire(path.join(sortie, 'index.html'), html);
 }
@@ -175,6 +102,18 @@ function lireMasques(w) {
   try { j = JSON.parse(lire(p)); } catch { fail(13, `CALQUES_ILLISIBLE : ${p} n'est pas un JSON valide.`); }
   return (j.calques || []).filter((c) => c.source !== 'sous-titres' && c.masque_sous_titres === true)
     .map((c) => ({ id: c.id, debut: Number(c.debut), images: Number(c.images) }));
+}
+
+// Mots qu'une animation affiche déjà en texte (mots_repris de calques.json, écrit par animations) : chaque mot dit n'est vu
+// qu'une fois (Yoan, 2026-11-14). Renvoie Map numéro de mot -> id du calque.
+function lireRepris(w) {
+  const p = path.join(w, 'calques.json');
+  const out = new Map();
+  if (!fs.existsSync(p)) return out;
+  let j;
+  try { j = JSON.parse(lire(p)); } catch { fail(13, `CALQUES_ILLISIBLE : ${p} n'est pas un JSON valide.`); }
+  for (const c of j.calques || []) if (c.source !== 'sous-titres') for (const i of c.mots_repris || []) if (!out.has(+i)) out.set(+i, c.id);
+  return out;
 }
 
 function majCalques(w, entree) {
@@ -192,7 +131,7 @@ function majCalques(w, entree) {
 }
 
 // ---------------------------------------------------------------- preparer
-function cmdPreparer(w) {
+async function cmdPreparer(w) {
   const W = mots(w);
   const n = W.length;
   const rp = path.join(w, 'sous-titres.json');
@@ -200,9 +139,16 @@ function cmdPreparer(w) {
   if (fs.existsSync(rp)) { try { R = JSON.parse(lire(rp)); } catch (e) { fail(13, `SOUS-TITRES_ILLISIBLE : ${e.message}`); } }
   const bad = (m) => fail(13, `SOUS-TITRES_ILLISIBLE : ${m}`);
   const num = (k, quoi) => { const i = Number(k); if (!Number.isInteger(i) || i < 0 || i >= n) bad(`${quoi} : mot n°${k} inexistant (0 à ${n - 1}).`); return i; };
-
-  const style = R.style ?? 'classique';
-  if (!['classique', 'formelle'].includes(style)) bad(`style « ${style} » inconnu (classique ou formelle).`);
+  const avis = [];
+  for (const k of Object.keys(R)) {
+    if (['style', 'groupes', 'motsForts'].includes(k)) avis.push(`« ${k} » ignoré : les sous-titres n'ont plus qu'un style, et les groupes se découpent tout seuls (règle de l'ancien skill)`);
+    else if (!['corrections', 'masquer', 'citations', 'taille', 'position', 'pave', 'volume'].includes(k)) avis.push(`« ${k} » inconnu, ignoré`);
+  }
+  const pave = R.pave ?? undefined;
+  if (pave !== undefined && typeof pave !== 'boolean') bad(`pave ${JSON.stringify(R.pave)} : true (pavé orange sous le mot dit) ou false (sans pavé).`);
+  const taille = R.taille ?? 1, position = R.position ?? undefined;
+  if (typeof taille !== 'number' || taille < 0.5 || taille > 2) bad(`taille ${JSON.stringify(R.taille)} : un nombre entre 0.5 et 2 (1 = la taille normale).`);
+  if (position !== undefined && (typeof position !== 'number' || position < 0.2 || position > 0.9)) bad(`position ${JSON.stringify(R.position)} : un nombre entre 0.2 (haut) et 0.9 (bas) ; 0.70 par défaut.`);
 
   // corrections (la ponctuation de fin du mot d'origine est gardée : elle marque les fins de phrase)
   const texte = W.map((m) => String(m.text));
@@ -220,66 +166,90 @@ function cmdPreparer(w) {
     for (let k = a; k <= b; k++) masque.add(k);
   }
 
-  // mots affichés : un signe seul (« ? », « : », guillemet) se colle au mot d'avant ; un mot corrigé en "" est réuni au précédent
-  const liste = [];   // { w, s, e, src: [numéros], brut }
+  // citations (marquées par le plan) : rien ne s'affiche en plus, pas de guillemets (Yoan, 2026-11-14, retours sur v12) ;
+  // la citation fait seulement ses propres groupes (jamais un groupe à cheval entre elle et la phrase autour)
+  const citations = [];
+  for (const c of R.citations ?? []) {
+    const a = num([].concat(c)[0], 'citations'), b = num([].concat(c).at(-1), 'citations');
+    if (b < a) bad(`citations : [${a}, ${b}] à l'envers.`);
+    citations.push([a, b]);
+  }
+  const repris = lireRepris(w);
+  const L0 = await outils();
+  const B0 = L0.bornesCitations({ citations }, (i) => !masque.has(i) && !repris.has(i) && !!affiche(texte[i]));
+  const debutsCit = new Set(citations.map((c) => c[0])), finsCit = new Set(citations.map((c) => c[1]));
+
+  // mots affichés : un signe seul (« ? », « : », guillemet) se colle au mot d'avant (et ferme sa phrase) ; un mot
+  // corrigé en "" est réuni au précédent. Texte affiché tel que dit (casse gardée), sans ponctuation autour.
+  const liste = [];   // { i, w, s, e, brut, coupeAvant?, coupeApres?, barriere? }
+  const retires = [];  // mots repris par une animation : [numéro, calque]
+  let apresRepris = false;
   for (let i = 0; i < n; i++) {
     if (masque.has(i)) continue;
     const t = texte[i];
-    if (!affiche(t)) {
+    // mot affiché par une animation : il sort des sous-titres ; le groupe d'avant s'arrête à son attaque, le suivant
+    // commence une nouvelle phrase (jamais un groupe à cheval sur le passage repris)
+    if (repris.has(i)) {
+      if (affiche(t)) retires.push([i, repris.get(i)]);
       const der = liste.at(-1);
-      if (der) { der.brut += t.trim(); if (corrige.has(i)) der.e = W[i].end; der.src.push(i); }
+      if (der && der.barriere === undefined && !apresRepris) der.barriere = W[i].start;
+      apresRepris = true;
       continue;
     }
-    liste.push({ w: affiche(t), s: W[i].start, e: W[i].end, src: [i], brut: t.trim() });
+    if (!affiche(t)) {
+      const der = liste.at(-1);
+      if (der) { der.brut += t.trim(); if (corrige.has(i)) der.e = W[i].end; }
+      continue;
+    }
+    const w = affiche(t);
+    liste.push({ i, w, s: W[i].start, e: W[i].end, brut: t.trim(), coupeAvant: apresRepris || debutsCit.has(i), coupeApres: finsCit.has(i) });
+    apresRepris = false;
   }
+  // fin de citation sur un mot non affiché (signe seul) : la coupure va sur le dernier mot affiché de la citation
+  for (const m of liste) if (B0.dernier.has(m.i)) m.coupeApres = true;
+  for (const m of liste) if (B0.premier.has(m.i)) m.coupeAvant = true;
   if (!liste.length) bad('tous les mots sont masqués.');
-  const position = new Map();   // numéro de mot -> indice dans la liste affichée
-  liste.forEach((m, k) => m.src.forEach((i) => position.set(i, k)));
 
-  // groupes : numéro du premier mot de chaque groupe
-  let debuts = R.groupes;
-  if (!Array.isArray(debuts) || !debuts.length) bad('« groupes » manquant : la liste des numéros du premier mot de chaque groupe.');
-  const coupes = [];
-  for (const d of debuts) {
-    const i = num(d, 'groupes');
-    if (!position.has(i) || liste[position.get(i)].src[0] !== i) bad(`groupes : le mot n°${i} n'est pas affiché seul (masqué, signe seul ou réuni au précédent).`);
-    const k = position.get(i);
-    if (coupes.length && k <= coupes.at(-1)) bad(`groupes : les numéros doivent aller croissant (n°${i}).`);
-    coupes.push(k);
+  const L = L0;
+  const ST = L.S.SOUS_TITRES;
+  const G0 = L.geoSousTitres({ taille, position, pave });
+  // volume (réglage « volume » de sous-titres.json, 2026-11-14, choix de Romain) : { mots_max, caracteres_max, lignes } ;
+  // absent = le réglage de l'ancien skill (4 mots, 20 caractères, une ligne), rendu inchangé. caracteres_max null = pas
+  // de limite en caractères (seule la largeur compte) ; lignes 2 = un groupe trop long pour une ligne se pose sur deux ;
+  // coupe_pause = blanc (s) qui coupe une phrase (0,15 par défaut, plus long = groupes plus longs) ; virgules true = les
+  // coupures cherchent les virgules et évitent un mot seul.
+  // défaut provisoire (SOUS_TITRES.volume de commun.mjs, niveau 2) ; « ancien » = le réglage de l'ancien skill
+  if (R.volume !== undefined && R.volume !== 'ancien' && (typeof R.volume !== 'object' || R.volume === null || Array.isArray(R.volume))) bad('volume : "ancien" ou { "mots_max": 4, "caracteres_max": null, "lignes": 1, "coupe_pause": 0.25, "virgules": true }');
+  const V = R.volume === 'ancien' ? { ...ST.volumeAncien } : { ...ST.volume, ...(R.volume || {}) };
+  if (typeof V !== 'object' || Array.isArray(V)) bad('volume : { "mots_max": 4, "caracteres_max": 20, "lignes": 1 }');
+  for (const k of Object.keys(V)) if (!['mots_max', 'caracteres_max', 'lignes', 'coupe_pause', 'virgules'].includes(k)) avis.push(`volume.${k} inconnu, ignoré`);
+  const motsMax = V.mots_max ?? ST.motsMax, lignes = V.lignes ?? 1;
+  if (!Number.isInteger(motsMax) || motsMax < 1 || motsMax > 10) bad(`volume.mots_max ${JSON.stringify(V.mots_max)} : un entier de 1 à 10.`);
+  if (![1, 2].includes(lignes)) bad(`volume.lignes ${JSON.stringify(V.lignes)} : 1 ou 2.`);
+  if (V.caracteres_max !== undefined && V.caracteres_max !== null && !(Number.isInteger(V.caracteres_max) && V.caracteres_max >= 8)) bad('volume.caracteres_max : un entier (8 au moins) ou null.');
+  if (V.coupe_pause !== undefined && !(typeof V.coupe_pause === 'number' && V.coupe_pause >= 0.1 && V.coupe_pause <= 1)) bad('volume.coupe_pause : un nombre de secondes entre 0.1 et 1.');
+  const G = { ...G0, lignes, coupePause: V.coupe_pause, virgules: V.virgules === true, penalite: 0.6 * G0.largeurMax, caracteresMax: V.caracteres_max === null ? Infinity : V.caracteres_max !== undefined ? Math.round(V.caracteres_max / taille) : G0.caracteresMax };
+  const STv = { ...ST, motsMax };
+  const pol = G.police, px = G.px, fsp = G.fsp;
+  // largeur visible d'une ligne : avances arrondies au px (comme Pillow dans l'ancien script), chaque lettre resserrée
+  // sauf les espaces, rien après la dernière
+  const largeur = (s) => { const nb = [...s].length - (s.split(' ').length - 1); return s ? pol.avance(s, px, true) + fsp * Math.max(0, nb - 1) : 0; };
+  for (const m of liste) for (const ch of m.w) if (!pol.a(ch)) avis.push(`le caractère « ${ch} » (mot « ${m.w} ») n'existe pas dans la police des sous-titres : il s'affichera dans une autre police`);
+  const gs = decouper(liste, largeur, STv, G);
+
+  // instants (captions_romain.py, sous_titres()) : un groupe apparaît à l'attaque de son premier mot ; suivi d'un blanc
+  // de moins de 0,5 s il part au début du suivant, sinon 0,25 s après son dernier mot, en fondu ; le premier groupe
+  // après un blanc de 0,5 s (et le tout premier) monte en fondu.
+  // Un groupe suivi de mots repris par une animation s'arrête au plus tard à l'attaque du premier mot repris (barriere) :
+  // l'animation montre ces mots, les sous-titres ne les montrent pas avant elle.
+  const groupes = instants(gs, ST);
+  // deux lignes : indice du premier mot de la deuxième ligne (absent = une ligne)
+  if (lignes > 1) gs.forEach((g, i) => { const k = coupeLignes(g, largeur, G); if (k > 0) groupes[i].coupe = k; });
+  for (const g of gs) {
+    const line = g.map((x) => x.w).join(' ');
+    if (g.length === 1 && largeur(line) > G.largeurMax) avis.push(`mot trop large pour une ligne : « ${line} » (${Math.round(largeur(line))} px sur ${Math.round(G.largeurMax)})`);
   }
-  if (coupes[0] !== 0) bad(`groupes : le premier groupe doit commencer au premier mot affiché (n°${liste[0].src[0]}).`);
-  const fins = coupes.slice(1).concat(liste.length);
-  const groupes = coupes.map((a, g) => ({ a, b: fins[g], txt: liste.slice(a, fins[g]).map((m) => m.w).join(' ') }));
-
-  // contrôles de lisibilité : une ligne, dans la zone sûre
-  const erreurs = [], avis = [];
-  const court = (t) => { const m = t.split(' '); return m.length > 8 ? m.slice(0, 8).join(' ') + ' …' : t; };
-  groupes.forEach((g, gi) => {
-    const nb = g.b - g.a, n0 = liste[g.a].src[0];
-    if (style === 'formelle' && nb > MOTS_MAX_FORMELLE) erreurs.push(`groupe n°${gi + 1} (mot ${n0}) : ${nb} mots, 3 au plus en formelle : « ${court(g.txt)} »`);
-    const l = largeurTexte(g.txt, style);
-    if (l > LARGEUR_MAX * MARGE_MESURE) erreurs.push(`groupe n°${gi + 1} (mot ${n0}) : trop long pour une ligne (${Math.round(l)} px sur ${LARGEUR_MAX}) : « ${court(g.txt)} »`);
-    for (let k = g.a; k < g.b - 1; k++) if (finDePhrase(liste[k].brut)) avis.push(`groupe n°${gi + 1} (mot ${n0}) : une fin de phrase au milieu du groupe : « ${court(g.txt)} »`);
-  });
-
-  // mots forts (formelle) : numéro du premier mot d'un groupe
-  const motFort = [];
-  const forts = R.motsForts ?? [];
-  if (forts.length && style !== 'formelle') bad('motsForts : seulement en style formelle.');
-  for (const d of forts) {
-    const i = num(d, 'motsForts');
-    const k = position.get(i), gi = coupes.indexOf(k);
-    if (gi < 0) bad(`motsForts : le mot n°${i} ne commence pas un groupe (un mot fort est un groupe entier).`);
-    let f = groupes[gi].b - 1;   // dernier mot de la phrase où se trouve le mot fort
-    while (f < liste.length - 1 && !finDePhrase(liste[f].brut)) f++;
-    if (gi === 0) bad(`motsForts : le mot n°${i} ouvre la vidéo ; un mot fort se pose au-dessus d'une ligne déjà affichée.`);
-    if (finDePhrase(liste[coupes[gi] - 1].brut)) avis.push(`mot fort (mot ${i}) : il ouvre sa phrase, la ligne affichée dessous sera la fin de la phrase d'avant.`);
-    const l = largeurFort(groupes[gi].txt);
-    if (l > LARGEUR_MAX * MARGE_MESURE) erreurs.push(`mot fort (mot ${i}) : trop large en grand (${Math.round(l)} px sur ${LARGEUR_MAX}) : « ${groupes[gi].txt} »`);
-    if (motFort.length && motFort.at(-1).finPhrase >= coupes[gi]) bad(`motsForts : deux mots forts dans la même phrase (mot n°${i}).`);
-    motFort.push({ groupe: gi, finPhrase: f });
-  }
-  if (erreurs.length) fail(13, 'SOUS-TITRES_ILLISIBLE : coupe ces groupes autrement, puis relance.\n  ' + erreurs.join('\n  '));
+  if (G.top + G.pvTop + G.pvH > L.S.ZONE_SURE.y1 + 2 || G.top + G.pvTop < L.S.ZONE_SURE.y0) avis.push(`à cette taille et cette position, la ligne sort de la zone sûre Instagram (y ${L.S.ZONE_SURE.y0} à ${L.S.ZONE_SURE.y1})`);
 
   const images = imagesCoupees(w);
 
@@ -289,49 +259,51 @@ function cmdPreparer(w) {
   // il est retiré en entier (pas de flash). Un groupe qui apparaîtrait pendant le calque est retiré en entier.
   // Les autres groupes gardent leurs instants exacts.
   const masques = lireMasques(w);
-  const av = style === 'classique' ? 1 / FPS : 0;   // AVANCE_PAVE du gabarit classique
-  const onG = groupes.map((g) => Math.max(0, Math.round((liste[g.a].s - av) * FPS)));
-  const groupesForts = new Set(motFort.map((f) => f.groupe));
+  const imageDe = (t) => Math.max(0, Math.ceil(t * FPS - 1e-6));   // première image où l'instant t est passé
   const COUPE_MIN = 6;   // 0,2 s
+  const court = (t) => { const m = t.split(' '); return m.length > 8 ? m.slice(0, 8).join(' ') + ' …' : t; };
   const caches = [], coupesNet = [], raisons = [];
   groupes.forEach((g, gi) => {
-    let suiv = gi + 1;
-    if (!groupesForts.has(gi)) while (suiv < groupes.length && groupesForts.has(suiv)) suiv++;   // un mot fort ne remplace pas la ligne
-    const on = onG[gi], off = suiv < groupes.length ? onG[suiv] : images;
+    const txt = g.mots.map((m) => m.w).join(' ');
+    const on = imageDe(g.t0), off = Math.min(images, imageDe(g.t1));
     const m = masques.filter((c) => on < c.debut + c.images && c.debut < off).sort((x, y) => x.debut - y.debut)[0];
     if (!m) return;
     if (on < m.debut && m.debut - on >= COUPE_MIN) {
       coupesNet.push({ groupe: gi, image: m.debut });
-      raisons.push(`groupe ${gi + 1} « ${court(g.txt)} » coupé net à l'image ${m.debut} (entrée de ${m.id})`);
+      raisons.push(`groupe ${gi + 1} « ${court(txt)} » coupé net à l'image ${m.debut} (entrée de ${m.id})`);
     } else {
       caches.push(gi);
-      raisons.push(`groupe ${gi + 1} « ${court(g.txt)} » (images ${on} à ${off - 1}) retiré, sous ${m.id}`);
+      raisons.push(`groupe ${gi + 1} « ${court(txt)} » (images ${on} à ${off - 1}) retiré, sous ${m.id}`);
     }
   });
-  const P = {
-    style,
-    mots: liste.map((m) => ({ w: m.w, s: +m.s.toFixed(3), e: +m.e.toFixed(3) })),
-    groupes: fins,
-    motFort: motFort.length ? motFort : null,
-    caches,
-    coupes: coupesNet,
-    images,
-  };
+  const P = { groupes, caches, coupes: coupesNet, images };
   const bib = bibliotheque();
+  let html = lire(path.join(bib, 'sous-titres', 'devant', 'index.html'));
+  const attendu = (ok, quoi) => { if (!ok) fail(9, `GABARIT_INATTENDU : le gabarit des sous-titres a changé (${quoi}). Préviens Yoan.`); };
+  const reP = /const P = \{[\s\S]*?\n\};\n/;
+  attendu(reP.test(html), 'paramètres P');
+  html = html.replace(reP, () => `const P = ${JSON.stringify(P)};\n`);
+  attendu(/data-duration="[\d.]+"/.test(html), 'data-duration');
+  html = html.replace(/data-duration="[\d.]+"/, `data-duration="${(images / FPS).toFixed(4)}"`);
+  attendu(html.includes('../../vendor/gsap.min.js'), 'chemin de GSAP');
+  html = html.split('../../vendor/').join('vendor/');
+  try { html = L.poserBlocSousTitres(html, { taille, position, pave }, ''); } catch (e) { fail(9, `GABARIT_INATTENDU : ${e.message}. Préviens Yoan.`); }
   const dossier = path.join(w, 'calques', 'st');
-  calque(bib, P, images, dossier);
+  calque(bib, html, dossier, ST);
   majCalques(w, { id: 'st', source: 'sous-titres', dossier: 'calques/st', debut: 0, images, couche: 'devant', ordre: 100,
     masques: masques.map((c) => ({ id: c.id, debut: c.debut, images: c.images })) });
 
-  say(`PRÊT calque=${dossier} style=${style} groupes=${groupes.length} mots=${liste.length} masqués=${masque.size} corrigés=${corrige.size} mots-forts=${motFort.length} retirés=${caches.length} coupés=${coupesNet.length} images=${images}`);
+  say(`PRÊT calque=${dossier} groupes=${groupes.length} mots=${liste.length} masqués=${masque.size} corrigés=${corrige.size} citations=${citations.length} repris=${retires.length} pave=${G.pave ? 'oui' : 'non'} taille=${taille} position=${G.position} police=${ST.police.family} ${px}px retirés=${caches.length} coupés=${coupesNet.length} images=${images}`);
+  const parCalque = new Map();
+  for (const [i, id] of retires) { if (!parCalque.has(id)) parCalque.set(id, []); parCalque.get(id).push(`${i} « ${affiche(texte[i])} »`); }
+  for (const [id, l] of parCalque) say(`  mots affichés par ${id}, sortis des sous-titres : ${l.join(', ')}`);
   for (const r of raisons) say('  calque qui efface les sous-titres : ' + r);
   for (const a of avis) say('  à relire : ' + a);
-  for (const f of motFort) say(`  mot fort à l'image ${Math.round(liste[groupes[f.groupe].a].s * FPS)} : « ${groupes[f.groupe].txt} »`);
 }
 
 const [cmd, arg] = process.argv.slice(2);
 if (!arg && (cmd === 'texte' || cmd === 'preparer')) fail(1, `Usage : node sous-titres.mjs ${cmd} <dossier>`);
 const dossier = arg ? path.resolve(arg) : '';
 if (cmd === 'texte') cmdTexte(dossier);
-else if (cmd === 'preparer') cmdPreparer(dossier);
+else if (cmd === 'preparer') await cmdPreparer(dossier);
 else fail(1, 'Usage : node sous-titres.mjs texte <dossier> | preparer <dossier>');

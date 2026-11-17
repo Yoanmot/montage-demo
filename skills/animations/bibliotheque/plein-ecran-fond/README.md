@@ -29,7 +29,7 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu-charbon.mp4` : aperçu muet 540 x 960 de la carte r21-01c, rendu dans le labo.
-- `apercu-orange.mp4` : aperçu muet 540 x 960 de la carte r21-01d, rendu dans le labo.
-- `apercu-craie.mp4` : aperçu muet 540 x 960 de la carte r21-01e, rendu dans le labo.
-- `apercu-flou.mp4` : aperçu muet 540 x 960 de la carte r21-01f, rendu dans le labo.
+- `apercu-charbon.mp4` : aperçu muet 540 x 960 de la carte r21-01c, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.
+- `apercu-orange.mp4` : aperçu muet 540 x 960 de la carte r21-01d, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.
+- `apercu-craie.mp4` : aperçu muet 540 x 960 de la carte r21-01e, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.
+- `apercu-flou.mp4` : aperçu muet 540 x 960 de la carte r21-01f, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

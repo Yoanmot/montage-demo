@@ -3,7 +3,7 @@
 Carte verrouillée : r21-02e (Style Lab v2). Calque tiré du build du tour 21.
 
 ## Ce qu'il montre
-En haut à gauche : le bloc numéro orange (Big Shoulders 200), « le poulet » sur son mot, puis « étape 1 sur 3 ».
+En haut à gauche : le bloc numéro orange (capitales 200), « le poulet » sur son mot, puis « étape 1 sur 3 ».
 
 ## Quand l'utiliser
 Une vidéo en étapes (recette, routine).
@@ -28,4 +28,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-02e, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-02e, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

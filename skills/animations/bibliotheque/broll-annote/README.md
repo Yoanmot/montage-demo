@@ -3,7 +3,7 @@
 Carte verrouillée : r21-03a (Style Lab v2). Calque tiré du build du tour 21.
 
 ## Ce qu'il montre
-Sa démo posée dans une carte rayon 18 (x 91 à 990, y 380 à 1504) sur charbon ; sur le mot, un point orange éclot sur le muscle, un trait coudé se trace, l'étiquette (pavé orange, Bricolage 46, texte charbon) arrive.
+Sa démo posée dans une carte rayon 18 (x 91 à 990, y 380 à 1504) sur charbon ; sur le mot, un point orange éclot sur le muscle, un trait coudé se trace, l'étiquette (pavé orange, 46 px, texte charbon) arrive.
 
 ## Quand l'utiliser
 Une démo d'exercice dont il nomme l'exercice ou le muscle. Le nom est le sien, jamais inventé.
@@ -29,4 +29,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-03a, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-03a, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

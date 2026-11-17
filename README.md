@@ -15,7 +15,7 @@ Agent et skills de montage pour Claude Code sur Mac (app Claude, onglet Code, se
   sans parole est gardée entière, sans coupe).
 - `skills/plan-montage` : écrit le plan de montage après le tournage, sur la transcription et les clips fournis (règles,
   gestes du style, format du plan, retours de Yoan).
-- `skills/sous-titres` : sous-titres au style de Romain (classique ou formelle avec mots forts), orthographe corrigée.
+- `skills/sous-titres` : sous-titres au style choisi par Romain (Inter Black, pavé orange qui glisse), orthographe corrigée.
 - `skills/zooms` : zooms éclair, rapprochements et dézoom d'ouverture de l'accroche, repérés par la phrase dite.
 - `skills/b-roll` : ses clips filmés (démos, scènes tournées pour le brief) posés sur les phrases du plan, calés sur les
   coupes, accélérés au besoin pour tenir le passage. Jamais de B-roll généré par IA.
