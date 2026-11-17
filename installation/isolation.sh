@@ -81,8 +81,10 @@ service() {
         . "$0/commun.sh"
         export STUDIO_CLIENT="$CLIENT_ID" STUDIO_RACINE STUDIO_HOME
         if [ -n "$CLIENT_ISOLE" ]; then export CLAUDE_CONFIG_DIR="$CLIENT_CONFIG_CLAUDE" MONTEUR_CONFIG="$CLIENT_SONS"; fi
-        if [ -n "$ISOLATION_CFG" ]; then export CLAUDE_CONFIG_DIR="$ISOLATION_CFG"; unset CLAUDE_CODE_OAUTH_TOKEN
-        else studio_jeton_claude; fi
+        # La référence garde le jeton : une fois connecté, claude montre des skills intégrés réservés aux
+        # comptes connectés (ex. schedule) ; sans jeton, la référence ne les verrait pas et la preuve échouerait.
+        if [ -n "$ISOLATION_CFG" ]; then export CLAUDE_CONFIG_DIR="$ISOLATION_CFG"; fi
+        studio_jeton_claude || true
         unset ISOLATION_CFG
         exec "$@"' "$LANCEMENT_DIR" "$@" </dev/null 2>&1 )
 }
