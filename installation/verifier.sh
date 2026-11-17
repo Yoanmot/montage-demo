@@ -148,14 +148,23 @@ PYEOF
     kov "sound-design : bibliothèque ou modules Python illisibles"
   fi
 
-  # -------------------------------------------------- carrousel (PowerShell + navigateur)
-  local C="$W/carrousel-essai" ps
-  ps="$(command -v pwsh || echo "$BASE/bin/pwsh")"
+  # -------------------------------------------------- carrousel : le skill de mise en page du client
+  local C="$W/carrousel-essai" ps skc="${CLIENT_SKILL_CARROUSEL:-carrousel}"
   mkdir -p "$C"
-  printf '{ "style": "texte", "slides": [ { "fond": "noir", "titre": "Essai de *mise en page*", "texte": "Si tu lis ça, ton Mac sait faire tes carrousels." } ] }\n' > "$C/carrousel.json"
-  r="$("$ps" -NoProfile -File "$SK/carrousel/scripts/carrousel.ps1" rendre "$C" 2>&1)"
-  pkill -f "$BASE/navigateur-carrousel" >/dev/null 2>&1 || true
-  if [ -s "$C/slide-01.png" ]; then okv "carrousel (slide d'essai mise en page)"; else kov "carrousel : $(echo "$r" | tail -2 | tr '\n' ' ' | cut -c1-160)"; fi
+  if [ "$skc" != "carrousel" ]; then
+    # Skill propre au client (relié sous le nom « carrousel ») : Node et le navigateur, sans PowerShell.
+    case "$(readlink "$SK/carrousel" 2>/dev/null)" in
+      */skills/"$skc") r="$(node "$SK/carrousel/scripts/carrousel.mjs" essai "$C" 2>&1)"
+        if [ -s "$C/slide-01.png" ]; then okv "carrousel (slide d'essai mise en page, $skc)"; else kov "carrousel ($skc) : $(echo "$r" | tail -2 | tr '\n' ' ' | cut -c1-160)"; fi;;
+      *) kov "carrousel : le skill relié n'est pas $skc ($(readlink "$SK/carrousel" 2>/dev/null || echo absent))";;
+    esac
+  else
+    ps="$(command -v pwsh || echo "$BASE/bin/pwsh")"
+    printf '{ "style": "texte", "slides": [ { "fond": "noir", "titre": "Essai de *mise en page*", "texte": "Si tu lis ça, ton Mac sait faire tes carrousels." } ] }\n' > "$C/carrousel.json"
+    r="$("$ps" -NoProfile -File "$SK/carrousel/scripts/carrousel.ps1" rendre "$C" 2>&1)"
+    pkill -f "$BASE/navigateur-carrousel" >/dev/null 2>&1 || true
+    if [ -s "$C/slide-01.png" ]; then okv "carrousel (slide d'essai mise en page)"; else kov "carrousel : $(echo "$r" | tail -2 | tr '\n' ' ' | cut -c1-160)"; fi
+  fi
 
   # -------------------------------------------------- head of content : copie, carrousels en attente, publication
   if [ -d "$HOC/.git" ]; then

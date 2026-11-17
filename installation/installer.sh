@@ -182,9 +182,12 @@ main() {
   fi
 
   # ------------------------------------------------------------ PowerShell (skill carrousel seulement), version portable
+  # Un client qui a son propre skill de mise en page (skill_carrousel) n'en a pas besoin.
   local ps=""
   ps="$(command -v pwsh 2>/dev/null || true)"
-  if [ -n "$ps" ] && "$ps" -NoProfile -Command '$PSVersionTable.PSVersion.Major' >/dev/null 2>&1; then
+  if [ "${CLIENT_SKILL_CARROUSEL:-carrousel}" != "carrousel" ]; then
+    ok "pwsh inutile (mise en page des carrousels par ${CLIENT_SKILL_CARROUSEL})"
+  elif [ -n "$ps" ] && "$ps" -NoProfile -Command '$PSVersionTable.PSVersion.Major' >/dev/null 2>&1; then
     [ -x "$BASE/bin/pwsh" ] || [ "$ps" = "$BASE/bin/pwsh" ] || ln -sfn "$ps" "$BASE/bin/pwsh"
     ok "pwsh $("$ps" -v 2>/dev/null)"
   else

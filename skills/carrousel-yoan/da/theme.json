@@ -1,0 +1,240 @@
+{
+  "_source": "Charte graphique v1 composée par Yoan dans Claude Design, projet ef454c8c-5a15-4374-a945-12311c463934, importée le 2026-08-09. Source lisible : charte/charte-graphique-v1.html. Remplace la DA extraite de @mussy0.2 (v0), conservée dans l'historique git. Les valeurs marquées « déduit » dans couleurs.md / typographie.md sont des mises à l'échelle de la charte sur le canvas Instagram, pas des inventions.",
+  "canvas": {
+    "largeur": 1080,
+    "hauteur": 1350
+  },
+  "fond": {
+    "couleur": "#0A0A09",
+    "calques": [
+      {
+        "type": "image",
+        "fichier": "fonds/fond1-1080x1350.png",
+        "taille": "cover"
+      }
+    ]
+  },
+  "marque": {
+    "texte": "@ia.yoan",
+    "taille": 20,
+    "graisse": 600,
+    "interlettre": "0.2em",
+    "couleur": "#A39B90",
+    "marge": 54
+  },
+  "bloc": {
+    "marges": {
+      "haut": 118,
+      "cotes": 82,
+      "bas": 118
+    },
+    "margesRail": {
+      "haut": 118,
+      "cotes": 82,
+      "bas": 118
+    }
+  },
+  "typo": {
+    "polices": [
+      { "famille": "Anton", "fichier": "fonts/anton-latin.woff2", "graisse": "400", "style": "normal" },
+      { "famille": "Instrument Sans", "fichier": "fonts/instrument-sans-latin.woff2", "graisse": "400 700", "style": "normal" },
+      { "famille": "Instrument Sans", "fichier": "fonts/instrument-sans-italic-latin.woff2", "graisse": "400 700", "style": "italic" },
+      { "famille": "Instrument Serif", "fichier": "fonts/instrument-serif-latin.woff2", "graisse": "400", "style": "normal" },
+      { "famille": "Instrument Serif", "fichier": "fonts/instrument-serif-italic-latin.woff2", "graisse": "400", "style": "italic" },
+      { "famille": "JetBrains Mono", "fichier": "fonts/jetbrains-mono-latin.woff2", "graisse": "100 800", "style": "normal" },
+      { "famille": "Easy Pixel", "fichier": "fonts/easy-pixel-latin.woff2", "graisse": "400", "style": "normal" }
+    ],
+    "couleur": "#F2EEE8",
+    "familles": {
+      "titre": "Anton",
+      "corps": "Instrument Sans",
+      "marque": "JetBrains Mono",
+      "service": "JetBrains Mono",
+      "accent": "Instrument Serif"
+    },
+    "kicker": {
+      "taille": 20,
+      "graisse": 600,
+      "interlettre": "0.2em",
+      "couleur": "#FFA31A",
+      "margeBas": 22
+    },
+    "titre": {
+      "graisse": 400,
+      "interligne": 0.92,
+      "interlettre": "-0.02em",
+      "casse": "uppercase",
+      "couleur": "#FFFFFF",
+      "tailles": {
+        "hook": 120,
+        "corps": 84,
+        "statement": 112,
+        "steps": 76,
+        "cta": 96
+      },
+      "tailleMin": 40,
+      "largeurMax": 0.92
+    },
+    "sous": {
+      "ratioTitre": 0.68,
+      "graisse": 400,
+      "style": "italic",
+      "casse": "none",
+      "interligne": 1.05,
+      "interlettre": "0em",
+      "couleur": "#FFA31A",
+      "margeHaut": 10
+    },
+    "lead": {
+      "taille": 28,
+      "graisse": 400,
+      "interligne": 1.55,
+      "couleur": "#F2EEE8"
+    },
+    "support": {
+      "taille": 28,
+      "graisse": 400,
+      "interligne": 1.55,
+      "couleur": "#F2EEE8"
+    },
+    "punch": {
+      "taille": 88,
+      "graisse": 400,
+      "interligne": 1.05,
+      "interlettre": "0em",
+      "couleur": "#FFA31A",
+      "margeHaut": 40
+    },
+    "gras": {
+      "graisse": 700,
+      "couleur": "#FFFFFF"
+    }
+  },
+  "texte": {
+    "margeHaut": 44,
+    "margeHautApres": 38,
+    "largeurMax": 840,
+    "largeurMaxRail": 840,
+    "interParagraphe": 32,
+    "interlettre": "0em"
+  },
+  "accents": {
+    "surlignage": {
+      "couleur": "transparent",
+      "fond": "transparent",
+      "epaisseurBord": 0,
+      "poignee": "0em",
+      "padding": "0em"
+    },
+    "lueur": {
+      "couleur": "#FFA31A",
+      "epaisseur": 0,
+      "rayon": 0,
+      "halo": "none"
+    }
+  },
+  "illustration": {
+    "hauteurs": {
+      "hook": 316,
+      "corps": 264,
+      "statement": 222,
+      "steps": 200,
+      "cta": 274
+    },
+    "hauteurMin": 137,
+    "largeurMax": 760,
+    "margeHaut": 46,
+    "ombre": "drop-shadow(0 26px 40px rgba(0,0,0,0.6))",
+    "halo": "radial-gradient(60% 55% at 50% 52%, rgba(194,112,11,0.20) 0%, rgba(194,112,11,0) 70%)",
+    "haloDebord": "-14% -20%"
+  },
+  "steps": {
+    "margeHaut": 46,
+    "interCarte": 20,
+    "largeur": 876,
+    "carte": {
+      "fond": "#111110",
+      "bord": "#232120",
+      "bordHaut": "rgba(194,112,11,0.45)",
+      "epaisseurBord": 1,
+      "rayon": 4,
+      "flou": "blur(0px)",
+      "ombre": "none",
+      "padding": "24px 28px",
+      "gap": 20
+    },
+    "numero": {
+      "cote": 48,
+      "rayon": 4,
+      "fond": "rgba(194,112,11,0.14)",
+      "bord": "#C2700B",
+      "epaisseurBord": 1,
+      "couleur": "#FFA31A",
+      "graisse": 600,
+      "taille": 22
+    },
+    "texte": {
+      "taille": 26,
+      "graisse": 400,
+      "interligne": 1.55,
+      "couleur": "#F2EEE8"
+    },
+    "icone": {
+      "largeurBoite": 96,
+      "hauteurBoite": 96,
+      "hauteurMax": 88,
+      "largeurMax": 88,
+      "filtre": "drop-shadow(0 12px 18px rgba(0,0,0,0.55))",
+      "halo": "radial-gradient(58% 58% at 50% 50%, rgba(194,112,11,0.20) 0%, rgba(194,112,11,0) 70%)",
+      "haloDebord": "-18% -18%"
+    }
+  },
+  "limites": {
+    "commun": {
+      "titreMots": 14,
+      "titreLignes": 3,
+      "kickerMots": 4,
+      "sousMots": 14,
+      "leadMots": 30,
+      "supportMots": 55,
+      "punchMots": 8,
+      "punchMax": 1,
+      "etapesMax": 4,
+      "etapeMots": 16,
+      "surlignageMin": 0,
+      "surlignageMax": 0,
+      "lueurMin": 0,
+      "accentsMax": 1,
+      "corpsAutorise": true,
+      "sousAvecCorps": false,
+      "etapesAutorisees": false
+    },
+    "hook": {
+      "titreMots": 16,
+      "titreLignes": 3,
+      "corpsAutorise": false,
+      "sousAvecCorps": false
+    },
+    "corps": {
+      "titreLignes": 2,
+      "corpsAutorise": true
+    },
+    "statement": {
+      "titreMots": 12,
+      "titreLignes": 3,
+      "corpsAutorise": false,
+      "punchMax": 1
+    },
+    "steps": {
+      "titreLignes": 2,
+      "corpsAutorise": false,
+      "etapesAutorisees": true
+    },
+    "cta": {
+      "titreMots": 8,
+      "titreLignes": 2,
+      "corpsAutorise": false,
+      "accentsMax": 0
+    }
+  }
+}

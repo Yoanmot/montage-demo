@@ -1,0 +1,11 @@
+{
+  "name": "carrousel-image-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Génération + overlay barre des slides de carrousel @ia.yoan",
+  "dependencies": {
+    "@imgly/background-removal-node": "^1.4.5",
+    "sharp": "^0.33.5"
+  }
+}

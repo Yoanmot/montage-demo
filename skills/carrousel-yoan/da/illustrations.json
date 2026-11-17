@@ -1,0 +1,10 @@
+{
+  "_note": "Brief de génération des illustrations, réaligné sur la charte v1 le 2026-08-09. Le socle de la marque est un ATELIER, pas un laboratoire : bois, lumière chaude, outils posés sur l'établi. Une slide sans illustration reste le cas normal ; ce brief existe pour les cas où montrer un objet sert vraiment le propos.",
+
+  "style": "Objet unique, détouré, isolé, photographié comme un outil d'atelier sous une lumière de fin de journée. Matière physique et crédible (métal brossé, bois sombre, cuir, papier, plastique mat), jamais une illustration vectorielle, jamais un dessin, jamais une icône plate, jamais de style cartoon. Éclairage à UNE seule source chaude, ambrée, placée hors cadre en haut à gauche, très diffuse, sans bord net : elle pose les hautes lumières et laisse le reste tomber dans le noir. Ombres profondes et fermées, noirs écrasés, aucun rebond parasite, aucune deuxième source. Contraste élevé, saturation basse partout sauf sur les hautes lumières ambrées. Caméra à hauteur de l'objet, focale longue, perspective calme, aucun angle spectaculaire. Cadrage centré, l'objet occupe le cadre sans le toucher, avec de l'air autour. Rendu net, grain photographique visible et assumé. Interdits absolus : aucun texte, aucun logo, aucune marque lisible, aucune interface reconnaissable, aucun visage, aucune main, aucun décor, aucune ombre portée sur un sol, aucun dégradé de fond, AUCUNE COULEUR FROIDE (ni bleu, ni violet, ni sarcelle, ni vert), aucun néon, aucun élément décoratif ajouté, rien de clinique ni de futuriste.",
+
+  "consigneFond": "Le fond doit être un aplat parfaitement uni de couleur #0A0A09, identique jusqu'aux quatre bords de l'image, sans dégradé, sans vignettage, sans halo, sans texture et sans ombre portée : seul l'objet est visible sur ce fond. Le fond matiéré de la marque est ajouté après coup, au montage, il ne doit pas être dans l'image générée.",
+
+  "fond": "#0A0A09",
+  "ambre": "#C2700B"
+}

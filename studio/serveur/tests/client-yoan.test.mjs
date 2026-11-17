@@ -39,7 +39,7 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).sort();
   assert.deepEqual(cles(y), cles(r));
   assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "config_claude", "contact", "head_of_content", "id", "label_launchd",
-    "port", "prenom", "racine", "ressources", "theme", "zernio"]);
+    "port", "prenom", "racine", "ressources", "skill_carrousel", "theme", "zernio"]);
   // Les valeurs que Romain avait dans l'exemple de configuration ne bougent pas.
   const exemple = JSON.parse(fs.readFileSync(path.join(CODE, "studio.config.exemple.json"), "utf8"));
   const d = defautsDuClient(r);

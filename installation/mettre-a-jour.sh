@@ -97,9 +97,17 @@ main() {
   # 2. Les liens
   mkdir -p "$SKILLS" "$AGENTS"
   local d n src cible l t f
+  # La mise en page des carrousels : un skill par client (skill_carrousel du fichier du client), relié
+  # sous le nom « carrousel » (celui qu'appellent le studio et les carrousels en attente) ; les autres
+  # skills de mise en page du dépôt (carrousel, carrousel-<client>) ne sont pas reliés.
+  local SKC="${CLIENT_SKILL_CARROUSEL:-carrousel}"
+  [ -f "$CLONE/skills/$SKC/SKILL.md" ] || SKC=carrousel
   for d in "$CLONE"/skills/*/; do
     src="${d%/}"; n="$(basename "$src")"
     [ -f "$src/SKILL.md" ] || continue
+    case "$n" in
+      carrousel|carrousel-*) [ "$n" = "$SKC" ] || continue; n=carrousel;;
+    esac
     cible="$SKILLS/$n"
     if [ -L "$cible" ]; then
       [ "$(readlink "$cible")" = "$src" ] || { ln -sfn "$src" "$cible"; journal "LIEN_REFAIT skills/$n"; }

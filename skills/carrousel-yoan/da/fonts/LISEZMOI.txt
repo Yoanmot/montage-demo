@@ -1,0 +1,10 @@
+Polices de la DA des carrousels de Yoan (charte v1), toutes sous licence SIL OFL 1.1, non modifiées
+(sous-ensemble latin en woff2, tel que servi par Google Fonts) :
+- anton-latin.woff2 : Anton (voir OFL-Anton.txt).
+- instrument-sans-latin.woff2, instrument-sans-italic-latin.woff2 : Instrument Sans (voir OFL-Instrument-Sans.txt).
+- instrument-serif-latin.woff2, instrument-serif-italic-latin.woff2 : Instrument Serif (voir OFL-Instrument-Serif.txt).
+- jetbrains-mono-latin.woff2 : JetBrains Mono (voir OFL-JetBrains-Mono.txt).
+
+Easy Pixel (déclarée dans theme.json, sert aux sous-titres vidéo, jamais aux slides) : licence 1001Fonts
+« usage personnel », pas de redistribution. Elle n'est pas dans le dépôt (.gitignore) ; les slides n'en ont
+pas besoin. Si elle doit servir un jour, elle se pose à la main dans ce dossier sur le Mac de Yoan.

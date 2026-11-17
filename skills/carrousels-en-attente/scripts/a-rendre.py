@@ -42,8 +42,26 @@ import time
 HOME = os.path.expanduser("~")
 BASE = os.path.join(HOME, ".montage-yoan")
 DEPOT = os.environ.get("RENDUS_DEPOT") or os.path.join(BASE, "head-of-content")
-REMOTE = os.environ.get("RENDUS_REMOTE") or "git@github.com:Yoanmot/head-of-content-romain.git"
-CLE = os.path.join(HOME, ".ssh", "fitavecromain_head_of_content")
+
+def _client():
+    """Le client du studio : <STUDIO_RACINE>/client.json, posé par l'installeur pour un autre client que
+    Romain (studio/clients/<id>.json). Romain n'en a pas : ses valeurs historiques."""
+    racine = os.environ.get("STUDIO_RACINE")
+    try:
+        with open(os.path.join(racine, "client.json"), "r", encoding="utf-8") as f:
+            c = json.load(f)
+        return c if isinstance(c, dict) else {}
+    except (TypeError, OSError, ValueError):
+        return {}
+
+
+_CLIENT = _client()
+_HOC = _CLIENT.get("head_of_content") if isinstance(_CLIENT.get("head_of_content"), dict) else {}
+PRENOM = _CLIENT.get("prenom") or "Romain"
+ID_CLIENT = _CLIENT.get("id") or "romain"
+REMOTE = (os.environ.get("RENDUS_REMOTE") or _HOC.get("depot")
+          or "git@github.com:Yoanmot/head-of-content-romain.git")
+CLE = os.path.expanduser(_HOC.get("cle_ssh") or os.path.join(HOME, ".ssh", "fitavecromain_head_of_content"))
 # Le journal des envois restés hors ligne vit à côté de la copie qu'il rejoue (même chemin qu'avant
 # pour la copie par défaut ; une copie de test garde le sien).
 JOURNAL = os.path.join(os.path.dirname(os.path.abspath(DEPOT)), "rendus-journal.json")
@@ -78,7 +96,8 @@ SLUG_OK = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 # Les clés de texte d'une slide (celles qui seront publiées). Les autres (photo, cadrage, position,
 # fond, style…) sont de la mise en page : elles restent sur le Mac et ne remontent jamais.
-CLES_TEXTE = ("surtitre", "titre", "texte", "liste", "chute", "bandeau")
+CLES_TEXTE = ("surtitre", "titre", "texte", "liste", "chute", "bandeau",
+              "punch", "etapes", "closer", "action")  # les quatre dernières : format de Yoan
 
 
 # ---------------------------------------------------------------- outils
@@ -191,7 +210,7 @@ def classer(sortie):
 def outils():
     if not shutil.which("git"):
         stop(22, "OUTIL_MANQUANT git : les outils de développement d'Apple ne sont pas installés.",
-             "-> lance « xcode-select --install », Romain clique sur Installer, puis relance.")
+             "-> lance « xcode-select --install », %s clique sur Installer, puis relance." % PRENOM)
 
 
 def type_conf(nom):
@@ -215,16 +234,16 @@ def synchroniser():
         if p.returncode != 0:
             if classer(p.stderr) == "reseau":
                 stop(21, "HORS_LIGNE : pas de connexion, et aucune copie du travail sur ce Mac pour l'instant.")
-            stop(20, "ACCES_A_CONFIGURER : ce Mac n'a pas encore accès aux textes de Romain.",
+            stop(20, "ACCES_A_CONFIGURER : ce Mac n'a pas encore accès aux textes de %s." % PRENOM,
                  "-> suis la section « Première fois » du SKILL.md (commande cle).",
                  "détail : " + (p.stderr.strip().splitlines() or [""])[0])
-        git("config", "user.name", "Mac de Romain")
-        git("config", "user.email", "mac-romain@users.noreply.github.com")
+        git("config", "user.name", "Mac de %s" % PRENOM)
+        git("config", "user.email", "mac-%s@users.noreply.github.com" % ID_CLIENT)
         return True
     p = git("fetch", "--quiet", "origin", "main", verifier=False)
     if p.returncode != 0:
         if classer(p.stderr) == "acces":
-            stop(20, "ACCES_A_CONFIGURER : l'accès aux textes de Romain a été refusé.",
+            stop(20, "ACCES_A_CONFIGURER : l'accès aux textes de %s a été refusé." % PRENOM,
                  "-> suis la section « Première fois » du SKILL.md (commandes verifier puis cle).")
         dire("HORS_LIGNE : pas de connexion, je travaille avec la dernière copie (peut-être pas à jour).")
         return False
@@ -573,8 +592,8 @@ def cmd_attente(t):
                     op[k] = p[k]
             ops.append(avec_texte_rendu(op, t, os.path.join(DEPOT, "a-rendre", t, s + ".md")))
         if en_ligne:
-            etat = transaction(ops, "Mac de Romain : %s déjà rendu(s), rangé(s) : %s"
-                               % (t, ", ".join(o["slug"] for o in ops)))
+            etat = transaction(ops, "Mac de %s : %s déjà rendu(s), rangé(s) : %s"
+                               % (PRENOM, t, ", ".join(o["slug"] for o in ops)))
         else:
             appliquer(ops)  # sur la copie locale seulement : réaligné et rejoué au prochain lancement
             etat = "pas_envoye"
@@ -673,7 +692,7 @@ def cmd_termine(t, slug):
     op = avec_texte_rendu(op, t, chemin)
     noter_journal(op)
     if en_ligne:
-        etat = transaction([op], "Mac de Romain : %s rendu (%s), sorti de la liste" % (slug, t))
+        etat = transaction([op], "Mac de %s : %s rendu (%s), sorti de la liste" % (PRENOM, slug, t))
     else:
         appliquer([op])  # sur la copie locale seulement : réaligné et rejoué au prochain lancement
         etat = "pas_envoye"

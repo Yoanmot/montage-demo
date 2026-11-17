@@ -17,6 +17,8 @@
 #   CLIENT_ID CLIENT_PRENOM CLIENT_CONTACT CLIENT_RACINE CLIENT_LABEL CLIENT_APPLI_NOM CLIENT_ICONE
 #   CLIENT_PORT CLIENT_THEME CLIENT_HOC_DEPOT CLIENT_CLE_SSH CLIENT_ZERNIO_COMPTE CLIENT_ZERNIO_PROFIL
 #   CLIENT_SITE CLIENT_BRANCHE CLIENT_CONFIG_CLAUDE (vide si null) CLIENT_FICHIER
+#   CLIENT_SKILL_CARROUSEL  le skill de mise en page des carrousels (skills/<nom>), relié sous le nom
+#                    « carrousel » : skill_carrousel du fichier, sinon carrousel (celui de Romain)
 #   CLIENT_CLAUDE    dossier de config Claude effectif : config_claude, sinon ~/.claude (Romain)
 #   CLIENT_ISOLE     1 si config_claude est posé : tout ce que l'installation écrit reste dans la racine
 #   CLIENT_SONS      dossier de la clé et du cache ElevenLabs : ~/.config/monteur-romain (Romain),
@@ -50,7 +52,7 @@ ROMAIN = {
     "head_of_content": {"depot": "git@github.com:Yoanmot/head-of-content-romain.git",
                         "cle_ssh": "~/.ssh/fitavecromain_head_of_content"},
     "zernio": {"compte": "fitavecromain", "profil": None}, "ressources": {"site": None},
-    "branche_mise_a_jour": "main", "config_claude": None,
+    "branche_mise_a_jour": "main", "config_claude": None, "skill_carrousel": "carrousel",
 }
 if fichier:
     try:
@@ -101,6 +103,7 @@ v = {
     "CLIENT_ISOLE": "1" if config else "",
     "CLIENT_SONS": os.path.join(racine, "monteur") if config else os.path.join(maison, ".config", "monteur-romain"),
     "CLIENT_HOOK": hook,
+    "CLIENT_SKILL_CARROUSEL": g("skill_carrousel", defaut="carrousel"),
     "CLIENT_PREVENIR": ("Envoie un message à %s." % contact) if contact else "",
 }
 for k, x in v.items():

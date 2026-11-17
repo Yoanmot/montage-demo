@@ -319,3 +319,55 @@ test("cles.sh --stdin : clé lue sur l'entrée standard, jamais affichée, posé
   assert.ok(!fs.existsSync(path.join(maison, ".montage-yoan")));
   fs.rmSync(t, { recursive: true, force: true });
 });
+
+test("mettre-a-jour.sh : le skill de mise en page du client est relié sous le nom carrousel, l'autre jamais", () => {
+  for (const [skill, attendu] of [["carrousel-yoan", "carrousel-yoan"], [null, "carrousel"]]) {
+    const t = tmp();
+    const maison = path.join(t, "maison");
+    fs.mkdirSync(maison);
+    const racine = path.join(t, "racine");
+    const src = path.join(t, "montage-src");
+    for (const s of ["carrousel", "carrousel-yoan", "carrousels-en-attente", "sous-titres"]) {
+      fs.mkdirSync(path.join(src, "skills", s), { recursive: true });
+      fs.writeFileSync(path.join(src, "skills", s, "SKILL.md"), `---\nname: ${s}\n---\n`);
+    }
+    fs.mkdirSync(path.join(src, "agents"), { recursive: true });
+    fs.writeFileSync(path.join(src, "agents/monteur.md"), "---\nname: monteur\n---\n");
+    fs.cpSync(path.join(DEPOT, "installation"), path.join(src, "installation"), { recursive: true });
+    fs.mkdirSync(path.join(src, "studio/lancement"), { recursive: true });
+    fs.mkdirSync(path.join(src, "studio/clients"), { recursive: true });
+    fs.copyFileSync(path.join(DEPOT, "studio/lancement/client.sh"), path.join(src, "studio/lancement/client.sh"));
+    fs.copyFileSync(path.join(DEPOT, "studio/lancement/commun.sh"), path.join(src, "studio/lancement/commun.sh"));
+    fs.writeFileSync(path.join(src, "studio/clients/essai.json"), JSON.stringify({
+      id: "essai", prenom: "Camille", racine, branche_mise_a_jour: "main", config_claude: `${racine}/claude`,
+      head_of_content: { depot: "", cle_ssh: `${racine}/cle` }, ...(skill ? { skill_carrousel: skill } : {}),
+    }));
+    const g = (cwd, a) => execFileSync("git", a, { cwd, stdio: "pipe", encoding: "utf8" });
+    g(src, ["init", "-q", "-b", "main"]); g(src, ["add", "."]);
+    g(src, ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"]);
+    fs.mkdirSync(racine);
+    g(t, ["clone", "-q", "--branch", "main", src, path.join(racine, "montage-demo")]);
+    fs.writeFileSync(path.join(racine, "client.json"), JSON.stringify({ id: "essai" }));
+    // Une installation d'avant : « carrousel » menait au skill de Romain.
+    fs.mkdirSync(path.join(racine, "claude/skills"), { recursive: true });
+    const clone = path.join(racine, "montage-demo");
+    fs.symlinkSync(path.join(clone, "skills/carrousel"), path.join(racine, "claude/skills/carrousel"));
+
+    const r = bash(path.join(clone, "installation/mettre-a-jour.sh"), [], envDe(maison));
+    assert.equal(r.code, 0, r.sortie);
+    const sk = path.join(racine, "claude/skills");
+    assert.equal(fs.readlinkSync(path.join(sk, "carrousel")), path.join(clone, "skills", attendu), r.sortie);
+    assert.ok(!fs.existsSync(path.join(sk, "carrousel-yoan")), "carrousel-yoan relié sous son nom");
+    assert.equal(fs.readlinkSync(path.join(sk, "carrousels-en-attente")), path.join(clone, "skills/carrousels-en-attente"));
+    assert.equal(fs.readlinkSync(path.join(sk, "sous-titres")), path.join(clone, "skills/sous-titres"));
+    if (skill) assert.match(r.sortie, /LIEN_REFAIT skills\/carrousel/);
+    fs.rmSync(t, { recursive: true, force: true });
+  }
+});
+
+test("client.sh : skill de mise en page des carrousels, Romain inchangé", () => {
+  assert.equal(variables(envDe(tmp())).CLIENT_SKILL_CARROUSEL, "carrousel");
+  assert.equal(variables(envDe("/Users/yoanmottier", { STUDIO_CLIENT: "yoan" })).CLIENT_SKILL_CARROUSEL, "carrousel-yoan");
+  assert.ok(fs.existsSync(path.join(DEPOT, "skills/carrousel-yoan/SKILL.md")));
+  assert.match(fs.readFileSync(path.join(DEPOT, "skills/carrousel-yoan/SKILL.md"), "utf8"), /^---\nname: carrousel\n/);
+});

@@ -4,3 +4,10 @@ skills/*/demandes-pour-yoan.md
 
 # Police Satoshi (licence Fontshare) : posée à l installation du studio de Yoan, jamais redistribuée
 skills/animations/bibliotheque/styles/*/fonts/Satoshi*.ttf
+
+# Mise en page des carrousels de Yoan : modules du générateur d'illustrations (npm install), bibliothèque
+# d'illustrations (vit dans la racine du studio), Easy Pixel (licence 1001Fonts, pas de redistribution)
+skills/carrousel-yoan/scripts/node_modules/
+skills/carrousel-yoan/da/illustrations/
+skills/carrousel-yoan/da/fonts/easy-pixel*
+skills/carrousel-yoan/da/fonts/EasyPixel*
