@@ -40,16 +40,28 @@ import sys
 import time
 
 HOME = os.path.expanduser("~")
-# La racine du studio du client (STUDIO_RACINE, posée par le service) ; ~/.montage-yoan chez Romain.
-BASE = os.environ.get("STUDIO_RACINE") or os.path.join(HOME, ".montage-yoan")
+
+
+def _racine():
+    """La racine du studio du client : STUDIO_RACINE (service, sessions), sinon celle de l'installation qui
+    contient ce script (<racine>/montage-demo/skills/carrousels-en-attente/scripts, avec <racine>/client.json
+    posé par l'installeur pour un autre client que Romain). None chez Romain : ~/.montage-yoan."""
+    r = os.environ.get("STUDIO_RACINE")
+    if r:
+        return r
+    r = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
+    return r if os.path.isfile(os.path.join(r, "client.json")) else None
+
+
+RACINE = _racine()
+BASE = RACINE or os.path.join(HOME, ".montage-yoan")
 DEPOT = os.environ.get("RENDUS_DEPOT") or os.path.join(BASE, "head-of-content")
 
 def _client():
-    """Le client du studio : <STUDIO_RACINE>/client.json, posé par l'installeur pour un autre client que
+    """Le client du studio : <racine>/client.json, posé par l'installeur pour un autre client que
     Romain (studio/clients/<id>.json). Romain n'en a pas : ses valeurs historiques."""
-    racine = os.environ.get("STUDIO_RACINE")
     try:
-        with open(os.path.join(racine, "client.json"), "r", encoding="utf-8") as f:
+        with open(os.path.join(RACINE, "client.json"), "r", encoding="utf-8") as f:
             c = json.load(f)
         return c if isinstance(c, dict) else {}
     except (TypeError, OSError, ValueError):
