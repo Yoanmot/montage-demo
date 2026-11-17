@@ -14,7 +14,7 @@
 # sinon la copie <racine>/client.json. Pour « romain » sans fichier, ses valeurs historiques.
 #
 # Variables rendues (chemins développés, ~ = $HOME) :
-#   CLIENT_ID CLIENT_PRENOM CLIENT_CONTACT CLIENT_RACINE CLIENT_LABEL CLIENT_APPLI_NOM CLIENT_ICONE
+#   CLIENT_ID CLIENT_PRENOM CLIENT_CONTACT CLIENT_RACINE CLIENT_LABEL CLIENT_APPLI_NOM CLIENT_ICONE CLIENT_GIT_EMAIL
 #   CLIENT_PORT CLIENT_THEME CLIENT_HOC_DEPOT CLIENT_CLE_SSH CLIENT_ZERNIO_COMPTE CLIENT_ZERNIO_PROFIL
 #   CLIENT_SITE CLIENT_BRANCHE CLIENT_CONFIG_CLAUDE (vide si null) CLIENT_FICHIER
 #   CLIENT_SKILL_CARROUSEL  le skill de mise en page des carrousels (skills/<nom>), relié sous le nom
@@ -96,6 +96,7 @@ v = {
     "CLIENT_APPLI_NOM": g("appli", "nom", defaut="Studio"), "CLIENT_ICONE": icone,
     "CLIENT_PORT": str(g("port", defaut=4747)), "CLIENT_THEME": g("theme", defaut=ident),
     "CLIENT_HOC_DEPOT": g("head_of_content", "depot", defaut=""),
+    "CLIENT_GIT_EMAIL": g("head_of_content", "email_commits", defaut="mac-%s@users.noreply.github.com" % ident),
     "CLIENT_CLE_SSH": deplier(g("head_of_content", "cle_ssh", defaut="")),
     "CLIENT_ZERNIO_COMPTE": g("zernio", "compte", defaut=""), "CLIENT_ZERNIO_PROFIL": g("zernio", "profil", defaut=""),
     "CLIENT_SITE": g("ressources", "site", defaut=""), "CLIENT_BRANCHE": g("branche_mise_a_jour", defaut="main"),

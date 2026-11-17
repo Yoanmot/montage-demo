@@ -351,7 +351,7 @@ PYEOF
   elif GIT_SSH_COMMAND="$SSH_HOC" git ls-remote "$HOC_URL" main >/dev/null 2>&1; then
     if GIT_SSH_COMMAND="$SSH_HOC" git clone -q --branch main "$HOC_URL" "$HOC"; then
       git -C "$HOC" config user.name "Mac de $QUI"
-      git -C "$HOC" config user.email "mac-$CLIENT_ID@users.noreply.github.com"
+      git -C "$HOC" config user.email "$CLIENT_GIT_EMAIL"
       git -C "$HOC" config core.sshCommand "$SSH_HOC"
       installe "copie-hoc $(git -C "$HOC" rev-parse --short HEAD)"
     else

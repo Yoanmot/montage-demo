@@ -184,7 +184,7 @@ cmd_installer() {
   fi
   if [ -d "$DEPOT/.git" ]; then
     git -C "$DEPOT" config user.name "Mac de $QUI"
-    git -C "$DEPOT" config user.email "mac-$CLIENT_ID@users.noreply.github.com"
+    git -C "$DEPOT" config user.email "$CLIENT_GIT_EMAIL"
     git -C "$DEPOT" config pull.rebase true
     git -C "$DEPOT" config rebase.autoStash true
     case "$HOC_URL" in git@*|ssh://*) git -C "$DEPOT" config core.sshCommand "$SSH_HOC";; esac
