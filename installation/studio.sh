@@ -1,12 +1,13 @@
 #!/bin/bash
-# Le studio de Romain sur son Mac : installation, vérification, réglages.
-# Appelé par installer.sh et verifier.sh ; aussi lançable seul :
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh installer
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh verifier
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh disques                  disques branchés
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh reglage disque_externe "<nom du disque>"
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh reglage appareil "<appareil>"
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/studio.sh redemarrer-si-libre      (mise à jour)
+# Le studio du client sur son Mac : installation, vérification, réglages. Le client (racine, label,
+# appli, port, dépôt du head of content, clé SSH, config Claude) vient de studio/lancement/client.sh.
+# Appelé par installer.sh et verifier.sh ; aussi lançable seul (<racine> = ~/.montage-yoan chez Romain) :
+#   /bin/bash <racine>/montage-demo/installation/studio.sh installer
+#   /bin/bash <racine>/montage-demo/installation/studio.sh verifier
+#   /bin/bash <racine>/montage-demo/installation/studio.sh disques                  disques branchés
+#   /bin/bash <racine>/montage-demo/installation/studio.sh reglage disque_externe "<nom du disque>"
+#   /bin/bash <racine>/montage-demo/installation/studio.sh reglage appareil "<appareil>"
+#   /bin/bash <racine>/montage-demo/installation/studio.sh redemarrer-si-libre      (mise à jour)
 # Relançable : ce qui est en place n'est pas touché ; la copie de travail du head of content n'est
 # jamais alignée de force (elle peut contenir du travail pas encore envoyé).
 #
@@ -14,14 +15,16 @@
 # Sortie de verifier : lignes VERIF_OK / VERIF_ECHEC / VERIF_A_FAIRE, comme verifier.sh.
 #
 # Variables pour les tests de Yoan seulement :
-#   STUDIO_LABEL      nom du service launchd (défaut com.montage-yoan.studio)
+#   STUDIO_LABEL      nom du service launchd (défaut : celui du client)
+#   STUDIO_SERVICES_DOSSIER, STUDIO_APPLIS_DOSSIER  dossiers du réglage du service et de l'appli
+#                     (défaut ~/Library/LaunchAgents et ~/Applications ; voir commun.sh)
 #   STUDIO_SANS_DOCK  1 = ne touche ni au Dock ni au registre des applis (ils sont ceux de
 #                     l'utilisateur réel, même avec HOME redirigé)
 #   STUDIO_SANS_CLAUDE 1 = verifier ne lance pas de session Claude d'essai
 #   STUDIO_SANS_SERVICE 1 = le réglage du service est écrit et vérifié mais rien n'est chargé dans
 #                     launchd (il est celui de l'utilisateur réel, même avec HOME redirigé) : le
 #                     serveur est lancé par le script de test (environnement « test réel », lot 11)
-#   HOC_DEPOT_URL     dépôt du head of content (défaut : GitHub en SSH)
+#   HOC_DEPOT_URL     dépôt du head of content (défaut : celui du client, GitHub en SSH)
 # Aucune clé dans ce fichier.
 
 ICI="$(cd "$(dirname "$0")" && pwd)"
@@ -31,13 +34,19 @@ LANCEMENT="$CODE/lancement"
 # shellcheck source=../studio/lancement/commun.sh
 . "$LANCEMENT/commun.sh"
 
-BASE="$HOME/.montage-yoan"
-HOC_URL="${HOC_DEPOT_URL:-git@github.com:Yoanmot/head-of-content-romain.git}"
-CLE_HOC="$HOME/.ssh/fitavecromain_head_of_content"
+BASE="$STUDIO_RACINE"
+HOC_URL="${HOC_DEPOT_URL:-$CLIENT_HOC_DEPOT}"
+CLE_HOC="$CLIENT_CLE_SSH"
 SSH_HOC="ssh -i \"$CLE_HOC\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=10"
 PY=/usr/bin/python3
-CHEMIN_OUTILS="$HOME/.montage-yoan/bin:$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$HOME/.claude/local:/usr/bin:/bin:/usr/sbin:/sbin"
+CHEMIN_OUTILS="$BASE/bin:$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$HOME/.claude/local:/usr/bin:/bin:/usr/sbin:/sbin"
 export GIT_TERMINAL_PROMPT=0
+# Client isolé : les sessions d'essai de claude lisent sa config à lui, jamais ~/.claude.
+studio_client_env_claude
+# Ce qui part tel quel dans les textes pour Claude et dans les commits (Romain : inchangé).
+QUI="$CLIENT_PRENOM"
+COMMENT_CLE="mac-$CLIENT_ID-head-of-content"
+[ "$CLIENT_ID" = "romain" ] && COMMENT_CLE="mac-romain-head-of-content"
 
 # ------------------------------------------------------------------ outils
 
@@ -70,6 +79,21 @@ ecrire_si_change() { # $1 fichier, contenu sur stdin ; rend 0 si changé
   mv "$tmp" "$1"; return 0
 }
 
+# Variables propres au service d'un client autre que Romain (le réglage de Romain ne change pas d'un
+# octet) : le client, sa racine, sa config Claude et le dossier de ses sons.
+plist_env_client() {
+  [ "$CLIENT_ID" = "romain" ] && return 0
+  local k v
+  for k in STUDIO_CLIENT STUDIO_RACINE CLAUDE_CONFIG_DIR MONTEUR_CONFIG; do
+    case "$k" in
+      STUDIO_CLIENT) v="$CLIENT_ID";; STUDIO_RACINE) v="$BASE";;
+      CLAUDE_CONFIG_DIR) v="$CLIENT_CONFIG_CLAUDE";; MONTEUR_CONFIG) [ -n "$CLIENT_ISOLE" ] && v="$CLIENT_SONS" || v="";;
+    esac
+    [ -n "$v" ] || continue
+    printf '\n    <key>%s</key>\n    <string>%s</string>' "$k" "$(printf '%s' "$v" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g')"
+  done
+}
+
 # ------------------------------------------------------------------ installer
 
 cmd_installer() {
@@ -81,15 +105,29 @@ cmd_installer() {
   echec()   { echo "ECHEC $*"; nb_echec=$((nb_echec + 1)); }
   local stamp; stamp="$(date +%Y%m%d-%H%M%S)"
 
+  if [ -n "$CLIENT_ERREUR" ]; then echec "client : $CLIENT_ERREUR"; return 1; fi
   if [ ! -f "$LANCEMENT/demarrer.sh" ] || [ ! -f "$LANCEMENT/ouvrir.sh" ]; then
     echec "studio : le code du lancement manque dans la copie du dépôt ($LANCEMENT)"; return 1
   fi
 
   # Dossier d'état et configuration
   mkdir -p "$STUDIO_HOME"; chmod 700 "$STUDIO_HOME"
+  if [ -n "$CLIENT_ISOLE" ]; then chmod 700 "$BASE" 2>/dev/null || true; fi
   if [ -f "$STUDIO_CONF" ]; then
     if "$PY" -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' "$STUDIO_CONF" 2>/dev/null; then ok "studio-config présente"
     else echec "studio-config : fichier illisible ($STUDIO_CONF), laissé tel quel"; fi
+  elif [ "$CLIENT_ID" != "romain" ]; then
+    # Autre client : la config neuve est celle du serveur (exemple + valeurs du client : prénom, port,
+    # dépôts et dossier média sous la racine, skills dans sa config Claude), jamais celle de Romain.
+    if STUDIO_CLIENT="$CLIENT_ID" STUDIO_HOME="$STUDIO_HOME" node --input-type=module -e '
+      const { chargerConfig } = await import(process.argv[1]);
+      const c = chargerConfig({ home: process.env.STUDIO_HOME });
+      if (!c.client || c.client.id !== process.env.STUDIO_CLIENT) process.exit(3);' "$CODE/serveur/config.mjs" >/dev/null 2>&1 \
+       && [ -f "$STUDIO_CONF" ]; then
+      chmod 600 "$STUDIO_CONF"; installe "studio-config créée pour $QUI"
+    else
+      rm -f "$STUDIO_CONF"; echec "studio-config : le serveur n'a pas pu créer la config du client $CLIENT_ID"
+    fi
   elif [ -f "$CODE/studio.config.exemple.json" ]; then
     cp "$CODE/studio.config.exemple.json" "$STUDIO_CONF"; chmod 600 "$STUDIO_CONF"
     installe "studio-config créée depuis le modèle"
@@ -106,17 +144,17 @@ cmd_installer() {
        && cl="$(trouver_claude)"; then
       installe "claude $("$cl" --version 2>/dev/null | head -1) ($cl)"
     else
-      echec "claude : installation impossible (journal ~/.montage-yoan/install-claude.log)"
+      echec "claude : installation impossible (journal $BASE/install-claude.log)"
     fi
     rm -f "$BASE/install-claude.sh"
   fi
 
   # Copie de travail du head of content pour le studio (décision : studio/lancement/README.md)
   local DEPOT
-  DEPOT="$(studio_chemin "$(studio_conf depot_hoc "~/.montage-yoan/studio/head-of-content")")"
+  DEPOT="$(studio_chemin "$(studio_conf depot_hoc "$STUDIO_HOME/head-of-content")")"
   if [ ! -f "$CLE_HOC" ]; then
-    mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"
-    if ssh-keygen -q -t ed25519 -N "" -C "mac-romain-head-of-content" -f "$CLE_HOC" >/dev/null 2>&1; then installe "cle-mac clé d'accès de ce Mac créée"
+    mkdir -p "$(dirname "$CLE_HOC")"; chmod 700 "$(dirname "$CLE_HOC")"
+    if ssh-keygen -q -t ed25519 -N "" -C "$COMMENT_CLE" -f "$CLE_HOC" >/dev/null 2>&1; then installe "cle-mac clé d'accès de ce Mac créée"
     else echec "cle-mac : ssh-keygen a échoué"; fi
   fi
   local ssh_cmd="ssh -o BatchMode=yes -o ConnectTimeout=10"
@@ -145,8 +183,8 @@ cmd_installer() {
     a_faire "CLE_HOC Yoan doit ajouter la clé de ce Mac au dépôt du head of content (clé de déploiement, écriture). Clé publique : $(cat "$CLE_HOC.pub" 2>/dev/null)"
   fi
   if [ -d "$DEPOT/.git" ]; then
-    git -C "$DEPOT" config user.name "Mac de Romain"
-    git -C "$DEPOT" config user.email "mac-romain@users.noreply.github.com"
+    git -C "$DEPOT" config user.name "Mac de $QUI"
+    git -C "$DEPOT" config user.email "mac-$CLIENT_ID@users.noreply.github.com"
     git -C "$DEPOT" config pull.rebase true
     git -C "$DEPOT" config rebase.autoStash true
     case "$HOC_URL" in git@*|ssh://*) git -C "$DEPOT" config core.sshCommand "$SSH_HOC";; esac
@@ -164,7 +202,8 @@ cmd_installer() {
 
   # Dossier des vidéos
   local MEDIA
-  MEDIA="$(studio_chemin "$(studio_conf media "~/Contenu")")"
+  local media_defaut="~/Contenu"; [ -n "$CLIENT_ISOLE" ] && media_defaut="$BASE/Contenu"
+  MEDIA="$(studio_chemin "$(studio_conf media "$media_defaut")")"
   if [ -d "$MEDIA" ]; then ok "studio-media dossier des vidéos présent"
   elif mkdir -p "$MEDIA"; then installe "studio-media dossier des vidéos créé ($MEDIA)"
   else echec "studio-media : impossible de créer $MEDIA"; fi
@@ -200,7 +239,7 @@ cmd_installer() {
     <key>HOME</key>
     <string>$HOME</string>
     <key>LANG</key>
-    <string>fr_FR.UTF-8</string>
+    <string>fr_FR.UTF-8</string>$(plist_env_client)
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -243,6 +282,7 @@ EOF
   local app_neuve="$STUDIO_HOME/.Studio.app.$$"
   rm -rf "$app_neuve"
   mkdir -p "$app_neuve/Contents/MacOS" "$app_neuve/Contents/Resources"
+  local nom_app; nom_app="$(printf '%s' "$STUDIO_APP_NOM" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
   cat > "$app_neuve/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -253,9 +293,9 @@ EOF
   <key>CFBundleIdentifier</key>
   <string>$STUDIO_LABEL.app</string>
   <key>CFBundleName</key>
-  <string>Studio</string>
+  <string>$nom_app</string>
   <key>CFBundleDisplayName</key>
-  <string>Studio</string>
+  <string>$nom_app</string>
   <key>CFBundleIconFile</key>
   <string>Studio</string>
   <key>CFBundlePackageType</key>
@@ -278,39 +318,50 @@ EOF
   {
     echo '#!/bin/bash'
     echo '# Icône Studio : tout se passe dans ouvrir.sh du dépôt (mis à jour tout seul).'
-    [ "$STUDIO_LABEL" != "com.montage-yoan.studio" ] && printf 'export STUDIO_LABEL=%q\n' "$STUDIO_LABEL"
+    [ "$STUDIO_LABEL" != "$CLIENT_LABEL" ] && printf 'export STUDIO_LABEL=%q\n' "$STUDIO_LABEL"
+    [ -n "${STUDIO_SERVICES_DOSSIER:-}" ] && printf 'export STUDIO_SERVICES_DOSSIER=%q\n' "$STUDIO_SERVICES_DOSSIER"
+    [ -n "${STUDIO_APPLIS_DOSSIER:-}" ] && printf 'export STUDIO_APPLIS_DOSSIER=%q\n' "$STUDIO_APPLIS_DOSSIER"
     printf 'O=%q\n' "$LANCEMENT/ouvrir.sh"
     echo 'if [ -f "$O" ]; then exec /bin/bash "$O"; fi'
-    echo "osascript -e 'display dialog \"Le studio n’est plus installé sur ce Mac. Envoie un message à Yoan.\" with title \"Studio\" buttons {\"OK\"} default button \"OK\"' >/dev/null 2>&1"
+    if [ "$CLIENT_ID" = "romain" ]; then
+      echo "osascript -e 'display dialog \"Le studio n’est plus installé sur ce Mac. Envoie un message à Yoan.\" with title \"Studio\" buttons {\"OK\"} default button \"OK\"' >/dev/null 2>&1"
+    else
+      printf 'osascript - %q %q <<'"'"'OSA'"'"' >/dev/null 2>&1\non run argv\n  display dialog (item 1 of argv) with title (item 2 of argv) buttons {"OK"} default button "OK"\nend run\nOSA\n' \
+        "Le studio n’est plus installé sur ce Mac.${CLIENT_PREVENIR:+ $CLIENT_PREVENIR}" "$STUDIO_APP_NOM"
+    fi
     echo 'exit 1'
   } > "$app_neuve/Contents/MacOS/Studio"
   chmod 755 "$app_neuve/Contents/MacOS/Studio"
-  if [ -f "$LANCEMENT/icone.icns" ]; then cp "$LANCEMENT/icone.icns" "$app_neuve/Contents/Resources/Studio.icns"; fi
+  if [ -n "$CLIENT_ICONE" ] && [ -f "$CLIENT_ICONE" ]; then cp "$CLIENT_ICONE" "$app_neuve/Contents/Resources/Studio.icns"
+  elif [ -f "$LANCEMENT/icone.icns" ]; then
+    cp "$LANCEMENT/icone.icns" "$app_neuve/Contents/Resources/Studio.icns"
+    ok "studio-icone : pas d'icône propre au client ($CLIENT_ID) dans studio/lancement/icones/, icône par défaut"
+  fi
   printf 'APPL????' > "$app_neuve/Contents/PkgInfo"
   mkdir -p "$(dirname "$STUDIO_APP")"
   if [ -d "$STUDIO_APP" ] && diff -rq "$app_neuve" "$STUDIO_APP" >/dev/null 2>&1; then
-    rm -rf "$app_neuve"; ok "studio-app Studio présente"
+    rm -rf "$app_neuve"; ok "studio-app $STUDIO_APP_NOM présente"
   else
     rm -rf "$STUDIO_APP"; mv "$app_neuve" "$STUDIO_APP"
     if [ -z "${STUDIO_SANS_DOCK:-}" ]; then
       /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$STUDIO_APP" >/dev/null 2>&1 || true
     fi
-    installe "studio-app Studio dans le dossier Applications de Romain"
+    installe "studio-app $STUDIO_APP_NOM dans le dossier Applications de $QUI"
   fi
   [ -f "$STUDIO_APP/Contents/Resources/Studio.icns" ] || echec "studio-app : icône absente du dépôt ($LANCEMENT/icone.icns)"
 
-  # Le Dock : une seule fois (si Romain retire l'icône, on ne la remet pas)
+  # Le Dock : une seule fois (si le client retire l'icône, on ne la remet pas)
   if [ -n "${STUDIO_SANS_DOCK:-}" ]; then
     ok "studio-dock sauté (test)"
   elif [ -f "$STUDIO_HOME/.dock-ajoute" ]; then
     ok "studio-dock déjà fait une fois"
-  elif defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/Studio.app"; then
+  elif defaults read com.apple.dock persistent-apps 2>/dev/null | grep -qF "$STUDIO_APP"; then
     date '+%Y-%m-%d %H:%M:%S' > "$STUDIO_HOME/.dock-ajoute"; ok "studio-dock icône déjà dans le Dock"
   else
     if defaults write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>file://$STUDIO_APP/</string><key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>"; then
       killall Dock >/dev/null 2>&1 || true
       date '+%Y-%m-%d %H:%M:%S' > "$STUDIO_HOME/.dock-ajoute"
-      installe "studio-dock icône Studio ajoutée au Dock"
+      installe "studio-dock icône $STUDIO_APP_NOM ajoutée au Dock"
     else
       echec "studio-dock : ajout au Dock impossible"
     fi
@@ -326,7 +377,7 @@ EOF
     studio_charge && launchctl kickstart -k "$STUDIO_DOMAINE/$STUDIO_LABEL" >/dev/null 2>&1
     rm -f "$STUDIO_REPERE_REDEMARRAGE"
     if studio_attendre 25; then installe "studio-serveur (re)démarré, il répond (port $(studio_port))"
-    else echec "studio-serveur : ne répond pas après 25 s (journal ~/.montage-yoan/studio/lancement.log : $(tail -1 "$STUDIO_HOME/lancement.log" 2>/dev/null | cut -c1-120))"; fi
+    else echec "studio-serveur : ne répond pas après 25 s (journal $STUDIO_HOME/lancement.log : $(tail -1 "$STUDIO_HOME/lancement.log" 2>/dev/null | cut -c1-120))"; fi
   else
     date '+%Y-%m-%d %H:%M:%S installation' > "$STUDIO_REPERE_REDEMARRAGE"
     ok "studio-serveur répond (port $(studio_port)) ; occupé, il redémarrera à la fin de ses tâches"
@@ -350,7 +401,7 @@ cmd_verifier() {
     okv "studio-service sauté (test, serveur lancé par le script de test)"
   elif studio_charge; then
     local pid; pid="$(studio_pid)"
-    if [ -n "$pid" ]; then okv "studio-service chargé et lancé ($STUDIO_LABEL)"; else kov "studio-service chargé mais arrêté (journal ~/.montage-yoan/studio/lancement.log)"; fi
+    if [ -n "$pid" ]; then okv "studio-service chargé et lancé ($STUDIO_LABEL)"; else kov "studio-service chargé mais arrêté (journal $STUDIO_HOME/lancement.log)"; fi
   else
     kov "studio-service : pas chargé (relancer installer.sh)"
   fi
@@ -367,13 +418,13 @@ cmd_verifier() {
 
   if [ -x "$STUDIO_APP/Contents/MacOS/Studio" ] && plutil -lint -s "$STUDIO_APP/Contents/Info.plist" >/dev/null 2>&1 \
      && [ -s "$STUDIO_APP/Contents/Resources/Studio.icns" ]; then
-    okv "studio-app Studio présente avec son icône"
+    okv "studio-app $STUDIO_APP_NOM présente avec son icône"
   else
-    kov "studio-app : Studio.app absente ou incomplète"
+    kov "studio-app : $STUDIO_APP_NOM.app absente ou incomplète"
   fi
 
   local DEPOT
-  DEPOT="$(studio_chemin "$(studio_conf depot_hoc "~/.montage-yoan/studio/head-of-content")")"
+  DEPOT="$(studio_chemin "$(studio_conf depot_hoc "$STUDIO_HOME/head-of-content")")"
   if [ -d "$DEPOT/.git" ]; then okv "studio-hoc copie de travail présente"
   else afv "studio-hoc : copie de travail absente (clé du Mac à ajouter par Yoan, puis relancer installer.sh)"; fi
 

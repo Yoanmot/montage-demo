@@ -19,6 +19,20 @@ Sur le Mac :
 - Dock : l'icône est ajoutée une seule fois (repère `~/.montage-yoan/studio/.dock-ajoute`) ; si Romain
   la retire, on ne la remet pas.
 
+## Un studio par client (2026-11-17)
+Le même code sert plusieurs clients. `client.sh` lit `studio/clients/<id>.json` (contrat, section 7) et
+donne aux scripts la racine, le label du service, le nom et l'icône de l'appli, le port, le dépôt du head
+of content et sa clé SSH, la branche suivie par la mise à jour et le dossier de config Claude. Le client
+vient de `STUDIO_CLIENT`, sinon de `<racine>/client.json` (posé par l'installation), sinon « romain ».
+Chez Romain rien ne change : `~/.montage-yoan`, `~/.claude`, `com.montage-yoan.studio`, `Studio.app`.
+Un client avec `config_claude` (ex. Yoan, racine `/Users/Shared/studio-yoan`) est **isolé** : skills, agent,
+mémoire et hook sont reliés dans sa config Claude, le service et `demarrer.sh` posent `CLAUDE_CONFIG_DIR`,
+la clé et le cache des sons vont dans `<racine>/monteur/` (`MONTEUR_CONFIG`), et l'installation finit par
+`installation/isolation.sh` (preuve que les sessions ne voient ni `~/.claude` ni un `CLAUDE.md` hors de la
+racine). La racine d'un client isolé doit être hors de la maison : sous `~`, claude lit `~/.claude/CLAUDE.md`
+comme instructions du projet, même avec `CLAUDE_CONFIG_DIR` (constaté le 2026-11-17). Icône d'un client :
+`icones/<appli.icone>.icns`, sinon l'icône par défaut.
+
 ## Décision : la copie de travail du head of content pour le studio (2026-11-15)
 
 ### Ce qui existe aujourd'hui
@@ -90,4 +104,7 @@ des vidéos (`~/Contenu`), ni à la copie de travail du head of content si elle 
 
 ## Tests de Yoan (sans toucher son installation)
 Variables : `HOME` vers un dossier de test, `STUDIO_LABEL` (autre nom de service), `STUDIO_SANS_DOCK=1`
-(le Dock se règle pour l'utilisateur réel, quel que soit `HOME`), `HOC_DEPOT_URL` (dépôt local).
+(le Dock se règle pour l'utilisateur réel, quel que soit `HOME`), `STUDIO_SANS_SERVICE=1`, `HOC_DEPOT_URL`
+(dépôt local), `STUDIO_CLIENT_FICHIER` (client hors du dépôt), `STUDIO_SERVICES_DOSSIER` et
+`STUDIO_APPLIS_DOSSIER` (bac à sable avec le vrai `HOME` : rien dans `~/Library/LaunchAgents` ni
+`~/Applications`). Tests de l'installation : `cd installation && node --test tests/*.test.mjs`.

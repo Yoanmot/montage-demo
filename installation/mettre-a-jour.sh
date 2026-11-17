@@ -1,31 +1,38 @@
 #!/bin/bash
-# Mise à jour automatique du monteur de Romain, à chaque ouverture de Claude Code sur son Mac.
+# Mise à jour automatique du monteur et du studio d'un client, à chaque ouverture de Claude Code sur son Mac.
+# Le client (racine, branche, dossier de config Claude, clé SSH) vient de studio/lancement/client.sh :
+# <racine> = ~/.montage-yoan et <config> = ~/.claude chez Romain.
 #
-# Appelé par le hook SessionStart de ~/.claude/settings.json (posé par installer.sh) :
-#   /bin/bash "$HOME/.montage-yoan/montage-demo/installation/mettre-a-jour.sh" --hook
+# Appelé par le hook SessionStart de <config>/settings.json (posé par installer.sh) :
+#   /bin/bash "<racine>/montage-demo/installation/mettre-a-jour.sh" --hook
 # Ce que ça fait, sans rien demander à personne :
-#   1. aligne ~/.montage-yoan/montage-demo sur le dépôt public (fetch + reset sur origin/main ; les fichiers
-#      personnels ignorés par git, preferences.md et demandes-pour-yoan.md des skills, restent) ;
-#   2. relie chaque skill du dépôt dans ~/.claude/skills et l'agent dans ~/.claude/agents (liens symboliques),
+#   1. aligne <racine>/montage-demo sur le dépôt public (fetch + reset sur origin/<branche du client> ; les
+#      fichiers personnels ignorés par git, preferences.md et demandes-pour-yoan.md des skills, restent) ;
+#   2. relie chaque skill du dépôt dans <config>/skills et l'agent dans <config>/agents (liens symboliques),
 #      retire les liens vers ce qui a disparu du dépôt ;
-#   3. aligne la copie du head of content (~/.montage-yoan/head-of-content) comme le font ses scripts, si aucun
+#   3. aligne la copie du head of content (<racine>/head-of-content) comme le font ses scripts, si aucun
 #      d'eux ne tourne, et garde le lien du skill publier.
 #   4. si le code du studio a changé : redémarre son service quand aucune session ne tourne (sinon plus tard).
-#      La copie de travail du studio (~/.montage-yoan/studio/head-of-content) n'est jamais touchée ici.
+#      La copie de travail du studio (<racine>/studio/head-of-content) n'est jamais touchée ici.
 # En mode --hook : jamais bloquant (8 s au plus, la suite continue en fond), jamais de sortie, toujours 0.
-# Journal : ~/.montage-yoan/mise-a-jour.log.
+# Journal : <racine>/mise-a-jour.log.
 #
 # Autres modes : --liens-installation (appelé par installer.sh : migre les anciennes copies des skills),
 # sans argument : la mise à jour au premier plan, avec le journal à l'écran.
 
 main() {
   set -u
-  local BASE="$HOME/.montage-yoan"
+  # shellcheck source=../studio/lancement/client.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../studio/lancement/client.sh"
+  studio_client_charger || exit 0
+  local BASE="$CLIENT_RACINE"
   local CLONE="$BASE/montage-demo"
   local HOC="$BASE/head-of-content"
-  local SKILLS="$HOME/.claude/skills"
-  local AGENTS="$HOME/.claude/agents"
-  local CLE_HOC="$HOME/.ssh/fitavecromain_head_of_content"
+  local CC="$CLIENT_CLAUDE"
+  local SKILLS="$CC/skills"
+  local AGENTS="$CC/agents"
+  local CLE_HOC="$CLIENT_CLE_SSH"
+  local BRANCHE="$CLIENT_BRANCHE"
   local STAMP
   STAMP="$(date +%Y%m%d-%H%M%S)"
   export GIT_TERMINAL_PROMPT=0 LC_ALL=C
@@ -64,10 +71,14 @@ main() {
 
   # 1. Le dépôt du monteur
   if [ -d "$CLONE/.git" ]; then
-    if git -C "$CLONE" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin main 2>/dev/null; then
+    if git -C "$CLONE" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch -q origin "$BRANCHE" 2>/dev/null; then
       local avant apres
       avant="$(git -C "$CLONE" rev-parse HEAD 2>/dev/null)"
-      git -C "$CLONE" reset -q --hard origin/main
+      if [ "$(git -C "$CLONE" rev-parse --abbrev-ref HEAD 2>/dev/null)" = "$BRANCHE" ]; then
+        git -C "$CLONE" reset -q --hard "origin/$BRANCHE"
+      else
+        git -C "$CLONE" checkout -q -f -B "$BRANCHE" "origin/$BRANCHE"; journal "BRANCHE $BRANCHE"
+      fi
       apres="$(git -C "$CLONE" rev-parse HEAD 2>/dev/null)"
       if [ "$avant" != "$apres" ]; then journal "MONTEUR_MIS_A_JOUR ${avant:0:7} -> ${apres:0:7}"; else journal "MONTEUR_A_JOUR ${apres:0:7}"; fi
       # Code du studio changé : redémarrage demandé (fait en 4, seulement quand le studio est au repos).
@@ -131,7 +142,7 @@ main() {
     [ -L "$l" ] || continue
     t="$(readlink "$l")"
     case "$t" in
-      "$CLONE"/*|"$HOC"/*) [ -e "$l" ] || { rm -f "$l"; journal "RETIRE ${l#$HOME/.claude/} (plus dans le dépôt)"; } ;;
+      "$CLONE"/*|"$HOC"/*) [ -e "$l" ] || { rm -f "$l"; journal "RETIRE ${l#$CC/} (plus dans le dépôt)"; } ;;
     esac
   done
 

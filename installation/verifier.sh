@@ -2,17 +2,22 @@
 # Vérifie, après l'installation, que chaque brique marche sur ce Mac, sur une petite vidéo d'essai fabriquée ici
 # (un aperçu de la bibliothèque du style, avec une voix de synthèse du Mac). Rien n'est publié, aucun crédit
 # ElevenLabs n'est consommé (vérification de la clé en lecture seulement).
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/verifier.sh
+#   /bin/bash <racine>/montage-demo/installation/verifier.sh   (<racine> = ~/.montage-yoan chez Romain)
 # Une ligne par brique : VERIF_OK <brique> ... | VERIF_ECHEC <brique> ... | VERIF_A_FAIRE <brique> ...
 # Dernière ligne : TOUT_EST_PRET, ou A_REGARDER <n>. La vidéo d'essai montée reste dans
-# ~/.montage-yoan/verification/essai-monte.mp4 (le dossier est refait à chaque vérification).
+# <racine>/verification/essai-monte.mp4 (le dossier est refait à chaque vérification).
 
 main() {
   set -u
-  local BASE="$HOME/.montage-yoan"
+  # shellcheck source=../studio/lancement/client.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../studio/lancement/client.sh"
+  studio_client_charger || { echo "VERIF_ECHEC client : $CLIENT_ERREUR"; echo "A_REGARDER 1"; return 1; }
+  studio_client_env_claude
+  local BASE="$CLIENT_RACINE"
   local CLONE="$BASE/montage-demo"
   local HOC="$BASE/head-of-content"
-  local SK="$HOME/.claude/skills"
+  local CC="$CLIENT_CLAUDE"
+  local SK="$CC/skills"
   local PY=/usr/bin/python3
   local W="$BASE/verification"
   local nb_ko=0 debut=$SECONDS
@@ -29,11 +34,11 @@ main() {
   # -------------------------------------------------- les liens et la mise à jour automatique
   local n=0 s
   for s in couper-silences plan-montage sous-titres zooms b-roll animations sound-design rendu carrousel carrousels-en-attente; do
-    [ -f "$SK/$s/SKILL.md" ] || { kov "skills $s absent de ~/.claude/skills"; n=$((n + 1)); }
+    [ -f "$SK/$s/SKILL.md" ] || { kov "skills $s absent de $SK"; n=$((n + 1)); }
   done
-  [ -f "$HOME/.claude/agents/monteur.md" ] || { kov "agent monteur absent"; n=$((n + 1)); }
+  [ -f "$CC/agents/monteur.md" ] || { kov "agent monteur absent"; n=$((n + 1)); }
   [ "$n" -eq 0 ] && okv "skills et agent monteur en place"
-  if grep -qs "montage-demo/installation/mettre-a-jour.sh" "$HOME/.claude/settings.json"; then
+  if grep -qs "montage-demo/installation/mettre-a-jour.sh" "$CC/settings.json"; then
     local t0=$SECONDS
     /bin/bash "$CLONE/installation/mettre-a-jour.sh" --hook
     okv "mise-a-jour-auto branchée ($((SECONDS - t0)) s au lancement ; dernier passage : $(tail -1 "$BASE/mise-a-jour.log" 2>/dev/null | cut -c1-80))"
@@ -128,7 +133,7 @@ PYEOF
   # -------------------------------------------------- sons : bibliothèque et clé ElevenLabs (lecture seule)
   if node -e 'import(process.argv[1]).then(()=>process.exit(0),()=>process.exit(1))' "$SK/animations/bibliotheque/commun.mjs" >/dev/null 2>&1 \
      && "$PY" -c "import numpy, scipy" >/dev/null 2>&1; then
-    local cle; cle="$(sed -n 's/^ELEVENLABS_API_KEY=//p' "$HOME/.config/monteur-romain/.env" 2>/dev/null | tail -1 | tr -d "\"'")"
+    local cle; cle="$(sed -n 's/^ELEVENLABS_API_KEY=//p' "$CLIENT_SONS/.env" 2>/dev/null | tail -1 | tr -d "\"'")"
     [ -n "${ELEVENLABS_API_KEY:-}" ] && cle="$ELEVENLABS_API_KEY"
     if [ -z "$cle" ]; then afv "sound-design : clé des sons absente (cles.sh elevenlabs)"
     else
@@ -155,17 +160,17 @@ PYEOF
   # -------------------------------------------------- head of content : copie, carrousels en attente, publication
   if [ -d "$HOC/.git" ]; then
     r="$("$PY" "$SK/carrousels-en-attente/scripts/a-rendre.py" verifier 2>&1)"
-    if echo "$r" | grep -q ACCES_OK; then okv "carrousels-en-attente (accès aux textes de Romain)"; else kov "carrousels-en-attente : $(echo "$r" | tail -1 | cut -c1-160)"; fi
+    if echo "$r" | grep -q ACCES_OK; then okv "carrousels-en-attente (accès aux textes de $CLIENT_PRENOM)"; else kov "carrousels-en-attente : $(echo "$r" | tail -1 | cut -c1-160)"; fi
     [ -f "$SK/publier/SKILL.md" ] && okv "publier (skill relié)" || kov "publier : skill absent"
     local cz; cz="${ZERNIO_API_KEY:-$(sed -n 's/^ZERNIO_API_KEY=//p' "$BASE/zernio.env" 2>/dev/null | tail -1 | tr -d "\"'")}"
     if [ -z "$cz" ]; then afv "publier : clé de publication absente (cles.sh zernio)"
     else
-      r="$(ZERNIO_API_KEY="$cz" "$PY" - "$HOC/outils" <<'PYEOF' 2>&1
+      r="$(ZERNIO_API_KEY="$cz" "$PY" - "$HOC/outils" "$CLIENT_ID" <<'PYEOF' 2>&1
 import sys
 sys.path.insert(0, sys.argv[1])
 import zernio
-c = zernio.COMPTES["romain"]["compte"]
-r = zernio.appel("GET", "/v1/accounts/%s/posts" % c, {"limit": 1})
+c = (getattr(zernio, "COMPTES", {}).get(sys.argv[2]) or {}).get("compte")
+r = zernio.appel("GET", "/v1/accounts/%s/posts" % c if c else "/v1/posts", {"limit": 1})
 print("LECTURE_OK %d" % len(r.get("posts") or []))
 PYEOF
 )"

@@ -2,13 +2,24 @@
 # Fonctions partagées du lancement du studio (à sourcer, ne se lance pas seul).
 # Utilisé par ouvrir.sh, installation/studio.sh, installation/mettre-a-jour.sh et
 # installation/desinstaller-studio.sh.
-# Variables de test (Yoan seulement) : STUDIO_LABEL (nom du service), HOME pointé vers un dossier de test.
+# Les valeurs propres au client (racine, label, appli, port...) viennent de client.sh.
+# Variables de test (Yoan seulement) : STUDIO_LABEL (nom du service), HOME pointé vers un dossier de test,
+# STUDIO_CLIENT / STUDIO_CLIENT_FICHIER (voir client.sh), STUDIO_SERVICES_DOSSIER (dossier du réglage
+# du service au lieu de ~/Library/LaunchAgents) et STUDIO_APPLIS_DOSSIER (au lieu de ~/Applications) :
+# un bac à sable avec le vrai HOME n'écrit rien chez l'utilisateur réel.
 
-STUDIO_LABEL="${STUDIO_LABEL:-com.montage-yoan.studio}"
-STUDIO_HOME="$HOME/.montage-yoan/studio"
+# shellcheck source=client.sh
+. "$(dirname "${BASH_SOURCE[0]}")/client.sh"
+if ! studio_client_charger; then
+  echo "ECHEC client : $CLIENT_ERREUR" >&2
+fi
+STUDIO_RACINE="$CLIENT_RACINE"
+STUDIO_LABEL="${STUDIO_LABEL:-$CLIENT_LABEL}"
+STUDIO_HOME="$STUDIO_RACINE/studio"
 STUDIO_CONF="$STUDIO_HOME/studio.config.json"
-STUDIO_PLIST="$HOME/Library/LaunchAgents/$STUDIO_LABEL.plist"
-STUDIO_APP="$HOME/Applications/Studio.app"
+STUDIO_PLIST="${STUDIO_SERVICES_DOSSIER:-$HOME/Library/LaunchAgents}/$STUDIO_LABEL.plist"
+STUDIO_APP_NOM="$CLIENT_APPLI_NOM"
+STUDIO_APP="${STUDIO_APPLIS_DOSSIER:-$HOME/Applications}/$STUDIO_APP_NOM.app"
 STUDIO_REPERE_REDEMARRAGE="$STUDIO_HOME/redemarrage-demande"
 STUDIO_DOMAINE="gui/$(id -u)"
 
@@ -29,7 +40,7 @@ studio_chemin() { # $1 valeur
   esac
 }
 
-studio_port() { studio_conf port 4747; }
+studio_port() { studio_conf port "$CLIENT_PORT"; }
 
 # Code HTTP de GET / (000 si personne ne répond).
 studio_repond() {
@@ -87,10 +98,10 @@ studio_redemarrer_si_demande() {
 }
 
 # Connexion de claude sans personne devant (lot 11) : le jeton longue durée de « claude setup-token »,
-# posé par installation/cles.sh claude dans ~/.montage-yoan/claude.env (600). Exporté s'il existe et
+# posé par installation/cles.sh claude dans <racine>/claude.env (600). Exporté s'il existe et
 # qu'aucun jeton n'est déjà dans l'environnement ; sinon claude garde la connexion du Mac (qui expire).
 # Rend 0 si un jeton est exporté. N'affiche jamais la valeur.
-STUDIO_JETON_CLAUDE="$HOME/.montage-yoan/claude.env"
+STUDIO_JETON_CLAUDE="$STUDIO_RACINE/claude.env"
 studio_jeton_claude() {
   [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && return 0
   [ -f "$STUDIO_JETON_CLAUDE" ] || return 1

@@ -1,37 +1,46 @@
 #!/bin/bash
-# Pose les clés du Mac de Romain, sans qu'elles passent jamais par la conversation avec Claude.
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/cles.sh            les clés qui manquent
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/cles.sh elevenlabs  une seule (la remplace si elle existe)
+# Pose les clés du Mac d'un client, sans qu'elles passent jamais par la conversation avec Claude.
+# Chemins tirés du client (studio/lancement/client.sh) : <racine> = ~/.montage-yoan chez Romain.
+#   /bin/bash <racine>/montage-demo/installation/cles.sh            les clés qui manquent
+#   /bin/bash <racine>/montage-demo/installation/cles.sh elevenlabs  une seule (la remplace si elle existe)
 #   (noms : elevenlabs, zernio, code, claude)
-#   ... | cles.sh --stdin <nom>   la valeur lue sur l'entrée standard au lieu de la fenêtre (tests de Yoan)
+#   ... | cles.sh --stdin <nom>   la valeur lue sur l'entrée standard (une ligne, jamais affichée) au lieu
+#                                 de la fenêtre : jeton de « claude setup-token » collé dans le Terminal,
+#                                 clé lue d'un .env (cles.sh --stdin zernio < <(sed -n 's/^ZERNIO_API_KEY=//p' .env))
 # Pour chaque clé, une fenêtre du Mac s'ouvre avec un champ masqué : on y colle la clé, OK. Le script l'écrit dans
 # son fichier (droits 600), la vérifie par un appel en lecture, et n'affiche jamais sa valeur.
-#   elevenlabs -> ~/.config/monteur-romain/.env   ELEVENLABS_API_KEY=...  (sons du monteur)
-#   zernio     -> ~/.montage-yoan/zernio.env       ZERNIO_API_KEY=...      (clé « Mac » : publication seulement)
-#   code       -> ~/.montage-yoan/config           CODE=...                (serveur de coupe, via couper.mjs code)
-#   claude     -> ~/.montage-yoan/claude.env       CLAUDE_CODE_OAUTH_TOKEN=...  (connexion du studio sans personne
+#   elevenlabs -> <sons>/.env (Romain : ~/.config/monteur-romain/.env ; client isolé : <racine>/monteur/.env)
+#                                                  ELEVENLABS_API_KEY=...  (sons du monteur)
+#   zernio     -> <racine>/zernio.env              ZERNIO_API_KEY=...      (clé « Mac » : publication seulement)
+#   code       -> <racine>/config                  CODE=...                (serveur de coupe, via couper.mjs code)
+#   claude     -> <racine>/claude.env              CLAUDE_CODE_OAUTH_TOKEN=...  (connexion du studio sans personne
 #                 devant : le jeton d'un an affiché par « claude setup-token », lancé avant dans le Terminal ;
 #                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos)
 # Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
 
 main() {
   set -u
-  local BASE="$HOME/.montage-yoan"
+  # shellcheck source=../studio/lancement/client.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../studio/lancement/client.sh"
+  studio_client_charger || { echo "ECHEC client : $CLIENT_ERREUR"; return 1; }
+  local BASE="$CLIENT_RACINE"
   local CLONE="$BASE/montage-demo"
   local HOC="$BASE/head-of-content"
   local PY=/usr/bin/python3
-  local ENV_EL="$HOME/.config/monteur-romain/.env"
+  local ENV_EL="$CLIENT_SONS/.env"
   local ENV_ZE="$BASE/zernio.env"
   local CONF="$BASE/config"
   local ENV_CL="$BASE/claude.env"
   umask 077
-  mkdir -p "$BASE" "$HOME/.config/monteur-romain"
+  mkdir -p "$BASE" "$CLIENT_SONS"
+  # Client isolé : la session d'essai de la connexion lit sa config Claude à lui.
+  studio_client_env_claude
 
   local DEPUIS_STDIN=""
   if [ "${1:-}" = "--stdin" ]; then DEPUIS_STDIN=1; shift; fi
 
   demander() { # $1 titre, $2 texte ; rend la valeur sur stdout (vide si annulé)
-    if [ -n "$DEPUIS_STDIN" ]; then local l; IFS= read -r l; printf '%s' "$l" | tr -d '[:space:]'; return; fi
+    if [ -n "$DEPUIS_STDIN" ]; then local l=""; IFS= read -r l || true; printf '%s' "$l" | tr -d '[:space:]'; return; fi
     osascript - "$1" "$2" <<'OSA' 2>/dev/null
 on run argv
   try
@@ -71,7 +80,7 @@ OSA
     local v; v="$(sed -n 's/^ZERNIO_API_KEY=//p' "$ENV_ZE" | tail -1 | tr -d "\"'")"
     local compte=""
     if [ -f "$HOC/outils/zernio.py" ]; then
-      compte="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import zernio; print(zernio.COMPTES["romain"]["compte"])' "$HOC/outils" 2>/dev/null)"
+      compte="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import zernio; print((getattr(zernio, "COMPTES", {}).get(sys.argv[2]) or {}).get("compte") or "")' "$HOC/outils" "$CLIENT_ID" 2>/dev/null)"
     fi
     local url="https://zernio.com/api/v1/posts?limit=1"
     [ -n "$compte" ] && url="https://zernio.com/api/v1/accounts/$compte/posts?limit=1"

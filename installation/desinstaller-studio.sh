@@ -1,9 +1,9 @@
 #!/bin/bash
-# Retire le studio de ce Mac : le service, l'appli Studio, son icône du Dock.
-#   /bin/bash ~/.montage-yoan/montage-demo/installation/desinstaller-studio.sh
-# L'état du studio (~/.montage-yoan/studio : réglages, conversations, copie de travail du head of
-# content avec son travail éventuellement pas envoyé) est rangé dans ~/.montage-yoan/anciennes-versions/,
-# jamais effacé. Le dossier des vidéos (~/Contenu) n'est jamais touché.
+# Retire le studio du client de ce Mac : le service, l'appli, son icône du Dock.
+#   /bin/bash <racine>/montage-demo/installation/desinstaller-studio.sh   (<racine> = ~/.montage-yoan chez Romain)
+# L'état du studio (<racine>/studio : réglages, conversations, copie de travail du head of
+# content avec son travail éventuellement pas envoyé) est rangé dans <racine>/anciennes-versions/,
+# jamais effacé. Le dossier des vidéos n'est jamais touché.
 # Le monteur, les skills et la mise à jour automatique restent installés.
 # Sortie : RETIRE <point> | ABSENT <point> | RANGE <point> | GARDE <point> | ECHEC <point>, puis FIN.
 # Variables pour les tests de Yoan : STUDIO_LABEL, STUDIO_SANS_DOCK=1 (voir studio.sh).
@@ -12,7 +12,7 @@ ICI="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../studio/lancement/commun.sh
 . "$ICI/../studio/lancement/commun.sh"
 set -u
-BASE="$HOME/.montage-yoan"
+BASE="$STUDIO_RACINE"
 stamp="$(date +%Y%m%d-%H%M%S)"
 
 # Le service (le serveur arrête ses sessions Claude sur SIGTERM)
@@ -63,16 +63,16 @@ if [ -d "$STUDIO_APP" ]; then
   if [ -z "${STUDIO_SANS_DOCK:-}" ]; then
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$STUDIO_APP" >/dev/null 2>&1 || true
   fi
-  echo "RETIRE appli Studio"
+  echo "RETIRE appli $STUDIO_APP_NOM"
 else
-  echo "ABSENT appli Studio"
+  echo "ABSENT appli $STUDIO_APP_NOM"
 fi
 
 # L'état du studio : rangé, jamais effacé (le dossier des vidéos n'est pas dedans)
 if [ -d "$STUDIO_HOME" ]; then
   mkdir -p "$BASE/anciennes-versions/$stamp"
   mv "$STUDIO_HOME" "$BASE/anciennes-versions/$stamp/studio"
-  echo "RANGE état du studio dans ~/.montage-yoan/anciennes-versions/$stamp/studio"
+  echo "RANGE état du studio dans $BASE/anciennes-versions/$stamp/studio"
 else
   echo "ABSENT état du studio"
 fi
