@@ -1,6 +1,6 @@
 // Un fil de discussion (chat général ou chat d'une carte), relayé au fil de l'eau.
 
-import { el, markdown, icone, annoncer, heure, CONTACT } from "./outils.js";
+import { el, markdown, icone, annoncer, heure, previens } from "./outils.js";
 
 // Espaces insécables du français (lot 13) : « Idées proposées » ne se coupe plus avant le guillemet,
 // ni avant : ? ! ;, dans une colonne étroite.
@@ -9,7 +9,7 @@ const insecables = (t) => String(t ?? "").replace(/« /g, "«\u00a0").replace(/ 
 const LIGNES_ETAT = {
   fini: "C'est fait.",
   arrete: "Tu as arrêté. Écris quand tu veux reprendre.",
-  erreur: `Ça a coincé. Réessaie, et si ça recommence, préviens ${CONTACT}.`,
+  erreur: `Ça a coincé. Réessaie, et si ça recommence, ${previens()}.`,
 };
 
 export class Chat {

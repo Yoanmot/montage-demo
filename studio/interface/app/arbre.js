@@ -40,6 +40,11 @@ function etatFichier(c, f) {
     if (s === "rushs_recus") return c.activite === "en_cours" ? ["en cours", false] : c.activite === "en_file" ? ["en attente", false] : ["à vérifier", true];
     if (s === "planche") return c.activite === "en_cours" ? ["en cours", false] : ["planche à valider", true];
   }
+  if (f === "ressource") {
+    if (c.ressource === "en_ligne") return ["en ligne", false];
+    if (c.ressource === "brouillon") return ["à vérifier", true];
+    return ["en préparation", false];
+  }
   if (f === "video" || f === "slides") {
     if (s === "programme") return ["programmée", false];
     if (s === "publie") return ["publiée", false];
@@ -111,6 +116,8 @@ export class Arbre {
     entree("accueil", "Vue d'ensemble", "maison");
     entree("publier", "Publier sur Instagram", "envoi", cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).length || null);
     entree("tournage", "Tournages", "camera", s.tournages.filter((t) => t.en_cours).length || null);
+    // Seulement pour un client qui a un site de ressources gratuites (studio de Yoan).
+    if (s.config.ressources) entree("ressources", "Ressources gratuites", "cadeau");
     if (s.a_ranger.length) entree("ranger", "À ranger", "ranger", s.a_ranger.length, true);
     return el("div", { class: "entrees", role: "group", "aria-label": "Vues d'ensemble" }, ...ent);
   }

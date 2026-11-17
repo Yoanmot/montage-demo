@@ -270,6 +270,9 @@ details.repli > div { padding-top: 8px; }
 .slides-grille figcaption { font-size: 12.5px; color: var(--encre-3); }
 .programmer { display: grid; gap: 12px; justify-items: start; }
 .zone-recap { margin-top: 8px; scroll-margin-top: 16px; }
+/* Un récapitulatif ouvert ne colle pas au bloc qui suit (« Déjà programmés ») */
+.zone-recap:not(:empty) { margin-bottom: 26px; }
+.programmer-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
 .programmer-ligne { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .programmer-ligne label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--encre-2); }
 .statut-pub { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: var(--rayon); background: var(--vert-pale); color: var(--vert); font-weight: 650; }
@@ -317,6 +320,25 @@ details.repli > div { padding-top: 8px; }
 .recap-resultats li.ko .ico { color: var(--rouge); }
 .recap-resultats p { color: var(--encre-2); font-size: 14px; }
 .recap-note { color: var(--encre-2); font-size: 14px; }
+.recap-resultats li .bouton { margin-top: 8px; }
+.recap-ressource-champ { display: grid; gap: 6px; justify-items: start; }
+.recap-ressource { height: 32px; font-size: 13.5px; max-width: 100%; }
+.recap-mot { font-size: 14px; color: var(--encre); }
+
+/* ressources gratuites (préfixe res-) */
+.res-ligne .res-pastille { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; background: var(--fond-2); }
+.res-ligne .res-pastille .ico { color: var(--encre-2); }
+.res-liste { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--encre-2); }
+.res-champs { grid-template-columns: 150px minmax(0, 1fr); }
+.res-message { display: grid; gap: 8px; justify-items: start; max-width: 60ch; padding: 10px 12px; border-radius: 9px; background: var(--fond-2); }
+.res-message p { white-space: pre-wrap; margin: 0; }
+.res-bouton { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--trait-fort); font-size: 13px; font-weight: 700; }
+.res-ok { color: var(--vert); font-weight: 650; }
+.res-adresse { overflow-wrap: anywhere; color: var(--encre-2); }
+.res-apercu { display: grid; justify-items: center; padding: 16px; border-radius: var(--rayon); background: var(--fond-2); }
+.res-iframe { display: block; width: min(100%, 430px); height: 760px; border: 1px solid var(--trait); border-radius: 12px; background: #fff; }
+.res-reutiliser { display: grid; gap: 10px; }
+.res-choix { height: 36px; max-width: min(100%, 420px); }
 
 /* accueil et vues transverses */
 .accueil-liste { display: grid; gap: 8px; }

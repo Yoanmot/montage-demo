@@ -3,7 +3,7 @@
 // dont la portée suit ce qui est sélectionné (contrat, section 14).
 
 import { creerApiServeur } from "./api.js";
-import { el, icone, annoncer, ilYa, pluriel, CONTACT } from "./outils.js";
+import { el, icone, annoncer, ilYa, pluriel, CONTACT, CONTACT_SOI } from "./outils.js";
 import { Chat } from "./chat.js";
 import { Arbre } from "./arbre.js";
 import { Vue } from "./vue.js";
@@ -252,7 +252,7 @@ class Studio {
     else if (!this.sync) { texte = ""; }
     else if (this.sync.etat === "en_cours") { texte = "Mise à jour"; genre = "cours"; }
     else if (this.sync.etat === "hors_ligne") { texte = this.sync.message || "Pas d'internet : tes changements partiront au retour"; genre = "coupe"; ico = "horsligne"; }
-    else if (this.sync.etat === "conflit") { texte = this.sync.message || `Un changement fait ailleurs coince. Préviens ${CONTACT}.`; genre = "conflit"; ico = "attention"; }
+    else if (this.sync.etat === "conflit") { texte = this.sync.message || `Un changement fait ailleurs coince. ${CONTACT_SOI ? "Il faut le raccorder à la main." : `Préviens ${CONTACT}.`}`; genre = "conflit"; ico = "attention"; }
     else texte = `À jour, ${ilYa(this.sync.derniere)}`;
     z.className = `sync sync-${genre}`;
     z.innerHTML = texte ? `${icone(ico)}<span>${texte}</span>` : "";

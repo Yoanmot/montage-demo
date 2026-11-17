@@ -2,6 +2,10 @@
 
 // Qui prévenir quand quelque chose coince : posé par le serveur sur <html> (client du studio).
 export const CONTACT = document.documentElement.dataset.contact || "Yoan";
+// Le client est son propre contact (Yoan dans son studio) : on ne lui dit pas « préviens Yoan ».
+export const CONTACT_SOI = Boolean(document.documentElement.dataset.prenom) && document.documentElement.dataset.prenom === CONTACT;
+// « préviens <contact> », ou, pour le client lui-même, une phrase qui s'adresse à lui.
+export const previens = () => (CONTACT_SOI ? "c'est un souci du studio à corriger" : `préviens ${CONTACT}`);
 
 export function el(tag, attrs = {}, ...enfants) {
   const n = document.createElement(tag);
@@ -147,6 +151,7 @@ export async function copier(texte) {
 // ---------- Icônes (SVG maison, trait 1.75, coins arrondis) ----------
 const P = {
   coche: '<path d="M4.5 10.5l3.5 3.5 7.5-8"/>',
+  cadeau: '<rect x="3.5" y="8" width="13" height="8.5" rx="1.5"/><path d="M3 5.5h14V8H3zM10 5.5v11"/><path d="M10 5.5C8.6 3.3 6.2 3.2 6.4 4.6c.1.8 3.6.9 3.6.9zM10 5.5c1.4-2.2 3.8-2.3 3.6-.9-.1.8-3.6.9-3.6.9z"/>',
   croix: '<path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/>',
   copier: '<rect x="7" y="7" width="9" height="10" rx="2"/><path d="M4 13V5a2 2 0 0 1 2-2h7"/>',
   envoyer: '<path d="M10 16V4M5 9l5-5 5 5"/>',

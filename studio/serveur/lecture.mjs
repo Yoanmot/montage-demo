@@ -9,6 +9,7 @@ import {
 } from "./outils.mjs";
 import { stade, libelle, estMonte, estOriginale } from "./stades.mjs";
 import { contact } from "./client.mjs";
+import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -310,6 +311,13 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     ]),
   };
   carte.fichiers = fichiersDuDossier(config, slug, contenu.format, fichiers);
+  // Ressource gratuite (client qui a un site de ressources) : un fichier de plus dans le dossier, et
+  // son état lu sur le disque (« fiche », « brouillon », « en_ligne »).
+  const ressource = ressourcesActives(config) ? etatRessourceRapide(config, slug) : null;
+  if (ressource) {
+    carte.fichiers.push("ressource");
+    carte.ressource = ressource;
+  }
   const quand = quandPublication(fichiers.publication);
   if (quand) carte.publication_quand = quand;
   carte.semaine = lundiDe(etat?.jour_prevu || (quand ? quand.slice(0, 10) : null)) || null;
@@ -372,7 +380,7 @@ export function construireCartes(config, etatLocal) {
     // Une idée supprimée (« refusee ») n'a plus de carte (lot 12) ; mise de côté : dans « Mis de côté ».
     if (p.statut === "proposee" || p.statut === "de_cote") cartes.push(carteProposition(p));
   }
-  for (const slug of lu.contenus) cartes.push(carteContenu(config, slug, lu, etatLocal));
+  for (const slug of dossiersDeContenus(config, lu.contenus)) cartes.push(carteContenu(config, slug, lu, etatLocal));
   return cartes;
 }
 

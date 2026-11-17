@@ -16,8 +16,8 @@ export const NOMS_ACTION = {
   mise_en_page: ["mise en page", "mises en page"], idees: ["recherche d'idées", "recherches d'idées"],
   rangement: ["rangement", "rangements"], publication: ["programmation", "programmations"], archivage: ["archivage", "archivages"],
 };
-export const NOMS_FICHIERS = { idee: "Idée", brief: "Brief", montage: "Montage", video: "Vidéo montée", slides: "Images" };
-export const ICONES_FICHIERS = { idee: "idee", brief: "brief", montage: "ciseaux", video: "video", slides: "slides" };
+export const NOMS_FICHIERS = { idee: "Idée", brief: "Brief", montage: "Montage", video: "Vidéo montée", slides: "Images", ressource: "Ressource gratuite" };
+export const ICONES_FICHIERS = { idee: "idee", brief: "brief", montage: "ciseaux", video: "video", slides: "slides", ressource: "cadeau" };
 
 export const cle = (c) => c.slug || `p:${c.proposition_id}`;
 export const libre = (c) => !["en_cours", "en_file"].includes(c.activite);

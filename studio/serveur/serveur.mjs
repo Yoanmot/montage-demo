@@ -24,6 +24,8 @@ import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
 import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic } from "./tournage.mjs";
+import { Ressources, ressourcesActives } from "./ressources.mjs";
+import { adresser } from "./client.mjs";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -75,8 +77,10 @@ function cookies(req) {
   return r;
 }
 
+// Tout texte qui part vers l'interface passe par adresser() : chez un client qui est son propre contact,
+// « préviens <lui-même> » devient une phrase qui s'adresse à lui (client.mjs). Sinon rien ne change.
 function envoyerJson(res, statut, donnees) {
-  const corps = JSON.stringify(donnees);
+  const corps = adresser(JSON.stringify(donnees));
   res.writeHead(statut, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
@@ -165,13 +169,14 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   let tournagesJson = null;
 
   const etatLocal = () => ({ actions: file.liste(), actives: pont.actives(), maintenant: new Date() });
-  const publication = new Publication({ config, file, synchro, journal, etatLocal });
+  const ressources = new Ressources({ config, journal, cartes: () => [...cartes.values()] });
+  const publication = new Publication({ config, file, synchro, journal, etatLocal, ressources });
   const stats = new Stats({ config, journal });
 
   // ------------------------------------------------------------ SSE
 
   function diffuser(evenement, donnees) {
-    const t = `event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`;
+    const t = `event: ${evenement}\ndata: ${adresser(JSON.stringify(donnees))}\n\n`;
     for (const c of clients) {
       try { c.write(t); } catch { clients.delete(c); }
     }
@@ -395,6 +400,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           prenom: config.prenom,
           contact: config.contact,
           appli: config.appli?.nom || "Studio",
+          // Ressources gratuites (site réglé pour ce client) : entrée du menu, fichier du dossier, choix au
+          // récapitulatif. Faux = rien de tout ça n'apparaît.
+          ressources: ressourcesActives(config),
           jours_par_defaut: config.publication?.jours_par_defaut || [],
           heures_par_defaut: config.publication?.heures_par_defaut || {},
         },
@@ -719,8 +727,27 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
     }
 
+    // Ressources gratuites (studio de Yoan, lot 4B) : 404 pour un client sans site de ressources.
+    if (p[0] === "ressources") {
+      ressources.exiger();
+      if (m === "GET" && p.length === 1) return envoyerJson(res, 200, await ressources.lister());
+      const slug = p[1] ? decodeURIComponent(p[1]) : "";
+      if (m === "GET" && p.length === 3 && p[2] === "apercu") return envoyerJson(res, 200, await ressources.apercu(slug));
+      if (m === "POST" && p.length === 3 && p[2] === "mettre-en-ligne") {
+        await avantAction();
+        const r = await ressources.mettreEnLigne(slug);
+        rafraichir();
+        return envoyerJson(res, 200, r);
+      }
+    }
+
     if (m === "POST" && p[0] === "publication") {
       if (p[1] === "recap") return envoyerJson(res, 200, await publication.recap(corps.elements));
+      if (p[1] === "poser-mot") {
+        const r = await publication.poserMot(corps.slug, corps.ressource);
+        rafraichir();
+        return envoyerJson(res, 200, r);
+      }
       if (p[1] === "confirmer") {
         const r = await publication.confirmer(String(corps.recap_id || ""));
         rafraichir();
@@ -741,8 +768,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         "X-Accel-Buffering": "no",
       });
       res.write(": studio\n\n");
-      res.write(`event: sync\ndata: ${JSON.stringify(synchro.etat)}\n\n`);
-      res.write(`event: file\ndata: ${JSON.stringify({ actions: file.liste() })}\n\n`);
+      res.write(`event: sync\ndata: ${adresser(JSON.stringify(synchro.etat))}\n\n`);
+      res.write(`event: file\ndata: ${adresser(JSON.stringify({ actions: file.liste() }))}\n\n`);
       clients.add(res);
       req.on("close", () => clients.delete(res));
       return undefined;
@@ -868,6 +895,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   }
 
   async function fermer() {
+    ressources.fermer();
     clearInterval(periodique);
     clearInterval(ping);
     clearTimeout(attente);
@@ -877,5 +905,5 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     await new Promise((r) => { serveur.close(() => r()); serveur.closeAllConnections?.(); });
   }
 
-  return { serveur, ecouter, fermer, rafraichir, diffuser, publication, stats, rangerMaintenant, etatLocal, attenduPresent };
+  return { serveur, ecouter, fermer, rafraichir, diffuser, publication, stats, ressources, rangerMaintenant, etatLocal, attenduPresent };
 }

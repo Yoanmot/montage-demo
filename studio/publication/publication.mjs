@@ -5,6 +5,14 @@
 //   confirmer(recap_id, config)      publie ce récapitulatif-là, et seulement lui, une seule fois
 //   semaine(lundi, config, cartes)   propose une date par contenu monté (ou mis en page) non programmé,
 //                                    puis rend recap(...) de ces propositions
+//   poserMot(slug, ressource, config) « Brancher le mot » : la règle du mot en commentaire sur un post
+//                                    déjà parti dont le clic n'a pas pu la poser (zernio.py poser-mot)
+//
+// Ressources gratuites (config.ressources, client avec un site de ressources ; studio de Yoan, lot 4C) :
+// chaque élément du récapitulatif peut porter `ressource` (le slug choisi par le client dans la liste des
+// ressources en ligne) ; il est passé en --ressource à verifier et à publier, qui posent la règle du mot
+// sur CE post seulement. Un post dont la légende annonce un mot sans ressource choisie est bloqué.
+// Sans config.ressources (Romain), `ressource` est ignoré et rien ne change.
 //
 // Sécurité :
 //   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE=<compte> (plus
@@ -190,12 +198,17 @@ const BLOQUES = [
   [/^déjà (programmé|publié) le (.+?) \(zernio_post/, (m) => `Ce contenu est déjà ${m[1]} (${dateCourte(m[2])}). Pour le décaler, préviens ${contact()}.`],
   [/^le mot (\S+) n'est pas en attente/, (m) => `Le message automatique du mot ${m[1]} n'est pas prêt : demande à ton head of content de le mettre en attente, sinon personne ne recevra ta ressource.`],
   [/^le mot (\S+) ne sera pas branché \((.*)\) :/, (m) => `Le mot ${m[1]} ne pourra pas encore envoyer ta ressource (${m[2]}) : la légende promettrait un message que personne ne recevrait. Attends que ce soit réglé, ou demande à ton head of content une légende sans le mot.`],
+  [/^aucune ressource gratuite pour /, () => "Je ne trouve plus la ressource choisie : choisis-en une autre, ou aucune."],
+  [/^la ressource \S+ n'est pas en ligne/, () => "La ressource choisie n'est pas encore en ligne : mets-la en ligne dans « Ressources gratuites », ou choisis-en une autre."],
+  [/^ressource \S+ : message pas validé/, () => "Tu n'as pas encore validé le message que reçoivent ceux qui commentent : valide-le avec ton head of content, ou choisis une autre ressource."],
+  [/^ressource \S+ : /, () => "Le message automatique de la ressource choisie n'est pas prêt : demande à ton head of content de le finir, ou choisis une autre ressource."],
   [/^le mot du script \((\S+)\) n'est pas celui en attente \((\S+)\)/, (m) => `Le mot de ton script (${m[1]}) n'est pas celui qui attend (${m[2]}) : demande à ton head of content de remettre le bon mot en attente.`],
 ];
 
 const ATTENTIONS = [
   [/^le fichier ne finit pas par -monte\.mp4/, () => "Cette vidéo ne porte pas le nom d'une vidéo montée : vérifie que c'est la bonne."],
   [/^message automatique pas encore en service/, () => "Les messages automatiques ne sont pas encore en service : vérifie que la légende ne promet pas d'envoyer quelque chose en message."],
+  [/^la légende ne cite pas le mot (\S+) : dis-le/, (m) => `La légende ne cite pas le mot ${m[1]} : dis-le bien dans la vidéo, sinon personne ne saura quoi commenter.`],
   [/^la légende ne cite pas le mot (\S+)/, (m) => `La légende ne cite pas le mot ${m[1]} : il sera cherché dans ce que tu dis dans la vidéo.`],
   [/^la légende semble demander un mot en commentaire/, () => "La légende demande de commenter un mot, mais aucun message automatique n'est prévu pour ce contenu : personne ne recevrait rien."],
 ];
@@ -299,14 +312,35 @@ function urlMedia(slug, ...parties) {
 // le studio ou le téléphone). Rien n'est envoyé ni écrit dans le dépôt par verifier.
 function argsVerifier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
-  return ['verifier', el.slug, ...media, '--pousser'];
+  return ['verifier', el.slug, ...media, ...argsRessource(el), '--pousser'];
 }
 
-async function verifierUn(demande, config, maintenant, executer) {
+function argsRessource(el) {
+  return el.ressource ? ['--ressource', el.ressource] : [];
+}
+
+const sansAccents = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// La légende annonce-t-elle un mot à commenter ? Ce que dit zernio.py (« semble demander un mot »), ou
+// un mot d'une ressource en ligne écrit tel quel dans la légende.
+function annonceUnMot(legende, attention, pretes) {
+  if (attention.some((a) => /^la légende semble demander un mot en commentaire/.test(a))) return true;
+  const t = sansAccents(legende).toUpperCase();
+  return (pretes || []).some((r) => r.mot && new RegExp(`(^|[^A-Z0-9])${r.mot}([^A-Z0-9]|$)`).test(t));
+}
+
+export const PHRASE_MOT_SANS_RESSOURCE = 'Ta légende demande de commenter un mot : choisis la ressource que recevront ceux qui commentent. Sans elle, personne ne recevrait rien.';
+
+async function verifierUn(demande, config, maintenant, executer, pretes) {
   const { depot, media } = chemins(config);
   const slug = demande && demande.slug;
   const quand = demande && typeof demande.quand === 'string' ? demande.quand.trim() : null;
   const el = { slug, quand, type: 'reel', titre: slug || '', legende: null, mot: null, messages: [], bloque: false, attention: false };
+  if (config.ressources) {
+    const r = demande && typeof demande.ressource === 'string' ? demande.ressource.trim() : '';
+    el.ressource = r && slugValide(r) ? r : null;
+    el.ressource_titre = el.ressource ? ((pretes || []).find((x) => x.slug === el.ressource)?.titre || null) : null;
+  }
 
   if (!slugValide(slug)) {
     el.messages.push(`Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`);
@@ -354,9 +388,16 @@ async function verifierUn(demande, config, maintenant, executer) {
     el.messages.push(phrase('BLOQUE', b));
     el.bloque = true;
   }
+  // Une légende qui annonce un mot sans ressource choisie ne part pas : personne ne recevrait rien.
+  const motSansRessource = Boolean(config.ressources) && !el.ressource && annonceUnMot(v.legende, v.attention, pretes);
+  if (motSansRessource) {
+    el.messages.push(PHRASE_MOT_SANS_RESSOURCE);
+    el.bloque = true;
+  }
   for (const a of v.attention) {
     // Le studio choisit lui-même la dernière retouche (-monte-2.mp4...) : pas d'alerte pour elle.
     if (/^le fichier ne finit pas par -monte\.mp4/.test(a) && el.video && MONTE.test(el.video.nom)) continue;
+    if (motSansRessource && /^la légende semble demander un mot en commentaire/.test(a)) continue;
     el.messages.push(phrase('ATTENTION', a));
     el.attention = true;
   }
@@ -372,6 +413,7 @@ function versApi(el) {
     slug: el.slug, titre: el.titre, type: el.type, quand: el.quand, legende: el.legende, mot: el.mot,
     verdict: el.bloque ? 'BLOQUE' : el.attention ? 'ATTENTION' : 'OK', messages: el.messages,
   };
+  if ('ressource' in el) { o.ressource = el.ressource; o.ressource_titre = el.ressource_titre; }
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
   else if (el.video_url) o.video_url = el.video_url;
   return o;
@@ -384,11 +426,15 @@ export async function recap(elements, config, opts = {}) {
   const maintenant = opts.maintenant ? opts.maintenant() : new Date();
   const vus = [];
   const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
-  for (const demande of elements) vus.push(await verifierUn(demande, config, maintenant, executer));
+  const pretes = config.ressources ? (opts.ressources || []) : null;
+  for (const demande of elements) vus.push(await verifierUn(demande, config, maintenant, executer, pretes));
   const id = 'r-' + crypto.randomBytes(12).toString('hex');
   const minutes = opts.minutes || RECAP_MINUTES;
   recaps.set(id, { id, expire: maintenant.getTime() + minutes * 60 * 1000, utilise: false, elements: vus });
-  return { recap_id: id, elements: vus.map(versApi) };
+  const r = { recap_id: id, elements: vus.map(versApi) };
+  // La liste déroulante du récapitulatif : toutes les ressources en ligne, prêtes à être offertes.
+  if (pretes) r.ressources = pretes.map((x) => ({ slug: x.slug, titre: x.titre, mot: x.mot }));
+  return r;
 }
 
 // ------------------------------------------------------------------ confirmer
@@ -396,7 +442,14 @@ export async function recap(elements, config, opts = {}) {
 function argsPublier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
   const quand = el.quand === 'maintenant' ? ['--maintenant'] : ['--quand', el.quand];
-  return ['publier', el.slug, ...media, ...quand];
+  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el)];
+}
+
+// « Ceux qui commentent MOT reçoivent « titre » », pour les résultats.
+function phraseMot(el, futur) {
+  if (!el.ressource || !el.mot) return '';
+  const titre = el.ressource_titre ? ` « ${el.ressource_titre} »` : ' la ressource';
+  return futur ? ` Ceux qui commenteraient ${el.mot} recevraient${titre}.` : ` Ceux qui commentent ${el.mot} reçoivent${titre}.`;
 }
 
 function phraseQuand(el, futur) {
@@ -464,7 +517,7 @@ export async function confirmer(recapOuId, config, opts = {}) {
     if (simulation) {
       const { sortie } = await executer(argsPublier(el), { ecriture: false });
       if (/^SIMULATION_OK$/m.test(sortie)) {
-        res('simulation', `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.`);
+        res('simulation', `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}`);
       } else {
         const a = arret(sortie);
         const b = lireVerifier(sortie).bloque[0];
@@ -478,8 +531,21 @@ export async function confirmer(recapOuId, config, opts = {}) {
     if (code === 0 && /^FAIT$/m.test(sortie)) {
       const statut = post ? post[2] : 'programmé';
       const lien = post && post[3] !== 'à' ? post[3] : null;
-      if (statut === 'publié') res('publié', `C'est en ligne.${lien ? ' ' + lien : ''}`);
-      else res('programmé', majuscule(`${phraseQuand(el, false)}. Tu peux fermer ton Mac, tout sort à l'heure.`));
+      if (statut === 'publié') res('publié', `C'est en ligne.${phraseMot(el, false)}${lien ? ' ' + lien : ''}`);
+      else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`));
+      continue;
+    }
+    // Le post est parti, mais pas la règle du mot (code 6) : on le dit, et on propose « Brancher le mot »
+    // (poser-mot), jamais un second envoi du post.
+    if (code === 6 && /^MOT_NON_POSE\b/m.test(sortie) && el.ressource) {
+      const quoi = el.quand === 'maintenant' ? `${el.type === 'carrousel' ? 'Ton carrousel est en ligne' : 'Ta vidéo est en ligne'}`
+        : majuscule(phraseQuand(el, false));
+      resultats.push({
+        slug: el.slug, statut: 'mot_non_pose',
+        message: `${quoi}, mais le mot${el.mot ? ` ${el.mot}` : ''} n'est pas encore branché : ceux qui commentent ne reçoivent rien pour l'instant. Clique sur « Brancher le mot », une seule fois.`,
+        detail: (/^MOT_NON_POSE.*$/m.exec(sortie) || [''])[0].slice(0, 300),
+        poser_mot: { slug: el.slug, ressource: el.ressource },
+      });
       continue;
     }
     const a = arret(sortie);
@@ -491,6 +557,38 @@ export async function confirmer(recapOuId, config, opts = {}) {
     stop = true;
   }
   return { simulation, resultats };
+}
+
+// ------------------------------------------------------------------ brancher le mot (rattrapage)
+
+// Pose la règle du mot sur un post déjà parti (registre) : seulement chez un client qui a des ressources,
+// au clic, une fois. En simulation : la requête est montrée, rien ne part.
+export async function poserMot(slug, ressource, config, opts = {}) {
+  if (!config.ressources) throw new ErreurPublication('RESSOURCES_ABSENTES', "Il n'y a pas de ressources gratuites dans ce studio.");
+  if (!slugValide(slug) || !slugValide(ressource)) throw new ErreurPublication('RIEN_A_POSER', 'Je ne retrouve pas ce post ou cette ressource.');
+  const simulation = enSimulation(config);
+  const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
+  const args = ['poser-mot', slug, '--ressource', ressource];
+  const { code, sortie } = simulation
+    ? await executer(args, { ecriture: false })
+    : await executer([...args, '--envoyer', '--pousser'], { ecriture: true, timeoutMs: 5 * 60 * 1000 });
+  if (simulation && /^SIMULATION_OK$/m.test(sortie)) {
+    return { simulation, statut: 'simulation', message: "Simulation, rien n'est parti : en vrai, le mot serait branché sur ce post." };
+  }
+  if (!simulation && code === 0 && /^FAIT$/m.test(sortie)) {
+    const m = /^MOT_POSE (\S+)/m.exec(sortie);
+    return { simulation, statut: 'pose', message: `Le mot ${m ? m[1] + ' ' : ''}est branché : ceux qui commentent reçoivent la ressource.` };
+  }
+  const b = lireVerifier(sortie).bloque[0];
+  if (b && /^règle déjà posée/.test(b)) return { simulation, statut: 'pose', message: 'Le mot était déjà branché sur ce post : rien à refaire.' };
+  if (b && /^aucun post de/.test(b)) {
+    throw new ErreurPublication('PAS_DE_POST', "Ce contenu n'est pas encore parti : le mot se branche au moment où tu le programmes.");
+  }
+  if (b && /^(aucune ressource gratuite|la ressource \S+ n'est pas en ligne)/.test(b)) throw new ErreurPublication('MOT_BLOQUE', phrase('BLOQUE', b));
+  if (b) throw new ErreurPublication('MOT_BLOQUE', phrase('BLOQUE', `ressource ${ressource} : ${b}`));
+  const a = arret(sortie);
+  if (a) throw new ErreurPublication('MOT_ARRET', phrase('ARRET', a));
+  throw new ErreurPublication('MOT_NON_POSE', `Le mot n'a pas pu être branché. Ne relance pas plusieurs fois : préviens ${contact()} avec le message ci-dessous.`);
 }
 
 // ------------------------------------------------------------------ semaine

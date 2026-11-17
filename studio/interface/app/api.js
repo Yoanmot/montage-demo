@@ -1,6 +1,6 @@
 // Le lien avec le serveur du studio (contrat, section 10).
 // Même interface que la maquette (maquette.js) : l'appli ne sait pas laquelle elle utilise.
-import { CONTACT } from "./outils.js";
+import { previens } from "./outils.js";
 
 const MESSAGE_RESEAU = "Le studio ne répond pas. Il redémarre peut-être : réessaie dans un instant.";
 
@@ -28,7 +28,7 @@ async function appel(methode, route, corps) {
     const code = donnees?.erreur || (rep.status === 401 ? "NON_CONNECTE" : "ERREUR");
     const message = donnees?.message || (rep.status === 401
       ? "Rouvre le studio depuis son icône."
-      : `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${CONTACT}.`);
+      : `Ça n'a pas marché. Réessaie, et si ça recommence, ${previens()}.`);
     const e = new ErreurStudio(code, message, rep.status);
     e.donnees = donnees;
     throw e;
@@ -68,6 +68,10 @@ export function creerApiServeur() {
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),
     confirmer: (recap_id) => appel("POST", "/api/publication/confirmer", { recap_id }),
+    poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
+    ressources: () => appel("GET", "/api/ressources"),
+    apercuRessource: (slug) => appel("GET", `/api/ressources/${enc(slug)}/apercu`),
+    mettreEnLigne: (slug) => appel("POST", `/api/ressources/${enc(slug)}/mettre-en-ligne`, {}),
     stats: () => appel("GET", "/api/stats"),
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),
     ecouter: ecouterServeur,

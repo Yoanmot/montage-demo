@@ -69,3 +69,36 @@ export function variablesEcriture(client) {
 export function contact() {
   return clientActif().contact || "Yoan";
 }
+
+// Le contact est le client lui-même (Yoan dans son propre studio) : « préviens Yoan » n'a pas de sens.
+// Les phrases s'adressent alors à lui directement. Chez un client dont le contact est quelqu'un d'autre
+// (Romain), rien ne change.
+export function contactEstLeClient(client = clientActif()) {
+  return Boolean(client?.contact) && client.contact === client.prenom;
+}
+
+function echapperRe(t) { return String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+// Remplacements dans l'ordre : du plus précis au plus général. Aucun guillemet ni barre oblique inverse
+// dans les remplacements : ils s'appliquent aussi à du JSON déjà écrit.
+function reglesSoi(nom) {
+  const p = `[Pp]réviens ${echapperRe(nom)}`;
+  const maj = (m, t) => (m.charAt(0) === "P" ? t.charAt(0).toUpperCase() : t.charAt(0)) + t.slice(1);
+  return [
+    [new RegExp(`Ne relance pas, préviens ${echapperRe(nom)} avec le message ci-dessous\\.`, "g"), () => "Ne relance pas : le message ci-dessous dit ce qui coince."],
+    [new RegExp(`${p} avec le message ci-dessous\\.`, "g"), (m) => maj(m, "le message ci-dessous dit ce qui coince.")],
+    [new RegExp(`${p} si tu as un doute\\.`, "g"), (m) => maj(m, "relis-le avant de confirmer.")],
+    [new RegExp(`Pour le décaler, préviens ${echapperRe(nom)}\\.`, "g"), () => "Pour le décaler, il faut d'abord l'annuler : ça ne se fait pas encore depuis le studio."],
+    [new RegExp(`${p} : la reconnexion prend deux minutes\\.`, "g"), (m) => maj(m, "reconnecte-le : ça prend deux minutes.")],
+    [new RegExp(`Rien n'est perdu : préviens ${echapperRe(nom)}\\.`, "g"), () => "Rien n'est perdu, mais il faut les raccorder à la main."],
+    [new RegExp(`${p}\\b`, "g"), (m) => maj(m, "c'est un souci du studio à corriger")],
+  ];
+}
+
+// Rend le texte adressé au client lui-même quand il est son propre contact ; sinon le texte tel quel.
+export function adresser(texte, client = clientActif()) {
+  if (typeof texte !== "string" || !contactEstLeClient(client) || !/réviens /.test(texte)) return texte;
+  let t = texte;
+  for (const [motif, f] of reglesSoi(client.contact)) t = t.replace(motif, f);
+  return t;
+}
