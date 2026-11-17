@@ -131,8 +131,11 @@ test("client.sh : Yoan n'a aucun chemin ni nom de Romain", () => {
   assert.equal(v.CLIENT_PORT, "4748");
   assert.equal(v.CLIENT_BRANCHE, "studio-multi-clients");
   assert.equal(v.CLIENT_HOOK, '/bin/bash "/Users/Shared/studio-yoan/montage-demo/installation/mettre-a-jour.sh" --hook');
+  // L'icône de Yoan quand elle est dans le dépôt (lot 5), sinon celle par défaut.
+  const icone = path.join(DEPOT, "studio/lancement/icones/yoan.icns");
+  assert.equal(v.CLIENT_ICONE, fs.existsSync(icone) ? icone : "");
   for (const [k, x] of Object.entries(v)) {
-    if (k === "CLIENT_FICHIER") continue; // chemin du dépôt de travail
+    if (k === "CLIENT_FICHIER" || k === "CLIENT_ICONE") continue; // chemins du dépôt de travail
     assert.doesNotMatch(x, /romain|montage-yoan|\/\.claude(\/|$)/i, `${k}=${x}`);
   }
 });
