@@ -17,10 +17,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const API = 'https://195-15-255-230.sslip.io/v1';
 const FPS = 30;   // base de temps de tout le monteur (CONTRAT)
-const HOME_DIR = path.join(os.homedir(), '.montage-yoan');
+// Le code d'accès vit dans la racine du studio du client : STUDIO_RACINE (service, sessions), sinon la racine
+// de l'installation qui contient cette copie (<racine>/client.json posé par l'installeur, autre client que
+// Romain), sinon ~/.montage-yoan (Romain, inchangé).
+function racineClient() {
+  if (process.env.STUDIO_RACINE) return process.env.STUDIO_RACINE;
+  const r = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+  if (fs.existsSync(path.join(r, 'client.json'))) return r;
+  return path.join(os.homedir(), '.montage-yoan');
+}
+const HOME_DIR = racineClient();
 const CONF = path.join(HOME_DIR, 'config');
 
 const say = (m) => console.log(m);

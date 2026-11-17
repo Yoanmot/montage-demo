@@ -72,4 +72,4 @@ Ensuite, le monteur refait la vidéo (brique rendu). Rien de tout ça ne renvoie
 ## Dépendances
 - Node.js 24 (`node`) : lance `couper.mjs` (appels au serveur par `fetch`, sans autre outil).
 - `ffmpeg` / `ffprobe` (Homebrew : `/opt/homebrew/bin/`).
-- Le code d'accès au serveur de transcription envoyé par Yoan (`couper.mjs code <code>`, gardé dans `~/.montage-yoan/config`).
+- Le code d'accès au serveur de transcription envoyé par Yoan (`couper.mjs code <code>`, gardé dans `<racine du studio>/config`, `~/.montage-yoan/config` chez Romain).

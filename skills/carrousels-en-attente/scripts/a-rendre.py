@@ -40,7 +40,8 @@ import sys
 import time
 
 HOME = os.path.expanduser("~")
-BASE = os.path.join(HOME, ".montage-yoan")
+# La racine du studio du client (STUDIO_RACINE, posée par le service) ; ~/.montage-yoan chez Romain.
+BASE = os.environ.get("STUDIO_RACINE") or os.path.join(HOME, ".montage-yoan")
 DEPOT = os.environ.get("RENDUS_DEPOT") or os.path.join(BASE, "head-of-content")
 
 def _client():
