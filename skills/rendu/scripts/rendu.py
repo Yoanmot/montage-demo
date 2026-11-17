@@ -62,6 +62,15 @@ def _garder_les_enfants():
             os.setpgid(0, 0)
     except OSError:
         pass
+    # Hors du groupe au premier plan, un enfant qui lit le Terminal resterait figé (arrêt SIGTTIN) : on lui
+    # donne une entrée vide. Lancé depuis le Terminal par verifier.sh, le rendu attendait sans fin.
+    try:
+        if os.isatty(0):
+            vide = os.open(os.devnull, os.O_RDONLY)
+            os.dup2(vide, 0)
+            os.close(vide)
+    except OSError:
+        pass
     for s_ in (_signal.SIGINT, _signal.SIGTERM, _signal.SIGHUP):
         _signal.signal(s_, _arret)
 # Resserrement du masque (repris du labo, detourage.py et vert21.py) : sous le seuil bas le calque reste plein,
