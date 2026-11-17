@@ -248,3 +248,20 @@ test("serveur yoan : aucun « Romain » dans les textes servis (accueil, état, 
     assert.ok(!t.includes("Romain"), `${f} : ${t.split("\n").find((l) => l.includes("Romain"))}`);
   }
 });
+
+test("serveur yoan : le thème charge ses propres polices, servies à côté de la feuille", async () => {
+  const css = (await requete("/app/themes/yoan.css")).texte;
+  assert.ok(!/manrope|FAR Titres/i.test(css), "aucune police de Romain dans le thème de Yoan");
+  const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((x) => x[1]);
+  assert.ok(urls.length >= 3, "Anton et Instrument Sans (droit, italique)");
+  for (const u of urls) {
+    const r = await requete(new URL(u, "http://x/app/themes/yoan.css").pathname);
+    assert.equal(r.statut, 200, u);
+    assert.equal(r.entetes["content-type"], "font/woff2", u);
+  }
+});
+
+test("lancement yoan : l'icône propre au client est dans le dépôt", () => {
+  assert.equal(JSON.parse(fs.readFileSync(path.join(CODE, "clients", "yoan.json"), "utf8")).appli.icone, "yoan");
+  assert.ok(fs.statSync(path.join(CODE, "lancement", "icones", "yoan.icns")).size > 1000);
+});

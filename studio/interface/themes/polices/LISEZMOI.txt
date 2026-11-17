@@ -1,0 +1,5 @@
+Polices du thème « yoan » (themes/yoan.css, chemins relatifs à la feuille).
+anton-latin.woff2 : Anton, sous licence SIL OFL 1.1 (voir OFL-Anton.txt), jeu de caractères latin, woff2.
+instrument-sans-latin.woff2, instrument-sans-italic-latin.woff2 : Instrument Sans (droit et italique, variable),
+sous licence SIL OFL 1.1 (voir OFL-Instrument-Sans.txt), jeu de caractères latin, woff2.
+Source : charte de @ia.yoan (polices de la banque de contenu).

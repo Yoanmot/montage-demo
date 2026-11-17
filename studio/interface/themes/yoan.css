@@ -1,40 +1,49 @@
-/* Thème « yoan » du studio : copie PROVISOIRE du thème « romain » (mêmes variables), remplacée au lot 5
-   par les couleurs de Yoan. Un thème définit les polices et les variables de :root (clair, sombre par
-   préférence système et [data-theme]) ; style.css ne fait que les utiliser. */
+/* Studio de Yoan (@ia.yoan). Thème tiré de la charte v1 (content/banque/da) :
+   noir chaud #0A0A09, orange de surface #C2700B, orange d'éclat #FFA31A, texte #F2EEE8,
+   Anton pour le nom du studio et le titre du fichier ouvert, Instrument Sans pour tout le reste.
+   Aucune serif italique. Aucune couleur froide : les formats et les états restent dans des teintes chaudes.
+   Mêmes variables que le thème de Romain : ce fichier les redéfinit toutes. Le serveur le charge AVANT
+   style.css : les quelques sélecteurs surchargés plus bas sont donc préfixés par :root pour l'emporter
+   sur ceux de style.css. Les polices sont à côté, dans polices/ (chemins relatifs à ce fichier).
 
-@font-face { font-family: "Manrope"; src: url("/app/polices/manrope.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
-@font-face { font-family: "FAR Titres"; src: url("/app/polices/far-titres-italic.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+   Orange : un seul par thème, jamais les deux côte à côte.
+   Sombre (le thème de la marque) : #FFA31A, l'orange des petits éléments sur fond noir.
+   Clair : #C2700B pour les aplats (texte noir dessus), #8A4C00 pour l'orange écrit en texte. */
+
+@font-face { font-family: "Anton"; src: url("polices/anton-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-italic-latin.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: swap; }
 
 :root {
-  --fond: #F5F3EF;
-  --fond-2: #ECE8E1;
-  --fond-3: #E4DFD6;
-  --surface: #FFFFFF;
-  --encre: #151515;
-  --encre-2: #57534E;
-  --encre-3: #78716C;
-  --trait: #E4E0D8;
-  --trait-fort: #C9C3BA;
-  --inverse: #FFFFFF;
-  --orange: #F15A24;
-  --orange-encre: #B8420F;
-  --orange-pale: #FCEDE6;
-  --sur-orange: #111111;
-  --reel: #3A55C8;
-  --reel-pale: #E7EBFA;
-  --carrousel: #0F7A63;
-  --carrousel-pale: #DDF1EB;
-  --reel-fond: #EAEEFB;
-  --carrousel-fond: #E2F3ED;
-  --vert: #2F6B3A; --vert-pale: #E5EFE6;
-  --ambre: #8A5A00; --ambre-pale: #FBEFD5;
-  --rouge: #A3261B; --rouge-pale: #FBE3DF;
-  --ombre: 0 18px 50px -12px rgb(30 20 10 / 0.28), 0 4px 12px -4px rgb(30 20 10 / 0.12);
-  --ombre-pop: 0 10px 30px -8px rgb(30 20 10 / 0.25);
+  --fond: #F2EEE8;
+  --fond-2: #E9E4DC;
+  --fond-3: #DED8CE;
+  --surface: #FBF9F6;
+  --encre: #0A0A09;
+  --encre-2: #4D4740;
+  --encre-3: #69625A;
+  --trait: #E0DAD1;
+  --trait-fort: #C2BAAE;
+  --inverse: #F7F4EF;
+  --orange: #C2700B;
+  --orange-encre: #8A4C00;
+  --orange-pale: #F7E6CC;
+  --sur-orange: #0A0A09;
+  --reel: #6B5530;
+  --reel-pale: #ECE3D0;
+  --carrousel: #8A4A38;
+  --carrousel-pale: #F1E1D9;
+  --reel-fond: #EFE8DB;
+  --carrousel-fond: #F2E6DF;
+  --vert: #3F5F22; --vert-pale: #E4EAD8;
+  --ambre: #7F5200; --ambre-pale: #F5EACD;
+  --rouge: #A3261B; --rouge-pale: #F8E0DB;
+  --ombre: 0 18px 50px -12px rgb(40 26 8 / 0.26), 0 4px 12px -4px rgb(40 26 8 / 0.12);
+  --ombre-pop: 0 10px 30px -8px rgb(40 26 8 / 0.24);
   --rayon: 12px;
   --rayon-petit: 9px;
-  --texte: "Manrope", system-ui, -apple-system, sans-serif;
-  --titres: "FAR Titres", "Manrope", sans-serif;
+  --texte: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  --titres: "Anton", "Instrument Sans", sans-serif;
   --courbe: cubic-bezier(0.16, 1, 0.3, 1);
   --arbre-l: 312px;
   --chat-l: 384px;
@@ -42,27 +51,40 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --fond: #111111; --fond-2: #191919; --fond-3: #232323; --surface: #1C1C1C;
-    --encre: #F3F3F3; --encre-2: #BDB8B1; --encre-3: #9A948D;
-    --trait: #2C2C2C; --trait-fort: #444240; --inverse: #111111;
-    --orange-encre: #FF8A5C; --orange-pale: #2E1A10;
-    --reel: #9AABFF; --reel-pale: #1B2140; --carrousel: #5ED3B6; --carrousel-pale: #102923;
-    --reel-fond: #1A1F36; --carrousel-fond: #13261F;
-    --vert: #8FD19A; --vert-pale: #16261A; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF9A8C; --rouge-pale: #2E1512;
-    --ombre: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 4px 12px -4px rgb(0 0 0 / 0.5);
-    --ombre-pop: 0 10px 30px -8px rgb(0 0 0 / 0.7);
+    --fond: #0A0A09; --fond-2: #151513; --fond-3: #22201E; --surface: #1A1917;
+    --encre: #F2EEE8; --encre-2: #C8C0B5; --encre-3: #A39B90;
+    --trait: #232120; --trait-fort: #3B3B39; --inverse: #0A0A09;
+    --orange: #FFA31A; --orange-encre: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
+    --reel: #DCC39A; --reel-pale: #2A2416; --carrousel: #E0A28D; --carrousel-pale: #2E1D17;
+    --reel-fond: #1B1812; --carrousel-fond: #1D1512;
+    --vert: #A9C77F; --vert-pale: #1B2414; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF8A7A; --rouge-pale: #301613;
+    --ombre: 0 18px 50px -12px rgb(0 0 0 / 0.75), 0 4px 12px -4px rgb(0 0 0 / 0.55);
+    --ombre-pop: 0 10px 30px -8px rgb(0 0 0 / 0.75);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --fond: #111111; --fond-2: #191919; --fond-3: #232323; --surface: #1C1C1C;
-  --encre: #F3F3F3; --encre-2: #BDB8B1; --encre-3: #9A948D;
-  --trait: #2C2C2C; --trait-fort: #444240; --inverse: #111111;
-  --orange-encre: #FF8A5C; --orange-pale: #2E1A10;
-  --reel: #9AABFF; --reel-pale: #1B2140; --carrousel: #5ED3B6; --carrousel-pale: #102923;
-  --reel-fond: #1A1F36; --carrousel-fond: #13261F;
-  --vert: #8FD19A; --vert-pale: #16261A; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF9A8C; --rouge-pale: #2E1512;
-  --ombre: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 4px 12px -4px rgb(0 0 0 / 0.5);
-  --ombre-pop: 0 10px 30px -8px rgb(0 0 0 / 0.7);
+  --fond: #0A0A09; --fond-2: #151513; --fond-3: #22201E; --surface: #1A1917;
+  --encre: #F2EEE8; --encre-2: #C8C0B5; --encre-3: #A39B90;
+  --trait: #232120; --trait-fort: #3B3B39; --inverse: #0A0A09;
+  --orange: #FFA31A; --orange-encre: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
+  --reel: #DCC39A; --reel-pale: #2A2416; --carrousel: #E0A28D; --carrousel-pale: #2E1D17;
+  --reel-fond: #1B1812; --carrousel-fond: #1D1512;
+  --vert: #A9C77F; --vert-pale: #1B2414; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF8A7A; --rouge-pale: #301613;
+  --ombre: 0 18px 50px -12px rgb(0 0 0 / 0.75), 0 4px 12px -4px rgb(0 0 0 / 0.55);
+  --ombre-pop: 0 10px 30px -8px rgb(0 0 0 / 0.75);
   color-scheme: dark;
 }
+
+/* Anton n'a qu'une graisse et pas d'italique : le nom du studio et le titre du fichier ouvert
+   passent en droit, graisse 400 (sinon le navigateur fabrique un faux gras penché). */
+:root .mot { font-style: normal; font-weight: 400; letter-spacing: 0.01em; font-size: 23px; }
+:root .non-connecte-msg .mot { font-size: 40px; }
+:root .vue-titre { font-style: normal; font-weight: 400; letter-spacing: 0; line-height: 1.02; font-size: 32px; max-width: 30ch; }
+@media (max-width: 1360px) { :root .vue-titre { font-size: 28px; } }
+
+/* Règle 80 / 15 / 5 de la charte : l'orange ne marque que ce qui attend Yoan (étiquettes, compteur,
+   accroche choisie, bouton qui fait partir une publication). L'avancement d'un contenu passe en
+   neutre, et l'invite du chat devient un encadré au lieu d'un deuxième aplat orange à l'écran. */
+:root .progression i.fait { background: var(--encre-2); }
+:root .chat-a-toi { background: var(--orange-pale); color: var(--encre); box-shadow: inset 3px 0 0 var(--orange); }
