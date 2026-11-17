@@ -1,0 +1,11 @@
+{
+  "name": "studio",
+  "private": true,
+  "type": "module",
+  "description": "Studio local : serveur, interface, rangement et publication. Aucune dépendance.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node serveur/studio.mjs",
+    "test": "node --test serveur/tests/*.test.mjs"
+  }
+}

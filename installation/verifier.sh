@@ -41,6 +41,17 @@ main() {
     kov "mise-a-jour-auto : pas branchée dans les réglages de Claude"
   fi
 
+  # -------------------------------------------------- le studio (service, sécurité, appli, session Claude d'essai)
+  if [ -f "$CLONE/installation/studio.sh" ]; then
+    local l
+    while IFS= read -r l; do
+      echo "$l"
+      case "$l" in VERIF_ECHEC*|VERIF_A_FAIRE*) nb_ko=$((nb_ko + 1));; esac
+    done < <(/bin/bash "$CLONE/installation/studio.sh" verifier 2>&1)
+  else
+    kov "studio : installation/studio.sh absent"
+  fi
+
   # -------------------------------------------------- la vidéo d'essai
   local voix
   voix="$(say -v '?' 2>/dev/null | awk '/fr_FR/ {sub(/ +fr_FR.*/, ""); print; exit}')"

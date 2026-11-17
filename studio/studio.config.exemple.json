@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "prenom": "Romain",
+  "port": 4747,
+  "depot_hoc": "~/.montage-yoan/studio/head-of-content",
+  "depot_mac": "~/.montage-yoan/head-of-content",
+  "media": "~/Contenu",
+  "carrousels": "~/Pictures/Carrousels",
+  "arrivees": "~/Downloads",
+  "disque_externe": null,
+  "appareil": null,
+  "skills": "~/.claude/skills",
+  "agents": { "idees": "head-of-content", "montage": "monteur" },
+  "sessions_en_parallele": 1,
+  "synchro_minutes": 5,
+  "publication": {
+    "heures_par_defaut": { "reel": "18:30", "carrousel": "12:15" },
+    "jours_par_defaut": ["mardi", "jeudi", "dimanche"],
+    "simulation": false
+  },
+  "apercu_ressources": null,
+  "stats": { "fichier": null, "heures": 6 },
+  "claude": { "binaire": "claude", "modele": null, "modele_rangement": "sonnet" }
+}

@@ -2,13 +2,16 @@
 # Pose les clés du Mac de Romain, sans qu'elles passent jamais par la conversation avec Claude.
 #   /bin/bash ~/.montage-yoan/montage-demo/installation/cles.sh            les clés qui manquent
 #   /bin/bash ~/.montage-yoan/montage-demo/installation/cles.sh elevenlabs  une seule (la remplace si elle existe)
-#   (noms : elevenlabs, zernio, code)
+#   (noms : elevenlabs, zernio, code, claude)
 #   ... | cles.sh --stdin <nom>   la valeur lue sur l'entrée standard au lieu de la fenêtre (tests de Yoan)
 # Pour chaque clé, une fenêtre du Mac s'ouvre avec un champ masqué : on y colle la clé, OK. Le script l'écrit dans
 # son fichier (droits 600), la vérifie par un appel en lecture, et n'affiche jamais sa valeur.
 #   elevenlabs -> ~/.config/monteur-romain/.env   ELEVENLABS_API_KEY=...  (sons du monteur)
 #   zernio     -> ~/.montage-yoan/zernio.env       ZERNIO_API_KEY=...      (clé « Mac » : publication seulement)
 #   code       -> ~/.montage-yoan/config           CODE=...                (serveur de coupe, via couper.mjs code)
+#   claude     -> ~/.montage-yoan/claude.env       CLAUDE_CODE_OAUTH_TOKEN=...  (connexion du studio sans personne
+#                 devant : le jeton d'un an affiché par « claude setup-token », lancé avant dans le Terminal ;
+#                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos)
 # Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
 
 main() {
@@ -20,6 +23,7 @@ main() {
   local ENV_EL="$HOME/.config/monteur-romain/.env"
   local ENV_ZE="$BASE/zernio.env"
   local CONF="$BASE/config"
+  local ENV_CL="$BASE/claude.env"
   umask 077
   mkdir -p "$BASE" "$HOME/.config/monteur-romain"
 
@@ -88,6 +92,35 @@ OSA
     esac
   }
 
+  verifier_claude() {
+    local v cl="" c d r pid i=0
+    v="$(sed -n 's/^CLAUDE_CODE_OAUTH_TOKEN=//p' "$ENV_CL" | tail -1 | tr -d "\"' ")"
+    case "$v" in sk-ant-*) ;; *) echo "CLE_REFUSEE claude (ce n'est pas un code de connexion de Claude)"; return;; esac
+    for c in "$HOME/.local/bin/claude" /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
+      [ -n "$c" ] && [ -x "$c" ] && { cl="$c"; break; }
+    done
+    [ -n "$cl" ] || { echo "CLE_NON_VERIFIEE claude programme claude introuvable"; return; }
+    d="$(mktemp -d)"
+    # Le jeton passe par l'environnement du sous-shell, jamais par la ligne de commande (visible dans ps).
+    ( unset ANTHROPIC_API_KEY; export CLAUDE_CODE_OAUTH_TOKEN="$v"; cd "$d" && "$cl" -p "Réponds seulement le mot PRET, rien d'autre." --max-turns 1 --output-format text </dev/null > "$d/r" 2>&1 ) &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 180 ]; do sleep 0.5; i=$((i + 1)); done
+    kill -0 "$pid" 2>/dev/null && { kill "$pid" 2>/dev/null; sleep 1; kill -9 "$pid" 2>/dev/null; }
+    wait "$pid" 2>/dev/null
+    r="$(cat "$d/r" 2>/dev/null)"; rm -rf "$d"; v=""
+    case "$r" in
+      *PRET*)
+        echo "CLE_OK claude"
+        # Le studio relit la connexion à son prochain démarrage : demandé, fait dès qu'il est au repos.
+        if [ -d "$BASE/studio" ] && [ -f "$CLONE/installation/studio.sh" ]; then
+          date '+%Y-%m-%d %H:%M:%S connexion' > "$BASE/studio/redemarrage-demande"
+          /bin/bash "$CLONE/installation/studio.sh" redemarrer-si-libre >/dev/null 2>&1 || true
+        fi;;
+      *[Ll]ogin*|*"Invalid"*|*authenticat*|*OAuth*|*401*|*expired*) echo "CLE_REFUSEE claude";;
+      *) echo "CLE_NON_VERIFIEE claude $(echo "$r" | tail -1 | cut -c1-80)";;
+    esac
+  }
+
   poser() { # $1 nom
     local v
     nettoie() { printf '%s' "$1" | tr -d '[:space:]'; }
@@ -104,7 +137,11 @@ OSA
         v="$(demander "Monteur : code d'accès" "Colle ici le code d'accès du montage que Yoan t'a donné, puis clique sur OK.")"
         [ -n "$v" ] || { echo "CLE_ANNULEE code"; return; }
         v="$(nettoie "$v")"; ecrire_cle "$CONF" CODE "$v"; verifier_code;;
-      *) echo "NOM_INCONNU $1 (elevenlabs, zernio, code)";;
+      claude)
+        v="$(demander "Studio : connexion à Claude" "Colle ici le long code de connexion que le Terminal t'a affiché (il commence par sk-ant), puis clique sur OK.")"
+        [ -n "$v" ] || { echo "CLE_ANNULEE claude"; return; }
+        v="$(nettoie "$v")"; ecrire_cle "$ENV_CL" CLAUDE_CODE_OAUTH_TOKEN "$v"; verifier_claude;;
+      *) echo "NOM_INCONNU $1 (elevenlabs, zernio, code, claude)";;
     esac
     v=""
   }
@@ -116,7 +153,8 @@ OSA
   if grep -qs '^ELEVENLABS_API_KEY=..*' "$ENV_EL"; then echo "DEJA elevenlabs"; verifier_elevenlabs; else poser elevenlabs; fi
   if grep -qs '^ZERNIO_API_KEY=..*' "$ENV_ZE"; then echo "DEJA zernio"; verifier_zernio; else poser zernio; fi
   if grep -qs '^CODE=..*' "$CONF"; then echo "DEJA code"; verifier_code; else poser code; fi
-  for f in "$ENV_EL" "$ENV_ZE" "$CONF"; do [ -f "$f" ] && chmod 600 "$f"; done
+  if grep -qs '^CLAUDE_CODE_OAUTH_TOKEN=..*' "$ENV_CL"; then echo "DEJA claude"; verifier_claude; else poser claude; fi
+  for f in "$ENV_EL" "$ENV_ZE" "$CONF" "$ENV_CL"; do [ -f "$f" ] && chmod 600 "$f"; done
   return 0
 }
 

@@ -69,7 +69,8 @@ Lance `attente`. Puis dis à Romain, en quelques lignes :
 
 ### 2. Pour chaque carrousel, un par un
 1. `prepare <slug>`. Il répond `PRET dossier="…"` et une ligne `PHOTO slide=N : …` par slide. Le
-   dossier du carrousel est **toujours** celui-là (`~/Pictures/Carrousels/carrousel-<slug>/`) : n'en
+   dossier du carrousel est **toujours** celui-là (`~/Pictures/Carrousels/carrousel-<slug>/`, sauf si le studio
+   en a choisi un autre) : n'en
    crée jamais un autre, sinon le script ne retrouvera pas les slides.
    S'il dit `ANCIENNE_VERSION` (texte mis à jour), l'ancienne mise en page est rangée dans un
    sous-dossier : tu peux y relire l'ancien `carrousel.json` pour reprendre les photos que Romain

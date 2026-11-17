@@ -44,7 +44,9 @@ BASE = os.path.join(HOME, ".montage-yoan")
 DEPOT = os.environ.get("RENDUS_DEPOT") or os.path.join(BASE, "head-of-content")
 REMOTE = os.environ.get("RENDUS_REMOTE") or "git@github.com:Yoanmot/head-of-content-romain.git"
 CLE = os.path.join(HOME, ".ssh", "fitavecromain_head_of_content")
-JOURNAL = os.path.join(BASE, "rendus-journal.json")
+# Le journal des envois restés hors ligne vit à côté de la copie qu'il rejoue (même chemin qu'avant
+# pour la copie par défaut ; une copie de test garde le sien).
+JOURNAL = os.path.join(os.path.dirname(os.path.abspath(DEPOT)), "rendus-journal.json")
 REGISTRE = "rendus/registre.json"
 MARQUEUR = ".a-rendre.json"
 
@@ -55,7 +57,8 @@ MARQUEUR = ".a-rendre.json"
 #   json    : prepare extrait le bloc ```json du texte vers ce fichier du dossier (None : rien)
 TYPES = {
     "carrousels": {
-        "sorties": os.path.join(HOME, "Pictures", "Carrousels"),
+        # RENDUS_CARROUSELS : le studio peut le déplacer (config « carrousels », bac à sable de test).
+        "sorties": os.environ.get("RENDUS_CARROUSELS") or os.path.join(HOME, "Pictures", "Carrousels"),
         "prefixe": "carrousel-",
         "preuves": ["slide-*.png"],
         "json": "carrousel.json",

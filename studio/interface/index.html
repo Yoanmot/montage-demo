@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Studio</title>
+  <link rel="preload" href="/app/polices/manrope.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/app/style.css">
+  <script type="module" src="/app/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="barre">
+      <button class="marque" type="button" aria-label="Retour à l'accueil du studio">
+        <span class="mot">Studio</span>
+        <span class="prenom"></span>
+        <span class="etiquette-maquette">données d'exemple</span>
+      </button>
+      <div class="barre-droite">
+        <div class="file-zone">
+          <button id="file-bouton" class="file-bouton" type="button" aria-expanded="false" aria-controls="file-liste" hidden>
+            <span class="file-signe" aria-hidden="true"></span><span class="file-texte"></span>
+          </button>
+          <div id="file-liste" class="pop file-liste" hidden></div>
+        </div>
+        <p class="sync" role="status" aria-live="polite"></p>
+      </div>
+    </header>
+
+    <div class="colonnes">
+      <nav class="col-arbre" aria-label="Tes contenus">
+        <div class="arbre-outils">
+          <div class="filtre-format segment" role="group" aria-label="Format">
+            <button type="button" data-format="tous" aria-pressed="true">Tout</button>
+            <button type="button" data-format="reel" aria-pressed="false"><span class="pastille pastille-reel" aria-hidden="true"></span>Reels</button>
+            <button type="button" data-format="carrousel" aria-pressed="false"><span class="pastille pastille-carrousel" aria-hidden="true"></span>Carrousels</button>
+          </div>
+        </div>
+        <div class="arbre" role="tree" aria-label="Tes dossiers"></div>
+      </nav>
+
+      <main class="col-vue" aria-live="off"></main>
+
+      <aside class="col-chat" aria-labelledby="chat-titre">
+        <header class="chat-tete">
+          <p class="chat-portee"></p>
+          <h2 id="chat-titre"></h2>
+          <p class="chat-sous"></p>
+        </header>
+        <div class="chat-zone"></div>
+      </aside>
+    </div>
+
+    <div class="non-connecte-msg" role="alert">
+      <p class="mot">Studio</p>
+      <p>Rouvre le studio depuis son icône.</p>
+    </div>
+  </div>
+</body>
+</html>

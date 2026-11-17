@@ -1,0 +1,4 @@
+far-titres-italic.woff2 : FAR Titres, version modifiée de Raleway Italic (variable), sous licence SIL OFL 1.1 (voir OFL-Raleway.txt).
+Modifications : les chiffres 0-9 pointent vers les chiffres alignés ; jeu de caractères réduit au latin (français) et converti en woff2 pour le web.
+manrope.woff2 : Manrope variable, sous licence SIL OFL 1.1 (voir OFL-Manrope.txt), jeu de caractères réduit au latin et converti en woff2.
+Source : skill carrousel de Romain (montage-demo, skills/carrousel/assets/fonts).

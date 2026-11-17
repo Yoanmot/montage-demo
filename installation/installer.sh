@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installation (ou réinstallation) du monteur et des carrousels de Romain sur un Mac.
+# Installation (ou réinstallation) du monteur, des carrousels et du studio de Romain sur un Mac.
 # Lancé par le Claude de Romain (prompt d'installation de Yoan) :
 #   curl -fsSL https://raw.githubusercontent.com/Yoanmot/montage-demo/main/installation/installer.sh -o /tmp/installer-montage.sh
 #   /bin/bash /tmp/installer-montage.sh
@@ -14,7 +14,8 @@
 # Codes de sortie : 0 tout est en place ; 10 outils Apple à installer (fenêtre ouverte) ; 11 Homebrew à installer ;
 # 1 au moins une autre action ou un échec (la suite a quand même été faite).
 #
-# Variables pour les tests de Yoan seulement : MONTAGE_DEPOT_URL, HOC_DEPOT_URL.
+# Variables pour les tests de Yoan seulement : MONTAGE_DEPOT_URL, HOC_DEPOT_URL, et pour le studio
+# STUDIO_LABEL, STUDIO_SANS_DOCK (voir installation/studio.sh).
 # Aucune clé dans ce fichier : les clés se posent avec installation/cles.sh.
 
 main() {
@@ -320,13 +321,32 @@ PYEOF
     fi
   fi
 
+  # ------------------------------------------------------------ le studio (service, appli Studio, copie de travail)
+  if [ -f "$CLONE/installation/studio.sh" ]; then
+    local ligne
+    while IFS= read -r ligne; do
+      case "$ligne" in
+        "OK "*) ok "${ligne#OK }";;
+        "INSTALLE "*) installe "${ligne#INSTALLE }";;
+        "A_FAIRE CLE_HOC "*) [ -d "$HOC/.git" ] && a_faire "${ligne#A_FAIRE }" || echo "  (le studio attend la même clé : CLE_HOC ci-dessus)";;
+        "A_FAIRE "*) a_faire "${ligne#A_FAIRE }";;
+        "ECHEC "*) echec "${ligne#ECHEC }";;
+        STUDIO_FIN*) ;;
+        *) echo "  $ligne";;
+      esac
+    done < <(HOC_DEPOT_URL="$HOC_URL" /bin/bash "$CLONE/installation/studio.sh" installer 2>&1)
+  else
+    echec "studio : installation/studio.sh absent du dépôt"
+  fi
+
   # ------------------------------------------------------------ clés et code (posés par cles.sh, jamais ici)
   local manque=""
   grep -qs '^ELEVENLABS_API_KEY=..*' "$HOME/.config/monteur-romain/.env" || manque="$manque elevenlabs"
   grep -qs '^ZERNIO_API_KEY=..*' "$BASE/zernio.env" || manque="$manque zernio"
   grep -qs '^CODE=..*' "$BASE/config" || manque="$manque code-montage"
-  for f in "$HOME/.config/monteur-romain/.env" "$BASE/zernio.env" "$BASE/config"; do [ -f "$f" ] && chmod 600 "$f"; done
-  if [ -z "$manque" ]; then ok "cles elevenlabs, zernio et code du montage présents"
+  grep -qs '^CLAUDE_CODE_OAUTH_TOKEN=..*' "$BASE/claude.env" || manque="$manque connexion-claude"
+  for f in "$HOME/.config/monteur-romain/.env" "$BASE/zernio.env" "$BASE/config" "$BASE/claude.env"; do [ -f "$f" ] && chmod 600 "$f"; done
+  if [ -z "$manque" ]; then ok "cles elevenlabs, zernio, code du montage et connexion de Claude présents"
   else a_faire "CLES manquantes :$manque (lancer installation/cles.sh)"; fi
 
   fin

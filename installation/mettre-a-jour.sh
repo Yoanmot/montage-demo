@@ -10,6 +10,8 @@
 #      retire les liens vers ce qui a disparu du dépôt ;
 #   3. aligne la copie du head of content (~/.montage-yoan/head-of-content) comme le font ses scripts, si aucun
 #      d'eux ne tourne, et garde le lien du skill publier.
+#   4. si le code du studio a changé : redémarre son service quand aucune session ne tourne (sinon plus tard).
+#      La copie de travail du studio (~/.montage-yoan/studio/head-of-content) n'est jamais touchée ici.
 # En mode --hook : jamais bloquant (8 s au plus, la suite continue en fond), jamais de sortie, toujours 0.
 # Journal : ~/.montage-yoan/mise-a-jour.log.
 #
@@ -68,6 +70,11 @@ main() {
       git -C "$CLONE" reset -q --hard origin/main
       apres="$(git -C "$CLONE" rev-parse HEAD 2>/dev/null)"
       if [ "$avant" != "$apres" ]; then journal "MONTEUR_MIS_A_JOUR ${avant:0:7} -> ${apres:0:7}"; else journal "MONTEUR_A_JOUR ${apres:0:7}"; fi
+      # Code du studio changé : redémarrage demandé (fait en 4, seulement quand le studio est au repos).
+      if [ "$avant" != "$apres" ] && [ -d "$BASE/studio" ] && ! git -C "$CLONE" diff --quiet "$avant" "$apres" -- studio 2>/dev/null; then
+        printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${apres:0:7}" > "$BASE/studio/redemarrage-demande"
+        journal "STUDIO_CHANGE ${avant:0:7} -> ${apres:0:7} : redémarrage demandé"
+      fi
     else
       journal "HORS_LIGNE monteur : copie gardée telle quelle"
     fi
@@ -144,6 +151,15 @@ main() {
     if [ -f "$HOC/.claude/skills/publier/SKILL.md" ] && [ ! -e "$SKILLS/publier" ] && [ ! -L "$SKILLS/publier" ]; then
       ln -s "$HOC/.claude/skills/publier" "$SKILLS/publier"; journal "AJOUTE skills/publier"
     fi
+  fi
+
+  # 4. Le studio : redémarrage du service si son code a changé et qu'aucune session ne tourne (les sessions
+  #    du studio ouvrent Claude, donc lancent ce script : un redémarrage les tuerait). Sinon le repère reste
+  #    et l'icône Studio ou la prochaine ouverture de Claude au repos s'en chargent.
+  if [ -f "$BASE/studio/redemarrage-demande" ] && [ -f "$CLONE/studio/lancement/commun.sh" ]; then
+    local r
+    r="$( . "$CLONE/studio/lancement/commun.sh" && studio_redemarrer_si_demande )"
+    journal "STUDIO_${r:-RIEN}"
   fi
 
   rm -rf "$VERROU"

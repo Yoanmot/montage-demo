@@ -279,12 +279,14 @@ def planche_png(vignettes, titre, biblio, out):
     hb = max(48 + 38 * len(lm) + 14 + 36 * len(ll) for lm, ll in blocs) + 16
     rangs = (len(vignettes) + COL - 1) // COL
     W = COL * TW + (COL + 1) * G
-    H0 = 190
+    lt = coupe_lignes(mesure, titre, f_titre, W - 2 * G, 3)   # un titre long passe à la ligne, jamais coupé au bord
+    H0 = 190 + 68 * (len(lt) - 1)
     H = H0 + rangs * (TH + hb + G) + G // 2
     CH, CR, OR = (26, 22, 18), (246, 240, 231), (241, 90, 36)
     im = Image.new("RGB", (W, H), CH); d = ImageDraw.Draw(im)
-    d.text((G, 44), titre, font=f_titre, fill=CR)
-    d.text((G, 118), "Réponds « ok », ou par numéro : « enlève le 4 », « le 6 plutôt en orange ».", font=f_aide, fill=(200, 192, 180))
+    for k, l in enumerate(lt):
+        d.text((G, 44 + 68 * k), l, font=f_titre, fill=CR)
+    d.text((G, 118 + 68 * (len(lt) - 1)), "Réponds « ok », ou par numéro : « enlève le 4 », « le 6 plutôt en orange ».", font=f_aide, fill=(200, 192, 180))
     for i, (v, (lm, ll)) in enumerate(zip(vignettes, blocs)):
         x = G + (i % COL) * (TW + G); y = H0 + (i // COL) * (TH + hb + G)
         im.paste(Image.open(v["fichier"]).convert("RGB").resize((TW, TH), Image.LANCZOS), (x, y))
@@ -298,7 +300,10 @@ def planche_png(vignettes, titre, biblio, out):
         yy += 14
         for l in ll:
             d.text((x, yy), l, font=f_ligne, fill=(200, 192, 180)); yy += 36
-    im.save(out, optimize=True)
+    # Écrit à côté puis renommé : le studio n'affiche jamais une planche à moitié écrite.
+    tmp = out.with_name(out.stem + ".ecriture.png")
+    im.save(tmp, optimize=True)
+    tmp.replace(out)
 
 
 def planche_html(vignettes, titre, out):
