@@ -100,7 +100,7 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
 
 ## Sous-titres et zooms (pas des gestes : clés à part du plan)
 
-- Sous-titres `classique` (niveau simple) ou `formelle` (niveau travaillé, avec `mots_forts`).
+- Sous-titres : un seul style, le sien (Inter Black, pavé orange qui glisse), aux deux niveaux ; rien à choisir.
 - Zooms `eclair`, `rapprochement` et `ouverture` (le dézoom de l'accroche) (voir `regles.md`).
 
 ## Ajouts de Yoan (2026-11-11), en sur mesure tant qu'ils n'ont pas de gabarit
@@ -108,7 +108,8 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
 - **Titre derrière lui + dézoom d'ouverture** : base `hook-titre-derriere`, titre sur 2 ou 3 lignes
   lisible sans le son, surlignage orange sur l'objet du désir, caméra de 120 % à 100 % jusqu'au mot clé (zoom `ouverture`), le titre dézoome avec elle.
 - **Sous-titres enrichis** : le mot clé en grand **à la place** de ses sous-titres (même hauteur,
-  même comportement), sur un ou deux étages, souligné à main levée en orange. Jamais redit en petit.
+  même police, même comportement), plus gros sur sa propre ligne (jamais deux tailles dans une même ligne), sur un ou deux étages, souligné à
+  main levée en orange. Jamais redit en petit.
 - **Chose réelle à l'identique, sur la caméra** (derrière sa tête ou à côté de lui) : une appli ou
   un objet qui existe, reproduit comme le vrai (l'appli Calendrier d'Apple, vue mois), posé comme un
   écran, jamais suspendu dans le vide. Les marques (cercle, coches) se tracent seules, sans stylo.

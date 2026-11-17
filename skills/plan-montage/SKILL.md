@@ -166,7 +166,14 @@ une simple trace dans le dossier de montage.
 - [ ] Rien ne s'affiche avant que Romain dise le mot (sauf le titre d'accroche, qui peut ne pas
   être une phrase dite, mais ne promet rien qu'il ne dit pas : `regles.md`, « L'accroche ») ; chaque
   chiffre affiché est dit.
-- [ ] `mots_forts` vide (l'ancien mot fort doublait les sous-titres).
+- [ ] Pas de `style` ni de `mots_forts` dans `sous_titres` (un seul style depuis le 2026-11-13).
+- [ ] Sous-titres enrichis et pleins écrans texte : jamais deux tailles sur une même ligne ; ce qui
+  ressort a sa propre ligne (écrit dans l'`intention`, ligne par ligne).
+- [ ] Chaque mot n'est vu qu'une fois : un effet qui écrit ses mots les prend aux sous-titres (jamais
+  « pendant les 12 » en sous-titres puis « 12 premières semaines » dans l'effet) ; l'`intention` dit où
+  les sous-titres s'arrêtent et reprennent.
+- [ ] Une pensée ou une phrase qu'il cite (« tu vas te dire : ... ») peut aller dans `sous_titres.citations` (ses
+  propres groupes de sous-titres) ; rien ne s'affiche en plus, jamais de guillemets.
 - [ ] Jamais deux accents en même temps (sauf exceptions de `regles.md`) ; jamais trois pleins
   écrans de suite, deux de suite seulement avec des fonds différents.
 - [ ] Les mots forts sont des mots qui portent le sens (nom, chiffre, verbe fort, contraste), jamais

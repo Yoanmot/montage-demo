@@ -8,6 +8,7 @@ RÉSULTATS mesurait 39 px de trop par rapport au rendu.
 Usage (sortie JSON sur stdout) :
   mesure.py encre  <titre|texte|natif> <taille_px> <texte>
   mesure.py geant  <texte> [x0 x1]                 taille pour que l'encre couvre x0..x1 (défaut zone sûre +-3 px)
+  mesure.py taille <titre|texte|natif|sousTitres> <cap_px>   taille de police pour des capitales de cap_px
   mesure.py lignes <texte1> <texte2> [...]          tailles pour que chaque ligne ait la même largeur d'encre
   mesure.py metriques <titre|texte|natif>           hauteur des capitales, ascendante, descendante (en em)
 """
@@ -79,13 +80,27 @@ def encre_hb(cle, texte, taille):
                 avance=round(x * k, 2), haut=round(hi * k, 2), cap=round(f["cap"] * taille, 2))
 
 
+def approche(cle):
+    """letter-spacing de la police du style (POLICES[cle]["approche"], en em), 0 sans réglage."""
+    a = str(C["POLICES"][cle].get("approche", "0")).strip()
+    return float(a[:-2]) if a.endswith("em") else 0.0
+
+
 def encre(cle, texte, taille):
     if cle == "titre":
         texte = texte.upper()
     try:
-        return encre_hb(cle, texte, taille)
+        e = encre_hb(cle, texte, taille)
     except ImportError:
-        return encre_ft(cle, texte, taille)
+        e = encre_ft(cle, texte, taille)
+    # approche (letter-spacing CSS) : le navigateur l'ajoute après chaque lettre ; l'encre s'arrête à la dernière lettre
+    k = approche(cle) * taille
+    if k:
+        n = len(texte)
+        e["droite"] = round(e["droite"] + k * (n - 1), 2)
+        e["largeur"] = round(e["largeur"] + k * (n - 1), 2)
+        e["avance"] = round(e["avance"] + k * n, 2)
+    return e
 
 
 def encre_ft(cle, texte, taille):
@@ -128,10 +143,10 @@ def lignes(textes, x0=GX0, x1=GX1, centre_y=None):
     for t in textes:
         g = geant(t, x0, x1)
         out.append(g); total += lh * g["taille"]
-    # Accent sur une ligne du bas (Î, É, Ç…) : à l'interligne 0,84 il toucherait la ligne du dessus. On descend la ligne
+    # Accent sur une ligne du bas (Î, É, Ç…) : à interligne serré il toucherait la ligne du dessus. On descend la ligne
     # juste ce qu'il faut pour garder ECART_ACCENT px (l'écart naturel) entre la ligne de base du dessus et le haut de l'accent (vu le
     # 2026-11-11 sur « ÇA PARAÎT LONG » : le circonflexe se collait à SEMAINES).
-    ECART_ACCENT = 6   # l'écart naturel entre deux lignes de capitales à l'interligne 0,84 (~6 px)
+    ECART_ACCENT = 6   # l'écart naturel minimal entre deux lignes de capitales
     tops, top = [], 0.0
     for k, g in enumerate(out):
         if k:
@@ -155,6 +170,8 @@ if __name__ == "__main__":
         r = encre(a[1], a[3], float(a[2]))
     elif a[0] == "geant":
         r = geant(a[1], *(float(v) for v in a[2:4])) if len(a) >= 4 else geant(a[1])
+    elif a[0] == "taille":
+        r = dict(taille=round(float(a[2]) / police(a[1])["cap"], 2), cap=float(a[2]))
     elif a[0] == "lignes":
         r = lignes(a[1:])
     elif a[0] == "metriques":

@@ -238,7 +238,7 @@ def minutage(n):
 
 def polices(biblio):
     from PIL import ImageFont
-    f = biblio / "fonts" / "BricolageGrotesque.ttf"
+    f = biblio / "fonts" / "Inter-Black.ttf"   # police unique de la vidéo (POLICES.sousTitres)
     def p(taille, poids):
         x = ImageFont.truetype(str(f), taille)
         try:

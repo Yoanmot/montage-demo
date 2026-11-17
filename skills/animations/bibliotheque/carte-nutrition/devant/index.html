@@ -1,31 +1,31 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-@font-face{font-family:'Big Shoulders Display';src:url('../../fonts/BigShouldersDisplay.ttf');font-weight:100 900;font-style:normal;}
-@font-face{font-family:'Bricolage Grotesque';src:url('../../fonts/BricolageGrotesque.ttf');font-weight:200 800;font-style:normal;}
+/* POLICE:debut (bloc écrit par scripts/lib/style.mjs depuis POLICES de commun.mjs : ne pas le modifier à la main) */
+@font-face{font-family:'Inter Black';src:url('../../fonts/Inter-Black.ttf');font-weight:900;font-style:normal;}
+.ti{font-family:'Inter Black';font-weight:900;text-transform:uppercase;line-height:0.92;
+  letter-spacing:-0.02em;margin:0;}
+.tx{font-family:'Inter Black';font-weight:900;line-height:1.06;letter-spacing:-0.02em;}
+/* POLICE:fin */
 @font-face{font-family:'Roboto';src:url('../../fonts/Roboto.ttf');font-weight:100 900;font-style:normal;}
 html,body{margin:0;background:transparent;}
 #root{position:relative;width:1080px;height:1920px;overflow:hidden;background:transparent;}
 .a{position:absolute;white-space:nowrap;}
-.ti{font-family:'Big Shoulders Display';font-weight:900;text-transform:uppercase;line-height:0.84;
-  letter-spacing:0;margin:0;font-variant-numeric:tabular-nums;}
-.tx{font-family:'Bricolage Grotesque';font-weight:800;line-height:1.06;letter-spacing:-0.012em;
-  font-variation-settings:"opsz" 96;}
 .c-or{color:#F15A24;}.c-cr{color:#F6F0E7;}.c-ch{color:#1A1612;}
 .douce{text-shadow:0 6px 30px rgba(0,0,0,.45);}.dure{text-shadow:0 4px 0 rgba(26,22,18,.6),0 0 20px rgba(0,0,0,.35);}
 .pav{display:inline-block;background:#F15A24;color:#1A1612;border-radius:10px;
   padding:6px 20px 10px;box-shadow:0 5px 0 #B8400F;}
 
-.card{position:absolute;background:#1A1612;color:#F6F0E7;border-radius:18px;box-shadow:inset 0 0 0 2px rgba(246,240,231,.08),0 18px 50px rgba(0,0,0,.5);font-family:'Bricolage Grotesque';box-sizing:border-box;}
+.card{position:absolute;background:#1A1612;color:#F6F0E7;border-radius:18px;box-shadow:inset 0 0 0 2px rgba(246,240,231,.08),0 18px 50px rgba(0,0,0,.5);font-family:'Inter Black';box-sizing:border-box;}
 .card.tabbed{border-top-left-radius:0;}
-.tab{position:absolute;left:0;bottom:100%;height:64px;padding:0 26px;background:#F15A24;color:#1A1612;font:800 46px/68px 'Big Shoulders Display';text-transform:uppercase;letter-spacing:.01em;border-radius:10px 10px 0 0;white-space:nowrap;}
+.tab{position:absolute;left:0;bottom:100%;height:64px;padding:0 26px;background:#F15A24;color:#1A1612;font:900 46px/68px 'Inter Black';text-transform:uppercase;letter-spacing:.01em;border-radius:10px 10px 0 0;white-space:nowrap;}
 .tab .n{opacity:0.62;margin-left:14px;}
 .rw{display:grid;grid-template-columns:56px 132px minmax(0,1fr);align-items:center;gap:24px;padding:14px;border-radius:12px;}
 .rw + .rw{margin-top:8px;}
-.rw .i{font:900 72px/1 'Big Shoulders Display';color:#F15A24;text-align:center;}
+.rw .i{font:900 72px/1 'Inter Black';color:#F15A24;text-align:center;}
 .rw img{width:132px;height:132px;border-radius:10px;object-fit:cover;display:block;}
-.rw .nm{font:800 46px/1.05 'Bricolage Grotesque';font-variation-settings:"opsz" 96;letter-spacing:-.01em;}
-.rw .sm{display:block;font:500 30px/1.2 'Bricolage Grotesque';color:rgba(246,240,231,0.62);margin-top:6px;letter-spacing:0;}
+.rw .nm{font:900 46px/1.05 'Inter Black';letter-spacing:-.01em;}
+.rw .sm{display:block;font:900 30px/1.2 'Inter Black';color:rgba(246,240,231,0.62);margin-top:6px;letter-spacing:0;}
 .rw.on{background:#F6F0E7;color:#1A1612;}
 .rw.on .sm{color:rgba(26,22,18,.6);}
 .num{font-variant-numeric:tabular-nums;}.lc{text-transform:none;}</style></head>
@@ -34,7 +34,7 @@ html,body{margin:0;background:transparent;}
   <div class="card tabbed" id="cd" style="left:91px;top:1008px;width:820px;padding:26px">
     <div class="tab">au menu</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px"><div id="f0"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 1 (poulet), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">poulet</div></div><div id="f1"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 2 (patate douce), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">patates douces</div></div><div id="f2"><img src="../../images/image-a-fournir.svg" data-a-fournir="photo du plat 3 (ratatouille), photo de Romain" style="width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block"><div class="tx" style="font-size:34px;margin-top:10px;white-space:nowrap">ratatouille</div></div></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:22px;padding-top:18px;border-top:2px solid rgba(246,240,231,0.14)"><span class="ti c-or num" id="t1" style="font-size:96px"><span id="t1n">120</span> <span class="lc" id="t1u">g</span><span class="tx c-cr" id="t1l" style="font-size:34px;text-transform:none;margin-left:12px">de protéines</span></span><span class="ti c-cr num" id="t2" style="font-size:96px"><span id="t2n">14</span> <span class="lc" id="t2u">min</span></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:22px;padding-top:18px;border-top:2px solid rgba(246,240,231,0.14)"><span class="ti c-or num" id="t1" style="font-size:73.11px;white-space:nowrap"><span id="t1n">120</span> <span class="lc" id="t1u">g</span><span class="tx c-cr" id="t1l" style="font-size:34px;text-transform:none;margin-left:12px">de protéines</span></span><span class="ti c-cr num" id="t2" style="font-size:73.11px;white-space:nowrap"><span id="t2n">14</span> <span class="lc" id="t2u">min</span></span></div>
   </div>
 </div>
 <script>

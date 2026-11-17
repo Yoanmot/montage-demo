@@ -10,11 +10,14 @@
 // barre) ; « pas en avant » arrive sur ses mots à droite du chiffre. Tick quand le 10 se pose.
 // Gestes repris : carte + onglet (carte-chrono), apparition v2, chiffres et crans (minuteur-chiffres, minuteur-barre).
 // Un seul orange (l'onglet) : chiffre et crans en craie.
+// Police : une seule (POLICES.sousTitres, par CSS_SOCLE : .ti capitales pour le chiffre, .tx pour la légende), aucune
+// famille écrite à la main. Ce n'est pas une caption (pas de data-captions) : le chiffre garde sa taille de carte.
+// Comportement de sous-titres : chaque morceau arrive sur son mot, jamais avant, et tout repart ensemble à la fin.
 // Usage : node <id>.mjs <dossier -montage> <dossier du skill animations>
 import path from 'node:path';
 const [dossier, skill] = process.argv.slice(2);
 const L = await import(path.join(skill, 'scripts', 'lib', 'style.mjs'));
-const { S, K, P, FPS, AV, Couche, CSS_CARTE, chargerMots, resoudre, img, tImg, f4, cap, son, ecrireCalque } = L;
+const { S, K, P, FPS, AV, Couche, CSS_CARTE, chargerMots, resoudre, img, tImg, f4, cap, mesure, son, ecrireCalque } = L;
 
 const mots = chargerMots(dossier);
 const A = (x) => resoudre(x, mots);
@@ -32,7 +35,7 @@ const c = new Couche(images);
 c.css = CSS_CARTE + `
 #cd{left:${X}px;top:${CH.y}px;width:${LARG}px;padding:${padH}px ${padX}px ${padB}px;}
 #ligne{position:relative;display:flex;align-items:flex-end;gap:${GAP}px;height:${HCH.toFixed(1)}px;}
-#chiW{position:relative;width:${(TAILLE * 0.95).toFixed(0)}px;height:${HCH.toFixed(1)}px;}
+#chiW{position:relative;width:${Math.ceil(mesure('encre', 'titre', TAILLE, '10').avance)}px;   /* le plus large des chiffres affichés */height:${HCH.toFixed(1)}px;}
 #chiW span{position:absolute;left:0;top:0;font-size:${TAILLE}px;opacity:0;}
 #leg{font-size:${LC.nm}px;padding-bottom:${(TAILLE * 0.06).toFixed(0)}px;}
 #crans{position:relative;margin-top:${GAP}px;height:${MB.h}px;display:grid;grid-template-columns:repeat(${NB},1fr);gap:${MB.separation}px;}

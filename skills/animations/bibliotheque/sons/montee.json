@@ -1,0 +1,16 @@
+{
+ "source": "ElevenLabs / essai-montee-3mois.brut.mp3",
+ "prompt": "short soft airy riser building up, no reverb",
+ "type": "montee",
+ "hauteur": 1.0,
+ "duree_ms": 541.1,
+ "debut_ms": 342.81,
+ "debut_echantillon": 16455,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -19.7,
+ "centre_spectre_hz": 3652,
+ "sous_300hz_pct": 0.0,
+ "b1_5khz_pct": 83.4,
+ "sur_6khz_pct": 5.8,
+ "retenu": "validé par Yoan sur le test v17 (2026-11-14)"
+}

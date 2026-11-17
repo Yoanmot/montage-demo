@@ -19,9 +19,14 @@ Base de temps : **images de la vidéo coupée**, 30 i/s, image 0 = début de la 
 - `scripts/caler.mjs` : lit et vérifie les demandes du plan, cale chaque ancre sur la voix.
 - `scripts/instancier.mjs` : adapte un gabarit à une demande et l'écrit en calque.
 - `scripts/exemple-sur-mesure.mjs` : modèle d'effet sur mesure (compteur de pas, testé).
-- `scripts/verifier.mjs` : contrôle de style, lint, rendu de contrôle, zone sûre, calage, aperçu posé sur la vidéo.
+- `scripts/verifier.mjs` : contrôle de style (police unique comprise), captions (même ligne, même taille), lint, rendu
+  de contrôle, zone sûre, calage, aperçu posé sur la vidéo.
+- `scripts/meme-ligne.mjs` : le contrôle des captions seul, sur une ou plusieurs couches.
+- `scripts/maj-sous-titres.mjs` : réécrit la police (bloc `POLICE`) et le style des sous-titres (bloc `SOUS-TITRES`)
+  dans les gabarits après un changement de `commun.mjs`.
 - `scripts/calques.mjs` : écrit les entrées `source: "animations"` de `calques.json`.
-- `scripts/lib/` : `style.mjs` (boîte à outils : ancres, apparition, carte, voile, sons, écriture d'un calque),
+- `scripts/lib/` : `style.mjs` (boîte à outils : ancres, apparition, carte, voile, sons, écriture d'un calque, style des
+  sous-titres), `police.mjs` (métriques des polices), `navigateur.mjs` (Chrome de HyperFrames pour mesurer),
   `mesure.py` (mesure du texte), `verifier.py` (contrôles image par image, aperçu, haut de la tête), `gestes.json`
   (couches, effet sur le plan et sons de chaque gabarit).
 
@@ -80,17 +85,20 @@ Les paramètres (détail en tête de `instancier.mjs`) :
   `{ "jusqua": "<ancre>", "apres_s": 0.6 }`. **La fenêtre du calque = la fenêtre de l'effet** : un plein écran flou
   commence à l'image où son fond s'affiche et finit à sa sortie, car l'effet sur le plan dure tout le calque.
 - `T` : les instants du gabarit (lis le bloc `T` du gabarit et ses commentaires). Valeurs : secondes du calque,
-  `{ "entree": "<ancre>" }` (attaque - 0,04 s, pour une apparition), `{ "set": "<ancre>" }` (image de l'attaque, pour un
+  `{ "entree": "<ancre>" }` (l'attaque, 0,1 s avant le début transcrit, pour une apparition), `{ "set": "<ancre>" }` (image de l'attaque, pour un
   élément qui s'affiche d'un coup), `{ "fin": "<ancre>" }`, `{ "image": n | "fin" }`, `{ "video": n }`,
-  `{ "coupe": "<ancre>", "plus_s": -0.067 }` (la coupe juste avant ce mot), `{ "pave": "<ancre>" }` (une image avant
-  l'attaque : pavé orange de la ligne « commente MOT » des CTA, comme les sous-titres classiques ; obligatoire pour
-  l'instant commenté « pavé sur le mot », sinon `instancier.mjs` refuse).
+  `{ "coupe": "<ancre>", "plus_s": -0.067 }` (la coupe juste avant ce mot), `{ "pave": "<ancre>" }` (l'image de
+  l'attaque : le pavé orange de la ligne « commente MOT » des CTA glisse du mot d'avant sur le mot, comme dans les
+  sous-titres ; obligatoire pour l'instant commenté « pavé sur le mot », sinon `instancier.mjs` refuse).
 - `recaler` : `[[instant du gabarit, "<ancre>"], ...]` décale chaque groupe d'instants du gabarit sur son mot (tous les
   instants d'un élément suivent ensemble). C'est le plus simple pour les gabarits à beaucoup d'instants (tier list,
   liste, carte de séance). Les bascules visible / caché retombent pile sur une image.
-- `textes` : `{ "#id": "texte" }` ou `{ ".classe@n": "texte" }`, ou `{ "#id": { "mots": "<ancre>", "casse": "basse" } }`
+- `textes` : `{ "#id": "texte" }` ou `{ ".classe@n": "texte" }`, ou `{ "#id": { "mots": "<ancre>" } }`
   pour écrire ce qu'il dit tel que les sous-titres l'écrivent (corrections et mots masqués de `sous-titres.json` s'il
-  existe, sinon `words.cut.json` ; ponctuation autour retirée ; `casse` : `basse` par défaut, `haute` ou `telle`).
+  existe, sinon `words.cut.json` ; ponctuation autour retirée ; `casse` : `telle` par défaut comme les sous-titres,
+  `basse` ou `haute`). Sur une ligne de sous-titre du gabarit (`#st`, `#st0`…), l'attaque de chaque mot est écrite avec
+  (`data-attaques`) : le pavé y glisse de mot en mot, et la ligne prend le style, la taille et la position des
+  sous-titres de la vidéo.
   `styles` : `{ "#id": { "font-size": "…px" } }`.
 - `apparition` : `{ "#id": h }` quand la taille d'un élément change (h = hauteur des capitales en px, donnée par
   `mesure.py`) : montée, flou et durées de l'apparition sont recalculés selon la recette.
@@ -102,17 +110,28 @@ Les paramètres (détail en tête de `instancier.mjs`) :
 Mesures de texte (police réelle, crénage compris) :
 ```
 python3 "$SK/scripts/lib/mesure.py" geant "<mot>"            # taille, left : encre sur toute la zone sûre ; cap ; haut_encre
+python3 "$SK/scripts/lib/mesure.py" taille texte <cap>        # taille de police pour des capitales de <cap> px
 python3 "$SK/scripts/lib/mesure.py" lignes "<l1>" "<l2>"      # plein écran : même largeur d'encre, bloc centré à y 960
 python3 "$SK/scripts/lib/mesure.py" encre texte 52 "<texte>"  # largeur d'un texte à une taille
 python3 "$SK/scripts/lib/verifier.py" tete "<vidéo coupée>" <image> <nb>   # haut du crâne de Romain sur ces images
 ```
+**Police unique** (STYLE.md, 2026-11-14) : tous les textes sont en `POLICES.sousTitres` (Inter Black), `.ti` pour les
+capitales, `.tx` pour les minuscules ; `mesure.py` mesure avec elle (approche comprise). Seul un format natif recopié
+garde sa police (calque `origine.natif`, ou partie `data-natif`).
+**Captions** (STYLE.md, « Captions ») : un texte qui dit sa phrase au fil de sa voix (sous-titre enrichi, plein écran
+texte) porte `data-captions` sur son conteneur ; sur une même ligne, tous ses mots ont la même taille et la même
+police, ce qui ressort prend sa propre ligne. `verifier.mjs` refuse une ligne mêlée (`LIGNE`). Les autres textes (mot
+géant, chiffre, carte) gardent leurs tailles.
 Mot géant derrière lui : bas des capitales 30 % de `cap` sous le haut du crâne (`top = tete + 0,3 cap - base_dans_boite`) ;
 les petits mots au-dessus gardent 16 px entre leur ligne de base et le haut de l'**encre** du mot géant (accent compris).
 
 ### 3b. Composer un effet sur mesure
 Copie `scripts/exemple-sur-mesure.mjs` en `M/animations/sur-mesure/<id>.mjs`, réécris-le pour la demande, puis
 `node "M/animations/sur-mesure/<id>.mjs" "$M" "$SK"`. La boîte à outils (`scripts/lib/style.mjs`) donne : `S` (toutes les
-constantes), `resoudre` (ancres), `Couche` (calque, `app` = apparition v2 sur un mot, `montre` / `cache` à l'image),
+constantes), `resoudre` (ancres), `Couche` (calque, `app` = apparition v2 sur un mot, `accent` = montée du bas en saccade
+12 i/s, accent rare, `montre` / `cache` à l'image), `texteSousTitres` (ses mots tels que les sous-titres les écrivent,
+corrections comprises), `groupesSousTitres` + `blocSousTitres` (une phrase affichée en sous-titres dans l'effet :
+mêmes groupes, instants et apparition que la brique), `caseCocheeSvg` / `caseCocheeJs` (case qui se remplit et se coche),
 `CSS_CARTE` (carte + onglet des gabarits), `voileCss`, `cap` et `mesure`, `son` (son suggéré), `planFlou`,
 `decalageDemi`, `ecrireCalque`. Méthode :
 1. Relis le gabarit le plus proche et reprends ses gestes tels quels (apparition, pas du minuteur, ligne en cours des
@@ -126,7 +145,10 @@ constantes), `resoudre` (ancres), `Couche` (calque, `app` = apparition v2 sur un
    - ce qui existe se reproduit à l'identique (le calendrier = l'appli Calendrier d'Apple, vue mois), posé comme un
      écran, jamais suspendu dans le vide ; `origine.natif: true` dans `calque.json` pour garder ses vraies couleurs ;
    - ce qu'on invente est minimaliste : texte qui arrive comme les sous-titres mais mis en forme comme un titre
-     (capitales sur les mots forts, tailles différentes, soulignage orange, liaisons en petit) en haut et en bas, une ou deux
+     (capitales sur les mots qui portent le sens, soulignage orange) en haut et en bas, une seule police, des tailles
+     qui varient **d'une ligne à l'autre, jamais dans une même ligne** (`data-captions`), et le **comportement de
+     sous-titres** : chaque mot arrive sur son attaque, jamais avant, peut rester plus longtemps, et tous les mots de
+     l'effet repartent ensemble sur la voix (fin de phrase ou début de l'idée suivante) ; une ou deux
      formes nettes aux `COULEURS` qui portent ses mots (brique qui s'emboîte dans une autre) ; jamais de personnages,
      de fausse 3D, de décor, de pictos ;
    - les marques à main levée (cercle, coches, soulignage) se tracent seules, sans stylo ni main à l'écran ;
@@ -135,6 +157,13 @@ constantes), `resoudre` (ancres), `Couche` (calque, `app` = apparition v2 sur un
      son visage ; les sous-titres restent ;
    - une scène de la vie est un B-roll filmé par Romain (brique b-roll), pas une animation ; jamais de B-roll généré.
 5. Note dans `attendus` chaque élément calé (avec `mot_image`) et dans `sons_suggeres` les sons du geste.
+   - **Ses mots affichés** : passe à `ecrireCalque` `mots_repris` (les numéros des mots qu'il dit et que l'effet écrit,
+     `["w23-w25"]`) : ils sortent des sous-titres, chaque mot n'est vu qu'une fois (Yoan, 2026-11-14). Les sous-titres
+     enrichis arrivent en « coup de poing » par ligne (`apparitionLigneJs` sur le conteneur de la ligne : toute la ligne à
+     l'attaque de son premier mot, une seule échelle 1,3 -> 1 en 0,2 s, origine 50 % 70 % ; soulignage `SOULIGNE`) ; les pleins écrans texte
+     posent chaque mot d'un coup à son attaque (`c.montre`). La montée du bas
+     (`c.accent(sel, attaque)` : 40 px, 0,4 s, toujours en saccade 12 i/s) est un accent rare pour faire ressortir
+     une phrase, un ou deux moments par vidéo (STYLE.md, « Montée du bas »). Une citation s'affiche sans guillemets.
    - **Titre derrière lui avec le dézoom d'ouverture** : le dézoom de la caméra est fait par la brique zooms (type
      `ouverture`, préparée avant les animations) ; elle écrit `M/ouverture.json`. Le titre le suit : `transform-origin`
      sur `ancre_1080x1920`, et à chaque image n de 0 à `images`, `scale` = `echelle_depart - (echelle_depart - 1) * n /
@@ -153,7 +182,9 @@ L'effet sur mesure vit avec la vidéo ; il n'entre pas dans la bibliothèque (se
 ```
 node "$SK/scripts/verifier.mjs" "$M" <id> --video "<vidéo coupée>"
 ```
-Contrôle le style, lance le lint, rend le calque (`M/animations/verif/<id>/calque.mov`, plus un rendu « encre » sans les
+Contrôle le style (une seule police), les captions (`data-captions` : même ligne, même taille et même police, toutes
+les couches de la même demande ensemble, image par image), lance le lint,
+rend le calque (`M/animations/verif/<id>/calque.mov`, plus un rendu « encre » sans les
 fonds), mesure image par image : encre dans la zone sûre, les 4 coins de l'encre, arrivées des éléments et calage
 (**jamais avant son mot**). Avec `--video`, pose le calque sur la vidéo coupée (plan flou, décalé ou détouré appliqué,
 couche derrière trouée par le masque de Romain) : `apercu.mp4` et `planche.png`.
@@ -220,7 +251,12 @@ image de réaction. Les sous-titres et les zooms ne passent pas par ce skill.
   `masque_sous_titres` dans `gestes.json` comme les gabarits à ligne propre : les sous-titres s'effacent pendant le calque.
   Un effet sur mesure plein écran passe `masque_sous_titres: true` à `ecrireCalque`, une recomposition aussi.
 - CTA : le pavé orange de « commente MOT » s'allumait sur le mot dès que la ligne apparaissait, environ 5 images avant
-  qu'il le dise. Il arrive maintenant une image avant l'attaque du mot (`{ "pave": "<mot>" }`).
+  qu'il le dise. Depuis le 2026-11-13 il est sur « commente » quand la ligne apparaît et glisse sur le mot à son
+  attaque, comme dans les sous-titres (`{ "pave": "<mot>" }`).
+- Captions (2026-11-14) : « sur le » petit et « long terme » gros sur la même ligne, « pour toi » petit au bout de
+  « CE QUI MARCHE » : rejetés par Yoan. Sur une même ligne, une taille et une police ; `verifier.mjs` le contrôle sur
+  les textes `data-captions` (`LIGNE`). Le plafond de 1,5 fois appliqué le 2026-11-13 à tous les textes était une
+  erreur de périmètre, retirée : les mots géants, minuteurs, cartes ont repris leur taille.
 - Tier list, CTA mot derrière, champ Instagram : ces gabarits portent leur propre ligne de sous-titre, placée pour leur
   mise en page. Décision de Yoan (2026-11-11) : **c'est la ligne du calque qui reste**. `instancier.mjs` marque la couche
   qui la porte `"masque_sous_titres": true` (lu dans `gestes.json`, recopié dans `calques.json` par `calques.mjs`) et la
@@ -253,5 +289,7 @@ plan, que le monteur télécharge lui-même (`STYLE.md`) ; on ne la demande jama
 - **macOS 12 ou plus** (Apple Vision, segmentation de personne).
 - Briques en amont : `couper-silences` (`words.cut.json`, `edl.json`, `filtre.txt` dans `M`). En aval : `rendu` (pose les
   calques et applique `plan`), `sound-design` (lit `sons_suggeres`).
-- Polices, GSAP, images d'emplacement et sons sont dans `bibliotheque/` (licences jointes) ; chaque calque embarque ses
-  polices et GSAP, sans chemin absolu.
+- Police (Inter Black, la seule de la vidéo, plus Roboto et Liberation Sans pour les formats natifs), GSAP, images d'emplacement et sons sont dans `bibliotheque/` (licences
+  jointes) ; chaque calque embarque ses polices et GSAP, sans chemin absolu.
+- Le contrôle des captions ouvre le Chrome de HyperFrames (`npx hyperframes@0.7.55 browser path`) : rien de
+  plus à installer.

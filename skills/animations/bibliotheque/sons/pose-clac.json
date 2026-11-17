@@ -1,0 +1,16 @@
+{
+ "source": "ElevenLabs / essai-clac-piece.brut.mp3",
+ "prompt": "single dry cardboard puzzle piece snapping into place, short soft click, no reverb, isolated",
+ "type": "court",
+ "hauteur": 1.0,
+ "duree_ms": 67.9,
+ "debut_ms": 3.19,
+ "debut_echantillon": 153,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -21.9,
+ "centre_spectre_hz": 3143,
+ "sous_300hz_pct": 0.1,
+ "b1_5khz_pct": 82.4,
+ "sur_6khz_pct": 9.2,
+ "retenu": "validé par Yoan sur le test v17 (2026-11-14)"
+}

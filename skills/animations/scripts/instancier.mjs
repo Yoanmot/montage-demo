@@ -15,24 +15,32 @@
 //   "T": { "t01": 0.5 | { "entree": "<ancre>" } | { "set": "<ancre>" } | { "pave": "<ancre>" } | { "fin": "<ancre>" } | { "image": 12 | "fin" }
 //          | { "video": 507 } | { "coupe": "<ancre>", "plus_s": -0.067 } },   coupe = la coupe juste avant ce mot
 //          (« plus_s » s'ajoute aussi à entree, set, fin, image : { "entree": "<ancre>", "plus_s": -0.633 })
-//   "textes": { "#gros": "résultats", ".pav@2": "sur le long terme", "#st0": { "mots": "<ancre>", "casse": "basse" } },
+//   "textes": { "#gros": "résultats", ".pav@2": "sur le long terme", "#st0": { "mots": "<ancre>" } },
 //                                                                    { mots } = texte dit, orthographe de sous-titres.json
+//                                                                    (casse « telle » par défaut, comme les sous-titres ;
+//                                                                    « basse » ou « haute » possibles)
 //   "masque_sous_titres": true | false,                             facultatif : force le marquage (sinon gestes.json)
+//   "mots_repris": ["w23-w25"],                                     facultatif : mots dits affichés par un texte libre
+//                                                                    (les textes { mots } sont comptés tout seuls) ;
+//                                                                    ils sortent des sous-titres (un mot vu une fois)
 //   "styles": { "#gros": { "font-size": "300px", "left": "90.2px" } },
 //   "apparition": { "#gros": 240 },                                 h (px) quand la taille change : recalcule montée, flou, durées
 //   "photos": { "a0": { "fichier": "/chemin/photo.jpg" } | { "a_fournir": "photo de ... (photo de Romain)" } },
 //   "plan": null | { ... }                                          remplace l'effet sur le plan déduit du gabarit
 // }
 // Ancres : « w12 », « w12-w14 » ou citation de la voix (« douze semaines#2 »). Les instants sont en secondes depuis le
-// début du calque ; « entree » = attaque du mot - 0,04 s (APPARITION.avance), « set » = image de l'attaque, « pave » = une
-// image avant l'attaque (pavé orange d'une ligne de sous-titre, SOUS_TITRES_TEMPS.avancePave), « fin » = image de la fin
-// du mot. Un instant de gabarit commenté « pavé sur le mot » doit être calé (pave ou recaler) : sinon le pavé garde
+// début du calque ; « entree » = attaque du mot - 0,04 s (APPARITION.avance), « set » = image de l'attaque, « pave » =
+// l'image de l'attaque (le pavé orange d'une ligne de sous-titre part du mot d'avant et glisse, comme les sous-titres ;
+// SOUS_TITRES_TEMPS.avancePave), « fin » = image de la fin du mot.
+// Lignes de sous-titre du gabarit (#st, #st0…, remplies avec { mots }) : elles prennent le style des sous-titres de la
+// vidéo (bloc SOUS-TITRES de lib/style.mjs, taille et position de sous-titres.json) et l'attaque de chacun de leurs mots
+// (data-attaques) : le pavé glisse de mot en mot comme dans les sous-titres. Un instant de gabarit commenté « pavé sur le mot » doit être calé (pave ou recaler) : sinon le pavé garde
 // l'instant de l'extrait du labo.
 // Ligne de sous-titre du gabarit (#st, #st0…) entièrement vidée (sa_ligne « retirer ») : le calque n'est pas marqué
 // masque_sous_titres, les sous-titres de la vidéo restent pendant le calque.
 import fs from 'node:fs';
 import path from 'node:path';
-import { S, BIB, GESTES, FPS, AV, chargerMots, resoudre, coupeAvant, img, tImg, son, planFlou, decalageDemi, ecrireCalque, texteSousTitres, reglagesGabarit, dureeStyle } from './lib/style.mjs';
+import { S, BIB, GESTES, FPS, AV, chargerMots, resoudre, coupeAvant, img, tImg, son, planFlou, decalageDemi, ecrireCalque, texteSousTitres, attaquesSousTitres, poserBlocSousTitres, reglagesSousTitres, reglagesGabarit, dureeStyle } from './lib/style.mjs';
 
 const [dossier, paramsF] = process.argv.slice(2);
 if (!dossier || !paramsF) { console.log('Usage : node instancier.mjs <dossier -montage> <params.json>'); process.exit(3); }
@@ -128,13 +136,16 @@ if (tBloc) html = html.replace(tBloc[0], `const T = {\n${Object.entries(T).map((
 
 // ------------------------------------------------------------------ textes, styles, apparition, photos
 const echappe = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const repris = [];   // mots dits affichés par ce calque (textes { mots }) : ils sortent des sous-titres de la vidéo
 for (const [sel, valeurTexte] of Object.entries(Q.textes || {})) {
   // { "mots": "<ancre>", "casse": "basse" | "haute" | "telle" } : le texte dit, tel que les sous-titres l'écrivent
   // (corrections de sous-titres.json s'il existe, sinon words.cut.json). Obligatoire pour la ligne de sous-titre d'un
   // gabarit (tier-list, cta-mot-derriere, cta-champ-instagram) : la même orthographe que les sous-titres autour.
-  let texte = valeurTexte;
+  let texte = valeurTexte, attaques = null;
   if (valeurTexte && typeof valeurTexte === 'object') {
     try { texte = texteSousTitres(dossier, valeurTexte.mots, mots, valeurTexte.casse); } catch (e) { E(`texte « ${sel} » : ${e.message}`); continue; }
+    { const r = anc(valeurTexte.mots); repris.push([r.premier, r.dernier]); }
+    if (/^#st\d*$/.test(sel)) attaques = attaquesSousTitres(dossier, valeurTexte.mots, mots, t0);
   }
   let re, n = 1;
   // Un élément qui contient d'autres éléments (chiffre + unité : #h1 = #h1n + #h1u) ne se remplit pas d'un bloc : seul
@@ -152,7 +163,9 @@ for (const [sel, valeurTexte] of Object.entries(Q.textes || {})) {
   if (sel.startsWith('#')) re = new RegExp(`(<[a-z]+[^>]*\\bid="${sel.slice(1)}"[^>]*>)([^<]*)(<)`, 'g');
   else { const [cl, k] = sel.slice(1).split('@'); n = +(k || 1); re = new RegExp(`(<[a-z]+[^>]*\\bclass="(?:[^"]*\\s)?${cl}(?:\\s[^"]*)?"[^>]*>)([^<]*)(<)`, 'g'); }
   let i = 0, ok = false;
-  html = html.replace(re, (all, a, _b, c) => (++i === n ? (ok = true, a + echappe(texte) + c) : all));
+  // ligne de sous-titre : l'attaque de chacun de ses mots, en secondes du calque (le pavé glisse dessus)
+  const ouvre = (a) => (attaques && attaques.length ? a.replace(/>$/, ` data-attaques="${attaques.map((x) => x.toFixed(4)).join(',')}">`) : a);
+  html = html.replace(re, (all, a, _b, c) => (++i === n ? (ok = true, ouvre(a) + echappe(texte) + c) : all));
   if (!ok) E(`texte : « ${sel} » introuvable (ou contient d'autres balises) dans ${Q.gabarit}/${Q.couche}`);
 }
 for (const [sel, props] of Object.entries(Q.styles || {})) {
@@ -182,6 +195,11 @@ for (const [idp, ph] of Object.entries(Q.photos || {})) {
     attrs = attrs.replace(/src="[^"]*"/, `src="images/${nom}"`).replace(/\s*data-a-fournir="[^"]*"/, '');
   } else if (ph.a_fournir) attrs = attrs.replace(/data-a-fournir="[^"]*"/, `data-a-fournir="${echappe(ph.a_fournir)}"`);
   html = html.replace(re, `$1${attrs}$3`);
+}
+
+// ------------------------------------------------------------------ lignes de sous-titre : le style des sous-titres de la vidéo
+if (html.includes('SOUS-TITRES:debut')) {
+  try { html = poserBlocSousTitres(html, reglagesSousTitres(dossier), ''); } catch (e) { E(e.message); }
 }
 
 // ------------------------------------------------------------------ durée
@@ -233,7 +251,7 @@ const masqueST = Q.masque_sous_titres ?? (ligneVidee ? false : (G.masque_sous_ti
 if (ligneVidee && Q.masque_sous_titres === undefined) console.log('NOTE ligne de sous-titre du gabarit vidée : les sous-titres de la vidéo restent pendant ce calque');
 const { dossier: dc, fiche } = ecrireCalque(dossier, {
   id: Q.id, demande: Q.demande, debut, images, couche: Q.couche, ordre: Q.ordre, plan, sons_suggeres: sons, attendus,
-  masque_sous_titres: masqueST,
+  masque_sous_titres: masqueST, mots_repris: [...repris, ...(Q.mots_repris || [])],
   origine: { gabarit: Q.gabarit, couche_gabarit: Q.couche }, params: Q,
 }, html, extra);
 for (const [nom, src] of Object.entries(photosStage)) fs.copyFileSync(src, path.join(dc, 'images', nom));

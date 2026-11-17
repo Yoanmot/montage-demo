@@ -22,16 +22,15 @@ service de ses mots, rien n'est posé pour faire joli.
 ## Deux niveaux
 
 Choisis le niveau qui domine la vidéo : une vidéo de motivation ou un conseil court reste simple,
-même avec un chiffre. Ce qu'on ne mélange pas, ce sont les deux styles de sous-titres.
-- **Simple** (comme ce qu'il fait déjà) : sous-titres classiques, accroche en pavés, quelques zooms,
+même avec un chiffre. Les sous-titres sont les mêmes aux deux niveaux (les siens).
+- **Simple** (comme ce qu'il fait déjà) : ses sous-titres, accroche en pavés, quelques zooms,
   au plus une animation. Pour une histoire perso, un coup de gueule, une réponse rapide, un vlog.
   Son visage porte la vidéo.
 - **Travaillé** (le défaut dès que la vidéo explique quelque chose) : titre d'accroche derrière lui
-  avec le dézoom d'ouverture, sous-titres formels, sous-titres enrichis sur les mots clés, idées illustrées (ses clips, sinon animation), une image de
+  avec le dézoom d'ouverture, ses sous-titres, sous-titres enrichis sur les mots clés, idées illustrées (ses clips, sinon animation), une image de
   réaction ou deux, le message principal sur fond uni, ce qu'il faut montrer (liste, carte, schéma,
   démo annotée). Pour une explication, une méthode, une liste, un chiffre qui surprend, une vidéo de
   conseil.
-- Ne mélange pas les sous-titres : pas de sous-titres classiques avec des titres derrière lui.
 
 ## L'accroche (les 3 premières secondes)
 
@@ -188,13 +187,27 @@ Les sous-titres formels sont la base. Sur les mots clés, **ce sont les sous-tit
 changent**, à leur place et avec leur comportement (Yoan, 2026-11-11) : le mot arrive sur sa voix,
 reste le temps de sa phrase, part avec elle. Ce n'est **pas** un mot posé ailleurs dans l'image (un
 mot en grand au-dessus de sa tête pendant que les sous-titres le redisent : rejeté, « c'est nul »).
-- **Jamais en double** : un mot affiché en grand n'apparaît pas aussi dans les sous-titres. La ligne
-  devient : « pourquoi » en sous-titre normal, puis « 12 semaines » en plus gros à la même hauteur,
-  souligné à main levée en orange, puis la suite de la phrase reprend en normal.
+- **Jamais en double** : un mot affiché en grand n'apparaît pas aussi dans les sous-titres. La phrase
+  devient : « pourquoi » en sous-titre normal, puis, quand il est parti, « 12 semaines » en plus gros à
+  la même hauteur, souligné à main levée en orange, puis la suite de la phrase reprend en normal.
+- **Même ligne, même taille** (Yoan, 2026-11-14) : sur une même ligne, tous les mots ont la même
+  taille et la même police. Ce qu'on veut faire ressortir prend **sa propre ligne** ; deux lignes
+  peuvent avoir des tailles différentes. Jamais un mot en gros au milieu de mots en petit sur la même
+  ligne (« sur le » petit et « long terme » gros : rejeté ; c'est « sur le long terme » tout entier en
+  gros).
 - **Sur deux étages** quand le groupe est long : « 12 premières » sur une ligne un peu au-dessus des
   sous-titres, « semaines » à la hauteur des sous-titres, plus gros, **souligné à main levée en
   orange**.
-- **Un mot plus gros** dans sa ligne (« long terme ») : le plus léger, pour les phrases moins fortes.
+- **Une ligne plus grosse** (« sur le long terme » tout entier en gros) : le plus léger, pour les phrases
+  moins fortes. Une ligne trop longue pour la largeur en gros se coupe en deux lignes, toutes deux en
+  gros (« reprendre les » / « bonnes habitudes »).
+- **Jeu de style des sous-titres enrichis** (Yoan, 2026-11-14, règle finale) : le texte en gros est **tout en
+  majuscules** (les sous-titres normaux restent en casse normale) ; **plus de 2 mots en gros = deux lignes** de même
+  taille (« SUR LE » / « LONG TERME », « REPRENDRE LES » / « BONNES HABITUDES ») ; 2 mots ou moins = une ligne
+  (« 12 SEMAINES ») ; « 12 PREMIÈRES » / « SEMAINES » garde ses deux étages (haut un peu plus petit). Chaque ligne
+  arrive d'un bloc sur son premier mot (« coup de poing ») : l'intention dit les lignes, le mot souligné et
+  l'**importance** de chaque ligne (fort, moyen ou secondaire) ; le monteur en tire la taille, entre 1 et 1,2 fois les
+  sous-titres, jamais plus (« ça doit juste ressortir un peu »). Pas de taille en pixels dans le plan.
 - **Le soulignage à main levée orange** sous le mot qui porte le sens : la marque de ces moments.
 - **Chiffres toujours en chiffres** (« 12 », « 3 mois », « 10 pas »), dans les sous-titres comme
   partout : jamais « douze » écrit en lettres. Le plan le rappelle dans `notes` et met les chiffres
@@ -204,8 +217,9 @@ mot en grand au-dessus de sa tête pendant que les sous-titres le redisent : rej
 - Demandé par un geste `sur-mesure` (format dans `format.md`) dont l'`intention` dit : les mots en
   normal et en grand, l'étage de chacun, le mot souligné, et « remplace les sous-titres de ces mots,
   même place, même comportement ».
-- L'ancien « mot fort » (`mots_forts`, au-dessus de la ligne) n'est plus utilisé : il doublait les
-  sous-titres.
+- L'ancien « mot fort » (`mots_forts`, au-dessus de la ligne) n'existe plus : il doublait les
+  sous-titres, et l'écart de taille était trop grand (Romain, 2026-11-13).
+- Le grand est dans la police des sous-titres (la police unique de la vidéo), à leur place.
 
 ## Illustrer une idée
 
@@ -222,15 +236,17 @@ aime pas du tout, 2026-11-13). Dans cet ordre de préférence :
    montre pas ce qu'il dit ne se pose pas.
 2. **Une idée abstraite : une animation plein écran minimaliste** (voir « Plein écran », point 3).
    Sa phrase **en texte qui arrive comme les sous-titres** (chaque morceau sur sa voix, il reste) mais
-   **mis en forme comme un titre**, jamais des sous-titres classiques posés sur un plein écran (Yoan,
-   2026-11-12) : capitales sur les mots qui portent le sens, tailles différentes d'une ligne à
-   l'autre, soulignage à main levée orange sur le mot clé, petits mots de liaison en petit. En haut ;
+   **mis en forme comme un titre**, jamais de simples sous-titres posés sur un plein écran (Yoan,
+   2026-11-12) : capitales sur les mots qui portent le sens, des tailles qui varient **d'une ligne à
+   l'autre, jamais dans une même ligne** (Yoan, 2026-11-14), une seule police (celle des sous-titres),
+   soulignage à main levée orange sur le mot clé, et le **comportement de
+   sous-titres** (chaque mot arrive sur sa voix, peut rester, tous repartent ensemble sur la voix). En haut ;
    au milieu, **une ou deux formes simples et nettes** qui jouent l'idée, avec ses mots dessus ; la
    suite de la phrase en texte en dessous. Pas de personnages, pas de décor (Yoan, 2026-11-12 : le
    dessin animé fait « encore plus cheap »). Exemple : « Tu comprends aussi ce qui marche pour toi.
    Tu trouves une nouvelle façon de manger, de t'entraîner qui colle à ta vie et ton entourage… » →
-   en haut « tu comprends aussi » en petit, puis « CE QUI MARCHE » en grand et en capitales, « pour
-   toi » souligné, qui restent ; en dessous, une brique « une façon de manger et de t'entraîner » qui
+   en haut « TU COMPRENDS AUSSI » sur sa ligne, puis « CE QUI MARCHE » plus grand sur la sienne, puis
+   « POUR TOI » sur la sienne (jamais « pour toi » en petit au bout de la ligne de « CE QUI MARCHE »), qui restent ; en dessous, une brique « une façon de manger et de t'entraîner » qui
    s'emboîte parfaitement dans une brique « ta vie » sur « colle à ta vie » ; puis, en dessous, la
    suite de la phrase en texte.
 3. **Une chose qui existe, reproduite à l'identique** (voir « Les formats connus ») : sur la caméra,

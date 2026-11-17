@@ -12,7 +12,8 @@ de ces gabarits et des règles de `STYLE.md`.
   effet ne met une valeur en dur : il la prend ici. Les gabarits HTML recopient les valeurs qu'ils utilisent (un HTML de
   rendu n'importe pas le module) ; chaque README dit lesquelles.
 - `apparition-texte.md` : la mesure image par image du mouvement d'apparition.
-- `fonts/` : Big Shoulders Display, Bricolage Grotesque, Roboto, Liberation Sans, avec leur licence OFL.
+- `fonts/` : Inter Black (la seule police de la vidéo, `POLICES.sousTitres`), Roboto et Liberation Sans (formats
+  natifs recopiés seulement), avec leur licence OFL.
 - `vendor/gsap.min.js` : GSAP, chargé par chaque gabarit.
 - `images/image-a-fournir.svg` : emplacement des photos (aucune photo n'est livrée ; chaque `<img>` dit dans
   `data-a-fournir` quelle photo de Romain y mettre).
@@ -22,7 +23,7 @@ de ces gabarits et des règles de `STYLE.md`.
 
 | Dossier | Effet | Cartes | Couches |
 |---|---|---|---|
-| `sous-titres/` | classique (pavé qui glisse), formelle, mot fort | r21-01a, r19-01b, r22-01a | devant |
+| `sous-titres/` | ses sous-titres (Inter Black, pavé orange qui glisse), repris de son ancien skill le 2026-11-13 | captions_romain.py | devant |
 | `hook-paves/` | hook pavés craie ou orange | r19-02a, r19-02b | devant |
 | `hook-titre-derriere/` | titre derrière lui | r20-01d | derrière |
 | `hook-mot-geant/` | mot géant derrière la tête | r20-01f | derrière + devant |
@@ -82,7 +83,9 @@ Chaque gabarit est une composition HyperFrames (HTML, CSS, GSAP) : un **calque t
 4. Le son se mixe à part, aux niveaux de `STYLE.md` (« Sons et niveaux »).
 
 ## Aperçus
-`apercu*.mp4` dans chaque dossier : aperçus muets 540 x 960 rendus dans le labo, sur des rushes de Romain. Les photos
+`apercu*.mp4` dans chaque dossier : aperçus muets 540 x 960 rendus dans le labo, sur des rushes de Romain. Tous
+ceux des gabarits à texte ont été refaits le 2026-11-14 (police unique) sur la rush de test (face caméra WhatsApp),
+avec les instants par défaut du gabarit : `instancier.mjs` puis `verifier.mjs --video`. Les photos
 d'exercices et de plats y sont l'emplacement « image à fournir », comme dans les gabarits ; les seules vignettes réelles
 sont des images de Romain (ses vidéos, sa photo de profil).
 
@@ -90,3 +93,13 @@ sont des images de Romain (ses vidéos, sa photo de profil).
 Rendus depuis ce dossier avec les données d'exemple et comparés image par image à leur aperçu : `sous-titres/` en
 classique et en mot fort, `carte-seance/`, `plein-ecran-fond/` (charbon). Mêmes positions, tailles, couleurs et
 instants ; seules les photos sont remplacées par l'emplacement.
+
+## Reprise du 2026-11-13 et du 2026-11-14 (retour de Romain : « trop de différences de taille », police pas aimée)
+- Sous-titres : ceux de son ancien skill (voir `sous-titres/README.md`), bloc commun posé aussi dans `cta-mot-derriere`,
+  `cta-champ-instagram` et `tier-list`.
+- Police unique (2026-11-14) : tous les gabarits passent à Inter Black (`POLICES.sousTitres`), écrite dans leur bloc
+  `POLICE` ; `node ../scripts/maj-sous-titres.mjs` réécrit les blocs `POLICE` et `SOUS-TITRES` après un changement
+  dans `commun.mjs`. Les tailles calculées pour couvrir une largeur ont été recalculées avec Inter (mots géants, pleins
+  écrans, fond vert, demi-écran) ; les chiffres des cartes chrono et nutrition gardent la largeur d'encre de la planche.
+- Captions : les pleins écrans texte portent `data-captions` (une taille et une police par ligne, STYLE.md).
+- Les tailles des gabarits sont celles de la planche (le plafond de 1,5 fois du 2026-11-13 est retiré).

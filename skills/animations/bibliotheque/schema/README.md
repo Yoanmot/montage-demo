@@ -3,7 +3,7 @@
 Carte verrouillée : r20-07a (Style Lab v2). Calque tiré du build du tour 20.
 
 ## Ce qu'il montre
-L'effet arrive au centre sur son mot (pavé orange Big Shoulders 140, texte charbon), descend à sa place, puis les causes en cadres craie et le « + » sur leurs mots ; le trait se trace des causes vers l'effet, un point à chaque bout.
+L'effet arrive au centre sur son mot (pavé orange, capitales 140, texte charbon), descend à sa place, puis les causes en cadres craie et le « + » sur leurs mots ; le trait se trace des causes vers l'effet, un point à chaque bout.
 
 ## Quand l'utiliser
 Une cause et un effet (deux causes au plus).
@@ -28,4 +28,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r20-07a, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r20-07a, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

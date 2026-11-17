@@ -1,0 +1,16 @@
+{
+ "source": "ElevenLabs / essai-tick-case-1.brut.mp3",
+ "prompt": "single soft checkbox tick, short clean click, mid tone, no reverb, isolated",
+ "type": "court",
+ "hauteur": 1.0,
+ "duree_ms": 46.0,
+ "debut_ms": 3.02,
+ "debut_echantillon": 145,
+ "crete_dbfs": -6.0,
+ "rms_actif_dbfs": -20.9,
+ "centre_spectre_hz": 1382,
+ "sous_300hz_pct": 7.3,
+ "b1_5khz_pct": 75.9,
+ "sur_6khz_pct": 0.4,
+ "retenu": "validé par Yoan sur le test v17 (2026-11-14)"
+}

@@ -3,7 +3,7 @@
 Carte verrouillée : r21-04c (Style Lab v2). Calque tiré du build du tour 21.
 
 ## Ce qu'il montre
-Romain détouré en taille réelle devant un visuel fait de ses mots : sa phrase en Big Shoulders capitales charbon sur orange, chiffre géant craie à 92 % derrière lui ; « SEMAINES », « JOURS » au-dessus de sa tête. Un visuel par prise ; la coupe se cache sous le changement de visuel.
+Romain détouré en taille réelle devant un visuel fait de ses mots : sa phrase en capitales charbon sur orange, chiffre géant craie à 92 % derrière lui ; « SEMAINES », « JOURS » au-dessus de sa tête. Un visuel par prise ; la coupe se cache sous le changement de visuel.
 
 ## Quand l'utiliser
 Il cite une promesse (pub, tendance) pour la démonter.
@@ -13,7 +13,7 @@ Textes et chiffres des visuels `#v0`, `#v1` dans le HTML, instants `T`. Tout mot
 - `derriere/index.html` : durée 4.4 s ; 9 instants dans l'objet `T` en tête du script.
 
 ## Constantes de `commun.mjs`
-VERT (phraseMax 150, chiffreA 980, chiffreOpacite 0,92, ecart 16), FONDS.orange, APPARITION.
+VERT (phraseMax 150, chiffreA 729 (même largeur d'encre que l'ancien 980), chiffreOpacite 0,92, ecart 16), FONDS.orange, APPARITION.
 
 ## Son associé
 Aucun.
@@ -29,4 +29,4 @@ cd derriere && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-04c, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-04c, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

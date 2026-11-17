@@ -3,7 +3,7 @@
 Carte verrouillée : r20-08a (Style Lab v2). Calque tiré du build du tour 20.
 
 ## Ce qu'il montre
-D'abord la mauvaise option : une grille de petits pictos craie sature, se grise et s'effondre. Puis les bons exercices en trois vignettes carrées 286 px rayon 10 sur une ligne (clic et éclair à 65 % sur chacune), puis le mot clé (« maîtrisés ») en Big Shoulders 170 sur son mot.
+D'abord la mauvaise option : une grille de petits pictos craie sature, se grise et s'effondre. Puis les bons exercices en trois vignettes carrées 286 px rayon 10 sur une ligne (clic et éclair à 65 % sur chacune), puis le mot clé (« maîtrisés ») en capitales 170 sur son mot.
 
 ## Quand l'utiliser
 Il oppose une mauvaise façon de faire et la bonne. Montrer que la mauvaise est mauvaise AVANT la bonne.

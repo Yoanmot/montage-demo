@@ -3,7 +3,7 @@
 Carte verrouillée : r21-03b (Style Lab v2). Calque tiré du build du tour 21.
 
 ## Ce qu'il montre
-L'angle de l'articulation tracé sur le membre, mesuré image par image (de 145 à 102 degrés sur ses dips) : rayons et arc craie, centre orange, valeur Big Shoulders 96.
+L'angle de l'articulation tracé sur le membre, mesuré image par image (de 145 à 102 degrés sur ses dips) : rayons et arc craie, centre orange, valeur capitales 96.
 
 ## Quand l'utiliser
 Il parle d'une amplitude ou d'une position d'articulation. Valeur mesurée sur l'image, jamais un chiffre estimé.

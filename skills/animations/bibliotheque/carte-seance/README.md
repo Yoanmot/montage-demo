@@ -17,7 +17,7 @@ Onglet, lignes et vignettes (« image à fournir ») dans le HTML, instants `T`.
   - photo carrée de l'exercice 3 (GHD sit-up), photo de Romain
 
 ## Constantes de `commun.mjs`
-CARTE (fond charbon, rayon 18, ombre, ligne en cours craie texte charbon, lignes passées 38 %), ONGLET (hauteur 64, Big Shoulders 800 46 px, fond orange, texte charbon, rayon 10), LIGNE_CARTE, APPARITION, SEANCE (x 91, y 600, w 899, pad 38), FONDS.flou.
+CARTE (fond charbon, rayon 18, ombre, ligne en cours craie texte charbon, lignes passées 38 %), ONGLET (hauteur 64, capitales 46 px, fond orange, texte charbon, rayon 10), LIGNE_CARTE, APPARITION, SEANCE (x 91, y 600, w 899, pad 38), FONDS.flou.
 
 ## Son associé
 Aucun.
@@ -33,4 +33,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-02a, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r21-02a, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

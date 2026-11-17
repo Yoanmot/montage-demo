@@ -10,7 +10,7 @@ CTA « commente MOT » de fin de vidéo.
 
 ## Paramètres
 Le mot dans le HTML (une lettre par élément), instants `T` des lettres : règle FRAPPE (environ 18 lettres/s, jamais avant qu'il dise le mot). La photo de profil est un emplacement « image à fournir ».
-- `devant/index.html` : durée 3 s ; 9 instants dans l'objet `T` en tête du script. `t09` : le pavé orange de la ligne « commente MOT » se pose sur le mot **une image avant son attaque** (`SOUS_TITRES_TEMPS.avancePave`, comme les sous-titres classiques). À l'instanciation : `"t09": { "pave": "<le mot>" }`.
+- `devant/index.html` : durée 3 s ; 9 instants dans l'objet `T` en tête du script. `t09` : le pavé orange de la ligne « commente MOT », posé sur « commente » quand la ligne apparaît, **glisse sur le mot à son attaque** en 0,12 s (`SOUS_TITRES_TEMPS.avancePave` 0, comme les sous-titres). La ligne a le style des sous-titres (bloc `SOUS-TITRES` de `scripts/lib/style.mjs`, Inter Black 71 px blanc, ombre douce). À l'instanciation : `"t09": { "pave": "<le mot>" }`.
 - Images : remplacées par l'emplacement `../../images/image-a-fournir.svg`. À fournir (attribut `data-a-fournir` de chaque `<img>`) :
   - photo de profil Instagram de Romain (carrée)
 
@@ -30,4 +30,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-03a, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-03a, refait le 2026-11-13 sur la rush de test (écart de taille, ligne de sous-titre), instants par défaut du gabarit.

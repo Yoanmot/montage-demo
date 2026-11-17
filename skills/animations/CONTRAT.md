@@ -28,6 +28,11 @@ vers celle-ci.
 - Vidéos d'iPhone acceptées telles quelles (2026-11-13) : HDR (HLG, PQ) converti en SDR et 60 i/s ou cadence variable
   remis à 30 i/s, dans le même passage du rendu. Sortie toujours en 1080 x 1920, sous le plafond de poids du style.
 - **Le style gagne sur le plan** (Yoan, 2026-11-11) : voir « Plan contre style ».
+- **Sous-titres, police unique, captions** (Yoan, 2026-11-13 et 2026-11-14) : les sous-titres redeviennent ceux de
+  son ancien skill (Inter Black, pavé orange qui glisse) ; tous les textes de la vidéo passent à leur police
+  (`POLICES.sousTitres`), sauf les formats natifs recopiés ; tout texte d'un effet qui reprend ses mots a un
+  comportement de sous-titres ; les captions (sa phrase au fil de sa voix) ont une taille et une police par ligne
+  (STYLE.md). Lignes datées plus bas.
 - **Format du plan de montage** : source unique dans `skills/plan-montage/references/format.md` (installé dans
   `~/.claude/skills/plan-montage/`). Ce contrat dit seulement ce que chaque brique en fait.
 
@@ -124,15 +129,15 @@ de mot de `words.cut.json` (`"w68"`, `"w68-w70"`). Jamais de minutage.
 | Clé | Absente | Traduite par le monteur en |
 |---|---|---|
 | `coupes` | rythme `serre` | argument de `compiler` (couper-silences), choisi aux coupes et recopié dans le plan |
-| `sous_titres` | classique, sans mot fort | `sous-titres.json` (`style`, `motsForts` = 1er mot de chaque ancre, groupe = les mots de l'ancre ; `masquer` ; `corrections` guidées par `vocabulaire`) |
+| `sous_titres` | ses sous-titres (un seul style) | `sous-titres.json` (`corrections` guidées par `vocabulaire` ; `masquer` ; `citations` en numéros de mots) ; `style` et `mots_forts` d'un ancien plan sont ignorés |
 | `zooms` | zooms choisis avec retenue | `zooms.json` (`type`, `mot`) ; `[]` = aucun |
 | `b_roll` | aucun B-roll | `b-roll.json` (`fichier` = clip de Romain, vérifié par ses vignettes ; `debut`, `fin`, `depart`) |
 | `animations` | aucune animation | lu tel quel par `caler.mjs` |
 
 - Pas de clé `sons`. Une clé inconnue est signalée, jamais exécutée.
 - Une valeur du plan que le style interdit ou que le gabarit ne prévoit pas : le style gagne (section suivante).
-- Mode simple (Romain veut seulement « coupe et sous-titre ») : pas de plan ; coupes (rythme `serre`), sous-titres
-  classiques sans mot fort, zooms avec retenue. Le monteur le dit à Romain.
+- Mode simple (Romain veut seulement « coupe et sous-titre ») : pas de plan ; coupes (rythme `serre`), sous-titres,
+  zooms avec retenue. Le monteur le dit à Romain.
 
 ### Plan contre style
 Le plan dit **quoi et où** ; le style (`bibliotheque/STYLE.md`, `commun.mjs`, les gabarits) dit **comment**. Quand le plan
@@ -268,3 +273,81 @@ Tous les autres gestes n'ont aucun réglage. Pour relire la liste à jour :
   dans `plan-resolu.json` ; `verifier.mjs` : un `#xxx` qui nomme un élément n'est pas une couleur, un format réel
   (`origine.natif`) garde ses rayons et la police système, la classe `objet` sort un objet qui quitte le cadre exprès du
   contrôle de zone sûre ; `sons_suggeres` : `transition` sur `transition-flash`.
+- 2026-11-13 (sous-titres, décision Yoan) : un seul style, celui de l'ancien skill de Romain (`captions_romain.py`),
+  refait en calque HyperFrames. `sous-titres.json` : `corrections`, `masquer`, `taille` (1 par défaut), `position`
+  (0,70 par défaut) ; `style`, `groupes`, `motsForts` sont ignorés (signalés « à relire »). Les groupes se découpent
+  seuls (algorithme `groups()` repris tel quel, largeurs mesurées sur la police par `animations/scripts/lib/police.mjs`).
+  Le calque `st` porte dans `P` : `groupes` (`mots` avec attaques, `t0`, `t1`, `monte`, `sortie`), `caches`, `coupes`,
+  `images` ; même entrée de `calques.json` (ordre 100), même règle de coupe nette sous un calque `masque_sous_titres`.
+  La police est un réglage unique : `POLICES.sousTitres` de `commun.mjs` (Inter Black, `fonts/Inter-Black.ttf`, OFL).
+- 2026-11-13 (animations, sous-titres : lignes de sous-titre des gabarits) : le style des sous-titres est écrit une fois
+  (`blocSousTitres` de `scripts/lib/style.mjs`) et posé entre les marqueurs `SOUS-TITRES:debut` / `SOUS-TITRES:fin` du
+  calque `st` et des gabarits à ligne propre (`cta-mot-derriere`, `cta-champ-instagram`, `tier-list`), avec la `taille`
+  et la `position` de `sous-titres.json`. `instancier.mjs` écrit `data-attaques` (attaque de chaque mot, secondes du
+  calque) sur une ligne `#st…` remplie avec `{ mots }` : le pavé glisse de mot en mot. `{ "pave": "<ancre>" }` = l'image
+  de l'attaque (`SOUS_TITRES_TEMPS.avancePave` 0 : le pavé part du mot d'avant et glisse 0,12 s), plus une image avant.
+  `{ mots }` garde la casse de la transcription par défaut (`casse` : `telle`).
+- 2026-11-14 (animations : police unique et captions ; remplace le contrôle d'écart de taille du 2026-11-13, retiré) :
+  - Police : `POLICES.titre` et `POLICES.texte` dérivent de `POLICES.sousTitres` ; chaque gabarit porte un bloc
+    `POLICE:debut` / `POLICE:fin` (`blocPolice` de `scripts/lib/style.mjs`), réécrit avec le bloc `SOUS-TITRES` par
+    `scripts/maj-sous-titres.mjs`. `verifier.mjs` refuse toute autre famille (`STYLE police hors style`) hors calque
+    `origine.natif` ; une partie `[data-natif]` d'un effet (format réel reproduit) peut garder la sienne (note).
+  - Captions : un conteneur `[data-captions]` déclare des textes qui disent sa phrase au fil de sa voix ;
+    `scripts/meme-ligne.mjs` (Chrome de HyperFrames) regroupe leurs mots par ligne de base, image par image, toutes les
+    couches de la même `demande` ensemble ; `verifier.mjs` refuse une ligne dont les capitales diffèrent de plus de 3 %
+    ou qui mêle deux polices, vue sur 3 images au moins (problème `LIGNE`). `rapport.json` porte `captions`.
+  - `mesure.py geant` n'a plus de `--cap-max` ; `mesure.py` compte l'approche (letter-spacing) de la police.
+    `.ti` n'a plus de chiffres en chasse fixe (dans Inter, `tabular-nums` élargit aussi des lettres et faussait les
+    mesures de 2 %) : un chiffre qui défile porte la classe `.num`.
+- 2026-11-14 (sous-titres, animations : retours de Yoan sur le test v11) :
+  - **Un mot dit ne s'affiche qu'une fois.** Un calque d'animation déclare les mots dits qu'il affiche en texte :
+    `mots_repris` (numéros de mots de `words.cut.json`) dans `calque.json` et `calques.json` (`ecrireCalque({ mots_repris
+    })` pour un effet sur mesure, accepte `12`, `"w12"`, `"w12-w15"`, `[12, 15]` ; `instancier.mjs` compte tout seul les
+    textes `{ mots }` et prend `mots_repris` du fichier de demande pour un texte libre ; `calques.mjs` recopie). `sous-titres
+    preparer` retire ces mots : le groupe d'avant s'arrête au plus tard à l'attaque du premier mot repris, les mots
+    d'après commencent un nouveau groupe. Le calque `st` porte le numéro de chaque mot (`P.groupes[].mots[].i`).
+    `verifier.mjs` refuse un mot affiché par deux sources (`MOT_DOUBLE`, le mot et l'image de la deuxième fois), déclaré
+    ou deviné (un texte attendu à l'image d'un mot, égal à ce que les sous-titres montrent) ; `verifier.mjs <dossier>
+    --mots` fait ce seul contrôle sur toute la vidéo (`scripts/lib/mots-affiches.mjs`).
+  - **Citations** : `sous-titres.json` `citations: [[premier, dernier]]` ; corrigé après la v12 (Yoan) : rien ne
+    s'affiche en plus, ni guillemets ni autre marque, dans les sous-titres comme dans `texteSousTitres` ; la citation
+    fait seulement ses propres groupes (`bornesCitations()` de `scripts/lib/style.mjs`). Plus d'alerte « citation probable
+    non marquée ». Plan : `sous_titres.citations` (ancres, `skills/plan-montage/references/format.md`).
+  - **Pavé réglable** : `sous-titres.json` `pave` (`true` / `false`, défaut `SOUS_TITRES.pave.actif` de `commun.mjs`,
+    `true`) ; passé à `blocSousTitres` et lu par `reglagesSousTitres` (lignes des gabarits). Sans pavé : rien d'autre ne
+    change ; la ligne « commente MOT » des CTA garde son pavé posé sur le MOT (sans glissé).
+  - ~~Montée des mots en gros~~ (`MONTEE_MOT`, `Couche.monte`) : retirée après la v12. Remplacée par la **montée du bas
+    en saccade 12 i/s**, un accent rare : `MONTEE_ACCENT`, `progresAccent`, `monteeAccentJs` de `commun.mjs`,
+    `Couche.accent(sel, attaque)` de `scripts/lib/style.mjs` (STYLE.md, « Montée du bas »). Montée et saccade vont
+    toujours ensemble ; jamais pour l'apparition des sous-titres enrichis ni des pleins écrans texte.
+- 2026-11-14 (retours de Yoan sur le test v12) :
+  - **Phrase en sous-titres dans un effet** : `groupesSousTitres(dossier, ancre, mots, { casse, taille, position })` de
+    `scripts/lib/style.mjs` rend les groupes et instants de la brique sous-titres (découpe et instants déplacés dans
+    `skills/sous-titres/scripts/groupes.mjs`, partagés par `sous-titres.mjs preparer`) ; l'effet les pose avec le bloc
+    `blocSousTitres({ pave: false })` (`SousTitres.ligne / monter / sortir`). Exemple : phrase du bas du plein écran
+    puzzle, en majuscules.
+  - **Sous-titres enrichis** : `APPARITION_LIGNE`, `apparitionLigneJs(sel, t)` et `SOULIGNE` de `commun.mjs` (coup de
+    poing par ligne, soulignage 0,13 x la taille en 0,17 s) ; les mots de la ligne (et son soulignage) sont dans un
+    conteneur, seul animé, `transform-origin: 50% 70%`. Pendant l'entrée (0,2 s), une ligne large dépasse la zone
+    sûre à l'échelle 1,3 : `calque.json` `entrees_echelle` ([[image, image]], `ecrireCalque`) et `verifier.mjs` l'excepte
+    (NOTE au lieu de ZONE).
+  - **Taille des sous-titres enrichis** (retour sur v13) : `ENRICHI` (`min` 1, `max` 1,2, `fort` 1,2, `moyen` 1,15,
+    `secondaire` 1,05 x les sous-titres) ; le conteneur porte `data-enrichi`, `verifier.mjs` refuse une ligne au-delà
+    de `max` (`ENRICHI taille ...`).
+  - **Attaque d'un mot** (règle définitive, retours sur v14) : `ATTAQUE` de `commun.mjs` (0,1 s, plancher au milieu du
+    mot précédent), `attaqueMot(mots, i)` de `scripts/lib/style.mjs`, seule fonction ; `resoudre` rend l'attaque dans
+    `debut_s` / `image` et le début transcrit dans `transcrit_s` / `image_transcrite`. `APPARITION.avance` et
+    `MONTEE_ACCENT.avance` passent à 0 (l'entrée part à l'attaque). `mot_image` des attendus = l'image d'attaque :
+    `verifier.mjs` refuse un texte visible avant elle ; `mots-affiches.mjs` et `sons.mjs` (arrivée sur un `mot`) prennent
+    la même fonction. Les sous-titres de la brique gardent le début transcrit.
+  - **Sons retenus sur le test v17** (sound-design) : gestes `ecran` (`images`, série), `pose` (`images`), `coche`
+    (`images`, série, `coche-1` à `coche-3`), `montee` (`fin` = image du son d'entrée du moment fort) ; niveaux `SONS.ecran`,
+    `SONS.pose`, `SONS.coche`, `SONS.montee` de `commun.mjs` (dB RMS sous la voix : 21, 8, 8, 10). `sons.json` peut porter
+    `serie` (sons d'un même geste, exemptés de l'écart de 3 images s'ils sont à moins de `SONS.serieMaxS`) et `fin`
+    (montée). Le contrôle refuse : un son sur un sous-titre enrichi, plus d'une montée, une montée qui ne finit pas net
+    sur un son d'entrée, un son autre qu'une transition dans la dernière seconde.
+  - **Case cochée** : `CASE_COCHEE` de `commun.mjs`, `caseCocheeSvg(id, cote, ep, trait, fond)` et `caseCocheeJs(id, t)`
+    de `scripts/lib/style.mjs` (case qui se remplit, coche couleur du fond qui l'occupe, même repère).
+  - **Captures d'écran natives dans un effet sur mesure** : `origine.natif: true` dans `calque.json` (couleurs, rayons et
+    polices du vrai format) et `data-natif` sur la partie native ; une mise en page faite par le navigateur au chargement
+    (marge, défilement) se calcule une fois dans le script du calque, avant la timeline.

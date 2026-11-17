@@ -30,4 +30,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r20-01g, rendu dans le labo.
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r20-01g, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit.

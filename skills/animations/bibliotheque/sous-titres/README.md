@@ -1,51 +1,57 @@
 # Sous-titres
 
-Cartes verrouillées : r21-01a (classique, pavé qui glisse), r19-01b (formelle), r22-01a (mot fort qui part avec la
-phrase). Un seul gabarit paramétré couvre les trois : `devant/index.html` construit les groupes et la timeline depuis
-`P` (logique reprise des builds des tours 19, 21 et 22).
+Les sous-titres choisis par Romain le 29/10 et utilisés par son skill jusqu'au 2026-11-13 (`captions_romain.py` du
+serveur de montage, fonctions `groups()` et `sous_titres()`, rendus en ASS), refaits en calque HyperFrames le
+2026-11-13 après son retour sur le style du Style Lab (« trop de différences de taille », police pas aimée). Les styles
+classique, formelle et mot fort du Style Lab n'existent plus.
 
 ## Ce qu'il montre
-- **Classique** : Bricolage Grotesque 800 minuscules 66 px, craie, ombre dure, une ligne centrée à y 1430. Mots resserrés
-  (18 px entre les lettres de deux mots). Le mot en cours est sur un pavé orange arrondi 10 px posé sur une marche braise
-  de 4 px, texte charbon ; le pavé GLISSE d'un mot à l'autre en 0,12 s power2.inOut (moins si les mots se suivent de
-  trop près) ; les deux mots changent de couleur à mi-glissé ; le pavé arrive sur le mot une image avant son attaque.
-- **Formelle** : même police et position, sans pavé, 3 mots au plus par groupe, le groupe apparaît d'un coup à l'image
-  de l'attaque de son premier mot.
-- **Mot fort** (formelle) : le groupe qui porte l'idée passe en Big Shoulders 900 capitales 128 px au-dessus de la ligne
-  restée affichée (22 px entre le bas de ses capitales et le haut des minuscules), avec l'apparition v2 démarrée 0,04 s
-  avant son mot ; il disparaît à la même image que la ligne de fin de phrase, à la fin du dernier mot de la phrase.
+- **Police** : un seul réglage, `POLICES.sousTitres` de `commun.mjs` (Inter Black tant que Romain n'en a pas choisi une
+  autre), blanc pur #FFFFFF, **71 px** en 1080 (0,066 x la largeur x le réglage `taille`), lettres resserrées de 5 % de
+  la taille (pas les espaces), casse de la transcription, ponctuation de fin retirée.
+- **Ombre douce** : copie noire du texte sous lui, bordure 4 px, flou équivalent au `\blur9` de libass (écart-type
+  2,7 px), opacités 0,655 (texte) et 0,404 (bordure), sans décalage.
+- **Ligne** : milieu des capitales à **0,70** de la hauteur (réglage `position`), centrée, une ligne par groupe.
+- **Groupes** : 1 à 4 mots, 20 caractères au plus (divisé par `taille`), 0,84 x la largeur au plus ; une phrase
+  (fin de phrase ou blanc de plus de 0,15 s) n'est jamais à cheval sur deux groupes ; trop longue, elle se coupe en
+  groupes équilibrés (le plus large le moins large possible). Algorithme repris tel quel (vérifié identique à
+  `groups()` sur les 79 groupes de la rush de test).
+- **Temps** : un groupe apparaît à l'attaque de son premier mot. Suivi d'un blanc de moins de 0,5 s, il part au début du
+  suivant ; sinon il reste 0,25 s après son dernier mot et part en fondu de 0,11 s. Le premier groupe après un blanc de
+  0,5 s (et le premier de la vidéo) monte de 14 px en fondu de 0,15 s.
+- **Pavé orange** #F15A24 arrondi (rayon 0,18 x la taille) sous le mot dit, texte blanc par-dessus, ombre dessous : du
+  haut des capitales - 0,11 - 0,03 x la taille, haut de capitales + 0,38 x la taille, marges 0,17 x la taille de chaque
+  côté. Sur le premier mot dès l'apparition, puis il **glisse** d'un mot au suivant à l'attaque du mot, en 0,12 s,
+  bords gauche et droit à vitesse constante.
+- Calques qui effacent les sous-titres (`masque_sous_titres`) : groupe retiré, ou coupé net à l'image d'entrée du
+  calque (règle de Yoan du 2026-11-11, inchangée).
 
-## Quand l'utiliser
-Classique : vidéos simples, organiques. Formelle : vidéos plus qualis. Mot fort : un mot par idée forte, pas plus d'un
-toutes les quelques phrases.
+## Où vit le style
+Le CSS et le JS des sous-titres sont écrits une fois, par `blocSousTitres()` de `scripts/lib/style.mjs` (depuis
+`SOUS_TITRES` et `POLICES.sousTitres` de `commun.mjs`), et posés entre les marqueurs `SOUS-TITRES:debut` /
+`SOUS-TITRES:fin` de ce gabarit et des gabarits qui portent leur propre ligne (`cta-mot-derriere`,
+`cta-champ-instagram`, `tier-list`). Changer une valeur ou la police dans `commun.mjs`, puis
+`node scripts/maj-sous-titres.mjs` (skill animations) pour la bibliothèque ; les calques d'une vidéo se refont avec
+`sous-titres preparer` et `instancier.mjs`.
 
-## Paramètres (objet `P` en tête de `devant/index.html`)
-- `style` : `classique` | `formelle`.
-- `mots` : `[{ w, s, e }]`, texte tel que dit et instants de début et fin en secondes (transcription calée sur la voix).
-  Le texte affiché est en minuscules, ponctuation de fin retirée.
-- `groupes` : indice de fin (exclu) de chaque groupe.
-- `motFort` : `null` ou `{ groupe, finPhrase }` (formelle seulement).
+## Paramètres (objet `P` en tête de `devant/index.html`, écrit par `sous-titres.mjs preparer`)
+- `groupes` : `[{ mots: [{ w, s }], t0, t1, monte, sortie }]` (texte affiché, attaques en secondes du calque).
+- `caches`, `coupes` : groupes retirés ou coupés net sous un calque qui efface les sous-titres.
 - `images` : durée du calque en images ; garder `data-duration` de `#root` = `images / 30`.
-Les trois réglages verrouillés sont écrits en commentaire au-dessus de `P`.
-
-## Constantes de `commun.mjs`
-SOUS_TITRES (taille 66, centreY 1430, x 91 à 990, interligne 1,12, pave { padX 14, padBas 4, rayon 10, marche 4 },
-motFort 128), SOUS_TITRES_ECART.tresSerre (-0,14 em), SOUS_TITRES_GLISSE (0,12 s power2.inOut), SOUS_TITRES_TEMPS
-(avancePave 1/30), MOT_FORT (taille 128, écart 22), APPARITION, COULEURS, MARCHE.sousTitre, OMBRES.texteDure.
-Le gabarit recopie ces valeurs en tête de son script (un HTML de rendu ne peut pas importer le module) : si une
-constante change dans `commun.mjs`, la changer ici aussi.
 
 ## Son associé
 Aucun. Jamais de son sur les sous-titres.
 
 ## Composition
-- `devant/` : calque transparent DEVANT Romain. Rien sous y 1479 (le pavé et sa marche finissent au-dessus).
+- `devant/` : calque transparent DEVANT Romain. À la position 0,70, le pavé va de y 1308 à y 1387 (zone sûre jusqu'à
+  y 1479).
 
 ## Rendu
 ```
 cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o ../../_rendus/sous-titres-devant.mov
 ```
+(le gabarit cite `../../fonts/` et `../../vendor/` : le lint HyperFrames le signale, normal pour un gabarit ; le calque
+d'une vidéo a ses chemins dans son dossier.)
 
-## Aperçus
-- `apercu-classique.mp4` (r21-01a), `apercu-formelle.mp4` (r19-01b), `apercu-mot-fort.mp4` (r22-01a) : aperçus muets
-  540 x 960 rendus dans le labo, sur l'extrait « mais faire des abdos ne suffit pas à enlever la graisse qui les recouvre ».
+## Aperçu
+- `apercu.mp4` : aperçu muet 540 x 960, sur les premières secondes de la rush de test (2026-11-13).
