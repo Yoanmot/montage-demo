@@ -38,6 +38,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$CLIENT_ERREUR" ] && { echo "ISOLATION ECHEC client : $CLIENT_ERREUR"; exit 1; }
+# Un client sans config_claude (Romain) utilise la config Claude de l'utilisateur du Mac : rien à prouver,
+# et lancer claude ici écrirait dans cette config (et dans celle de Yoan si on oublie STUDIO_CLIENT).
+if [ -z "$CLIENT_ISOLE" ]; then
+  echo "ISOLATION ECHEC client $CLIENT_ID non isolé (config_claude null) : rien lancé. Préciser STUDIO_CLIENT=<id> ?"
+  exit 1
+fi
 
 BASE="$STUDIO_RACINE"
 TRAVAIL="$BASE/tmp/isolation"
@@ -70,6 +76,7 @@ fi
 service() {
   local d="$1" cfg="$2"; shift 2
   ( cd "$d" && env -i USER="$USER" LOGNAME="$USER" SHELL=/bin/zsh TERM=dumb TMPDIR="$BASE/tmp/" "${ENV_SERVICE[@]}" \
+      ${STUDIO_CLIENT_FICHIER:+STUDIO_CLIENT_FICHIER="$STUDIO_CLIENT_FICHIER"} \
       ISOLATION_CFG="$cfg" /bin/bash -c '
         . "$0/commun.sh"
         export STUDIO_CLIENT="$CLIENT_ID" STUDIO_RACINE STUDIO_HOME

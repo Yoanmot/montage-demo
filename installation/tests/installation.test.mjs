@@ -88,6 +88,14 @@ test("syntaxe : chaque script se lit avec le bash 3.2 de macOS (/bin/bash)", () 
   }
 });
 
+test("isolation.sh : refuse un client non isolé sans lancer claude ni rien écrire", () => {
+  const maison = tmp();
+  const r = bash(path.join(DEPOT, "installation/isolation.sh"), [], envDe(maison, { PATH: "/usr/bin:/bin" }));
+  assert.equal(r.code, 1);
+  assert.match(r.sortie, /ISOLATION ECHEC client romain non isolé/);
+  assert.deepEqual(fs.readdirSync(maison).filter((n) => n !== "Library"), []);
+});
+
 test("client.sh : Romain garde ses valeurs historiques, avec ou sans fichier de client", () => {
   const maison = tmp();
   for (const env of [envDe(maison), envDe(maison, { STUDIO_CLIENT: "romain" })]) {
