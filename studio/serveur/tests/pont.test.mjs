@@ -104,6 +104,8 @@ test("lot 13 : chaque session du studio reçoit la consigne du chat court et STU
   assert.match(CONSIGNE_STUDIO, /ne recopie jamais/);
   assert.match(CONSIGNE_STUDIO, /Idées proposées/);
   assert.ok(!CONSIGNE_STUDIO.includes("\u2014"), "pas de tiret long");
+  // Test de bout en bout du 18/11 : « Le sed a échoué, je corrige le statut. » dans le chat d'un contenu.
+  assert.match(CONSIGNE_STUDIO, /ne nomme jamais un outil/);
 });
 
 test("pont : un échange de bout en bout, puis reprise par --resume", async () => {

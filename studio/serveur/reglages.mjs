@@ -66,6 +66,7 @@ export function consigneStudio(prenom = clientActif().prenom) {
     "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
     "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
     "S'il te demande expressément de lui montrer ou de lui expliquer quelque chose dans le chat, fais-le, court. Quand tu n'enregistres rien (une question, un conseil), réponds normalement, court aussi.",
+    `${prenom} ne voit pas tes outils. Dans le chat, ne nomme jamais un outil, une commande, un langage ni un fichier technique (par exemple sed, Edit, Bash, git, python, JSON, .md, script). Si une étape technique rate et que tu la refais, ne raconte pas l'incident : dis seulement ce qui est fait.`,
   ].join("\n");
 }
 export const CONSIGNE_STUDIO = consigneStudio();
