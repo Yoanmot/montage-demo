@@ -20,13 +20,49 @@ export class Rangement {
   }
 
   dessiner() {
-    const fs = this.studio.a_ranger || [];
-    if (!fs.length) { this.racine.replaceChildren(); return; }
-    const relancer = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("synchro")}<span>Réessayer de tout ranger</span>` });
-    relancer.addEventListener("click", async () => { relancer.disabled = true; try { await this.api.relancerRangement(); annoncer("Je réessaie."); } catch (e) { annoncer(e.message, "erreur"); } finally { relancer.disabled = false; } });
-    this.racine.replaceChildren(
-      el("div", { class: "ranger-liste" }, ...fs.map((f) => this.dessinerFichier(f))),
-      el("div", { class: "bloc-pied" }, relancer));
+    const tous = this.studio.a_ranger || [];
+    // Les rushs arrivés sur le Mac pour un tournage pas fini de ranger (encore dans ses Téléchargements) :
+    // en haut, avec « Ranger maintenant » ; puis ce que le rangement a mis de côté.
+    const attente = tous.filter((f) => f.attente);
+    const fs = tous.filter((f) => !f.attente);
+    if (!tous.length) { this.racine.replaceChildren(); return; }
+    const blocs = [];
+    if (attente.length) blocs.push(this.dessinerAttente(attente));
+    if (fs.length) {
+      const relancer = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("synchro")}<span>Réessayer de tout ranger</span>` });
+      relancer.addEventListener("click", async () => { relancer.disabled = true; try { await this.api.relancerRangement(); annoncer("Je réessaie."); } catch (e) { annoncer(e.message, "erreur"); } finally { relancer.disabled = false; } });
+      blocs.push(el("div", { class: "ranger-liste" }, ...fs.map((f) => this.dessinerFichier(f))), el("div", { class: "bloc-pied" }, relancer));
+    }
+    this.racine.replaceChildren(...blocs);
+  }
+
+  // Un groupe par plan de tournage : chaque fichier reçu ou en cours de réception, et un bouton qui range
+  // ce plan (il ne s'active qu'une fois tous ses fichiers arrivés en entier).
+  dessinerAttente(attente) {
+    const plans = [...new Set(attente.map((f) => f.tournage))];
+    return el("div", { class: "ranger-attente" }, ...plans.map((id) => {
+      const fs = attente.filter((f) => f.tournage === id);
+      const arrive = fs.some((f) => f.en_cours);
+      const t = (this.studio.tournages || []).find((x) => x.id === id);
+      const quand = t?.cree_le ? new Date(t.cree_le).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : null;
+      const go = el("button", { class: "bouton bouton-plein bouton-petit", type: "button", disabled: arrive || null, html: `${icone("coche")}<span>Ranger maintenant</span>` });
+      go.addEventListener("click", async () => {
+        go.disabled = true;
+        try { await this.api.validerTournage(id); annoncer("Je range tes fichiers dans leurs dossiers."); }
+        catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
+      });
+      return el("div", { class: "ranger-liste" },
+        ...fs.map((f) => el("article", { class: "ranger-fichier", "aria-label": f.libelle },
+          el("div", { class: "ranger-media" }, el("div", { class: "ranger-vignette ranger-vignette-vide", html: icone(f.libelle === "ta photo" ? "photo" : "film") })),
+          el("div", { class: "ranger-corps" },
+            el("p", { class: "ranger-nom" }, `${f.libelle.replace(/^./, (x) => x.toUpperCase())}${quand ? `, pour ton tournage du ${quand}` : ""}`),
+            f.en_cours
+              ? el("p", { class: "recap-charge", role: "status" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), `En cours de réception : ${f.taille_lisible} reçus pour l'instant`)
+              : el("p", { class: "ranger-raison" }, `Arrivée en entier (${f.taille_lisible}), pas encore rangée.`)))),
+        el("div", { class: "bloc-pied" }, go, el("span", { class: "note" }, arrive
+          ? "Le bouton s'active quand l'envoi est fini. Laisse ton téléphone près du Mac."
+          : "Je la range dans le dossier de son contenu, comme à la fin d'un tournage.")));
+    }));
   }
 
   dessinerFichier(f) {

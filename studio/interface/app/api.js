@@ -62,6 +62,7 @@ export function creerApiServeur() {
     envoyer: (chatId, texte) => appel("POST", `/api/chats/${enc(chatId)}/messages`, { texte }),
     arreterChat: (chatId) => appel("POST", `/api/chats/${enc(chatId)}/arreter`, {}),
     tournage: (id) => appel("GET", `/api/tournages/${enc(id)}`),
+    receptionPlan: (id) => appel("GET", `/api/tournages/${enc(id)}/reception`),
     brief: (slug, corps) => appel("POST", `/api/cartes/${enc(slug)}/brief`, corps),
     retirerRush: (slug, id) => appel("POST", `/api/cartes/${enc(slug)}/rushs/retirer`, { id }),
     placer: (fichier, slug, type) => appel("POST", "/api/rangement/placer", { fichier, slug, type }),

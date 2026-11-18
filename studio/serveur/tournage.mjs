@@ -3,11 +3,13 @@
 // Le suivi (coches, prises sautées, envoi, vérification, fin validée) est écrit par le serveur seulement,
 // dans STUDIO_HOME/tournages/<id>.json : jamais par le modèle.
 //
-// La vérification des fichiers ne tourne qu'à deux moments : quand Romain coche la dernière étape, et
-// au clic sur « Valider la fin du tournage ». Aucune surveillance du dossier, aucun minuteur.
+// La vérification des fichiers tourne quand Romain coche la dernière étape, au clic sur « Valider la fin
+// du tournage », et tant qu'un fichier est en cours de réception (l'écran du plan redemande où en est
+// l'envoi toutes les deux secondes). Un fichier en cours de réception (AirDrop pas fini) n'est jamais
+// compté comme reçu, et la fin du tournage ne se valide pas tant qu'il arrive.
 import path from "node:path";
-import { lireJson, ecrireJson, lireTexte, lister, isoZurich, lireDate, EXT_IMAGE } from "./outils.mjs";
-import { decouperScript, accrochesDe, accrocheDansTexte } from "./lecture.mjs";
+import { lireJson, ecrireJson, lireTexte, lister, isoZurich, lireDate, EXT_IMAGE, existe } from "./outils.mjs";
+import { decouperScript, accrochesDe, accrocheDansTexte, aFinir } from "./lecture.mjs";
 import { estOriginale } from "./stades.mjs";
 import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
@@ -67,24 +69,47 @@ function dejaRangees(config, t) {
   return r;
 }
 
+// La taille lisible d'un fichier qui arrive (« 120 Mo »).
+export function tailleLisible(octets) {
+  const mo = (Number(octets) || 0) / 1e6;
+  if (mo < 0.1) return "moins de 0,1 Mo";
+  if (mo >= 1000) return `${(mo / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go`;
+  return `${Math.max(mo < 10 ? Math.round(mo * 10) / 10 : Math.round(mo), 0).toLocaleString("fr-FR")} Mo`;
+}
+
+// Ce qui arrive en ce moment dans le dossier d'arrivée pour ce plan : les fichiers reçus en entier et ceux
+// encore en réception, avec leur taille du moment (jamais de chemin : l'interface n'en montre pas).
+export function receptionDuPlan(config, t) {
+  const { fichiers, en_cours: enCours, partiels } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0));
+  const vu = (f) => ({ nom: f.nom, type: f.type, taille: f.taille, taille_lisible: tailleLisible(f.taille) });
+  return { recus: fichiers.map(vu), en_cours: enCours.map(vu), partiels: partiels.length, le: isoZurich() };
+}
+
 // Vérifie ce qui est arrivé : compare le nombre de vidéos et de photos attendues (prises à filmer, pas
 // encore rangées) à ce que le dossier d'arrivée contient depuis la création du plan (mêmes règles que le
-// rangement : vidéos et photos du téléphone seulement, jamais les autres fichiers).
+// rangement : vidéos et photos du téléphone seulement, jamais les autres fichiers ; un fichier encore en
+// réception ne compte pas).
 export function verifierArrivees(config, t, suivi) {
   const rangees = dejaRangees(config, t);
   const attendues = aFilmer(t, suivi).filter((p) => !rangees.has(p.n));
   const attendu = { videos: attendues.filter((p) => p.type !== "photo").length, photos: attendues.filter((p) => p.type === "photo").length };
-  const { fichiers, partiels } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0));
+  const { fichiers, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0));
   const recu = { videos: fichiers.filter((f) => f.type === "video").length, photos: fichiers.filter((f) => f.type === "photo").length };
   const manque = { videos: Math.max(0, attendu.videos - recu.videos), photos: Math.max(0, attendu.photos - recu.photos) };
   const en_trop = { videos: Math.max(0, recu.videos - attendu.videos), photos: Math.max(0, recu.photos - attendu.photos) };
-  const complet = !manque.videos && !manque.photos && !partiels.length;
+  const en_reception = enCours.map((f) => ({ nom: f.nom, type: f.type, taille: f.taille, taille_lisible: tailleLisible(f.taille) }));
+  const complet = !manque.videos && !manque.photos && !partiels.length && !enCours.length;
   const morceaux = [];
   if (manque.videos) morceaux.push(pluriel(manque.videos, "vidéo", "vidéos"));
   if (manque.photos) morceaux.push(pluriel(manque.photos, "photo", "photos"));
   let message;
   if (!config.arrivees) message = `Je ne sais pas encore où arrivent tes fichiers sur ce Mac. Préviens ${contact()}.`;
-  else if (morceaux.length) {
+  else if (enCours.length) {
+    const quoi = enCours.length === 1
+      ? `${enCours[0].type === "photo" ? "Une photo" : "Une vidéo"} est en cours de réception (${tailleLisible(enCours[0].taille)} reçus pour l'instant)`
+      : `${pluriel(enCours.length, "fichier", "fichiers")} sont en cours de réception (${tailleLisible(enCours.reduce((n, f) => n + f.taille, 0))} reçus pour l'instant)`;
+    message = `${quoi}. Laisse ton téléphone près du Mac jusqu'à la fin de l'envoi : je regarde tout seul et je te dis quand c'est fini.`;
+  } else if (morceaux.length) {
     message = `Je ne vois pas encore tous tes fichiers : il manque ${morceaux.join(" et ")} (j'en vois ${pluriel(recu.videos, "vidéo", "vidéos")}${attendu.photos || recu.photos ? ` et ${pluriel(recu.photos, "photo", "photos")}` : ""}). Attends que l'envoi soit fini, puis recoche.`;
   } else if (partiels.length) message = "Un envoi est encore en cours. Attends qu'il soit fini, puis recoche.";
   else {
@@ -93,7 +118,24 @@ export function verifierArrivees(config, t, suivi) {
     if (en_trop.photos) trop.push(pluriel(en_trop.photos, "photo", "photos"));
     message = `Tout est arrivé${trop.length ? `, et même ${trop.join(" et ")} de plus que prévu : ce que je ne reconnais pas ira dans « À ranger »` : ""}. Tu peux valider la fin du tournage.`;
   }
-  return { le: isoZurich(), complet: complet && Boolean(config.arrivees), attendu, recu, manque, en_trop, message };
+  return { le: isoZurich(), complet: complet && Boolean(config.arrivees), attendu, recu, manque, en_trop, en_reception, message };
+}
+
+// Après un rangement : ce qui manque encore pour ce plan (prises à filmer ni rangées dans leur dossier, ni
+// posées dans « À ranger »). Tant qu'il en reste, le plan reste « à finir » et propose de ranger à nouveau.
+export function resteARanger(config, t, suivi) {
+  const rangees = dejaRangees(config, t);
+  const attendues = aFilmer(t, suivi).filter((p) => !rangees.has(p.n));
+  const j = lireJson(path.join(config.media, "_a-ranger", "a-ranger.json"), null);
+  const liste = Array.isArray(j?.fichiers) ? j.fichiers : j?.fichiers && typeof j.fichiers === "object"
+    ? Object.entries(j.fichiers).map(([nom, v]) => ({ nom, ...v })) : [];
+  const deCote = liste.filter((f) => f?.nom && f.tournage === t.id && existe(path.join(config.media, "_a-ranger", f.nom)));
+  const photosDeCote = deCote.filter((f) => f.type_probable === "photo").length;
+  const videosDeCote = deCote.length - photosDeCote;
+  return {
+    videos: Math.max(0, attendues.filter((p) => p.type !== "photo").length - videosDeCote),
+    photos: Math.max(0, attendues.filter((p) => p.type === "photo").length - photosDeCote),
+  };
 }
 
 // Ordre des sections du plan dans le studio (lot 13) : toutes les face caméra, puis tous les b-rolls,
@@ -157,5 +199,6 @@ export function suiviPublic(suivi, enCours = false) {
     coches: suivi.coches, sautees: suivi.sautees, envoi: suivi.envoi, verification: suivi.verification,
     valide_le: suivi.valide_le, rangement: enCours ? { en_cours: true } : suivi.rangement,
     peut_valider: Boolean(suivi.envoi && suivi.verification?.complet && !enCours),
+    a_finir: !enCours && aFinir(suivi),
   };
 }

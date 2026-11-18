@@ -666,7 +666,11 @@ export class Vue {
   vueRanger() {
     const s = this.studio;
     s.rangement.dessiner();
-    return el("article", { class: "vue" }, ...this.entete("À ranger", `Je n'ai pas su où mettre ces fichiers. Choisis le dossier de chacun, ou glisse-le sur un dossier ${ouArbre()}.`),
+    const deCote = s.a_ranger.some((f) => !f.attente);
+    const sous = deCote ? `Je n'ai pas su où mettre ces fichiers. Choisis le dossier de chacun, ou glisse-le sur un dossier ${ouArbre()}.`
+      : s.a_ranger.length ? "Des fichiers de ton tournage sont arrivés sur ton Mac après la fin du tournage : range-les d'ici."
+        : "Ce que je n'arrive pas à ranger tout seul arrive ici, et les fichiers envoyés après la fin d'un tournage.";
+    return el("article", { class: "vue" }, ...this.entete("À ranger", sous),
       s.a_ranger.length ? s.rangement.racine : el("p", { class: "vide-doux" }, "Tout est rangé."));
   }
 
@@ -714,11 +718,33 @@ export class Vue {
       el("span", { html: icone("camera") }),
       el("span", { class: "ligne-corps" }, el("strong", {}, titreTournage(t, plans)),
         el("span", { class: "ligne-meta" }, [pluriel(t.contenus.length, "vidéo", "vidéos"), t.duree_estimee_min ? `environ ${t.duree_estimee_min} min` : null].filter(Boolean).join(", "))),
-      el("span", { class: `tag ${t.en_cours ? "tag-stade" : "tag-fini"}` }, t.en_cours ? "à tourner" : "tourné"),
+      t.a_finir ? el("span", { class: "tag tag-a-toi" }, "à finir de ranger")
+        : el("span", { class: `tag ${t.en_cours ? "tag-stade" : "tag-fini"}` }, t.en_cours ? "à tourner" : "tourné"),
       el("span", { html: icone("fleche") }))))
       : el("p", { class: "vide-doux" }, "Pas encore de plan de tournage.");
     return el("article", { class: "vue" }, ...this.entete("Tournages", "Un plan de tournage quand tu le demandes : tu coches ce que tu filmes ensemble, je fais un seul plan dans l'ordre où tu filmes."),
       nouveau, this.bloc("Tes plans", liste, { aide: plans.length ? pluriel(plans.length, "plan", "plans") : null }));
+  }
+
+  // Tant qu'un envoi est suivi sur l'écran du plan (fichier en réception, vérification qui attend, plan à
+  // finir), le studio redemande où il en est : toutes les 2 s quand un fichier arrive, sinon toutes les 5 s.
+  // L'écran se redessine seulement si quelque chose a changé ; on s'arrête dès qu'on quitte le plan.
+  suivreReception(id, jeton, { suivi, reception }) {
+    clearTimeout(this._reception);
+    const arrive = Boolean(reception?.en_cours?.length);
+    const attend = (suivi.envoi && !suivi.valide_le && !suivi.verification?.complet) || suivi.a_finir || suivi.rangement?.en_cours;
+    if (!arrive && !attend) return;
+    const cle = (rec, sv) => JSON.stringify([rec ? { ...rec, le: null } : null, sv]);
+    const avant = cle(reception, suivi);
+    this._reception = setTimeout(async () => {
+      if (jeton !== this.jeton || this.studio.sel.quoi !== "tournage" || this.studio.sel.id !== id) return;
+      let r;
+      try { r = await this.api.receptionPlan(id); } catch { r = null; }
+      if (jeton !== this.jeton) return;
+      if (!r) { this.suivreReception(id, jeton, { suivi, reception }); return; }
+      if (cle(r.reception, r.suivi) !== avant) { this.afficher(); return; }
+      this.suivreReception(id, jeton, { suivi, reception });
+    }, arrive ? 2000 : 5000);
   }
 
   // Le plan de tournage (lot 12) : une carte par prise, cochable ; la dernière étape (tout envoyé par
@@ -734,7 +760,8 @@ export class Vue {
       el("button", { type: "button", onclick: () => s.selectionner({ genre: "transverse", quoi: "tournage" }) }, "Tournages"), el("span", { html: icone("fleche") }),
       el("span", { class: "courant" }, titre));
     const tete = el("header", { class: "vue-tete" }, el("div", {}, el("h1", { class: "vue-titre" }, titre),
-      resume ? el("div", { class: "vue-etiquettes" }, el("span", { class: `tag ${resume.en_cours ? "" : "tag-fini"}` }, resume.en_cours ? "à tourner" : "tourné"),
+      resume ? el("div", { class: "vue-etiquettes" }, resume.a_finir ? el("span", { class: "tag tag-a-toi" }, "à finir de ranger")
+        : el("span", { class: `tag ${resume.en_cours ? "" : "tag-fini"}` }, resume.en_cours ? "à tourner" : "tourné"),
         resume.duree_estimee_min ? el("span", { class: "tag" }, `environ ${resume.duree_estimee_min} min`) : null) : null));
     let t;
     try { t = this._planPret?.id === id ? this._planPret : await this.api.tournage(id); } catch (e) { return el("article", { class: "vue" }, chemin, tete, el("p", { class: "recap-erreur" }, e.message)); }
@@ -744,11 +771,34 @@ export class Vue {
     const fini = Boolean(suivi.valide_le);
     const rangement = suivi.rangement || null;
     const redessiner = (rep) => { if (rep?.bulles) this._planPret = { ...rep, id }; this.afficher(); };
+    const reception = t.reception || null;
+    const arrive = Boolean(reception?.en_cours?.length);
+    this.suivreReception(id, jeton, { suivi, reception });
+
+    // Ce qui est sur le Mac pour ce plan, en direct : la taille d'un fichier en cours de réception avance.
+    const lignesReception = reception && (reception.en_cours.length || (suivi.a_finir && reception.recus.length))
+      ? el("div", { class: "prises-reception" }, ...reception.en_cours.map((f) => el("p", { class: "recap-charge", role: "status" },
+        el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")),
+        `${f.type === "photo" ? "Une photo" : "Une vidéo"} en cours de réception : ${f.taille_lisible} reçus pour l'instant.`)),
+        ...(suivi.a_finir ? reception.recus.map((f) => el("p", { class: "verif verif-ok" }, el("span", { html: icone("coche") }),
+          el("span", {}, `${f.type === "photo" ? "Une photo" : "Une vidéo"} arrivée en entier (${f.taille_lisible}), pas encore rangée.`))) : []))
+      : null;
+    const reste = rangement?.reste || null;
+    const resteTexte = reste && (reste.videos || reste.photos)
+      ? [reste.videos ? pluriel(reste.videos, "vidéo", "vidéos") : null, reste.photos ? pluriel(reste.photos, "photo", "photos") : null].filter(Boolean).join(" et ")
+      : null;
 
     let etape;
     if (rangement?.en_cours) etape = this.etape("<strong>Je range tes fichiers</strong> dans le dossier de chaque contenu. Ça prend quelques minutes : tu les vérifies ensuite dans « Montage ».", null, { cours: true });
-    else if (rangement?.erreur) etape = this.etape(`<strong>Le rangement n'a pas abouti.</strong> ${rangement.erreur}`, null, { aToi: true });
-    else if (fini) {
+    else if (rangement?.erreur) etape = this.etape(`<strong>Le rangement n'a pas abouti.</strong> ${rangement.erreur} Ton plan reste ici : relance le rangement avec le bouton en bas.`, null, { aToi: true });
+    else if (suivi.a_finir) {
+      // Rien n'est perdu : le plan reste à finir tant que ses fichiers ne sont pas rangés.
+      const quoi = resteTexte ? `Il manque encore ${resteTexte} dans tes dossiers.` : "Je n'ai encore rien rangé pour ce tournage.";
+      const suite = arrive ? "Un fichier est en train d'arriver : attends la fin de l'envoi, puis clique sur « Ranger maintenant »."
+        : reception?.recus?.length ? "Ce qui est arrivé t'attend : clique sur « Ranger maintenant »."
+          : "Envoie-le par AirDrop : dès qu'il est arrivé en entier, clique sur « Ranger maintenant ». Je ne touche à rien d'ici là.";
+      etape = this.etape(`<strong>Tournage pas fini de ranger.</strong> ${quoi} ${suite}`, null, { aToi: true });
+    } else if (fini) {
       const n = rangement?.places ?? null; const ar = rangement?.a_ranger ?? 0;
       etape = this.etape(`<strong>Tournage terminé.</strong> ${n !== null ? `${n ? pluriel(n, "fichier rangé", "fichiers rangés") : "Aucun fichier rangé"} dans tes dossiers${ar ? `, ${pluriel(ar, "fichier", "fichiers")} dans « À ranger »` : ""}. ` : ""}Vérifie chaque vidéo dans le fichier « Montage » de ses contenus.`);
     } else etape = this.etape(`<strong>Coche chaque prise quand tu l'as filmée.</strong> Une carte, c'est une fois le bouton rouge, puis tu coupes. Ce plan est aussi sur ton téléphone.`);
@@ -815,7 +865,8 @@ export class Vue {
       el("label", { class: "prise-tete" }, envoi, el("span", { class: "prise-idee" }, "Envoie toutes tes vidéos et tes photos sur ton Mac par AirDrop")),
       el("p", { class: "prise-note" }, fini ? "Fait." : "Coche quand l'envoi est fini : je regarde si tout est arrivé."),
       ver ? el("p", { class: `verif ${ver.complet ? "verif-ok" : "verif-manque"}`, role: "status" },
-        el("span", { html: icone(ver.complet ? "coche" : "attention") }), el("span", {}, ver.complet ? ver.message : `Tu ne peux pas encore valider la fin du tournage. ${ver.message}`)) : null);
+        el("span", { html: icone(ver.complet ? "coche" : "attention") }), el("span", {}, ver.complet ? ver.message : `Tu ne peux pas encore valider la fin du tournage. ${ver.message}`)) : null,
+      !fini ? lignesReception : null);
 
     const valider = el("button", { class: "bouton bouton-plein", type: "button", disabled: !suivi.peut_valider || null, html: `${icone("coche")}<span>Valider la fin du tournage</span>` });
     valider.addEventListener("click", async () => {
@@ -823,13 +874,16 @@ export class Vue {
       try { redessiner(await this.api.validerTournage(id)); annoncer("Je range tes fichiers dans leurs dossiers."); }
       catch (e) { annoncer(e.message, "erreur"); redessiner(e.donnees); }
     });
-    const encore = el("button", { class: "bouton bouton-discret", type: "button", html: `${icone("synchro")}<span>Ranger ce qui est arrivé depuis</span>` });
+    const encore = el("button", { class: `bouton ${suivi.a_finir ? "bouton-plein" : "bouton-discret"}`, type: "button", disabled: arrive || null,
+      html: `${icone(suivi.a_finir ? "coche" : "synchro")}<span>${suivi.a_finir ? "Ranger maintenant" : "Ranger ce qui est arrivé depuis"}</span>` });
     encore.addEventListener("click", async () => {
       encore.disabled = true;
       try { redessiner(await this.api.validerTournage(id)); annoncer("Je range ce qui est arrivé depuis."); } catch (e) { annoncer(e.message, "erreur"); encore.disabled = false; }
     });
     const pied = fini
-      ? (rangement?.en_cours ? null : el("div", { class: "bloc-pied" }, encore, el("span", { class: "note" }, "Un fichier envoyé en retard ? Envoie-le par AirDrop, puis range-le d'ici.")))
+      ? (rangement?.en_cours ? null : el("div", {}, suivi.a_finir ? lignesReception : null, el("div", { class: "bloc-pied" }, encore, el("span", { class: "note" }, arrive
+        ? "Le bouton s'active quand l'envoi est fini."
+        : "Un fichier envoyé en retard ? Envoie-le par AirDrop, puis range-le d'ici."))))
       : el("div", { class: "bloc-pied plan-pied" }, valider, el("span", { class: "note" }, suivi.peut_valider
         ? "Je range chaque fichier dans le dossier de son contenu. Ce que je ne reconnais pas va dans « À ranger »."
         : "Le bouton s'active quand tout ce que tu as filmé est arrivé sur ton Mac."));

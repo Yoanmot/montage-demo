@@ -100,8 +100,11 @@ async function arrivees(config, depuis) {
   const lignes = [], candidats = [];
   // Seulement les vidéos et photos envoyées depuis le téléphone après la création du plan (lot 12) : les
   // autres fichiers du dossier d'arrivée (ses Téléchargements) ne sont ni lus, ni nommés, ni déplacés.
-  const { fichiers: trouves, partiels } = arriveesPertinentes(config.arrivees, depuis);
+  // Un fichier encore en réception (AirDrop pas fini : pas encore de quarantaine, taille qui bouge) n'est
+  // jamais rangé : il reste où il est, le plan de tournage le montre et propose de ranger plus tard.
+  const { fichiers: trouves, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, depuis);
   for (const nom of partiels) lignes.push(`IGNORE ${nom} ${RAISONS.partiel}`);
+  for (const f of enCours) lignes.push(`IGNORE ${f.nom} ${RAISONS.instable}`);
   for (const f of trouves) candidats.push({ nom: f.nom, chemin: f.chemin, type: f.type, taille: f.taille });
   // Taille stable : on remesure après l'attente (une seule attente pour tous les fichiers).
   const attente = Number(process.env.RANGEMENT_ATTENTE_S ?? 10);

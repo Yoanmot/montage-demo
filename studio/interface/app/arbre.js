@@ -115,10 +115,12 @@ export class Arbre {
     const cs = [...s.cartes.values()];
     entree("accueil", "Vue d'ensemble", "maison");
     entree("publier", "Publier sur Instagram", "envoi", cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).length || null);
-    entree("tournage", "Tournages", "camera", s.tournages.filter((t) => t.en_cours).length || null);
+    entree("tournage", "Tournages", "camera", s.tournages.filter((t) => t.en_cours || t.a_finir).length || null);
     // Seulement pour un client qui a un site de ressources gratuites (studio de Yoan).
     if (s.config.ressources) entree("ressources", "Ressources gratuites", "cadeau");
-    if (s.a_ranger.length) entree("ranger", "À ranger", "ranger", s.a_ranger.length, true);
+    // Toujours là (test de Yoan, AirDrop lent) : on doit pouvoir la trouver même vide ; compteur orange
+    // quand un fichier attend, y compris un rush arrivé sur le Mac après la fin d'un tournage.
+    entree("ranger", "À ranger", "ranger", s.a_ranger.length || null, s.a_ranger.length > 0);
     return el("div", { class: "entrees", role: "group", "aria-label": "Vues d'ensemble" }, ...ent);
   }
 

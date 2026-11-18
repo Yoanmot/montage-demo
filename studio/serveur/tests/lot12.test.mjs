@@ -89,6 +89,7 @@ before(async () => {
   process.env.FAUX_OUTILS_LOG = path.join(m.racine, "outils.jsonl");
   process.env.FAUX_OPEN_LOG = path.join(m.racine, "open.log");
   process.env.RANGEMENT_ATTENTE_S = "0";
+  process.env.ARRIVEES_CALME_S = "0"; // fichiers écrits à l'instant, sans quarantaine AirDrop
   for (const o of ["idees.py", "etat.py", "brief.py"]) m.ecrire(`depot/outils/${o}`, FAUX_OUTIL);
   const open = m.ecrire("faux-open.sh", FAUX_OPEN);
   fs.chmodSync(open, 0o755);
@@ -116,7 +117,7 @@ before(async () => {
 after(async () => {
   await s?.arreter("tests");
   m?.nettoyer();
-  for (const k of ["STUDIO_OUVRIR", "RANGEMENT_ATTENTE_S", "FAUX_OPEN_LOG"]) delete process.env[k];
+  for (const k of ["STUDIO_OUVRIR", "RANGEMENT_ATTENTE_S", "ARRIVEES_CALME_S", "FAUX_OPEN_LOG"]) delete process.env[k];
 });
 
 test("lien externe : ouvert dans le navigateur habituel, https seulement, protégé comme les autres routes", async () => {

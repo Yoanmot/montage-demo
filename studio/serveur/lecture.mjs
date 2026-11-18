@@ -733,6 +733,18 @@ export function montageDe(config, slug, lu, tournage) {
 
 // ---------------------------------------------------------------- les plans de tournage (lot 9)
 
+// Un plan validé est « à finir » quand son dernier rangement a échoué, a laissé un fichier où il était
+// (encore en réception, illisible), ou n'a pas trouvé tout ce qui était attendu. Un suivi d'avant ce
+// correctif sans aucun fichier rangé l'est aussi : c'est le cas du rangement qui n'a rien trouvé.
+export function aFinir(suivi) {
+  if (!suivi?.valide_le) return false;
+  const r = suivi.rangement;
+  if (!r || r.en_cours) return false;
+  if (r.erreur) return true;
+  if (r.reste) return Boolean(r.reste.videos || r.reste.photos || r.en_attente);
+  return !(r.places || r.a_ranger);
+}
+
 export function listeTournages(config, lu = lireDepot(config.depot)) {
   return [...lu.tournages]
     .sort((a, b) => String(b.cree_le || b.id || "").localeCompare(String(a.cree_le || a.id || "")))
@@ -740,10 +752,13 @@ export function listeTournages(config, lu = lireDepot(config.depot)) {
     .map((t) => {
       const id = t.id || t.fichier.replace(/\.json$/, "");
       // Lot 12 : un plan dont Romain a validé la fin est tourné, même si une vidéo est partie dans « À ranger ».
-      const valide = Boolean(config.home && lireJson(path.join(config.home, "tournages", `${id}.json`), null)?.valide_le);
+      const suivi = config.home ? lireJson(path.join(config.home, "tournages", `${id}.json`), null) : null;
+      const valide = Boolean(suivi?.valide_le);
       return {
         id, cree_le: t.cree_le || null, contenus: t.contenus, duree_estimee_min: t.duree_estimee_min ?? null,
         valide, en_cours: !valide && t.contenus.some((s) => !videosFace(config, s).length),
+        // Validé mais pas fini de ranger (rien trouvé, fichier encore en réception, échec) : il reste en vue.
+        ...(aFinir(suivi) ? { a_finir: true } : {}),
       };
     });
 }

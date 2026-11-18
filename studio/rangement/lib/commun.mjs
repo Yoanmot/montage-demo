@@ -218,32 +218,79 @@ export const SLUG = /^[a-z0-9-]{3,60}$/;
 export const ARRIVEES_VIDEOS = new Set(['.mov', '.mp4']);
 export const ARRIVEES_PHOTOS = new Set(['.heic', '.heif', '.jpg', '.jpeg']);
 
-export function venuDInternet(chemin) {
-  if (process.platform !== 'darwin') return false;
+// Les attributs étendus d'un fichier (noms seulement), et la quarantaine que macOS pose à la réception.
+function attributs(chemin) {
+  if (process.platform !== 'darwin') return new Set();
   const r = spawnSync('/usr/bin/xattr', [chemin], { encoding: 'utf8' });
-  return r.status === 0 && /^com\.apple\.metadata:kMDItemWhereFroms$/m.test(r.stdout || '');
+  return new Set(r.status === 0 ? (r.stdout || '').split('\n').filter(Boolean) : []);
 }
 
-// Les arrivées pertinentes : [{ nom, chemin, type: 'video' | 'photo', taille, quand }], plus les fichiers
-// encore en cours de transfert (extension partielle) pour pouvoir dire « attends que l'envoi soit fini ».
-export function arriveesPertinentes(dossier, depuis) {
-  const r = { fichiers: [], partiels: [] };
+export function venuDInternet(chemin) {
+  return attributs(chemin).has('com.apple.metadata:kMDItemWhereFroms');
+}
+
+// « 0081;6afca6b7;sharingd;<uuid> » : drapeaux, instant de réception (secondes, en hexadécimal), qui l'a posée.
+export function quarantaine(chemin) {
+  const r = spawnSync('/usr/bin/xattr', ['-p', 'com.apple.quarantine', chemin], { encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  const [drapeaux, hex, agent] = String(r.stdout || '').trim().split(';');
+  const s = parseInt(hex, 16);
+  return { drapeaux: drapeaux || '', quand: Number.isFinite(s) && s > 0 ? s * 1000 : null, agent: agent || '' };
+}
+
+// Une copie du Finder en cours : type « brok » dans com.apple.FinderInfo.
+function copieFinderEnCours(chemin) {
+  const r = spawnSync('/usr/bin/xattr', ['-px', 'com.apple.FinderInfo', chemin], { encoding: 'utf8' });
+  return r.status === 0 && /^62\s*72\s*6F\s*6B/i.test(String(r.stdout || '').trim());
+}
+
+// Ce qu'un AirDrop fait vraiment sur macOS 15 (journal de sharingd relu le 2026-11-18, essai de Yoan) :
+//  - au début, le fichier est créé tout de suite dans Téléchargements sous son NOM FINAL (IMG_7254.mov), vide,
+//    et grossit pendant tout le transfert (plusieurs minutes pour une grosse vidéo), sans extension temporaire ;
+//  - à la fin seulement, sharingd pose la quarantaine « 0081;<instant>;sharingd;… » puis remet au fichier les
+//    dates de l'iPhone : création et modification redeviennent la date de prise de la vidéo (16 août pour une
+//    vidéo filmée le 16 août), seule la date de changement (ctime) dit qu'il vient d'arriver.
+// Donc : un fichier reçu par AirDrop est fini quand sa quarantaine « sharingd » est là, et il est arrivé à
+// l'instant écrit dans cette quarantaine (pas à sa date de création). Sans cette quarantaine (copie par un
+// autre moyen), un fichier qui a bougé il y a moins de ARRIVEES_CALME_S secondes (20 par défaut) est encore
+// en train d'arriver.
+export const CALME_S = () => Number(process.env.ARRIVEES_CALME_S ?? 20);
+
+// Les arrivées pertinentes : [{ nom, chemin, type: 'video' | 'photo', taille, quand }], les fichiers encore en
+// cours de réception (en_cours : même forme, taille du moment) et ceux à extension partielle (partiels : noms),
+// pour pouvoir dire « attends que l'envoi soit fini ». Un fichier en cours n'est jamais compté comme reçu.
+export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now() } = {}) {
+  const r = { fichiers: [], partiels: [], en_cours: [] };
   if (!dossier || !fs.existsSync(dossier)) return r;
   const seuil = depuis instanceof Date ? depuis.getTime() : Number(depuis) || 0;
+  const calme = CALME_S() * 1000;
   for (const nom of fs.readdirSync(dossier)) {
     if (nom.startsWith('.')) continue;
     const chemin = path.join(dossier, nom);
     let st;
     try { st = fs.lstatSync(chemin); } catch { continue; }
     if (st.isSymbolicLink() || st.isDirectory() || !st.isFile()) continue;
-    const quand = Math.max(st.birthtimeMs || 0, st.mtimeMs || 0);
-    if (quand < seuil) continue;
     const ext = path.extname(nom).toLowerCase();
-    if (PARTIELS.has(ext)) { r.partiels.push(nom); continue; }
     const type = ARRIVEES_VIDEOS.has(ext) ? 'video' : ARRIVEES_PHOTOS.has(ext) ? 'photo' : null;
-    if (!type || venuDInternet(chemin)) continue;
-    r.fichiers.push({ nom, chemin, type, taille: st.size, quand });
+    const cree = Math.max(st.birthtimeMs || 0, st.mtimeMs || 0);
+    // La date de changement est toujours au moins l'instant d'arrivée : en dessous du seuil, rien de neuf.
+    if (Math.max(cree, st.ctimeMs || 0) < seuil) continue;
+    if (PARTIELS.has(ext)) { if (cree >= seuil) r.partiels.push(nom); continue; }
+    if (!type) continue;
+    const attrs = attributs(chemin);
+    if (attrs.has('com.apple.metadata:kMDItemWhereFroms')) continue;   // téléchargé d'internet
+    const q = attrs.has('com.apple.quarantine') ? quarantaine(chemin) : null;
+    const airdrop = Boolean(q && /sharingd/i.test(q.agent));
+    const quand = airdrop && q.quand ? q.quand : cree;
+    if (quand < seuil) continue;
+    const bouge = maintenant - Math.max(st.mtimeMs || 0, st.ctimeMs || 0) < calme;
+    const enCours = st.size === 0
+      || attrs.has('com.apple.progress.fractionCompleted')
+      || (attrs.has('com.apple.FinderInfo') && copieFinderEnCours(chemin))
+      || (!airdrop && bouge);
+    (enCours ? r.en_cours : r.fichiers).push({ nom, chemin, type, taille: st.size, quand });
   }
   r.fichiers.sort((a, b) => a.quand - b.quand || a.nom.localeCompare(b.nom));
+  r.en_cours.sort((a, b) => a.nom.localeCompare(b.nom));
   return r;
 }

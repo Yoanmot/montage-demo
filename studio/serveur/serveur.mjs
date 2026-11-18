@@ -23,7 +23,8 @@ import {
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
-import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic } from "./tournage.mjs";
+import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible } from "./tournage.mjs";
+import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser } from "./client.mjs";
 
@@ -206,8 +207,46 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       if (tournagesJson !== null && tj !== tournagesJson) diffuser("tournages", { tournages });
       tournagesJson = tj;
     } catch { /* dossier absent */ }
+    majARanger();
+  }
+
+  // « À ranger » : les fichiers mis de côté par le rangement, puis les rushs arrivés sur le Mac pour un plan
+  // validé mais pas fini de ranger (arrivés après la fin du tournage, ou encore en réception). Ceux-là
+  // restent dans le dossier d'arrivée tant que Romain n'a pas cliqué « Ranger maintenant ».
+  let attentesCache = { le: 0, liste: [] };
+  function rushsEnAttente() {
+    if (Date.now() - attentesCache.le < 3000) return attentesCache.liste;
+    const liste = [];
+    try {
+      const tous = listeTournages(config);   // du plus récent au plus ancien
+      const plans = tous.filter((t) => t.a_finir && Date.now() - (Date.parse(t.cree_le) || 0) < 14 * 86400e3);
+      const vus = new Set();
+      for (const t of plans) {
+        const { fichiers, en_cours: enCours } = arriveesPertinentes(config.arrivees, new Date(Date.parse(t.cree_le) || 0));
+        for (const [f, recu] of [...enCours.map((f) => [f, false]), ...fichiers.map((f) => [f, true])]) {
+          if (vus.has(f.nom)) continue;
+          // Un fichier va au plan le plus récent créé avant son arrivée : celui d'un plan plus récent, pas
+          // encore validé, attend la fin de ce plan-là.
+          const sien = tous.find((x) => (Date.parse(x.cree_le) || 0) <= f.quand);
+          if (sien && sien.id !== t.id) continue;
+          vus.add(f.nom);
+          liste.push({
+            nom: f.nom, attente: true, en_cours: !recu, tournage: t.id, cree_le: t.cree_le,
+            libelle: f.type === "photo" ? "ta photo" : "ta vidéo", taille_lisible: tailleLisible(f.taille),
+            raison: recu ? "arrivée sur ton Mac après la fin de ton tournage, pas encore rangée" : "en cours de réception",
+          });
+        }
+      }
+    } catch { /* dossier absent */ }
+    attentesCache = { le: Date.now(), liste };
+    return liste;
+  }
+
+  function majARanger({ frais = false } = {}) {
+    if (frais) attentesCache.le = 0;
     let fichiers = [];
     try { fichiers = aRanger(config); } catch { /* dossier absent */ }
+    fichiers = [...fichiers, ...rushsEnAttente()];
     const j = JSON.stringify(fichiers);
     if (j !== aRangerJson) {
       aRangerJson = j;
@@ -305,8 +344,14 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     if (!veilleDepot) veilleDepot = surveiller(config.depot, (n) => !n.startsWith(".git"));
     if (!veilleMedia) veilleMedia = surveiller(config.media, (n) => !path.basename(n).startsWith("."));
     // Le dossier d'arrivée (ses Téléchargements) n'est pas surveillé (lot 12) : on ne le lit qu'au moment
-    // où Romain coche « tout est envoyé » ou valide la fin d'un tournage.
+    // où Romain coche « tout est envoyé » ou valide la fin d'un tournage, quand l'écran du plan suit un
+    // envoi en cours, et toutes les 10 s tant qu'un plan validé n'est pas fini de ranger (ci-dessous).
   }
+  const attentes = setInterval(() => {
+    if (tournagesJson && !tournagesJson.includes('"a_finir":true')) return;
+    majARanger({ frais: true });
+  }, 10000);
+  attentes.unref?.();
   const periodique = setInterval(() => {
     brancherVeilleurs();
     rafraichir();
@@ -390,6 +435,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
 
     if (m === "GET" && p[0] === "etat" && p.length === 1) {
       rafraichir();
+      majARanger({ frais: true });
       return envoyerJson(res, 200, {
         cartes: [...cartes.values()],
         a_ranger: JSON.parse(aRangerJson),
@@ -536,8 +582,24 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       const { brut, titres, ...lisible } = t;
       const plan = { ...brut, id };
       const nums = new Set((brut.prises || []).map((x) => x.n));
-      const reponse = (suivi) => ({ ...lisible, bulles: bulles(config, plan, titres), suivi: suiviPublic(suivi, rangementsTournage.has(id)) });
+      const reponse = (suivi) => {
+        const pub = suiviPublic(suivi, rangementsTournage.has(id));
+        // Ce qui arrive en ce moment, quand l'écran doit le montrer : envoi coché pas encore validé, ou plan à finir.
+        const suivre = (suivi.envoi && !suivi.valide_le) || pub.a_finir;
+        return { ...lisible, bulles: bulles(config, plan, titres), suivi: pub, reception: suivre ? receptionDuPlan(config, plan) : null };
+      };
       if (m === "GET" && p.length === 2) return envoyerJson(res, 200, reponse(lireSuivi(config, id)));
+      if (m === "GET" && p[2] === "reception" && p.length === 3) {
+        // Où en est l'envoi (l'écran du plan le redemande toutes les deux secondes tant qu'un fichier arrive) :
+        // si la dernière étape est cochée et que la vérification attendait, elle est refaite ici.
+        const suivi = lireSuivi(config, id);
+        if (suivi.envoi && !suivi.valide_le && suivi.verification && !suivi.verification.complet) {
+          const v = verifierArrivees(config, plan, suivi);
+          const sans = ({ le, ...x }) => JSON.stringify(x);
+          if (sans(v) !== sans(suivi.verification)) { suivi.verification = v; ecrireSuivi(config, id, suivi); }
+        }
+        return envoyerJson(res, 200, { reception: receptionDuPlan(config, plan), suivi: suiviPublic(suivi, rangementsTournage.has(id)) });
+      }
       if (m === "POST" && p[2] === "cocher" && p.length === 3) {
         // Une prise cochée, ou la dernière étape (« envoi ») : seule celle-ci lance la vérification des
         // fichiers arrivés ; la décocher l'efface (le bouton se désactive).
@@ -572,6 +634,10 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         if (rangementsTournage.has(id) || rangementEnCours) throw new ErreurStudio("OCCUPE", "Je range déjà tes fichiers : attends un instant.", 409);
         const suivi = lireSuivi(config, id);
         const encore = Boolean(suivi.valide_le);
+        // Jamais de rangement pendant qu'un fichier arrive : il serait laissé de côté (lot de l'AirDrop lent).
+        if (encore && receptionDuPlan(config, plan).en_cours.length) {
+          throw new ErreurStudio("EN_RECEPTION", "Un fichier est encore en train d'arriver sur ton Mac. Attends la fin de l'envoi, puis range.", 409);
+        }
         if (!encore) {
           if (!suivi.envoi) throw new ErreurStudio("PAS_ENVOYE", "Coche d'abord la dernière étape, quand tout est envoyé.", 409);
           suivi.verification = verifierArrivees(config, plan, suivi);
@@ -584,9 +650,13 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         rangerMaintenant(id).then((lu) => {
           const s = lireSuivi(config, id);
           s.valide_le ||= isoZurich();
-          s.rangement = { fini_le: isoZurich(), places: lu?.fin?.places ?? lu?.places?.length ?? 0, a_ranger: lu?.fin?.a_ranger ?? lu?.a_ranger?.length ?? 0 };
+          // Ce qui n'a pas pu être rangé reste visible : fichiers laissés où ils étaient (encore en réception,
+          // illisibles) et prises attendues qui ne sont ni rangées ni dans « À ranger ».
+          s.rangement = { fini_le: isoZurich(), places: lu?.fin?.places ?? lu?.places?.length ?? 0, a_ranger: lu?.fin?.a_ranger ?? lu?.a_ranger?.length ?? 0,
+            en_attente: lu?.ignores?.length ?? 0, reste: resteARanger(config, plan, s) };
           ecrireSuivi(config, id, s);
           rafraichir();
+          majARanger({ frais: true });
           diffuser("tournages", { tournages: listeTournages(config) });
         }).catch((e) => {
           rangementsTournage.delete(id);
@@ -891,6 +961,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     ressources.fermer();
     clearInterval(periodique);
     clearInterval(ping);
+    clearInterval(attentes);
     clearTimeout(attente);
     for (const w of veilleurs) { try { w.close(); } catch { /* rien */ } }
     for (const c of clients) { try { c.end(); } catch { /* rien */ } }

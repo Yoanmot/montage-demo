@@ -15,7 +15,9 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 const RANGER = path.join(ICI, '..', 'ranger.mjs');
 const ARCHIVER = path.join(ICI, '..', 'archiver.mjs');
 const CODE = fs.existsSync(path.join(os.homedir(), '.montage-yoan', 'config'));
-const ENV = { ...process.env, RANGEMENT_ATTENTE_S: '1', RANGEMENT_MODELE: path.join(ICI, 'faux-modele.mjs'),
+// ARRIVEES_CALME_S : les fichiers du faux tournage viennent d'être écrits ; sans quarantaine AirDrop, ils
+// seraient « encore en réception » pendant 20 s.
+const ENV = { ...process.env, RANGEMENT_ATTENTE_S: '1', ARRIVEES_CALME_S: '0', RANGEMENT_MODELE: path.join(ICI, 'faux-modele.mjs'),
   FAUX_MODELE_TABLE: JSON.stringify(TABLE_COULEURS) };
 
 let T;
