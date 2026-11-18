@@ -468,3 +468,91 @@ test("appli : l'ancienne icône (script) devient l'appli Mac au même endroit, p
   assert.match(r.stdout, /^ALERTE Le studio n/m);
   fs.rmSync(maison, { recursive: true, force: true });
 });
+
+// Icône du Dock pas à jour après une mise à jour (18/11/2026) : après chaque remplacement de l'appli,
+// paquet touché + lsregister -f ; l'appli ouverte est relancée seulement quand le studio est au repos ;
+// jamais de réglage du Dock ni de relance du Dock. Les commandes macOS sont de faux outils qui notent
+// leurs appels (PATH), ou des fonctions remplacées dans le script : rien ne touche au vrai Mac.
+test("appli : icône à jour dans le Dock après un remplacement, sans toucher au Dock", () => {
+  const maison = tmp();
+  const applis = path.join(maison, "applis");
+  const outils = path.join(maison, "outils");
+  const journal = path.join(maison, "appels.log");
+  const pidf = path.join(maison, "pid"), occupe = path.join(maison, "occupe");
+  fs.mkdirSync(outils);
+  for (const o of ["defaults", "killall", "osascript", "open", "lsappinfo"]) {
+    const corps = o === "lsappinfo"
+      ? `p="$(cat ${JSON.stringify(pidf)} 2>/dev/null)"; [ -n "$p" ] || exit 0; case "$1" in find) echo 'ASN:0x0-0x1-"Studio":';; info) echo "\\"pid\\"=$p";; esac`
+      : "";
+    fs.writeFileSync(path.join(outils, o), `#!/bin/bash\necho "${o} $*" >> ${JSON.stringify(journal)}\n${corps}\n`, { mode: 0o755 });
+  }
+  const env = (ajout = {}) => ({ ...envDe(maison, { STUDIO_CLIENT: "romain", STUDIO_APPLIS_DOSSIER: applis,
+    STUDIO_SERVICES_DOSSIER: path.join(maison, "services"), STUDIO_LABEL: "com.essai.inexistant", STUDIO_SANS_DOCK: "", ...ajout }),
+  PATH: `${outils}:${envDe(maison).PATH}` });
+  const lancer = (cmd, ajout) => spawnSync("/bin/bash", ["-c",
+    `. "${DEPOT}/studio/lancement/commun.sh" && . "${DEPOT}/studio/lancement/appli.sh"
+     studio_lsregister() { echo "lsregister $1" >> "$JOURNAL"; }
+     studio_au_repos() { [ ! -f "$OCCUPE" ]; }
+     ${cmd}`], { env: { ...env(ajout), JOURNAL: journal, OCCUPE: occupe }, encoding: "utf8" }).stdout.trim();
+  const brut = () => (fs.existsSync(journal) ? fs.readFileSync(journal, "utf8").trim().split("\n").filter(Boolean) : []);
+  const appels = () => brut().filter((a) => !a.startsWith("lsappinfo "));   // lectures seules, sans effet
+  const app = path.join(applis, "Studio.app");
+  const repere = path.join(maison, ".montage-yoan/studio/appli-relance-demandee");
+  const vieux = new Date("2020-01-01T00:00:00Z");
+
+  // 1. Première pose, appli fermée : signalée à macOS, pas de relance.
+  assert.equal(lancer("studio_poser_appli"), "POSEE native");
+  assert.deepEqual(appels(), [`lsregister ${app}`]);
+  assert.ok(!fs.existsSync(repere));
+  assert.equal(lancer("studio_poser_appli"), "PRESENTE native");
+  assert.equal(appels().length, 1, "rien de plus quand rien n'a changé");
+
+  // 2. Nouvelle icône pendant que l'appli tourne et que le studio est occupé : paquet touché, registre,
+  //    relance attendue (l'appli n'est pas fermée sous les pieds d'une session).
+  const appliOuverte = spawnSync("/bin/bash", ["-c", "sleep 60 >/dev/null 2>&1 & echo $!"], { encoding: "utf8" }).stdout.trim();
+  fs.writeFileSync(pidf, appliOuverte);
+  fs.writeFileSync(occupe, "");
+  // L'ancienne version installée (autre icône), dont macOS avait été prévenu.
+  fs.writeFileSync(path.join(app, "Contents/Resources/Studio.icns"), "ancienne icône");
+  fs.writeFileSync(path.join(maison, ".montage-yoan/studio/appli-signalee"), lancer("studio_appli_empreinte") + "\n");
+  fs.utimesSync(app, vieux, vieux);
+  assert.equal(lancer("studio_poser_appli"), "POSEE native");
+  assert.ok(fs.statSync(app).mtimeMs > vieux.getTime() + 1000, "paquet touché");
+  assert.deepEqual(appels().slice(1), [`lsregister ${app}`]);
+  assert.ok(fs.existsSync(repere));
+  assert.equal(lancer("studio_relancer_appli_si_demande"), "ATTEND");
+  assert.doesNotThrow(() => process.kill(Number(appliOuverte), 0), "appli laissée ouverte tant que le studio est occupé");
+
+  // 3. Au repos : au prochain clic sur l'icône (ouvrir.sh --adresse, sans service ici), l'appli est
+  //    relancée en fond sur la nouvelle copie (vrai ouvrir.sh, faux lsappinfo et faux open).
+  fs.rmSync(occupe);
+  const r = spawnSync("/bin/bash", [path.join(DEPOT, "studio/lancement/ouvrir.sh"), "--adresse"], { env: env(), encoding: "utf8" });
+  assert.match(r.stdout, /^ALERTE /m);
+  const fin = Date.now() + 8000;
+  while (!appels().includes(`open ${app}`) && Date.now() < fin) spawnSync("/bin/sleep", ["0.1"]);
+  assert.ok(appels().includes(`open ${app}`), appels().join(" / "));
+  assert.throws(() => process.kill(Number(appliOuverte), 0), "ancienne appli arrêtée avant la relance");
+  assert.ok(!fs.existsSync(repere));
+  fs.rmSync(pidf);
+
+  // 4. Appli posée avant ce correctif (jamais signalée) : rattrapée une fois, même sans changement.
+  fs.rmSync(path.join(maison, ".montage-yoan/studio/appli-signalee"));
+  const avant = appels().length;
+  assert.equal(lancer("studio_poser_appli"), "PRESENTE native");
+  assert.deepEqual(appels().slice(avant), [`lsregister ${app}`]);
+  assert.equal(lancer("studio_poser_appli"), "PRESENTE native");
+  assert.equal(appels().length, avant + 1);
+
+  // 5. Tests et bacs à sable (STUDIO_SANS_DOCK=1) : ni registre ni relance.
+  fs.writeFileSync(path.join(app, "Contents/Resources/Studio.icns"), "autre");
+  fs.writeFileSync(pidf, "999999");
+  assert.equal(lancer("studio_poser_appli; studio_relancer_appli_si_demande", { STUDIO_SANS_DOCK: "1" }), "POSEE native\nRIEN");
+  assert.equal(appels().length, avant + 1);
+
+  // Jamais : réglages du Dock, relance du Dock, ordre AppleScript.
+  assert.ok(brut().every((a) => /^(lsregister|lsappinfo|open) /.test(a)), brut().join(" / "));
+  for (const f of ["studio/lancement/appli.sh", "studio/lancement/ouvrir.sh", "installation/mettre-a-jour.sh"]) {
+    assert.doesNotMatch(fs.readFileSync(path.join(DEPOT, f), "utf8"), /com\.apple\.dock|killall\s+Dock/, f);
+  }
+  fs.rmSync(maison, { recursive: true, force: true });
+});

@@ -11,6 +11,8 @@
 
 # shellcheck source=commun.sh
 . "$(dirname "$0")/commun.sh"
+# shellcheck source=appli.sh
+. "$(dirname "$0")/appli.sh"
 MODE="${1:-}"
 [ "$MODE" = "--adresse" ] && STUDIO_SANS_FENETRE=1
 
@@ -31,8 +33,6 @@ mkdir -p "$STUDIO_HOME"
 # endroit (le Dock n'est pas touché), puis s'ouvre quand ce script a fini (même identifiant : tant qu'il
 # tourne, macOS le prendrait pour elle et ne lancerait rien).
 if [ -z "$MODE" ] && [ -z "${STUDIO_SANS_FENETRE:-}" ] && head -c 2 "$STUDIO_APP/Contents/MacOS/Studio" 2>/dev/null | grep -q '#!'; then
-  # shellcheck source=appli.sh
-  . "$(dirname "$0")/appli.sh"
   r_app="$(studio_poser_appli)"
   journal "APPLI $r_app"
   case "$r_app" in
@@ -45,6 +45,10 @@ fi
 
 r="$(studio_redemarrer_si_demande)"
 [ "$r" = "REDEMARRE" ] && journal "REDEMARRE (mise à jour en attente)"
+# L'appli ouverte tourne sur une ancienne copie (icône pas à jour) : relancée maintenant si le studio est
+# au repos (en fond : c'est peut-être elle qui demande l'adresse).
+r="$(studio_relancer_appli_si_demande)"
+[ "$r" = "RELANCEE" ] && journal "APPLI RELANCEE (nouvelle version)"
 
 if [ "$(studio_repond)" != "200" ]; then
   journal "DEMARRAGE demandé (le studio ne répondait pas)"

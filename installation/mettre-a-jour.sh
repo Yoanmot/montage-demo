@@ -14,7 +14,8 @@
 #      d'eux ne tourne, et garde le lien du skill publier.
 #   4. si le code du studio a changé : redémarre son service quand aucune session ne tourne (sinon plus tard).
 #      La copie de travail du studio (<racine>/studio/head-of-content) n'est jamais touchée ici.
-#   5. remplace l'appli du studio (~/Applications) si elle a changé, au même endroit (Dock inchangé).
+#   5. remplace l'appli du studio (~/Applications) si elle a changé, au même endroit (Dock inchangé),
+#      prévient macOS (paquet touché, lsregister -f) et relance l'appli ouverte quand le studio est au repos.
 # En mode --hook : jamais bloquant (8 s au plus, la suite continue en fond), jamais de sortie, toujours 0.
 # Journal : <racine>/mise-a-jour.log.
 #
@@ -220,6 +221,11 @@ main() {
     ra="$( . "$CLONE/studio/lancement/commun.sh" && . "$CLONE/studio/lancement/appli.sh" \
       && if [ -d "$STUDIO_APP" ]; then studio_poser_appli; else echo ABSENTE; fi )"
     case "$ra" in PRESENTE*|ABSENTE) ;; *) journal "APPLI ${ra:-RIEN}";; esac
+    # Ouverte sur l'ancienne copie (ancienne icône) : relancée si le studio est au repos, sinon plus tard
+    # (prochain passage ici, ou clic sur son icône : ouvrir.sh). Le Dock n'est pas touché.
+    ra="$( . "$CLONE/studio/lancement/commun.sh" && . "$CLONE/studio/lancement/appli.sh" \
+      && studio_relancer_appli_si_demande )"
+    case "$ra" in RELANCEE|ATTEND) journal "APPLI_$ra";; esac
   fi
 
   rm -rf "$VERROU"

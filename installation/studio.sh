@@ -354,6 +354,13 @@ EOF
     ok "studio-serveur répond (port $(studio_port)) ; occupé, il redémarrera à la fin de ses tâches"
   fi
 
+  # L'appli ouverte tourne sur l'ancienne copie (ancienne icône dans le Dock) : relancée si le studio est
+  # au repos, sinon au prochain clic sur son icône (appli.sh). Le Dock n'est pas touché.
+  case "$(studio_relancer_appli_si_demande)" in
+    RELANCEE) installe "studio-app $STUDIO_APP_NOM relancée sur sa nouvelle version (icône à jour)";;
+    ATTEND) ok "studio-app ouverte, studio occupé : elle se relancera au repos ou au prochain clic sur son icône";;
+  esac
+
   echo "STUDIO_FIN ok=$nb_ok a_faire=$nb_faire echecs=$nb_echec"
   [ "$nb_echec" -eq 0 ] && [ "$nb_faire" -eq 0 ]
 }
