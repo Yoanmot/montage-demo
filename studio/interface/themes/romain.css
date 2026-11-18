@@ -1,6 +1,9 @@
 /* Thème « romain » du studio. Couleurs et polices de fitavecromain.com (papier, noir, orange #F15A24,
    Manrope pour tout, FAR Titres seulement pour le nom du studio et le titre du fichier ouvert).
    L'orange est réservé à ce qui attend Romain et au bouton qui fait partir une publication.
+   Ce qui le distingue du studio de Yoan (même base, style.css) : titres FAR Titres italiques 900 en capitales,
+   « STUDIO. » avec le point orange, orange vif #F15A24, arrondis souples (12 / 9 / 6 px), formats en bleu et vert
+   (repérage d'un coup d'œil), nombres en Manrope.
    Un thème définit les polices et les variables de :root (clair, sombre par préférence système et
    [data-theme]) ; style.css ne fait que les utiliser. Le serveur sert themes/<theme du client>.css. */
 
@@ -14,17 +17,19 @@
   --surface: #FFFFFF;
   --encre: #151515;
   --encre-2: #57534E;
-  --encre-3: #78716C;
+  --encre-3: #6B645D;
   --trait: #E4E0D8;
   --trait-fort: #C9C3BA;
+  --trait-champ: #8A8279;
   --inverse: #FFFFFF;
   --orange: #F15A24;
-  --orange-encre: #B8420F;
+  --orange-encre: #AE3E0E;
+  --focus: #AE3E0E;
   --orange-pale: #FCEDE6;
   --sur-orange: #111111;
   --reel: #3A55C8;
   --reel-pale: #E7EBFA;
-  --carrousel: #0F7A63;
+  --carrousel: #0D735D;
   --carrousel-pale: #DDF1EB;
   --reel-fond: #EAEEFB;
   --carrousel-fond: #E2F3ED;
@@ -35,8 +40,17 @@
   --ombre-pop: 0 10px 30px -8px rgb(30 20 10 / 0.25);
   --rayon: 12px;
   --rayon-petit: 9px;
+  --rayon-mini: 6px;
   --texte: "Manrope", system-ui, -apple-system, sans-serif;
   --titres: "FAR Titres", "Manrope", sans-serif;
+  --titres-style: italic;
+  --titres-graisse: 900;
+  --titres-casse: uppercase;
+  --titres-interlettrage: -0.01em;
+  --titre-taille: 30px;
+  --titre-interligne: 1.04;
+  --mot-taille: 22px;
+  --chiffres: "Manrope", system-ui, sans-serif;
   --courbe: cubic-bezier(0.16, 1, 0.3, 1);
   --arbre-l: 312px;
   --chat-l: 384px;
@@ -46,8 +60,8 @@
   :root:not([data-theme="light"]) {
     --fond: #111111; --fond-2: #191919; --fond-3: #232323; --surface: #1C1C1C;
     --encre: #F3F3F3; --encre-2: #BDB8B1; --encre-3: #9A948D;
-    --trait: #2C2C2C; --trait-fort: #444240; --inverse: #111111;
-    --orange-encre: #FF8A5C; --orange-pale: #2E1A10;
+    --trait: #2C2C2C; --trait-fort: #444240; --trait-champ: #6F6A64; --inverse: #111111;
+    --orange-encre: #FF8A5C; --focus: #F15A24; --orange-pale: #2E1A10;
     --reel: #9AABFF; --reel-pale: #1B2140; --carrousel: #5ED3B6; --carrousel-pale: #102923;
     --reel-fond: #1A1F36; --carrousel-fond: #13261F;
     --vert: #8FD19A; --vert-pale: #16261A; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF9A8C; --rouge-pale: #2E1512;
@@ -59,8 +73,8 @@
 :root[data-theme="dark"] {
   --fond: #111111; --fond-2: #191919; --fond-3: #232323; --surface: #1C1C1C;
   --encre: #F3F3F3; --encre-2: #BDB8B1; --encre-3: #9A948D;
-  --trait: #2C2C2C; --trait-fort: #444240; --inverse: #111111;
-  --orange-encre: #FF8A5C; --orange-pale: #2E1A10;
+  --trait: #2C2C2C; --trait-fort: #444240; --trait-champ: #6F6A64; --inverse: #111111;
+  --orange-encre: #FF8A5C; --focus: #F15A24; --orange-pale: #2E1A10;
   --reel: #9AABFF; --reel-pale: #1B2140; --carrousel: #5ED3B6; --carrousel-pale: #102923;
   --reel-fond: #1A1F36; --carrousel-fond: #13261F;
   --vert: #8FD19A; --vert-pale: #16261A; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF9A8C; --rouge-pale: #2E1512;

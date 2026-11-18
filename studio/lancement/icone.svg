@@ -1,41 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Icône du studio de Romain : « STUDIO. » dans sa police de titre (FAR Titres, italique 900, capitales), blanc,
+       le point dans son orange #F15A24, sur son noir. -->
   <defs>
     <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2B2E33"/>
-      <stop offset="1" stop-color="#16181B"/>
+      <stop offset="0" stop-color="#262626"/>
+      <stop offset="1" stop-color="#111111"/>
     </linearGradient>
-    <linearGradient id="carte" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F7F4EE"/>
-      <stop offset="1" stop-color="#E9E4DA"/>
-    </linearGradient>
-    <filter id="ombre" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.35"/>
-    </filter>
     <filter id="ombre-icone" x="-10%" y="-10%" width="120%" height="125%">
       <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.28"/>
     </filter>
   </defs>
-
-  <!-- le corps de l'icône, grille des icônes macOS (824 px dans 1024) -->
   <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#fond)" filter="url(#ombre-icone)"/>
   <rect x="101.5" y="101.5" width="821" height="821" rx="184.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="3"/>
-
-  <!-- trois cartes, la pile des contenus -->
-  <g transform="rotate(-9 512 540)" filter="url(#ombre)">
-    <rect x="318" y="268" width="388" height="492" rx="44" fill="#4A4E55"/>
-  </g>
-  <g transform="rotate(5 512 540)" filter="url(#ombre)">
-    <rect x="318" y="268" width="388" height="492" rx="44" fill="#8D8F93"/>
-  </g>
-  <g filter="url(#ombre)">
-    <rect x="318" y="276" width="388" height="492" rx="44" fill="url(#carte)"/>
-    <!-- la vidéo de la carte -->
-    <rect x="352" y="310" width="320" height="270" rx="26" fill="#22252A"/>
-    <path d="M478 392 L478 498 L566 445 Z" fill="#E8743B" stroke="#E8743B" stroke-width="14" stroke-linejoin="round"/>
-    <!-- deux lignes de texte -->
-    <rect x="352" y="614" width="236" height="26" rx="13" fill="#2B2E33"/>
-    <rect x="352" y="664" width="164" height="22" rx="11" fill="#2B2E33" fill-opacity="0.35"/>
-    <!-- le repère du stade -->
-    <circle cx="660" cy="712" r="20" fill="#E8743B"/>
+  <g transform="translate(182 571.9079519304526) scale(0.16875)">
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M245 9Q172 9 96.0 -14.0Q20 -37 -33 -74L87 -245Q86 -245 101.5 -233.0Q117 -221 145.5 -206.0Q174 -191 210.0 -179.0Q246 -167 285 -167Q308 -167 319.0 -172.5Q330 -178 333.5 -186.5Q337 -195 337 -204Q337 -222 318.0 -233.5Q299 -245 269.5 -254.5Q240 -264 207 -277Q163 -295 134.0 -316.5Q105 -338 90.5 -367.0Q76 -396 76 -434Q76 -501 102.5 -553.5Q129 -606 174.0 -642.0Q219 -678 274.0 -697.0Q329 -716 386 -716Q436 -716 480.0 -703.5Q524 -691 561.0 -673.0Q598 -655 625 -639L507 -478Q509 -478 495.0 -488.0Q481 -498 457.0 -510.5Q433 -523 403.0 -533.0Q373 -543 343 -543Q329 -543 316.5 -538.5Q304 -534 297.0 -525.0Q290 -516 290 -501Q290 -486 303.5 -476.0Q317 -466 341.0 -457.5Q365 -449 396 -437Q444 -419 480.5 -397.5Q517 -376 537.0 -344.0Q557 -312 557 -262Q557 -186 529.0 -134.0Q501 -82 455.0 -50.5Q409 -19 354.0 -5.0Q299 9 245 9Z"/>
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M850 -540H659L695 -710H1271L1235 -540H1045L930 0H735Z"/>
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M1487 6Q1400 6 1346.5 -26.0Q1293 -58 1268.5 -113.5Q1244 -169 1244 -238Q1244 -264 1247.0 -290.5Q1250 -317 1256 -345L1334 -710H1529L1451 -345Q1447 -326 1445.0 -308.5Q1443 -291 1443 -274Q1443 -243 1451.0 -219.0Q1459 -195 1477.0 -181.0Q1495 -167 1524 -167Q1554 -167 1578.0 -181.5Q1602 -196 1621.0 -221.5Q1640 -247 1653.0 -279.0Q1666 -311 1673 -345L1751 -710H1946L1868 -345Q1852 -271 1820.0 -207.0Q1788 -143 1740.0 -95.0Q1692 -47 1628.5 -20.5Q1565 6 1487 6Z"/>
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M2057 -710H2319Q2413 -710 2474.0 -673.0Q2535 -636 2565.0 -573.5Q2595 -511 2595 -433Q2595 -339 2563.0 -260.0Q2531 -181 2473.0 -122.5Q2415 -64 2337.0 -32.0Q2259 0 2168 0H1906ZM2204 -170Q2246 -170 2281.0 -189.0Q2316 -208 2341.0 -240.5Q2366 -273 2380.0 -315.5Q2394 -358 2394 -405Q2394 -446 2381.5 -476.0Q2369 -506 2344.0 -523.0Q2319 -540 2283 -540H2216L2137 -170Z"/>
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M2750 -710H2945L2794 0H2599Z"/>
+    <path transform="translate(0.0 0)" fill="#FFFFFF" d="M3222 6Q3156 6 3104.5 -18.5Q3053 -43 3018.0 -85.0Q2983 -127 2965.0 -180.5Q2947 -234 2947 -292Q2947 -356 2969.5 -418.0Q2992 -480 3032.5 -533.5Q3073 -587 3127.5 -627.5Q3182 -668 3246.0 -691.0Q3310 -714 3379 -714Q3445 -714 3496.0 -689.5Q3547 -665 3582.0 -623.0Q3617 -581 3634.5 -527.5Q3652 -474 3652 -416Q3652 -352 3629.5 -290.5Q3607 -229 3567.0 -175.5Q3527 -122 3473.0 -81.0Q3419 -40 3355.0 -17.0Q3291 6 3222 6ZM3260 -167Q3308 -167 3344.0 -189.0Q3380 -211 3404.5 -246.5Q3429 -282 3441.0 -323.0Q3453 -364 3453 -403Q3453 -440 3441.5 -471.5Q3430 -503 3405.0 -522.0Q3380 -541 3339 -541Q3292 -541 3256.0 -519.5Q3220 -498 3196.0 -463.0Q3172 -428 3159.5 -387.0Q3147 -346 3147 -307Q3147 -270 3158.5 -238.0Q3170 -206 3195.0 -186.5Q3220 -167 3260 -167Z"/>
+    <path transform="translate(0.0 0)" fill="#F15A24" d="M3644 0 3683 -184H3837L3798 0Z"/>
   </g>
 </svg>
