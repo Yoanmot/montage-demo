@@ -42,7 +42,14 @@ export class Apercu {
     this.couches = el("div", { class: "apercu-couches" });
     this.dessin = el("canvas", { class: "apercu-dessin", "aria-label": "Zone à entourer" });
     this.chargement = el("div", { class: "apercu-chargement" }, "Je prépare l'aperçu…");
-    this.ecran = el("div", { class: "apercu-ecran" }, this.plan, this.couches, this.dessin,
+    // Couleurs des calques telles que le rendu les pose (mesuré le 2026-11-18) : ffmpeg convertit les images RGBA des
+    // calques en YUV avec la matrice bt601 en plage pleine, puis la vidéo est lue en bt709 plage limitée (l'orange
+    // #F15A24 sort en (255, 98, 25), le fond #1A1612 en (8, 3, 0)). La même transformation, affine, rejouée ici.
+    const filtre = el("span", { class: "apercu-svg", "aria-hidden": "true", html:
+      '<svg width="0" height="0" style="position:absolute"><filter id="apercu-couleurs-rendu" color-interpolation-filters="sRGB">'
+      + '<feColorMatrix type="matrix" values="1.24452 -0.06711 -0.01303 0 -0.07306 0.11768 0.97726 0.06945 0 -0.07306 -0.00829 -0.01627 1.18894 0 -0.07306 0 0 0 1 0"/>'
+      + "</filter></svg>" });
+    this.ecran = el("div", { class: "apercu-ecran" }, filtre, this.plan, this.couches, this.dessin,
       el("span", { class: "apercu-badge" }, "aperçu"), this.chargement);
     this.bLire = el("button", { class: "bouton bouton-accent apercu-lire", type: "button", disabled: true, html: `${icone("lecture")}<span>Lire</span>` });
     this.bAvant = el("button", { class: "bouton bouton-petit", type: "button", title: "Image précédente", "aria-label": "Image précédente" }, "−1 image");
@@ -403,7 +410,7 @@ export class Apercu {
       aller.addEventListener("click", () => { this.pause(); this.aller(x.image).then(() => { this.traits = JSON.parse(JSON.stringify(x.traits || [])); this.redessiner(); }); });
       return el("li", { class: "apercu-note" }, aller,
         el("span", { class: "apercu-note-texte" }, x.texte, x.traits?.length ? el("span", { class: "apercu-note-zone" }, " · zone entourée") : null),
-        el("span", { class: `apercu-note-etat${x.prise ? " prise" : ""}` }, x.prise ? "retouchée" : "envoyée"));
+        el("span", { class: `apercu-note-etat${x.prise ? " apercu-note-faite" : ""}` }, x.prise ? "retouchée" : "envoyée"));
     }));
     this.liste.hidden = !notes.length;
     this.bFabriquer.disabled = occupe;
