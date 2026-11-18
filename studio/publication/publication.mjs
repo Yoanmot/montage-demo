@@ -20,6 +20,13 @@
 // reel (`brief.py ecrire`) et le message de la ressource choisie (`valider-message --depuis`) sont
 // enregistrés au même clic, puis revérifiés : ce qui part est ce qui était affiché.
 //
+// Reel d'essai (client dont le fichier dit « reels_essai » : true ; studio de Yoan, lot 9D) : un reel du
+// récapitulatif peut porter `essai` (MANUAL : le client le passe en reel normal depuis Instagram ;
+// SS_PERFORMANCE : Instagram le passe tout seul s'il marche). Montré seulement aux gens qui ne suivent pas le
+// compte. Passé en --reel-essai à verifier et à publier. Vidéo de 3 à 90 s (DUREE_ESSAI), lue ici par
+// ffprobe : hors limites ou illisible, la case est grisée avec la raison. Sans le réglage (Romain), rien ne
+// change : `essai` est ignoré et aucune ligne n'apparaît.
+//
 // Sécurité :
 //   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE=<compte> (plus
 //     ZERNIO_ECRITURE_ROMAIN=oui chez Romain) n'est posé que sur cet appel-là (il est retiré de
@@ -30,7 +37,7 @@
 //   - Un récapitulatif sert une fois, expire au bout de 30 minutes, et confirmer() revérifie que la vidéo
 //     et la légende sont celles qui ont été montrées. Après une erreur d'envoi, rien n'est relancé.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -38,9 +45,14 @@ import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 import { motAbsent } from '../interface/app/mot-absent.js';
+import { outil } from '../rangement/lib/commun.mjs';
 export { motAbsent };
 
 export const RECAP_MINUTES = 30;
+// Reel d'essai : les deux façons de le passer en reel normal (Zernio, trialParams.graduationStrategy) et
+// la durée de vidéo acceptée, en secondes (mêmes valeurs que zernio.py, ESSAIS et DUREE_ESSAI).
+export const ESSAIS = ['MANUAL', 'SS_PERFORMANCE'];
+export const DUREE_ESSAI = { min: 3, max: 90 };
 const MONTE = /-monte(?:-\d+)?\.mp4$/;
 const QUAND = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -216,6 +228,8 @@ const BLOQUES = [
   [/^la ressource \S+ n'est pas en ligne/, () => "La ressource choisie n'est pas encore en ligne : mets-la en ligne dans « Ressources gratuites », ou choisis-en une autre."],
   [/^ressource \S+ : message pas validé/, () => "Tu n'as pas encore validé le message que reçoivent ceux qui commentent : valide-le avec ton head of content, ou choisis une autre ressource."],
   [/^ressource \S+ : /, () => "Le message automatique de la ressource choisie n'est pas prêt : demande à ton head of content de le finir, ou choisis une autre ressource."],
+  [/^reel d'essai : la vidéo dure ([\d,]+) s/, (m) => `Ta vidéo dure ${m[1]} secondes : un reel d'essai doit durer entre ${DUREE_ESSAI.min} et ${DUREE_ESSAI.max} secondes. Décoche « Reel d'essai » pour la publier en reel normal.`],
+  [/^reel d'essai : seulement pour un reel/, () => "Un carrousel ne peut pas partir en reel d'essai : décoche la case."],
   [/^le mot du script \((\S+)\) n'est pas celui en attente \((\S+)\)/, (m) => `Le mot de ton script (${m[1]}) n'est pas celui qui attend (${m[2]}) : demande à ton head of content de remettre le bon mot en attente.`],
 ];
 
@@ -233,6 +247,7 @@ const ARRETS = [
   [/^VERROU/, () => `Rien n'est parti : la publication n'a pas été autorisée de mon côté. Préviens ${contact()}.`],
   [/^CLE_ABSENTE|^CLE_REFUSEE|^DROITS|^COMPTE_ABSENT/, () => `Rien n'est parti : l'accès à ton compte Instagram ne marche pas de mon côté. Préviens ${contact()} avec le message ci-dessous.`],
   [/^HORS_LIGNE/, () => "Rien n'est parti : pas d'internet. Vérifie ta connexion et refais le récapitulatif."],
+  [/^ESSAI_REFUSE/, () => "Instagram a refusé le reel d'essai, rien n'est parti. Le plus souvent, la fonction n'est pas encore ouverte sur ton compte (Instagram la donne aux comptes publics, petit à petit). Décoche « Reel d'essai » et revérifie pour le publier en reel normal."],
   [/^ECHEC_PUBLICATION/, () => `Instagram a refusé la publication. Ne la relance pas : préviens ${contact()} avec le message ci-dessous.`],
   [/^ERREUR_ZERNIO/, () => `Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens ${contact()} avec le message ci-dessous.`],
 ];
@@ -256,7 +271,7 @@ export function phrase(genre, texte) {
 // La première ligne d'arrêt reconnue dans une sortie de `publier` (ou null).
 function arret(sortie) {
   for (const ligne of sortie.split('\n')) {
-    if (/^(QUAND_[A-Z]+|VERROU|CLE_ABSENTE|CLE_REFUSEE|DROITS|COMPTE_ABSENT|HORS_LIGNE|ECHEC_PUBLICATION|ERREUR_ZERNIO)\b/.test(ligne)) return ligne.trim();
+    if (/^(QUAND_[A-Z]+|VERROU|CLE_ABSENTE|CLE_REFUSEE|DROITS|COMPTE_ABSENT|HORS_LIGNE|ESSAI_REFUSE|ECHEC_PUBLICATION|ERREUR_ZERNIO)\b/.test(ligne)) return ligne.trim();
   }
   return null;
 }
@@ -312,6 +327,34 @@ export function videoMontee(slug, config) {
   return { chemin: vus[0].f, nom: vus[0].n, taille: vus[0].st.size, mtimeMs: vus[0].st.mtimeMs };
 }
 
+// Le reel d'essai est-il proposé à ce client ? (clients/<id>.json, « reels_essai »)
+export function essaiActif(config) {
+  return Boolean((config && config.client ? config.client : clientActif())?.reels_essai);
+}
+
+// Durée d'une vidéo en secondes (ffprobe), ou null si elle ne se lit pas.
+export function dureeVideo(chemin) {
+  let ffprobe;
+  try { ffprobe = outil('ffprobe'); } catch { return null; }
+  const r = spawnSync(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', chemin],
+    { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'ignore'] });
+  const d = r.status === 0 ? Number.parseFloat(String(r.stdout).trim()) : NaN;
+  return Number.isFinite(d) ? d : null;
+}
+
+const secondes = (d) => String(Math.round(d * 10) / 10).replace('.', ',');
+
+// Ce que la case « Reel d'essai » peut faire pour cette vidéo : { possible, raison, duree }.
+export function essaiPossible(video) {
+  const d = video ? dureeVideo(video.chemin) : null;
+  if (d === null) return { possible: false, raison: "Je n'arrive pas à lire la durée de la vidéo : elle ne peut pas partir en reel d'essai.", duree: null };
+  if (d < DUREE_ESSAI.min || d > DUREE_ESSAI.max) {
+    return { possible: false, duree: d,
+      raison: `Ta vidéo dure ${secondes(d)} secondes : un reel d'essai doit durer entre ${DUREE_ESSAI.min} et ${DUREE_ESSAI.max} secondes.` };
+  }
+  return { possible: true, raison: null, duree: d };
+}
+
 // Ce qui identifie les slides montrées : nom, taille et date de chaque image vue par le lien.
 function empreinteSlides(slug, config) {
   const dossier = path.join(chemins(config).media, slug, 'slides');
@@ -330,7 +373,7 @@ function urlMedia(slug, ...parties) {
 // le studio ou le téléphone). Rien n'est envoyé ni écrit dans le dépôt par verifier.
 function argsVerifier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
-  return ['verifier', el.slug, ...media, ...argsRessource(el), ...argsLegende(el), '--pousser'];
+  return ['verifier', el.slug, ...media, ...argsRessource(el), ...argsEssai(el), ...argsLegende(el), '--pousser'];
 }
 
 // Simulation avec une légende retouchée : elle n'est pas enregistrée, zernio.py la lit dans un fichier.
@@ -383,6 +426,10 @@ export function erreursTextes({ legende, message, bouton } = {}) {
 
 function argsRessource(el) {
   return el.ressource ? ['--ressource', el.ressource] : [];
+}
+
+function argsEssai(el) {
+  return el.essai ? ['--reel-essai', el.essai] : [];
 }
 
 const sansAccents = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -444,6 +491,16 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
       return el;
     }
     el.video_url = urlMedia(slug, 'face', el.video.nom);
+    if (essaiActif(config)) {
+      el.essai_info = essaiPossible(el.video);
+      const voulu = demande && ESSAIS.includes(demande.essai) ? demande.essai : null;
+      if (voulu && el.essai_info.possible) el.essai = voulu;
+      else if (voulu) {
+        el.essai_voulu = voulu;
+        el.messages.push(`${el.essai_info.raison} Décoche « Reel d'essai » pour la publier en reel normal.`);
+        el.bloque = true;
+      }
+    }
   } else {
     lierSlides(slug, config);
     el.slides_urls = slidesDe(slug, config).map((n) => urlMedia(slug, 'slides', n));
@@ -510,6 +567,9 @@ function versApi(el) {
   }
   // Seule la légende d'un reel se retouche ici (celle d'un carrousel part avec ses slides mises en page).
   o.legende_modifiable = el.type === 'reel' && Boolean(el.script_empreinte) && el.legende !== null;
+  // La case « Reel d'essai » (client qui l'a activée, reels seulement) : grisée avec sa raison si la vidéo
+  // ne peut pas partir en essai.
+  if (el.essai_info) o.reel_essai = { possible: el.essai_info.possible, raison: el.essai_info.raison, choix: el.essai || el.essai_voulu || null };
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
   else if (el.video_url) o.video_url = el.video_url;
   return o;
@@ -548,7 +608,7 @@ function argsPublier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
   const quand = el.quand === 'maintenant' ? ['--maintenant'] : ['--quand', el.quand];
   const message = el.message_fichier ? ['--message-fichier', el.message_fichier] : [];
-  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsLegende(el), ...message];
+  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsEssai(el), ...argsLegende(el), ...message];
 }
 
 // Ce qui partirait, lu dans les requêtes que `publier` montre en simulation (3-post, 4-mot) : la légende,
@@ -565,6 +625,9 @@ export function textesSimules(sortie) {
   const post = corps('3-post');
   if (!post || typeof post.content !== 'string') return null;
   const o = { legende: post.content };
+  const ig = (post.platforms || []).find((x) => x && x.platform === 'instagram');
+  const essai = ig?.platformSpecificData?.trialParams?.graduationStrategy;
+  if (essai) o.reel_essai = essai;
   const regle = corps('4-mot');
   if (regle && typeof regle.dmMessage === 'string') {
     o.mot = (regle.keywords || [])[0] || null;
@@ -579,6 +642,16 @@ function phraseMot(el, futur) {
   if (!el.ressource || !el.mot) return '';
   const titre = el.ressource_titre ? ` « ${el.ressource_titre} »` : ' la ressource';
   return futur ? ` Ceux qui commenteraient ${el.mot} recevraient${titre}.` : ` Ceux qui commentent ${el.mot} reçoivent${titre}.`;
+}
+
+// « En reel d'essai : ... », pour les résultats.
+export function phraseEssai(el, futur) {
+  if (!el.essai) return '';
+  const qui = futur ? 'serait montrée' : 'est montrée';
+  const passage = el.essai === 'SS_PERFORMANCE'
+    ? `Instagram la ${futur ? 'passerait' : 'passera'} en reel normal toute seule si elle marche`
+    : `tu la ${futur ? 'passerais' : 'passeras'} en reel normal toi-même depuis Instagram`;
+  return ` En reel d'essai : elle ${qui} seulement aux gens qui ne te suivent pas, et ${passage}.`;
 }
 
 function phraseQuand(el, futur) {
@@ -657,7 +730,7 @@ export async function confirmer(recapOuId, config, opts = {}) {
       if (/^SIMULATION_OK$/m.test(sortie)) {
         const envoi = textesSimules(sortie);
         resultats.push({ slug: el.slug, statut: 'simulation',
-          message: `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}${phraseEcrits(el)}`,
+          message: `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseEssai(el, true)}${phraseMot(el, true)}${phraseEcrits(el)}`,
           ...(envoi ? { envoi } : {}) });
       } else {
         const a = arret(sortie);
@@ -672,8 +745,8 @@ export async function confirmer(recapOuId, config, opts = {}) {
     if (code === 0 && /^FAIT$/m.test(sortie)) {
       const statut = post ? post[2] : 'programmé';
       const lien = post && post[3] !== 'à' ? post[3] : null;
-      if (statut === 'publié') res('publié', `C'est en ligne.${phraseMot(el, false)}${lien ? ' ' + lien : ''}`);
-      else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`));
+      if (statut === 'publié') res('publié', `C'est en ligne.${phraseEssai(el, false)}${phraseMot(el, false)}${lien ? ' ' + lien : ''}`);
+      else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`));
       continue;
     }
     // Le post est parti, mais pas la règle du mot (code 6) : on le dit, et on propose « Brancher le mot »
@@ -692,6 +765,8 @@ export async function confirmer(recapOuId, config, opts = {}) {
     const a = arret(sortie);
     const b = lireVerifier(sortie).bloque[0];
     if (!a && b) { res('bloque', 'Pas programmé : ' + phrase('BLOQUE', b)); continue; }
+    // Reel d'essai refusé par Instagram (fonction pas ouverte sur le compte) : aucun post créé, on continue.
+    if (a && /^ESSAI_REFUSE\b/.test(a)) { res('bloque', phrase('ARRET', a), a.slice(0, 300)); continue; }
     // Une erreur pendant l'envoi : on ne sait pas toujours ce qui est parti. On s'arrête là, sans relance.
     res('erreur', a ? phrase('ARRET', a) : `Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens ${contact()} avec le message ci-dessous.`,
       (a || sortie.trim().split('\n').slice(-2).join(' / ')).slice(0, 300));

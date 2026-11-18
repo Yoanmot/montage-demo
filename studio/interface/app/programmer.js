@@ -8,6 +8,9 @@
 // qui part est ce qui est affiché. Une retouche fausse bloque le bouton, avec la raison sous le champ.
 // « La légende ne cite pas le mot X » suit la légende en direct (même règle que zernio.py, motAbsent) :
 // il disparaît dès que la légende retouchée contient le mot, revient s'il en sort.
+// Reel d'essai (e.reel_essai présent : client qui l'a activé, reels seulement ; lot 9D) : une case et le
+// choix du passage en reel normal. Comme une date, un changement se revérifie avant de pouvoir programmer.
+// Vidéo hors durée (ou illisible) : case grisée avec la raison.
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
 import { motAbsent } from "./mot-absent.js";
@@ -38,12 +41,13 @@ function dessiner(studio, conteneur, recap, apres) {
   }
   const modifs = new Map();
   const choixRessource = new Map(); // slug -> slug de ressource choisi (ou "" pour aucune), s'il a changé
+  const choixEssai = new Map(); // slug -> "MANUAL" | "SS_PERFORMANCE" | null, s'il a changé
   const retires = new Set();
   if (!retouchesDe.has(conteneur)) retouchesDe.set(conteneur, new Map());
   const retouches = retouchesDe.get(conteneur); // slug -> { legende?, message?, bouton?, ressource? }
   const erreurs = new Map(); // "slug:champ" -> phrase
   const ctx = { recap, retouches, erreurs, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false, maj: () => { if (ctx.pret) majPied(); } };
-  const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource, ctx));
+  const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource, ctx, choixEssai));
   const toutDeSuite = els.every((e) => e.quand === "maintenant");
   const resume = el("p", { class: "recap-resume" });
   const confirmer = el("button", { class: "bouton bouton-accent bouton-grand", type: "button" });
@@ -51,7 +55,7 @@ function dessiner(studio, conteneur, recap, apres) {
 
   function majPied() {
     const restants = els.filter((e) => !retires.has(e.slug));
-    const change = modifs.size > 0 || retires.size > 0 || choixRessource.size > 0;
+    const change = modifs.size > 0 || retires.size > 0 || choixRessource.size > 0 || choixEssai.size > 0;
     const bloque = restants.some((e) => e.verdict === "BLOQUE");
     const faux = [...erreurs.keys()].some((k) => restants.some((e) => k.startsWith(e.slug + ":")));
     maj.hidden = !change;
@@ -67,7 +71,8 @@ function dessiner(studio, conteneur, recap, apres) {
   maj.addEventListener("click", () => {
     const elements = els.filter((e) => !retires.has(e.slug)).map((e) => {
       const r = choixRessource.has(e.slug) ? choixRessource.get(e.slug) : e.ressource;
-      return { slug: e.slug, quand: modifs.get(e.slug) || e.quand, ...(r ? { ressource: r } : {}) };
+      const essai = choixEssai.has(e.slug) ? choixEssai.get(e.slug) : e.reel_essai?.choix || null;
+      return { slug: e.slug, quand: modifs.get(e.slug) || e.quand, ...(r ? { ressource: r } : {}), ...(essai ? { essai } : {}) };
     });
     if (!elements.length) { conteneur.replaceChildren(); return; }
     recapDans(studio, conteneur, () => studio.api.recap(elements), { apres });
@@ -103,7 +108,7 @@ function dessiner(studio, conteneur, recap, apres) {
   majPied();
 }
 
-function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx) {
+function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx, choixEssai) {
   const v = VERDICTS[e.verdict] || VERDICTS.ATTENTION;
   const toutDeSuite = e.quand === "maintenant";
   const [j, h] = toutDeSuite ? ["", ""] : (e.quand || " ").split(" ");
@@ -149,10 +154,45 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
         el("dt", {}, "Quand"), toutDeSuite ? el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, "Tout de suite, dès que tu confirmes"))
           : el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, quandLisible(e.quand)), el("span", { class: "quand-champs" }, date, heure)),
         el("dt", {}, "Légende"), el("dd", {}, legende),
+        ...(e.reel_essai ? champEssai(e, choixEssai, auChangement) : []),
         ...(Array.isArray(ressources) ? champRessource(e, ressources, choixRessource, auChangement, ctx)
           : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])),
       el("div", { class: "recap-ligne-pied" }, retirer)));
   return n;
+}
+
+// « Reel d'essai » : une case, puis comment il passe en reel normal. Grisée avec sa raison si la vidéo ne
+// peut pas partir en essai (durée hors limites, durée illisible), sauf pour décocher un choix déjà fait.
+let numeroEssai = 0;
+function champEssai(e, choixEssai, auChangement) {
+  const info = e.reel_essai;
+  const id = `essai-${++numeroEssai}`;
+  const depart = info.choix || null;
+  const coche = el("input", { type: "checkbox", id, checked: depart ? true : null, disabled: !info.possible && !depart ? true : null,
+    "aria-describedby": info.raison ? `${id}-raison` : null });
+  const option = (valeur, texte) => {
+    const r = el("input", { type: "radio", name: `${id}-passage`, value: valeur, checked: (depart || "MANUAL") === valeur ? true : null });
+    return { r, label: el("label", { class: "recap-essai-option" }, r, el("span", {}, texte)) };
+  };
+  const manuel = option("MANUAL", "moi, depuis Instagram");
+  const auto = option("SS_PERFORMANCE", "tout seul, s'il marche auprès de ceux qui ne te suivent pas");
+  const passage = el("fieldset", { class: "recap-essai-passage", hidden: !depart || null },
+    el("legend", {}, "Le passer en reel normal"), manuel.label, auto.label);
+  const valeur = () => (coche.checked ? (auto.r.checked ? "SS_PERFORMANCE" : "MANUAL") : null);
+  const change = () => {
+    passage.hidden = !coche.checked;
+    const v = valeur();
+    if (v === depart) choixEssai.delete(e.slug); else choixEssai.set(e.slug, v);
+    auChangement();
+  };
+  coche.addEventListener("change", change);
+  manuel.r.addEventListener("change", change);
+  auto.r.addEventListener("change", change);
+  return [el("dt", {}, "Reel d'essai"), el("dd", { class: "recap-essai" + (!info.possible && !depart ? " eteint" : "") },
+    el("label", { class: "recap-essai-case", for: id }, coche, el("span", {}, "Le montrer seulement aux gens qui ne te suivent pas")),
+    info.raison ? el("p", { class: "recap-essai-raison", id: `${id}-raison` }, info.raison) : null,
+    passage,
+    info.possible ? el("p", { class: "recap-essai-note doux" }, "Instagram doit avoir ouvert cette fonction sur ton compte. Sinon, il la refuse et rien ne part.") : null)];
 }
 
 // Les contrôles de zernio.py sur ce qui part (mêmes phrases que le serveur, publication.mjs erreursTextes).
@@ -278,6 +318,9 @@ function resultats(studio, conteneur, res, els) {
       // Simulation : les textes exacts qui partiraient (lus dans les requêtes préparées, retouches comprises).
       const envoi = r.envoi ? el("dl", { class: "recap-envoi" },
         el("dt", {}, "Légende qui partirait"), el("dd", {}, r.envoi.legende),
+        ...(r.envoi.reel_essai ? [el("dt", {}, "Reel d'essai"), el("dd", {}, r.envoi.reel_essai === "SS_PERFORMANCE"
+          ? "Oui : montré seulement aux gens qui ne te suivent pas, passé en reel normal tout seul s'il marche."
+          : "Oui : montré seulement aux gens qui ne te suivent pas, passé en reel normal par toi depuis Instagram.")] : []),
         ...(typeof r.envoi.message === "string" ? [
           el("dt", {}, `Message à ceux qui commentent ${r.envoi.mot || ""}`.trim()), el("dd", {}, r.envoi.message),
           el("dt", {}, "Bouton"), el("dd", {}, r.envoi.bouton)] : [])) : null;

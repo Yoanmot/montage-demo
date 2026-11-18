@@ -349,6 +349,17 @@ textarea.champ.recap-texte { font-size: 14px; line-height: 1.55; min-height: 0; 
 .recap-dm-aide { font-size: 12.5px; }
 .recap-ressource-raisons { margin: 0; padding-left: 18px; font-size: 13px; color: var(--encre-2); }
 .recap-ressource-note { font-size: 13.5px; }
+/* reel d'essai au récapitulatif (préfixe recap-essai) */
+.recap-essai { display: grid; gap: 6px; justify-items: start; }
+.recap-essai-case, .recap-essai-option { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--encre-2); }
+.recap-essai-case:hover, .recap-essai-option:hover { color: var(--encre); }
+.recap-essai-case:has(input:checked), .recap-essai-option:has(input:checked) { color: var(--encre); font-weight: 600; }
+.recap-essai.eteint .recap-essai-case { cursor: not-allowed; color: var(--encre-3); }
+.recap-essai-raison { font-size: 13px; color: var(--encre-2); }
+.recap-essai-passage { margin: 0; padding: 10px 12px; border: 0; border-radius: var(--rayon-petit); background: var(--fond-2); display: grid; gap: 6px; }
+.recap-essai-passage legend { float: left; width: 100%; padding: 0; margin-bottom: 2px; font-size: 13px; font-weight: 700; color: var(--encre-2); }
+input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; margin: 0; flex: none; }
+.recap-essai-note { font-size: 12.5px; }
 
 /* ressources gratuites (préfixe res-) */
 .res-ligne .res-pastille { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: var(--rayon-petit); background: var(--fond-2); }
@@ -568,6 +579,7 @@ textarea.champ.recap-texte { font-size: 14px; line-height: 1.55; min-height: 0; 
   /* Au doigt : tout ce qui se touche fait au moins 44 px de haut. */
   .bouton, .bouton-petit, .champ, .segment button, .file-bouton, .chat-envoyer, .chat-stop, .groupe-tete,
   .fichier, .entree, .ligne, .quand-champs .champ, .jour-prevu .champ, .recap-ressource, .ranger-actions .champ { min-height: 44px; }
+  .recap-essai-case, .recap-essai-option { min-height: 44px; }
   .bouton-icone { width: 44px; height: 44px; }
   .recap-slides { max-width: 220px; }
   .ligne .chevron { width: 32px; height: 44px; margin: -11px 0; }

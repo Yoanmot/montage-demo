@@ -15,6 +15,7 @@
   "ressources": { "site": null },
   "skill_carrousel": "carrousel",
   "monteur": "monteur",
+  "reels_essai": false,
   "branche_mise_a_jour": "main",
   "config_claude": null
 }
