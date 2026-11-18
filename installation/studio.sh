@@ -74,6 +74,10 @@ avec_limite() { # $1 secondes, puis la commande
   wait "$pid"
 }
 
+# Adresse file:// d'un dossier, espaces et parenthèses encodés (nom d'appli « Studio Romain (test) ») ;
+# identique au chemin pour un nom sans caractère spécial (Studio : rien ne change).
+studio_url_fichier() { "$PY" -c 'import sys, urllib.parse; print("file://" + urllib.parse.quote(sys.argv[1], safe="/()"))' "$1"; }
+
 ecrire_si_change() { # $1 fichier, contenu sur stdin ; rend 0 si changé
   local tmp="$1.tmp.$$"
   cat > "$tmp"
@@ -94,6 +98,9 @@ plist_env_client() {
     [ -n "$v" ] || continue
     printf '\n    <key>%s</key>\n    <string>%s</string>' "$k" "$(printf '%s' "$v" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g')"
   done
+  # Installation d'essai : simulation de publication imposée au service (demarrer.sh la pose aussi).
+  [ -n "${CLIENT_SIMULATION_FORCEE:-}" ] && printf '\n    <key>STUDIO_SIMULATION</key>\n    <string>1</string>'
+  return 0
 }
 
 # ------------------------------------------------------------------ installer
@@ -135,6 +142,30 @@ cmd_installer() {
     installe "studio-config créée depuis le modèle"
   else
     ok "studio-config : pas de modèle dans le dépôt, le serveur la crée au premier démarrage"
+  fi
+
+  # Installation d'essai : publication.simulation à vrai dans la config (en plus du service, qui l'impose).
+  if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ] && [ -f "$STUDIO_CONF" ]; then
+    case "$("$PY" - "$STUDIO_CONF" <<'PYEOF' 2>&1
+import json, os, sys
+p = sys.argv[1]
+d = json.load(open(p, encoding="utf-8"))
+pub = d.get("publication") if isinstance(d.get("publication"), dict) else {}
+if pub.get("simulation") is True:
+    print("DEJA"); sys.exit(0)
+pub["simulation"] = True
+d["publication"] = pub
+tmp = p + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    json.dump(d, f, indent=2, ensure_ascii=False); f.write("\n")
+os.chmod(tmp, 0o600); os.replace(tmp, p)
+print("POSEE")
+PYEOF
+)" in
+      DEJA) ok "studio-simulation publication en simulation (forcée pour cette installation)";;
+      POSEE) installe "studio-simulation publication passée en simulation (forcée pour cette installation)";;
+      *) echec "studio-simulation : impossible de forcer la simulation dans $STUDIO_CONF";;
+    esac
   fi
 
   # Le programme claude (le serveur le lance pour chaque conversation)
@@ -295,10 +326,10 @@ EOF
     ok "studio-dock sauté (test)"
   elif [ -f "$STUDIO_HOME/.dock-ajoute" ]; then
     ok "studio-dock déjà fait une fois"
-  elif defaults read com.apple.dock persistent-apps 2>/dev/null | grep -qF "$STUDIO_APP"; then
+  elif defaults read com.apple.dock persistent-apps 2>/dev/null | grep -qF -e "$STUDIO_APP" -e "$(studio_url_fichier "$STUDIO_APP")"; then
     date '+%Y-%m-%d %H:%M:%S' > "$STUDIO_HOME/.dock-ajoute"; ok "studio-dock icône déjà dans le Dock"
   else
-    if defaults write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>file://$STUDIO_APP/</string><key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>"; then
+    if defaults write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>$(studio_url_fichier "$STUDIO_APP")/</string><key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>"; then
       killall Dock >/dev/null 2>&1 || true
       date '+%Y-%m-%d %H:%M:%S' > "$STUDIO_HOME/.dock-ajoute"
       installe "studio-dock icône $STUDIO_APP_NOM ajoutée au Dock"

@@ -25,6 +25,12 @@
 #                    <racine>/monteur sinon (même forme : .env et sons-generes/)
 #   CLIENT_HOOK      commande du hook SessionStart de mise à jour (texte exact, comparé par l'installeur)
 #   CLIENT_PREVENIR  « Envoie un message à <contact>. » ou vide
+#   CLIENT_SIMULATION_FORCEE  1 si simulation_forcee est vrai (installation d'essai : rien ne peut partir sur
+#                    Instagram, aucune clé de publication ; voir demarrer.sh, cles.sh, verifier.sh)
+#
+# Branche suivie : branche_mise_a_jour du fichier, sauf si <racine>/branche existe (une ligne, le nom d'une
+# branche du dépôt) : une installation d'essai suit une branche pas encore livrée. Retirer le fichier pour
+# revenir à celle du client (puis installation/mettre-a-jour.sh).
 
 studio_client_charger() {
   local ici clone racine_supposee id fichier
@@ -89,6 +95,14 @@ if not icone and (ic in ("", "romain")): icone = os.path.join(lanc, "icone.icns"
 hook = ('/bin/bash "$HOME/.montage-yoan/montage-demo/installation/mettre-a-jour.sh" --hook' if racine == os.path.join(maison, ".montage-yoan")
         else '/bin/bash "%s/montage-demo/installation/mettre-a-jour.sh" --hook' % racine)
 contact = g("contact", defaut="")
+branche = g("branche_mise_a_jour", defaut="main")
+try:
+    with open(os.path.join(racine, "branche"), encoding="utf-8") as f:
+        b = f.read().strip()
+    if b and all(ch.isalnum() or ch in "-_./" for ch in b) and not b.startswith("-"):
+        branche = b
+except OSError:
+    pass
 v = {
     "CLIENT_ID": ident, "CLIENT_FICHIER": fichier or "(valeurs historiques de Romain)",
     "CLIENT_PRENOM": g("prenom", defaut=""), "CLIENT_CONTACT": contact,
@@ -99,13 +113,14 @@ v = {
     "CLIENT_GIT_EMAIL": g("head_of_content", "email_commits", defaut="mac-%s@users.noreply.github.com" % ident),
     "CLIENT_CLE_SSH": deplier(g("head_of_content", "cle_ssh", defaut="")),
     "CLIENT_ZERNIO_COMPTE": g("zernio", "compte", defaut=""), "CLIENT_ZERNIO_PROFIL": g("zernio", "profil", defaut=""),
-    "CLIENT_SITE": g("ressources", "site", defaut=""), "CLIENT_BRANCHE": g("branche_mise_a_jour", defaut="main"),
+    "CLIENT_SITE": g("ressources", "site", defaut=""), "CLIENT_BRANCHE": branche,
     "CLIENT_CONFIG_CLAUDE": config, "CLIENT_CLAUDE": config or os.path.join(maison, ".claude"),
     "CLIENT_ISOLE": "1" if config else "",
     "CLIENT_SONS": os.path.join(racine, "monteur") if config else os.path.join(maison, ".config", "monteur-romain"),
     "CLIENT_HOOK": hook,
     "CLIENT_SKILL_CARROUSEL": g("skill_carrousel", defaut="carrousel"),
     "CLIENT_PREVENIR": ("Envoie un message à %s." % contact) if contact else "",
+    "CLIENT_SIMULATION_FORCEE": "1" if c.get("simulation_forcee") is True else "",
 }
 for k, x in v.items():
     print("%s=%s" % (k, shlex.quote(str(x))))

@@ -175,7 +175,13 @@ PYEOF
     if echo "$r" | grep -q ACCES_OK; then okv "carrousels-en-attente (accès aux textes de $CLIENT_PRENOM)"; else kov "carrousels-en-attente : $(echo "$r" | tail -1 | cut -c1-160)"; fi
     [ -f "$SK/publier/SKILL.md" ] && okv "publier (skill relié)" || kov "publier : skill absent"
     local cz; cz="${ZERNIO_API_KEY:-$(sed -n 's/^ZERNIO_API_KEY=//p' "$BASE/zernio.env" 2>/dev/null | tail -1 | tr -d "\"'")}"
-    if [ -z "$cz" ]; then afv "publier : clé de publication absente (cles.sh zernio)"
+    if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then
+      # Installation d'essai : aucune clé, simulation imposée au service et dans la config.
+      local sim; sim="$(/usr/bin/plutil -extract publication.simulation raw -o - "$BASE/studio/studio.config.json" 2>/dev/null)"
+      if [ -n "$cz" ] || [ -f "$BASE/zernio.env" ]; then kov "publier : une clé de publication est posée dans une installation d'essai (à retirer)"
+      elif [ "$sim" != "true" ]; then kov "publier : publication.simulation n'est pas à vrai dans la config de l'installation d'essai"
+      else okv "publier simulation forcée (aucune clé de publication, rien ne peut partir sur Instagram)"; fi
+    elif [ -z "$cz" ]; then afv "publier : clé de publication absente (cles.sh zernio)"
     else
       r="$(ZERNIO_API_KEY="$cz" "$PY" - "$HOC/outils" "$CLIENT_ID" <<'PYEOF' 2>&1
 import sys

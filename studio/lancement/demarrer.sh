@@ -22,6 +22,14 @@ if [ -n "$CLIENT_ISOLE" ]; then
   export CLAUDE_CONFIG_DIR="$CLIENT_CONFIG_CLAUDE" MONTEUR_CONFIG="$CLIENT_SONS" MONTEUR_SONS_CACHE="$CLIENT_SONS/sons-generes"
 fi
 
+# Installation d'essai (simulation_forcee) : la publication reste une simulation quoi que dise
+# studio.config.json, et aucune clé Zernio n'est lisible par le serveur, ses sessions ni ses scripts
+# (ZERNIO_ENV_FILE vide : zernio.py ne retombe pas sur ~/.montage-yoan/zernio.env).
+if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then
+  unset ZERNIO_API_KEY ZERNIO_ECRITURE ZERNIO_ECRITURE_ROMAIN
+  export STUDIO_SIMULATION=1 ZERNIO_ENV_FILE=/dev/null
+fi
+
 horodate() { date '+%Y-%m-%d %H:%M:%S'; }
 
 if [ ! -f "$SERVEUR" ]; then
@@ -37,7 +45,7 @@ CLAUDE="$(command -v claude 2>/dev/null || true)"
 # Le jeton de connexion de claude (cles.sh claude) passe au serveur, donc à chaque session.
 if studio_jeton_claude; then connexion="jeton"; else connexion="celle du Mac"; fi
 if [ -n "$CLIENT_ERREUR" ]; then echo "$(horodate) CLIENT_ILLISIBLE $CLIENT_ERREUR"; exit 1; fi
-echo "$(horodate) DEMARRAGE client=$CLIENT_ID node=$NODE ($("$NODE" -v 2>/dev/null)) claude=${CLAUDE:-introuvable} connexion=$connexion config_claude=${CLAUDE_CONFIG_DIR:-~/.claude} code=$CODE"
+echo "$(horodate) DEMARRAGE client=$CLIENT_ID node=$NODE ($("$NODE" -v 2>/dev/null)) claude=${CLAUDE:-introuvable} connexion=$connexion config_claude=${CLAUDE_CONFIG_DIR:-~/.claude} code=$CODE${CLIENT_SIMULATION_FORCEE:+ publication=simulation-forcee}"
 
 cd "$CODE" || exit 1
 exec "$NODE" "$SERVEUR"

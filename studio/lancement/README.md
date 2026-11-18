@@ -41,6 +41,17 @@ racine). La racine d'un client isolé doit être hors de la maison : sous `~`, c
 comme instructions du projet, même avec `CLAUDE_CONFIG_DIR` (constaté le 2026-11-17). Icône d'un client :
 `icones/<appli.icone>.icns`, sinon l'icône par défaut.
 
+### Installation d'essai (`simulation_forcee`, 2026-11-18)
+Un client marqué `"simulation_forcee": true` (ex. `romain-test` : le studio de Romain installé à part sur le
+Mac de Yoan, `/Users/Shared/studio-romain-test`, port 4749, appli « Studio Romain (test) ») ne peut rien
+publier : `demarrer.sh` et le service posent `STUDIO_SIMULATION=1`, retirent toute variable Zernio et
+pointent `ZERNIO_ENV_FILE` sur `/dev/null` ; l'installation met `publication.simulation` à vrai ;
+`cles.sh` refuse la clé Zernio (`CLE_INTERDITE`) ; `verifier.sh` échoue si une clé est posée. Son head of
+content est un dépôt nu local (`installation/hoc-essai.sh` : `preparer`, `proteger`, `tirer`, `etat`) :
+aucun envoi possible vers GitHub, retouches de Yoan tirées de sa copie du dépôt.
+Pour toute installation : `<racine>/branche` (une ligne) fait suivre une autre branche que
+`branche_mise_a_jour` (tester une branche pas encore livrée) ; le retirer pour revenir à celle du client.
+
 ## Décision : la copie de travail du head of content pour le studio (2026-11-15)
 
 ### Ce qui existe aujourd'hui

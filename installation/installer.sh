@@ -394,14 +394,31 @@ PYEOF
     echec "studio : installation/studio.sh absent du dépôt"
   fi
 
+  # ------------------------------------------------------------ installation d'essai : copies du head of content protégées
+  # (simulation forcée) : envois vers GitHub impossibles, seul le dépôt nu local (installation/hoc-essai.sh).
+  if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ] && [ -f "$CLONE/installation/hoc-essai.sh" ]; then
+    local lh
+    while IFS= read -r lh; do
+      case "$lh" in
+        "OK "*) ok "${lh#OK }";; "INSTALLE "*) installe "${lh#INSTALLE }";; "ECHEC "*) echec "${lh#ECHEC }";;
+      esac
+    done < <(/bin/bash "$CLONE/installation/hoc-essai.sh" proteger 2>&1)
+  fi
+
   # ------------------------------------------------------------ clés et code (posés par cles.sh, jamais ici)
   local manque=""
   grep -qs '^ELEVENLABS_API_KEY=..*' "$CLIENT_SONS/.env" || manque="$manque elevenlabs"
-  grep -qs '^ZERNIO_API_KEY=..*' "$BASE/zernio.env" || manque="$manque zernio"
+  # Installation d'essai (simulation forcée) : la clé de publication ne doit justement pas être là.
+  if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then
+    if [ -f "$BASE/zernio.env" ]; then echec "zernio : une clé de publication est posée dans une installation d'essai ($BASE/zernio.env), à retirer"
+    else ok "zernio aucune clé de publication (installation d'essai, simulation forcée)"; fi
+  else
+    grep -qs '^ZERNIO_API_KEY=..*' "$BASE/zernio.env" || manque="$manque zernio"
+  fi
   grep -qs '^CODE=..*' "$BASE/config" || manque="$manque code-montage"
   grep -qs '^CLAUDE_CODE_OAUTH_TOKEN=..*' "$BASE/claude.env" || manque="$manque connexion-claude"
   for f in "$CLIENT_SONS/.env" "$BASE/zernio.env" "$BASE/config" "$BASE/claude.env"; do [ -f "$f" ] && chmod 600 "$f"; done
-  if [ -z "$manque" ]; then ok "cles elevenlabs, zernio, code du montage et connexion de Claude présents"
+  if [ -z "$manque" ]; then ok "cles elevenlabs,${CLIENT_SIMULATION_FORCEE:- zernio,} code du montage et connexion de Claude présents"
   else a_faire "CLES manquantes :$manque (lancer installation/cles.sh)"; fi
 
   # ------------------------------------------------------------ isolation de Claude (client isolé seulement)

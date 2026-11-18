@@ -1,0 +1,29 @@
+{
+  "id": "romain-test",
+  "prenom": "Romain",
+  "contact": "Yoan",
+  "racine": "/Users/Shared/studio-romain-test",
+  "label_launchd": "com.montage-yoan.studio-romain-test",
+  "appli": {
+    "nom": "Studio Romain (test)",
+    "icone": "romain"
+  },
+  "port": 4749,
+  "theme": "romain",
+  "head_of_content": {
+    "depot": "/Users/Shared/studio-romain-test/hoc-essai.git",
+    "cle_ssh": "/Users/Shared/studio-romain-test/ssh/hoc-essai",
+    "email_commits": "studio-romain-test@localhost"
+  },
+  "zernio": {
+    "compte": null,
+    "profil": null
+  },
+  "ressources": {
+    "site": null
+  },
+  "skill_carrousel": "carrousel",
+  "branche_mise_a_jour": "studio-multi-clients",
+  "config_claude": "/Users/Shared/studio-romain-test/claude",
+  "simulation_forcee": true
+}

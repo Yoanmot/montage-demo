@@ -17,6 +17,7 @@
 #                 devant : le jeton d'un an affiché par « claude setup-token », lancé avant dans le Terminal ;
 #                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos)
 # Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
+#          | CLE_INTERDITE zernio (client à simulation forcée : installation d'essai, aucune clé de publication)
 
 main() {
   set -u
@@ -139,6 +140,8 @@ OSA
         [ -n "$v" ] || { echo "CLE_ANNULEE elevenlabs"; return; }
         v="$(nettoie "$v")"; ecrire_cle "$ENV_EL" ELEVENLABS_API_KEY "$v"; verifier_elevenlabs;;
       zernio)
+        # Installation d'essai : aucune clé de publication, jamais (la publication y reste une simulation).
+        if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then echo "CLE_INTERDITE zernio (installation d'essai : publication toujours simulée)"; return; fi
         v="$(demander "Publication Instagram : clé du Mac" "Colle ici la clé de publication que Yoan t'a donnée, puis clique sur OK.")"
         [ -n "$v" ] || { echo "CLE_ANNULEE zernio"; return; }
         v="$(nettoie "$v")"; ecrire_cle "$ENV_ZE" ZERNIO_API_KEY "$v"; verifier_zernio;;
@@ -160,7 +163,8 @@ OSA
     return 0
   fi
   if grep -qs '^ELEVENLABS_API_KEY=..*' "$ENV_EL"; then echo "DEJA elevenlabs"; verifier_elevenlabs; else poser elevenlabs; fi
-  if grep -qs '^ZERNIO_API_KEY=..*' "$ENV_ZE"; then echo "DEJA zernio"; verifier_zernio; else poser zernio; fi
+  if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then echo "SANS zernio (installation d'essai : publication toujours simulée)"
+  elif grep -qs '^ZERNIO_API_KEY=..*' "$ENV_ZE"; then echo "DEJA zernio"; verifier_zernio; else poser zernio; fi
   if grep -qs '^CODE=..*' "$CONF"; then echo "DEJA code"; verifier_code; else poser code; fi
   if grep -qs '^CLAUDE_CODE_OAUTH_TOKEN=..*' "$ENV_CL"; then echo "DEJA claude"; verifier_claude; else poser claude; fi
   for f in "$ENV_EL" "$ENV_ZE" "$CONF" "$ENV_CL"; do [ -f "$f" ] && chmod 600 "$f"; done
