@@ -78,7 +78,8 @@ test("romain-test.json : Romain (thème, monteur, carrousel), à part de Yoan et
   assert.equal(v.CLIENT_SIMULATION_FORCEE, "1");
   assert.equal(v.CLIENT_ZERNIO_COMPTE, "");
   assert.equal(v.CLIENT_ISOLE, "1");
-  assert.equal(v.CLIENT_BRANCHE, "studio-multi-clients");
+  // La branche à livrer (l'installation réelle peut suivre une autre branche par <racine>/branche).
+  assert.equal(c.branche_mise_a_jour, "studio-multi-clients");
   assert.equal(v.CLIENT_SKILL_CARROUSEL, "carrousel");
   // Romain et Yoan : jamais en simulation forcée.
   assert.equal(variables(envDe(tmp())).CLIENT_SIMULATION_FORCEE, "");
