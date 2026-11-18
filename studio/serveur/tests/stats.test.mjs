@@ -161,3 +161,16 @@ test("route GET /api/stats et événement stats", async () => {
     m.nettoyer();
   }
 });
+
+test("simulation avec stats.instagram_en_simulation dans la config : vrais chiffres en lecture seule", () => {
+  const m = monde();
+  try {
+    assert.equal(sourceStats(chargerConfig({ home: m.home, env: m.env })), null);
+    const f = path.join(m.home, "studio.config.json");
+    const brut = JSON.parse(fs.readFileSync(f, "utf8"));
+    fs.writeFileSync(f, JSON.stringify({ ...brut, stats: { ...(brut.stats || {}), instagram_en_simulation: true } }));
+    const config = chargerConfig({ home: m.home, env: m.env });
+    assert.equal(config.simulation, true);
+    assert.equal(sourceStats(config), "instagram");
+  } finally { m.nettoyer(); }
+});
