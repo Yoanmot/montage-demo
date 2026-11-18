@@ -15,7 +15,7 @@
 //   registre_rendu: { empreinte } | null,   rendus/registre.json carrousels[slug]
 //   publication: { statut, prevu_le } | null, publications/registre.json publications[slug]
 //   face: [noms],                  entrées de MEDIA/<slug>/face/
-//   planche: bool,                 un face/*-montage/planche/planche.png existe
+//   planche: bool,                 un face/*-montage/apercu/apercu.json (ou, avant le lot 8, planche/planche.png) existe
 //   tournage: bool,                le slug est dans un tournages/*.json
 // }
 // etatLocal : { actions: [Action], actives: [chat_id], maintenant: Date }
@@ -29,7 +29,7 @@ export const LIBELLES = {
   valide: "brief validé",
   tournage_prevu: "à tourner",
   rushs_recus: "rushs reçus",
-  planche: "planche à valider",
+  planche: "aperçu à valider",
   monte: "monté",
   mis_en_page: "mis en page",
   programme: "programmé",

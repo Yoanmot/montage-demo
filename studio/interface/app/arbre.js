@@ -38,7 +38,7 @@ function etatFichier(c, f) {
   }
   if (f === "montage") {
     if (s === "rushs_recus") return c.activite === "en_cours" ? ["en cours", false] : c.activite === "en_file" ? ["en attente", false] : ["à vérifier", true];
-    if (s === "planche") return c.activite === "en_cours" ? ["en cours", false] : ["planche à valider", true];
+    if (s === "planche") return c.activite === "en_cours" ? ["en cours", false] : ["aperçu à valider", true];
   }
   if (f === "ressource") {
     if (c.ressource === "en_ligne") return ["en ligne", false];

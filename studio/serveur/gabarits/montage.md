@@ -19,7 +19,7 @@ Variables :
   {{tournage}}  « Plan de tournage groupé : <chemin absolu> » pour chaque DEPOT/tournages/*.json dont
                 `contenus` contient le slug (une ligne chacun, le plus récent d'abord) ; vide s'il n'y en a pas.
 
-Pour une reprise (Romain répond à la planche), le serveur n'utilise pas ce gabarit : il envoie le texte
+Pour une reprise (Romain répond dans le chat, une note sur l'aperçu, « Fabrique la vidéo »), le serveur n'utilise pas ce gabarit : il envoie le texte
 de Romain tel quel avec --resume.
 -->
 Monte la vidéo du contenu {{slug}} : « {{titre}} » (mode studio).
@@ -38,5 +38,6 @@ texte lui-même dans son studio : c'est le fichier qui fait foi. S'il y a un pla
 quel mouvement de quel clip sert quelle phrase. Ce que montre chaque clip est décrit dans
 `../_bibliotheque/index.json`.
 
-Montage complet, jusqu'à la planche. Écris la planche, regarde-la, puis écris-lui ton message de validation et
-arrête-toi : la planche s'affiche dans sa carte. Il te répondra dans ce chat.
+Montage complet, jusqu'à l'aperçu (sons compris). Regarde toi-même les moments clés sur une planche, lance l'aperçu,
+puis écris-lui ton message et arrête-toi : l'aperçu s'affiche dans son dossier. Ses corrections t'arriveront en notes
+dans ce chat ; tu ne fabriques la vidéo que quand il clique « Fabrique la vidéo ».

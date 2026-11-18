@@ -8,7 +8,7 @@ import { ErreurStudio } from "./api.js";
 const LIBELLES = {
   proposee: "idée proposée", gardee: "brief à écrire", script_ecrit: "brief à relire",
   valide_reel: "brief validé", valide_carrousel: "à mettre en page", tournage_prevu: "à tourner",
-  rushs_recus: "rushs reçus", planche: "planche à valider", monte: "monté", mis_en_page: "mis en page",
+  rushs_recus: "rushs reçus", planche: "aperçu à valider", monte: "monté", mis_en_page: "mis en page",
   publie: "publié", abandonne: "mis de côté", refusee: "refusée", de_cote: "mise de côté",
 };
 function libelle(c) {
@@ -498,6 +498,9 @@ export function creerApiMaquette() {
       if (["valide"].includes(c.stade)) majCarte(c, { stade: "script_ecrit" }); else emettre("carte", { ...c });
       return { empreinte: b.empreinte };
     },
+    // L'aperçu n'a pas d'exemple dans la maquette (sans serveur, pas de montage à jouer).
+    async noteApercu() { await attendre(200); return {}; },
+    async fabriquer() { await attendre(200); return {}; },
     async retirerRush(slug, id) {
       await attendre(300);
       const c = parSlug(slug); const m = montageDe(c);

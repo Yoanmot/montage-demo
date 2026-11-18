@@ -89,6 +89,11 @@ Regarde chaque image de contrôle : le rond est entre ses yeux, son visage est e
 - « plus doux » : rapprochement au lieu d'éclair ; « plus sec » : l'inverse.
 Puis `preparer`, et le monteur refait la vidéo depuis l'originale.
 
+## Ce qui sort aussi : `zooms-donnees.json`
+Les mêmes zooms en données (type, échelle, point fixe en part de l'original, images de début, de pose et de fin,
+courbe), avec l'empreinte de `zooms.txt` : l'aperçu du studio (`rendu`, `apercu.py`) les joue sans rendu. Le rendu ne
+le lit pas. Écrit à chaque `preparer`, à ne jamais modifier à la main.
+
 ## Ce qui sort : `zooms.txt`
 Un morceau de graphe ffmpeg, à poser tel quel entre le plan coupé et la suite : `[v]<zooms.txt>[vz]`.
 - Entrée `[v]` : le plan coupé (sortie de `filtre.txt`), 30 i/s, à la définition de l'original. Sortie : même

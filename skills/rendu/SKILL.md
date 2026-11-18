@@ -1,6 +1,6 @@
 ---
 name: rendu
-description: Brique de l'agent monteur (pas un point d'entrée pour l'utilisateur). Fait la planche de validation (vignettes de la vidéo montée, sans la fabriquer) puis fabrique la vidéo montée en un seul encodage depuis la vidéo d'origine, en composant les couches préparées par les autres briques dans le dossier <nom>-montage (coupes, zooms, calques HyperFrames des animations et des sous-titres, B-rolls, sons), dans l'ordre du contrat du monteur. À appeler quand toutes les briques demandées ont fini leur préparation, et après chaque retouche d'une brique.
+description: Brique de l'agent monteur (pas un point d'entrée pour l'utilisateur). Fait l'aperçu de validation du studio (la vidéo montée jouée image par image, sans la fabriquer), la planche (vignettes de la vidéo montée) puis fabrique la vidéo montée en un seul encodage depuis la vidéo d'origine, en composant les couches préparées par les autres briques dans le dossier <nom>-montage (coupes, zooms, calques HyperFrames des animations et des sous-titres, B-rolls, sons), dans l'ordre du contrat du monteur. À appeler quand toutes les briques demandées ont fini leur préparation, et après chaque retouche d'une brique.
 ---
 
 # Rendu
@@ -93,7 +93,36 @@ maintenant à (240, 88, 34). Le plan caméra bouge aussi d'un niveau en moyenne 
 Piège : HyperFrames écrit en RGB les images sans transparence et en RGBA les autres ; le rendu lit donc les PNG avec
 `-reinit_filter 0` (sans lui ffmpeg reconstruit son graphe en route et la vidéo s'arrête sans erreur).
 
-## La planche, avant de fabriquer
+## L'aperçu, la validation dans le studio
+Dans le studio, la personne valide son montage sur l'aperçu : sa vidéo montée jouée dans le fichier Montage, image par
+image, son compris, sans être fabriquée. Elle y écrit ses corrections (note, zone entourée) qui arrivent au monteur ;
+« Fabrique la vidéo » lance le rendu, toujours un seul encodage depuis l'originale.
+```
+/usr/bin/python3 "<dossier de ce skill>/scripts/apercu.py" "<dossier>-montage" [couches]
+```
+Timeout 600000 ms. Couches par défaut : tout ce qui est préparé (coupes, zooms, b-roll, animations, sous-titres, sons) ;
+le rendu final se fait ensuite avec la liste « couches » de `apercu/apercu.json`. Mêmes erreurs que le rendu
+(`SOUS-TITRES_PÉRIMÉS`, `MIX_SATURÉ`...), plus `ZOOMS_A_REFAIRE` (code 8 : `zooms.txt` sans `zooms-donnees.json` à jour,
+relance `zooms preparer`) et `APERÇU_RATÉ` (journal `apercu/erreur.log`).
+
+**Ce qu'il fabrique**, dans `<dossier>-montage/apercu/` (rien n'est livré, tout se refait sans risque) :
+- `camera-<clé>.mp4` : la vidéo coupée légère (720 x 1280, 30 i/s, une image clé toutes les 10 images) : coupes, HDR
+  converti, mise en 1080 x 1920 et étalonnage du style, comme le rendu, faite une fois (60 s environ pour une minute) ;
+  son = la bande son du rendu (voix normalisée et sons, même fonction), refait seul quand `sons.json` change (secondes) ;
+- `b-roll-<k>-<clé>.mp4` : chaque B-roll sur ses images, à sa vitesse et à son cadrage ;
+- `masques/<id>-<clé>/NNNN.png` : pour un calque derrière la personne, son masque par image en 216 x 384 (même calcul
+  que le rendu, gardé dans `rendu-cache/masques/` : le rendu le reprend sans le refaire) ;
+- `apercu.json` : ce que le lecteur joue (format dans le contrat du studio, section 16).
+Zooms (`zooms-donnees.json`), décalages et flous restent des données, joués par le lecteur ; les calques HyperFrames
+sont joués tels quels (aucun rendu HyperFrames). Une retouche : refais la brique, relance `apercu.py` (quelques
+secondes), le studio recharge l'aperçu à la même image.
+
+**Écarts connus avec la vidéo fabriquée** (l'aperçu affiche toujours « aperçu », le rendu reste la référence) : image
+720p (moins nette), pas de flou de mouvement pendant un zoom qui bouge (l'échelle est exacte), contour de la personne
+devant un titre plus doux (masque basse définition, sans la décontamination du bord du détouré), vignettage de
+l'étalonnage qui suit le zoom au lieu de rester fixe, et en lecture continue une image peut sauter (exact en pause).
+
+## La planche, avant de fabriquer (hors studio ; outil interne du monteur dans le studio)
 Avant le rendu complet, le monteur montre à Romain une planche de 8 à 12 vignettes : de vraies images de SA vidéo
 montée, une par moment du plan, composées comme le rendu le fera, sans fabriquer la vidéo. Romain répond « ok » ou par
 numéro (« enlève le 4 », « le 6 plutôt en orange »).

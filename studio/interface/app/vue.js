@@ -6,6 +6,7 @@ import { el, icone, annoncer, markdown, texteBrut, copier, quandLisible, jourCou
 import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefaut, ouChat, ouArbre, titreTournage } from "./commun.js";
 import { recapDans } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
+import { Apercu } from "./apercu.js";
 
 const enCours = (c) => ["en_cours", "en_file"].includes(c?.activite);
 const sansTitre = (md) => String(md || "").replace(/^#\s+.+\n+/, "").trim();
@@ -32,6 +33,7 @@ export class Vue {
     this.edition = null; this.aRecharger = false;
     const garde = this.racine.scrollTop; const meme = this._dernier === JSON.stringify(sel);
     this._dernier = JSON.stringify(sel);
+    if (this.apercu && (sel.genre !== "dossier" || s.carteSel()?.slug !== this.apercu.slug)) { this.apercu.detruire(); this.apercu = null; }
     if (sel.genre === "accueil") return this.poser(this.vueAccueil());
     if (sel.genre === "transverse") {
       if (sel.quoi === "ranger") return this.poser(this.vueRanger());
@@ -71,7 +73,54 @@ export class Vue {
     if (f === "montage") s.majChat();
   }
 
-  poser(n) { this.racine.replaceChildren(n); }
+  // Pose la vue. L'aperçu du montage reste en place s'il est déjà affiché (ses cadres ne se rechargent pas, la lecture
+  // continue, une note en cours d'écriture est gardée) : tout ce qui l'entoure est remplacé autour de lui.
+  poser(n) {
+    const place = n.querySelector?.(".apercu-place");
+    const vivant = this.apercu?.racine;
+    if (place && vivant && this.racine.contains(vivant)) {
+      const ancien = []; for (let x = vivant; x && x !== this.racine; x = x.parentNode) ancien.unshift(x);
+      const neuf = []; for (let x = place; x; x = x.parentNode) { neuf.unshift(x); if (x === n) break; }
+      if (ancien.length === neuf.length && neuf[0] === n) {
+        for (let i = 0; i < ancien.length - 1; i++) {
+          const a = ancien[i], b = neuf[i], suite = ancien[i + 1], suiteN = neuf[i + 1];
+          for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
+          for (const at of [...b.attributes]) a.setAttribute(at.name, at.value);
+          for (const x of [...a.childNodes]) if (x !== suite) x.remove();
+          const enfants = [...b.childNodes]; const k = enfants.indexOf(suiteN);
+          suite.before(...enfants.slice(0, k)); suite.after(...enfants.slice(k + 1));
+        }
+        return;
+      }
+    }
+    // Hors de l'aperçu : le lecteur s'arrête ; il est défait quand un autre dossier en ouvre un (hoteApercu) ou quand
+    // on quitte ce dossier (afficher). Une vue d'attente passagère du même dossier le garde.
+    if (!place && this.apercu) this.apercu.pause();
+    if (place && vivant) place.replaceWith(vivant);
+    this.racine.replaceChildren(n);
+  }
+
+  // Le lecteur de l'aperçu d'un montage : créé une fois par dossier, puis mis à jour (nouvel aperçu, notes, monteur
+  // occupé) ; la vue reçoit une place que poser() remplace par le lecteur vivant.
+  hoteApercu(d) {
+    const a = d.medias.apercu;
+    const etat = { occupe: enCours(d), ouChat: ouChat() };
+    if (this.apercu?.slug === d.slug) {
+      this.apercu.maj(a, etat);
+      // Déjà affiché : une place, remplacée par le lecteur vivant. Sorti de la page (vue d'attente passagère) : il y
+      // revient tel quel ; ses cadres se rechargent et se recalent d'eux-mêmes sur l'image courante.
+      return this.racine.contains(this.apercu.racine) ? el("div", { class: "apercu-place", dataset: { slug: d.slug } }) : this.apercu.racine;
+    }
+    if (this.apercu) { this.apercu.detruire(); this.apercu = null; }
+    const slug = d.slug;
+    this.apercu = new Apercu({ slug, base: a.base, url: a.url, actions: {
+      envoyerNote: async (note) => { await this.api.noteApercu(slug, note); this.afficher(); },
+      fabriquer: async () => { await this.api.fabriquer(slug); annoncer("C'est parti : ton monteur fabrique la vidéo."); this.afficher(); },
+    } });
+    this.apercu.maj(a, etat);
+    globalThis.__apercuStudio = this.apercu;   // pour les vérifications par le protocole de débogage de Chrome
+    return this.apercu.racine;
+  }
 
   // Le serveur dit qu'un dossier a changé : on recharge le fichier ouvert, sauf pendant une retouche.
   carteChangee(c) {
@@ -452,12 +501,16 @@ export class Vue {
       r.push(this.enLot(d, "montage"));
     } else if (d.stade === "rushs_recus" || (enCours(d) && d.stade !== "planche")) {
       r.push(this.etape(`Le montage est en cours (une demi-heure environ). Tu peux suivre et parler à ton monteur dans le chat ${ouChat()}.`, null, { cours: true }));
+    } else if (d.stade === "planche" && d.medias?.apercu) {
+      r.push(this.etape(enCours(d) ? "Ton monteur travaille sur ta vidéo. L'aperçu se recharge tout seul quand il a fini, à la même image." : `<strong>Ton aperçu est prêt.</strong> Regarde-le en entier. Quelque chose à changer : mets pause, entoure-le si tu veux et écris ta note, elle part à ton monteur. Tout est bon : « Fabrique la vidéo ».`,
+        null, { aToi: !enCours(d), cours: enCours(d) }));
     } else if (d.stade === "planche") {
       r.push(this.etape(enCours(d) ? "Ton monteur reprend la vidéo avec ta réponse." : `<strong>Ta planche est prête.</strong> Regarde chaque moment, puis réponds dans le chat ${ouChat()} : « ok » pour fabriquer la vidéo, ou ce que tu changes avec son numéro.`,
         null, { aToi: !enCours(d), cours: enCours(d) }));
     } else if ((d.fichiers || []).includes("video")) {
       r.push(this.etape("<strong>Ta vidéo est montée.</strong>", this.aller(d, "video", "Voir la vidéo montée", "video")));
     }
+    if (d.medias?.apercu && d.stade === "planche") r.push(this.bloc("L'aperçu de ta vidéo", this.hoteApercu(d)));
     if (d.medias?.planche) {
       r.push(this.bloc("La planche", el("div", {},
         el("img", { class: "planche-img", src: d.medias.planche, alt: "La planche du montage, moment par moment", width: "900", height: "560" }),
@@ -466,7 +519,7 @@ export class Vue {
     const grille = el("div", { class: "rushs-grille" }, ...m.rushs.map((x) => this.rush(d, x, verifiable)));
     const blocRushs = this.bloc("Tes vidéos rangées", m.rushs.length ? grille : el("p", { class: "vide-doux" }, "Aucune vidéo rangée pour l'instant."),
       { aide: pluriel(m.rushs.length, "fichier", "fichiers") });
-    if (d.medias?.planche && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
+    if ((d.medias?.planche || d.medias?.apercu) && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
     else r.push(blocRushs);
     if (m.manquants?.length && !montageLance) {
       r.push(this.bloc("Pas encore arrivé", el("div", {},

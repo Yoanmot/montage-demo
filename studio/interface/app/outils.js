@@ -172,6 +172,8 @@ const P = {
   ranger: '<path d="M3.5 7.5h13v8a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M3.5 7.5L5 4h10l1.5 3.5M8 10.5h4"/>',
   poignee: '<path d="M7.5 5v.1M12.5 5v.1M7.5 10v.1M12.5 10v.1M7.5 15v.1M12.5 15v.1"/>',
   lecture: '<path d="M7 5l8 5-8 5z"/>',
+  pause: '<path d="M7.5 5v10M12.5 5v10"/>',
+  entourer: '<path d="M10 3.5c4 0 6.5 2.6 6.5 6s-2.6 6.5-6.7 6.5S3.5 13.2 3.5 10c0-2.3 1.3-4.3 3.3-5.4"/>',
   crayon: '<path d="M12.5 4.5l3 3-8 8H4.5v-3z"/>',
   ecrire: '<path d="M4 15.5h12M5 12l7.5-7.5 2.5 2.5L7.5 14.5H5z"/>',
   ciseaux: '<circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="14" r="2.2"/><path d="M8 7.2l8 6.3M8 12.8l8-6.3"/>',

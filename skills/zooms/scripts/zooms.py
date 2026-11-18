@@ -262,7 +262,9 @@ def cmd_preparer(w):
                     fx, fy = ANCRE_DEFAUT; z["source_ancre"] = "defaut"
             z["ax"], z["ay"] = fx * W, fy * H
 
-        (w / "zooms.txt").write_text(graphe(zooms, total, fps, W, H, premier_in(ff)), encoding="utf-8")
+        txt = graphe(zooms, total, fps, W, H, premier_in(ff))
+        (w / "zooms.txt").write_text(txt, encoding="utf-8")
+        ecrit_donnees(w, zooms, txt, fps, W, H)
         # Le dézoom d'ouverture, pour l'animation du titre derrière lui (il dézoome avec la caméra, image par image)
         ov = next((z for z in zooms if z["type"] == "ouverture"), None)
         (w / "ouverture.json").unlink(missing_ok=True)
@@ -299,6 +301,30 @@ def cmd_preparer(w):
             + (" [retour au plan large sans coupe : pas de coupe dans les 4 s]" if z["sans_coupe"] else ""))
 
 
+def image_fixe(z, fps):
+    """Première image où l'échelle du geste est posée (la même que graphe())."""
+    return next(f for f in range(z["f0"], z["f1"] + 1) if f == z["f1"] or abs(echelle_a(z, f / fps) - z["s"]) < 1e-5)
+
+
+def ecrit_donnees(w, zooms, txt, fps, W, H):
+    """zooms-donnees.json : les mêmes zooms en données, pour l'aperçu sans rendu (brique rendu, apercu.py) qui les joue
+    en CSS sur la vidéo légère. Le rendu ne le lit pas. `zooms_txt` : empreinte de zooms.txt, pour que l'aperçu
+    refuse des données d'une autre préparation. Échelle à l'image n (vidéo coupée, 30 i/s) :
+      ouverture : echelle - (echelle - 1) * n / f1 pour n < f1 ;
+      eclair, rapprochement : moyenne de echelle_a aux instants (n + j/10)/30, j = 0..9, de f0 à fixe (flou de mouvement
+      du rendu : l'aperçu n'en garde que l'échelle moyenne), puis echelle jusqu'à f1 (exclue) ; 1 ailleurs.
+    ancre : point fixe en part de la largeur et de la hauteur de l'original."""
+    import hashlib
+    d = dict(version=1, fps=fps, largeur=W, hauteur=H, sous_images=SOUS_IMAGES,
+             zooms_txt=hashlib.sha1(txt.encode()).hexdigest()[:16],
+             zooms=[dict(type=z["type"], echelle=round(z["s"], 6), ancre=[round(z["ax"] / W, 6), round(z["ay"] / H, 6)],
+                         t0=round(z["t0"], 6), duree=round(z["duree"], 6), f0=z["f0"], f1=z["f1"],
+                         fixe=z["f1"] if z["type"] == "ouverture" else image_fixe(z, fps),
+                         courbe={"eclair": "power2.out", "rapprochement": "power2.inOut"}.get(z["type"], "lineaire"))
+                    for z in zooms])
+    (w / "zooms-donnees.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def graphe(zooms, total, fps, W, H, in0):
     """Le morceau de graphe ffmpeg : [v] + ce texte + [vz]."""
     if not zooms: return "null"
@@ -307,8 +333,7 @@ def graphe(zooms, total, fps, W, H, in0):
     for z in zooms:
         if z["type"] == "ouverture":   # de l'image 0 au mot clé, échelle qui baisse d'un pas égal à chaque image
             morceaux.append((0, z["f1"], "ouverture", z)); k = z["f1"]; continue
-        fixe = next(f for f in range(z["f0"], z["f1"] + 1)
-                    if f == z["f1"] or abs(echelle_a(z, f / fps) - z["s"]) < 1e-5)   # première image où l'échelle est posée
+        fixe = image_fixe(z, fps)   # première image où l'échelle est posée
         if z["f0"] > k: morceaux.append((k, z["f0"], "plat", None))
         if fixe > z["f0"]: morceaux.append((z["f0"], fixe, "mouvement", z))
         if z["f1"] > fixe: morceaux.append((fixe, z["f1"], "tenu", z))

@@ -246,8 +246,9 @@ export function instantane(config, slug, depotLu) {
     registre_rendu: depotLu.rendus[slug] || null,
     publication: depotLu.pub[slug] || null,
     face: face.map((e) => e.name),
+    // L'aperçu du montage (lot 8) ou, pour un montage d'avant l'aperçu, sa planche : le montage attend la validation.
     planche: face.some((e) => e.isDirectory() && e.name.endsWith("-montage")
-      && existe(path.join(faceDir, e.name, "planche", "planche.png"))),
+      && (existe(path.join(faceDir, e.name, "apercu", "apercu.json")) || existe(path.join(faceDir, e.name, "planche", "planche.png")))),
     tournage: depotLu.tournages.some((t) => t.contenus.includes(slug)),
   };
   const contenu = { slug, format: formatDe(etat, idee, fichiers), etat };
@@ -418,6 +419,23 @@ function plusRecent(dossier, noms) {
   return meilleur;
 }
 
+// Le dossier de montage dont l'aperçu est le plus récent : { dossier (nom), fait (ms) } ou null.
+export function apercuDe(faceDir, face = lister(faceDir)) {
+  let r = null;
+  for (const e of face) {
+    if (!e.isDirectory() || !e.name.endsWith("-montage")) continue;
+    const s = stat(path.join(faceDir, e.name, "apercu", "apercu.json"));
+    if (s && (!r || s.mtimeMs > r.fait)) r = { dossier: e.name, fait: s.mtimeMs };
+  }
+  return r;
+}
+
+// Les notes de correction envoyées sur l'aperçu (écrites par le serveur, jamais par le modèle) : contrat, section 16.
+export function notesApercu(dossierMontage) {
+  const j = lireJson(path.join(dossierMontage, "notes-apercu.json"), null);
+  return Array.isArray(j?.notes) ? j.notes.filter((n) => n && Number.isInteger(n.image) && typeof n.texte === "string") : [];
+}
+
 export function detail(config, slug, etatLocal) {
   const lu = lireDepot(config.depot);
   if (!lu.contenus.includes(slug)) return null;
@@ -447,9 +465,22 @@ export function detail(config, slug, etatLocal) {
   const montes = face.filter((e) => !e.isDirectory() && estMonte(e.name)).map((e) => e.name);
   const montee = plusRecent(faceDir, montes);
   if (montee) medias.video_montee = urlMedia(slug, "face", montee);
+  // L'aperçu (lot 8) remplace la planche : le plus récent des dossiers de montage qui en a un.
+  const apercu = apercuDe(faceDir, face);
+  if (apercu) {
+    medias.apercu = {
+      // ?v= : un aperçu refait (après une retouche) change d'adresse, le lecteur le recharge à la même image.
+      url: urlMedia(slug, "face", apercu.dossier, "apercu", "apercu.json") + "?v=" + Math.round(apercu.fait),
+      base: urlMedia(slug, "face", apercu.dossier) + "/",
+      notes: notesApercu(path.join(faceDir, apercu.dossier)).map((n) => ({
+        n: n.n, image: n.image, texte: n.texte, traits: n.traits || [], le: n.le,
+        prise: Boolean(Date.parse(n.le) < apercu.fait - 1000),
+      })),
+    };
+  }
   const dossiersMontage = face.filter((e) => e.isDirectory() && e.name.endsWith("-montage")
     && existe(path.join(faceDir, e.name, "planche", "planche.png"))).map((e) => e.name);
-  const montage = plusRecent(faceDir, dossiersMontage.map((n) => path.join(n, "planche", "planche.png")));
+  const montage = apercu ? null : plusRecent(faceDir, dossiersMontage.map((n) => path.join(n, "planche", "planche.png")));
   if (montage) {
     // ?v= : une nouvelle planche (après une correction) change d'adresse, le navigateur la recharge.
     medias.planche = urlMedia(slug, "face", montage) + "?v=" + Math.round(stat(path.join(faceDir, montage))?.mtimeMs || 0);

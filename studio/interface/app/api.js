@@ -65,6 +65,8 @@ export function creerApiServeur() {
     receptionPlan: (id) => appel("GET", `/api/tournages/${enc(id)}/reception`),
     brief: (slug, corps) => appel("POST", `/api/cartes/${enc(slug)}/brief`, corps),
     retirerRush: (slug, id) => appel("POST", `/api/cartes/${enc(slug)}/rushs/retirer`, { id }),
+    noteApercu: (slug, note) => appel("POST", `/api/cartes/${enc(slug)}/apercu/notes`, note),
+    fabriquer: (slug) => appel("POST", `/api/cartes/${enc(slug)}/apercu/fabriquer`, {}),
     placer: (fichier, slug, type) => appel("POST", "/api/rangement/placer", { fichier, slug, type }),
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),

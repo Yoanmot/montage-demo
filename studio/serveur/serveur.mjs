@@ -10,7 +10,7 @@ import {
 } from "./outils.mjs";
 import {
   construireCartes, detail, aRanger, cleCarte, indexSansChemins, videoFace, listeTournages, lireTournage, dateBrief,
-  instantane, lireDepot,
+  instantane, lireDepot, apercuDe, notesApercu,
 } from "./lecture.mjs";
 import { stade as stadeDe } from "./stades.mjs";
 import { typeDeChat } from "./reglages.mjs";
@@ -35,6 +35,38 @@ const TYPES_MIME = {
   ".heic": "image/heic", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf",
   ".otf": "font/otf", ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".md": "text/plain; charset=utf-8",
   ".txt": "text/plain; charset=utf-8", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
+};
+
+// Les traits d'une zone entourée sur l'aperçu (coordonnées 0..1 de l'écran 9:16) : bornés, arrondis.
+export function traitsPropres(brut) {
+  if (!Array.isArray(brut)) return [];
+  const r = [];
+  for (const t of brut.slice(0, 20)) {
+    if (!Array.isArray(t)) continue;
+    const pts = [];
+    for (const pt of t.slice(0, 600)) {
+      if (!Array.isArray(pt) || pt.length !== 2) continue;
+      const [x, y] = pt.map(Number);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      pts.push([Math.round(Math.min(1, Math.max(0, x)) * 10000) / 10000, Math.round(Math.min(1, Math.max(0, y)) * 10000) / 10000]);
+    }
+    if (pts.length) r.push(pts);
+  }
+  return r;
+}
+
+// Le rectangle qui contient la zone entourée (0..1), ou null.
+export function zoneDe(traits) {
+  const pts = traits.flat();
+  if (!pts.length) return null;
+  const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
+  const r = (v) => Math.round(v * 1000) / 1000;
+  return { x: r(Math.min(...xs)), y: r(Math.min(...ys)), l: r(Math.max(...xs) - Math.min(...xs)), h: r(Math.max(...ys) - Math.min(...ys)) };
+}
+
+export const instantLisible = (image) => {
+  const t = image / 30; const m = Math.floor(t / 60);
+  return `${m}:${(t - m * 60).toFixed(1).padStart(4, "0")}`;
 };
 
 const echapper = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -554,6 +586,47 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         rafraichir();
         return envoyerJson(res, 200, {});
       }
+      // L'aperçu du montage (lot 8, contrat section 16) : une note de correction, ou « Fabrique la vidéo ». Les deux
+      // partent au chat du monteur ; la note s'écrit d'abord dans notes-apercu.json du dossier de montage (l'état vient
+      // des fichiers). Aucune édition directe du montage.
+      if (m === "POST" && p[2] === "apercu" && p.length === 4 && ["notes", "fabriquer"].includes(p[3])) {
+        const faceDir = path.join(config.media, slug, "face");
+        const a = apercuDe(faceDir);
+        if (!a) throw new ErreurStudio("PAS_D_APERCU", "Il n'y a pas encore d'aperçu pour ce montage.", 409);
+        const dossier = path.join(faceDir, a.dossier);
+        const chat = `${slug}:monteur`;
+        const prenom = config.client?.prenom || config.prenom || "la personne";
+        let texte, envoi;
+        if (p[3] === "notes") {
+          const total = Number(lireJson(path.join(dossier, "apercu", "apercu.json"), null)?.images) || 0;
+          const image = Number(corps.image);
+          if (!Number.isInteger(image) || image < 0 || (total && image >= total)) throw new ErreurStudio("CORPS_ILLISIBLE", MESSAGE_GENERIQUE, 400);
+          const t = typeof corps.texte === "string" ? corps.texte.trim().slice(0, 2000) : "";
+          if (!t) throw new ErreurStudio("VIDE", "Écris ce que tu veux changer, puis envoie.", 400);
+          const traits = traitsPropres(corps.traits);
+          const zone = zoneDe(traits);
+          const notes = notesApercu(dossier);
+          const note = { n: notes.reduce((x, y) => Math.max(x, Number(y.n) || 0), 0) + 1, le: isoZurich(), image,
+            instant: Math.round(image / 30 * 1000) / 1000, texte: t, zone, traits };
+          ecrireJson(path.join(dossier, "notes-apercu.json"), { notes: [...notes, note] });
+          texte = `À ${instantLisible(image)} (image ${image}) : ${t}${zone ? " (zone entourée)" : ""}`;
+          const ou = zone
+            ? `Zone entourée sur l'écran (en part de la largeur et de la hauteur, depuis le coin en haut à gauche) : x de ${zone.x} à ${Math.round((zone.x + zone.l) * 1000) / 1000}, y de ${zone.y} à ${Math.round((zone.y + zone.h) * 1000) / 1000} (traits complets dans le fichier).`
+            : "Pas de zone entourée.";
+          envoi = `Note de correction de ${prenom} sur l'aperçu, n°${note.n} dans ${path.join(dossier, "notes-apercu.json")} : `
+            + `image ${image} de la vidéo coupée (${note.instant} s). « ${t} » ${ou}`;
+        } else {
+          if (pont.actif(chat)) throw new ErreurStudio("OCCUPE", "Ton monteur travaille encore : attends qu'il ait fini pour fabriquer la vidéo.", 409);
+          texte = "C'est bon, fabrique la vidéo.";
+          envoi = `${prenom} a validé l'aperçu (bouton « Fabrique la vidéo »). Fabrique la vidéo avec les couches de l'aperçu `
+            + `(${path.join(dossier, "apercu", "apercu.json")}, « couches »), puis vérifie-la comme d'habitude.`;
+        }
+        if (!pont.actif(chat)) await avantAction();
+        file.repriseParRomain(chat);
+        pont.envoyer(chat, { texte, envoi: messagePourModele(chat, typeDeChat(chat), envoi), romain: true, besoin: { slug } });
+        rafraichir();
+        return envoyerJson(res, 200, {});
+      }
       if (m === "POST" && p[2] === "abandonner") {
         const raison = texteCourt(corps.raison);
         await avantAction();
@@ -861,6 +934,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     const permis = [config.media, config.carrousels || etendre("~/Pictures/Carrousels", config.maison)]
       .map((d) => { try { return fs.realpathSync(d); } catch { return null; } }).filter(Boolean);
     if (!permis.some((d) => dedans(d, reel))) return erreur(res, 404, "INTROUVABLE", "Je ne trouve pas ce fichier.");
+    // Les calques de l'aperçu (compositions du monteur) se jouent dans des cadres de la page du studio.
+    if (path.extname(reel).toLowerCase() === ".html") res.setHeader("X-Frame-Options", "SAMEORIGIN");
     return servirFichier(req, res, reel, { cache: "private, max-age=60" });
   }
 

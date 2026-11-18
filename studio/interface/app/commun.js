@@ -7,7 +7,7 @@ export const ACTIONS_LOT = [
   { type: "script", titre: "Plusieurs briefs d'un coup", libelle: (n) => `Écrire les ${n} briefs`, ok: (c) => c.stade === "gardee",
     note: "Je les écris l'un après l'autre. Si j'ai une question, le dossier concerné te la pose." },
   { type: "montage", titre: "Plusieurs vidéos au montage", libelle: (n) => `Envoyer les ${n} au montage`, ok: (c) => c.format === "reel" && c.stade === "rushs_recus",
-    note: "Vérifie d'abord les vidéos rangées de chacune. Je les monte l'une après l'autre, chacune s'arrête à sa planche." },
+    note: "Vérifie d'abord les vidéos rangées de chacune. Je les monte l'une après l'autre, chacune s'arrête à son aperçu." },
   { type: "mise_en_page", titre: "Plusieurs carrousels d'un coup", libelle: (n) => `Mettre les ${n} en page`, ok: (c) => c.format === "carrousel" && c.stade === "valide",
     note: "Je les mets en page l'un après l'autre." },
 ];
