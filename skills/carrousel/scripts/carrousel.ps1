@@ -16,6 +16,11 @@ $Skill = Split-Path -Parent $PSScriptRoot
 $Assets = Join-Path $Skill "assets"
 $UserHome = $env:USERPROFILE; if (-not $UserHome) { $UserHome = $HOME }   # $HOME : tests sur Mac (pwsh)
 $HomeDir = Join-Path $UserHome ".montage-yoan"
+# Installation d'un autre client que Romain (<racine>/client.json à côté de la copie du dépôt, ex. l'essai
+# romain-test sur le Mac de Yoan) : outils et profil du navigateur dans sa racine, jamais dans ~/.montage-yoan.
+$Racine = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
+if ($env:STUDIO_RACINE -and (Test-Path -LiteralPath $env:STUDIO_RACINE)) { $HomeDir = $env:STUDIO_RACINE }
+elseif ($Racine -and (Test-Path -LiteralPath (Join-Path $Racine "client.json"))) { $HomeDir = $Racine }
 $Bin = Join-Path $HomeDir "bin"
 $Curl = "curl.exe"; if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) { $Curl = "curl" }
 New-Item -ItemType Directory -Force -Path $Bin | Out-Null
