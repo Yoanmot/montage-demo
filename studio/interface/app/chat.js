@@ -121,7 +121,9 @@ export class Chat {
 
   async envoyer() {
     const texte = this.champ.value.trim();
-    if (!texte || this.etat === "en_cours") return;
+    // Rien d'écrit : le clic sur « Envoyer » met le curseur dans le champ, au lieu de ne rien faire.
+    if (!texte) { this.champ.focus(); return; }
+    if (this.etat === "en_cours") return;
     this.champ.value = ""; this.ajuster();
     this.bouton.disabled = true;
     this._collé = true; this.basDeFil(true);

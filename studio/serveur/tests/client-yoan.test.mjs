@@ -253,11 +253,12 @@ test("serveur yoan : le thème charge ses propres polices, servies à côté de 
   const css = (await requete("/app/themes/yoan.css")).texte;
   assert.ok(!/manrope|FAR Titres/i.test(css), "aucune police de Romain dans le thème de Yoan");
   const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((x) => x[1]);
-  assert.ok(urls.length >= 3, "Anton et Instrument Sans (droit, italique)");
+  assert.ok(urls.filter((u) => u.endsWith(".woff2")).length >= 4, "Anton, Instrument Sans (droit, italique), JetBrains Mono");
+  assert.ok(urls.includes("yoan-logo.svg"), "le logo « studio. » dessiné");
   for (const u of urls) {
     const r = await requete(new URL(u, "http://x/app/themes/yoan.css").pathname);
     assert.equal(r.statut, 200, u);
-    assert.equal(r.entetes["content-type"], "font/woff2", u);
+    assert.equal(r.entetes["content-type"], u.endsWith(".svg") ? "image/svg+xml" : "font/woff2", u);
   }
 });
 

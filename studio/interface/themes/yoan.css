@@ -1,18 +1,23 @@
 /* Studio de Yoan (@ia.yoan). Thème tiré de la charte v1 (content/banque/da) :
    noir chaud #0A0A09, orange de surface #C2700B, orange d'éclat #FFA31A, texte #F2EEE8,
-   Anton pour le nom du studio et le titre du fichier ouvert, Instrument Sans pour tout le reste.
-   Aucune serif italique. Aucune couleur froide : les formats et les états restent dans des teintes chaudes.
+   Anton pour le titre du fichier ouvert, Instrument Sans pour tout le reste, JetBrains Mono pour les nombres
+   (le rôle « service » de la charte : numéros, minutage). Aucune serif italique. Aucune couleur froide : les
+   formats et les états restent dans des teintes chaudes.
+   Ce qui le distingue du studio de Romain (même base, style.css) : logo « studio. » en Satoshi Black (la police de
+   ses sous-titres) blanc sur noir, titres Anton droits, orange ocre de sa charte, arrondis serrés (6 / 4 / 3 px :
+   un atelier, pas une appli ronde), nombres en JetBrains Mono, formats en sable et terre cuite.
    Mêmes variables que le thème de Romain : ce fichier les redéfinit toutes. Le serveur le charge AVANT
-   style.css : les quelques sélecteurs surchargés plus bas sont donc préfixés par :root pour l'emporter
-   sur ceux de style.css. Les polices sont à côté, dans polices/ (chemins relatifs à ce fichier).
+   style.css : les sélecteurs du logo, plus bas, sont donc préfixés par :root pour l'emporter.
+   Les polices sont à côté, dans polices/ (chemins relatifs à ce fichier).
 
    Orange : un seul par thème, jamais les deux côte à côte.
    Sombre (le thème de la marque) : #FFA31A, l'orange des petits éléments sur fond noir.
-   Clair : #C2700B pour les aplats (texte noir dessus), #8A4C00 pour l'orange écrit en texte. */
+   Clair : #C2700B pour les aplats (texte noir dessus), #8A4C00 pour l'orange écrit en texte et le contour du focus. */
 
 @font-face { font-family: "Anton"; src: url("polices/anton-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-italic-latin.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("polices/jetbrains-mono-latin.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
 
 :root {
   --fond: #F2EEE8;
@@ -24,9 +29,11 @@
   --encre-3: #69625A;
   --trait: #E0DAD1;
   --trait-fort: #C2BAAE;
+  --trait-champ: #857B6F;
   --inverse: #F7F4EF;
   --orange: #C2700B;
   --orange-encre: #8A4C00;
+  --focus: #8A4C00;
   --orange-pale: #F7E6CC;
   --sur-orange: #0A0A09;
   --reel: #6B5530;
@@ -40,10 +47,20 @@
   --rouge: #A3261B; --rouge-pale: #F8E0DB;
   --ombre: 0 18px 50px -12px rgb(40 26 8 / 0.26), 0 4px 12px -4px rgb(40 26 8 / 0.12);
   --ombre-pop: 0 10px 30px -8px rgb(40 26 8 / 0.24);
-  --rayon: 12px;
-  --rayon-petit: 9px;
+  --rayon: 6px;
+  --rayon-petit: 4px;
+  --rayon-mini: 3px;
   --texte: "Instrument Sans", system-ui, -apple-system, sans-serif;
   --titres: "Anton", "Instrument Sans", sans-serif;
+  /* Anton n'a qu'une graisse et pas d'italique : droit, 400 (sinon le navigateur fabrique un faux gras penché). */
+  --titres-style: normal;
+  --titres-graisse: 400;
+  --titres-casse: uppercase;
+  --titres-interlettrage: 0;
+  --titre-taille: 32px;
+  --titre-interligne: 1.02;
+  --mot-taille: 23px;
+  --chiffres: "JetBrains Mono", ui-monospace, monospace;
   --courbe: cubic-bezier(0.16, 1, 0.3, 1);
   --arbre-l: 312px;
   --chat-l: 384px;
@@ -53,8 +70,8 @@
   :root:not([data-theme="light"]) {
     --fond: #0A0A09; --fond-2: #151513; --fond-3: #22201E; --surface: #1A1917;
     --encre: #F2EEE8; --encre-2: #C8C0B5; --encre-3: #A39B90;
-    --trait: #232120; --trait-fort: #3B3B39; --inverse: #0A0A09;
-    --orange: #FFA31A; --orange-encre: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
+    --trait: #232120; --trait-fort: #3B3B39; --trait-champ: #716A61; --inverse: #0A0A09;
+    --orange: #FFA31A; --orange-encre: #FFA31A; --focus: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
     --reel: #DCC39A; --reel-pale: #2A2416; --carrousel: #E0A28D; --carrousel-pale: #2E1D17;
     --reel-fond: #1B1812; --carrousel-fond: #1D1512;
     --vert: #A9C77F; --vert-pale: #1B2414; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF8A7A; --rouge-pale: #301613;
@@ -66,8 +83,8 @@
 :root[data-theme="dark"] {
   --fond: #0A0A09; --fond-2: #151513; --fond-3: #22201E; --surface: #1A1917;
   --encre: #F2EEE8; --encre-2: #C8C0B5; --encre-3: #A39B90;
-  --trait: #232120; --trait-fort: #3B3B39; --inverse: #0A0A09;
-  --orange: #FFA31A; --orange-encre: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
+  --trait: #232120; --trait-fort: #3B3B39; --trait-champ: #716A61; --inverse: #0A0A09;
+  --orange: #FFA31A; --orange-encre: #FFA31A; --focus: #FFA31A; --orange-pale: #2B1D09; --sur-orange: #0A0A09;
   --reel: #DCC39A; --reel-pale: #2A2416; --carrousel: #E0A28D; --carrousel-pale: #2E1D17;
   --reel-fond: #1B1812; --carrousel-fond: #1D1512;
   --vert: #A9C77F; --vert-pale: #1B2414; --ambre: #F2C46B; --ambre-pale: #2B2210; --rouge: #FF8A7A; --rouge-pale: #301613;
@@ -76,15 +93,10 @@
   color-scheme: dark;
 }
 
-/* Anton n'a qu'une graisse et pas d'italique : le nom du studio et le titre du fichier ouvert
-   passent en droit, graisse 400 (sinon le navigateur fabrique un faux gras penché). */
-:root .mot { font-style: normal; font-weight: 400; letter-spacing: 0.01em; font-size: 23px; }
-:root .non-connecte-msg .mot { font-size: 40px; }
-:root .vue-titre { font-style: normal; font-weight: 400; letter-spacing: 0; line-height: 1.02; font-size: 32px; max-width: 30ch; }
-@media (max-width: 1360px) { :root .vue-titre { font-size: 28px; } }
-
-/* Règle 80 / 15 / 5 de la charte : l'orange ne marque que ce qui attend Yoan (étiquettes, compteur,
-   accroche choisie, bouton qui fait partir une publication). L'avancement d'un contenu passe en
-   neutre, et l'invite du chat devient un encadré au lieu d'un deuxième aplat orange à l'écran. */
-:root .progression i.fait { background: var(--encre-2); }
-:root .chat-a-toi { background: var(--orange-pale); color: var(--encre); box-shadow: inset 3px 0 0 var(--orange); }
+/* Le logo : « studio. » en Satoshi Black (la police des sous-titres de ses reels, en minuscules, la plus grasse),
+   blanc sur une tuile noire, dessiné en vecteurs (yoan-logo.svg). Le texte reste dans la page pour les lecteurs
+   d'écran ; il n'est juste pas peint. */
+:root .mot { display: block; width: calc(var(--mot-taille) * 3.95); height: calc(var(--mot-taille) * 1.25); background: url("yoan-logo.svg") no-repeat left center / contain; color: transparent; font-size: 0; overflow: hidden; }
+:root .mot::after { content: none; }
+:root .non-connecte-msg .mot { width: calc(var(--mot-taille) * 7.1); height: calc(var(--mot-taille) * 2.25); font-size: 0; color: transparent; }
+:root .marque { align-items: center; }
