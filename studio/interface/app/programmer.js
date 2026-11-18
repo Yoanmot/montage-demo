@@ -154,7 +154,7 @@ function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource } 
   const t = ctx.retouches.get(e.slug) || {};
   const garde = ressource === undefined || t.ressource === ressource;
   const valeur = garde && typeof t[champ] === "string" ? t[champ] : initiale || "";
-  const lignes = Math.min(14, Math.max(3, String(valeur).split("\n").length + 1));
+  const lignes = Math.min(14, Math.max(2, String(valeur).split("\n").length));
   const n = multi
     ? el("textarea", { class: `champ recap-texte recap-texte-${champ}`, rows: String(lignes), "aria-label": label, spellcheck: "true" }, valeur)
     : el("input", { type: "text", class: `champ recap-texte recap-texte-${champ}`, value: valeur, "aria-label": label });
@@ -165,7 +165,11 @@ function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource } 
     erreur.textContent = x || ""; erreur.hidden = !x; n.classList.toggle("faux", Boolean(x));
     if (x) ctx.erreurs.set(cle, x); else ctx.erreurs.delete(cle);
   };
+  // Un texte se lit en entier : la zone prend la hauteur de son contenu (bornée), dès qu'elle est affichée.
+  const ajuster = () => { if (!multi || !n.isConnected) return; n.style.height = "auto"; n.style.height = `${Math.min(n.scrollHeight + 2, 460)}px`; };
+  if (multi) requestAnimationFrame(() => requestAnimationFrame(ajuster));
   n.addEventListener("input", () => {
+    ajuster();
     const r = ctx.retouches.get(e.slug) || {};
     if (ressource !== undefined && r.ressource !== ressource) { delete r.message; delete r.bouton; r.ressource = ressource; }
     r[champ] = n.value;
