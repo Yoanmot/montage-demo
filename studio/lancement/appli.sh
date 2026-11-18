@@ -8,6 +8,8 @@
 #     dépôt : rien à compiler chez le client) : une fenêtre, le point sous l'icône, Cmd+Tab ;
 #   - le repli, si ce binaire ne se lance pas sur ce Mac : un petit script qui appelle ouvrir.sh, qui
 #     ouvre le studio dans le navigateur (la forme d'avant).
+# L'ancienne icône (un script) a pu laisser à macOS la consigne de la lancer en mode Intel (Rosetta) sur
+# un Mac Apple : LSRequiresNativeExecution fait partir l'appli Mac en natif malgré cette consigne.
 # Rien ne dépend d'un outil de développement : cp, plutil, diff, et le binaire lui-même.
 # STUDIO_APPLI_NAVIGATEUR=1 (tests, ou dépannage) : pose le repli même si l'appli Mac se lance.
 
@@ -61,6 +63,13 @@ studio_poser_appli() {
   <string>fr</string>
   <key>LSMinimumSystemVersion</key>
   <string>11.0</string>
+  <key>LSRequiresNativeExecution</key>
+  <true/>
+  <key>LSArchitecturePriority</key>
+  <array>
+    <string>arm64</string>
+    <string>x86_64</string>
+  </array>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key>
