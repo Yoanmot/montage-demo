@@ -4,6 +4,7 @@
 
 import { el, icone } from "./outils.js";
 import { cle, NOMS_FICHIERS, ICONES_FICHIERS, fichierParDefaut } from "./commun.js";
+import { position } from "./etapes.js";
 
 const GROUPES = [
   { id: "proposees", titre: "Idées proposées", ok: (c) => c.stade === "proposee", vide: "Demande « fais-moi 10 idées » dans le chat : chaque idée arrive ici dans son dossier." },
@@ -12,18 +13,13 @@ const GROUPES = [
   { id: "cote", titre: "Mis de côté", ok: (c) => ["abandonne", "de_cote"].includes(c.stade), ferme: true },
 ];
 
-// Les étapes d'un dossier, de la première à « publié » (lot 12) : un segment par étape, rempli en orange
-// pour celles qui sont franchies.
-const ETAPES = {
-  reel: ["gardee", "script_ecrit", "valide", "tournage_prevu", "rushs_recus", "planche", "monte", "programme", "publie"],
-  carrousel: ["gardee", "script_ecrit", "valide", "mis_en_page", "programme", "publie"],
-};
+// Les étapes d'un dossier, de la première à « publié » (lot 12 ; définies dans etapes.js, lot 10, avec la vue
+// d'ensemble) : un segment par étape, rempli pour celles qui sont franchies.
 function progression(c) {
-  const e = ETAPES[c.format] || ETAPES.reel;
-  const i = e.indexOf(c.stade);
+  const { i, n } = position(c);
   if (i < 0) return null;
-  return el("span", { class: "progression", role: "img", "aria-label": `étape ${i + 1} sur ${e.length}` },
-    ...e.map((_, k) => el("i", { class: k <= i ? "fait" : null })));
+  return el("span", { class: "progression", role: "img", "aria-label": `étape ${i + 1} sur ${n}` },
+    ...Array.from({ length: n }, (_, k) => el("i", { class: k <= i ? "fait" : null })));
 }
 
 // Ce que dit un fichier à côté de son nom, selon le stade du dossier.
@@ -54,7 +50,7 @@ function etatFichier(c, f, etatsRessources = null) {
   if (f === "video" || f === "slides") {
     if (s === "programme") return ["programmée", false];
     if (s === "publie") return ["publiée", false];
-    if (s === "monte" || s === "mis_en_page") return ["à programmer", false];
+    if (s === "monte" || s === "mis_en_page") return ["à poster", false];
   }
   return null;
 }

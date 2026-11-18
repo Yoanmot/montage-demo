@@ -28,6 +28,9 @@
 #                    <racine>/monteur sinon (même forme : .env et sons-generes/)
 #   CLIENT_HOOK      commande du hook SessionStart de mise à jour (texte exact, comparé par l'installeur)
 #   CLIENT_PREVENIR  « Envoie un message à <contact>. » ou vide
+#   CLIENT_POLICES   polices que le dépôt public ne peut pas contenir (licence), une par ligne « nom<TAB>fichier source » :
+#                    polices_locales du fichier ({ "<nom>.woff2": "<fichier chez le client>" }), posées par
+#                    studio_poser_polices dans <racine>/studio/polices/ (servies par le studio, repli du thème sinon)
 #   CLIENT_SIMULATION_FORCEE  1 si simulation_forcee est vrai (installation d'essai : rien ne peut partir sur
 #                    Instagram, aucune clé de publication ; voir demarrer.sh, cles.sh, verifier.sh)
 #
@@ -125,6 +128,9 @@ v = {
     "CLIENT_MONTEUR": g("monteur", defaut="monteur"),
     "CLIENT_PREVENIR": ("Envoie un message à %s." % contact) if contact else "",
     "CLIENT_SIMULATION_FORCEE": "1" if c.get("simulation_forcee") is True else "",
+    "CLIENT_POLICES": "\n".join("%s\t%s" % (n, deplier(src)) for n, src in sorted((c.get("polices_locales") or {}).items())
+        if isinstance(src, str) and src and all(ch.isalnum() or ch in "._-" for ch in n) and n[0].isalnum()
+        and n.lower().endswith((".woff2", ".woff", ".ttf", ".otf"))),
 }
 for k, x in v.items():
     print("%s=%s" % (k, shlex.quote(str(x))))
@@ -133,6 +139,24 @@ PYEOF
   CLIENT_ERREUR=""
   eval "$sortie"
   [ -z "$CLIENT_ERREUR" ]
+}
+
+# Pose les polices locales du client (CLIENT_POLICES) dans <dossier>/polices (le STUDIO_HOME). Copie seulement si le
+# fichier a changé ; source absente : rien (le thème retombe sur sa police de repli), une ligne POLICE_ABSENTE.
+# Rend 0 toujours ; écrit une ligne par police sur la sortie (POLICE_POSEE, POLICE_A_JOUR, POLICE_ABSENTE).
+studio_poser_polices() {
+  local dossier="$1" nom src
+  [ -n "${CLIENT_POLICES:-}" ] && [ -n "$dossier" ] || return 0
+  while IFS="$(printf '\t')" read -r nom src; do
+    [ -n "$nom" ] || continue
+    if [ ! -f "$src" ]; then echo "POLICE_ABSENTE $nom ($src)"; continue; fi
+    mkdir -p "$dossier/polices" || return 0
+    if [ -f "$dossier/polices/$nom" ] && cmp -s "$src" "$dossier/polices/$nom"; then echo "POLICE_A_JOUR $nom"; continue; fi
+    cp "$src" "$dossier/polices/.$nom.tmp" && mv -f "$dossier/polices/.$nom.tmp" "$dossier/polices/$nom" && echo "POLICE_POSEE $nom"
+  done <<EOF_POLICES
+$CLIENT_POLICES
+EOF_POLICES
+  return 0
 }
 
 # Pose CLAUDE_CONFIG_DIR pour les commandes claude lancées ensuite (rien chez Romain : ~/.claude).

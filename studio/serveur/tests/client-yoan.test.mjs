@@ -39,7 +39,10 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).sort();
   assert.deepEqual(cles(y), cles(r));
   assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "config_claude", "contact", "head_of_content", "id", "label_launchd",
-    "monteur", "port", "prenom", "racine", "reels_essai", "ressources", "skill_carrousel", "theme", "zernio"]);
+    "monteur", "polices_locales", "port", "prenom", "racine", "reels_essai", "ressources", "skill_carrousel", "theme", "zernio"]);
+  // Polices hors dépôt (lot 10) : Satoshi chez Yoan, depuis son fichier à lui ; rien chez Romain.
+  assert.deepEqual(r.polices_locales || {}, {});
+  assert.deepEqual(Object.keys(y.polices_locales), ["Satoshi-Black.woff2"]);
   // Reel d'essai : proposé chez Yoan seulement.
   assert.equal(y.reels_essai, true);
   assert.equal(r.reels_essai, false);
@@ -255,14 +258,34 @@ test("serveur yoan : aucun « Romain » dans les textes servis (accueil, état, 
 test("serveur yoan : le thème charge ses propres polices, servies à côté de la feuille", async () => {
   const css = (await requete("/app/themes/yoan.css")).texte;
   assert.ok(!/manrope|FAR Titres/i.test(css), "aucune police de Romain dans le thème de Yoan");
+  const sans = sansCommentaires(css);
+  // Lot 10 : les titres en Satoshi (la voix de ses reels), plus en Anton (le titre de ses carrousels), avec un repli.
+  assert.ok(!/Anton/.test(sans), "plus d'Anton dans le thème");
+  assert.match(sans, /--titres: "Satoshi", "Instrument Sans"/);
   const urls = [...css.matchAll(/url\("([^"]+)"\)/g)].map((x) => x[1]);
-  assert.ok(urls.filter((u) => u.endsWith(".woff2")).length >= 4, "Anton, Instrument Sans (droit, italique), JetBrains Mono");
+  assert.ok(urls.filter((u) => u.endsWith(".woff2")).length >= 4, "Satoshi, Instrument Sans (droit, italique), JetBrains Mono");
   assert.ok(urls.includes("yoan-logo.svg"), "le logo « studio. » dessiné");
-  for (const u of urls) {
+  for (const u of urls.filter((x) => !x.startsWith("/app/polices-client/"))) {
     const r = await requete(new URL(u, "http://x/app/themes/yoan.css").pathname);
     assert.equal(r.statut, 200, u);
     assert.equal(r.entetes["content-type"], u.endsWith(".svg") ? "image/svg+xml" : "font/woff2", u);
   }
+});
+
+test("serveur yoan : Satoshi n'est servie que posée dans le studio (polices_locales), sinon 404 et repli", async () => {
+  const u = "/app/polices-client/Satoshi-Black.woff2";
+  fs.rmSync(path.join(m.home, "polices"), { recursive: true, force: true });
+  assert.equal((await requete(u)).statut, 404, "pas posée : 404, le thème retombe sur Instrument Sans");
+  fs.mkdirSync(path.join(m.home, "polices"), { recursive: true });
+  fs.writeFileSync(path.join(m.home, "polices", "Satoshi-Black.woff2"), "wOF2-essai");
+  const r = await requete(u);
+  assert.equal(r.statut, 200);
+  assert.equal(r.entetes["content-type"], "font/woff2");
+  // Rien d'autre ne sort de ce dossier, ni d'ailleurs.
+  fs.writeFileSync(path.join(m.home, "polices", "notes.txt"), "x");
+  assert.equal((await requete("/app/polices-client/notes.txt")).statut, 404);
+  assert.equal((await requete("/app/polices-client/..%2Fstudio.config.json")).statut, 404);
+  assert.equal((await requete("/app/polices-client/../studio.config.json")).statut, 404);
 });
 
 test("lancement yoan : l'icône propre au client est dans le dépôt", () => {

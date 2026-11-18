@@ -18,6 +18,7 @@ import { executer } from "./commandes.mjs";
 import { existe, lireJson, SLUG_RE } from "./outils.mjs";
 import { ErreurStudio } from "./depot-outils.mjs";
 import { VARIABLES_ECRITURE, contact } from "./client.mjs";
+import { pageRessource } from "./vignettes.mjs";
 
 export const ressourcesActives = (config) => Boolean(config?.apercuRessources);
 
@@ -50,7 +51,7 @@ const PROBLEMES = [
   [/^mot invalide/, "Le mot à commenter doit être un seul mot sans accent, de 5 à 14 lettres."],
   [/^mot trop courant/, "Le mot est trop courant : des gens l'écriraient sans avoir vu ton post. Il faut un mot propre à la ressource."],
   [/^le lien doit être/, "Le lien vers la page n'est pas encore le bon."],
-  [/^message pas validé/, "Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides en programmant le post qui l'offre."],
+  [/^message pas validé/, "Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides quand tu postes le contenu qui l'offre."],
   [/^message vide ou trop long/, "Le message que reçoivent ceux qui commentent est vide ou trop long."],
   [/^texte du bouton/, "Le texte du bouton du message manque, ou il est trop long."],
   [/tiret long/, "Le message contient un tiret long."],
@@ -196,6 +197,8 @@ export class Ressources {
       bloquants: [...new Set((fiche?.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))],
       contenu: carte ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
       posts,
+      // Le petit aperçu de la page sur sa carte (lot 10) : capture fabriquée à la demande, l'adresse change avec la page.
+      vignette_url: (() => { const p = pageRessource(this.config, slug); return p ? `/api/ressources/${encodeURIComponent(slug)}/vignette?v=${p.version}` : null; })(),
     };
   }
 

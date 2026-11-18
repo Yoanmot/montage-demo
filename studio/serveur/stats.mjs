@@ -69,6 +69,19 @@ async function lireInstagram(config) {
   return JSON.parse(ligne);
 }
 
+// Les chiffres par format (lot 10 : « Reels » puis « Carrousels » dans la vue d'ensemble) : combien de publications, leurs
+// vues additionnées (seulement celles qui ont un chiffre) et la normale de vues du format. Rien d'inventé : un format
+// sans publication a 0 publication et des vues absentes (null).
+export function parFormat(publications, normale) {
+  const r = {};
+  for (const f of ["reel", "carrousel"]) {
+    const ps = (publications || []).filter((p) => p.type === f);
+    const vues = ps.map((p) => p.vues).filter((v) => typeof v === "number");
+    r[f] = { publications: ps.length, vues: vues.length ? vues.reduce((a, b) => a + b, 0) : null, normale: nombre(normale?.[f]) };
+  }
+  return r;
+}
+
 export class Stats {
   constructor({ config, journal = () => {}, lire } = {}) {
     this.config = config;
@@ -141,7 +154,8 @@ export class Stats {
       compte_28j: d?.compte_28j || null, compte_28j_avant: d?.compte_28j_avant || null,
       publications_30j: nombre(d?.publications_30j), vues_publications_30j: nombre(d?.vues_publications_30j),
       normale_vues: d?.normale_vues || null,
-      publications: (Array.isArray(d?.publications) ? d.publications : []).slice(0, 6).map((p) => ({
+      // Toutes les publications des 30 jours lus (lot 10 : une colonne chacune dans les graphiques ; au plus 60).
+      publications: (Array.isArray(d?.publications) ? d.publications : []).slice(0, 60).map((p) => ({
         le: p.le || null, type: p.type || null, titre: (p.slug && titres.get(p.slug)) || p.sujet || null,
         slug: p.slug || null, lien: typeof p.lien === "string" && /^https:\/\//.test(p.lien) ? p.lien : null,
         vues: nombre(p.vues), likes: nombre(p.likes), commentaires: nombre(p.commentaires),
@@ -149,6 +163,7 @@ export class Stats {
         x_vues: nombre(p.x_vues), comparable: Boolean(p.comparable),
       })),
     };
+    r.formats = parFormat(r.publications, r.normale_vues);
     if (!source && !d) r.erreur = "Les chiffres d'Instagram ne se lisent pas dans ce studio d'essai.";
     else if (c.erreur && !d) r.erreur = `Je n'arrive pas à lire tes chiffres Instagram pour l'instant. Je réessaie dans une heure ; si ça dure, préviens ${contact()}.`;
     else if (c.erreur) r.erreur = "La dernière mise à jour n'a pas marché : ce sont les chiffres d'avant. Je réessaie dans une heure.";

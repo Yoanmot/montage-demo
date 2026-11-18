@@ -26,5 +26,8 @@
   "monteur": "monteur-yoan",
   "reels_essai": true,
   "branche_mise_a_jour": "studio-multi-clients",
-  "config_claude": "/Users/Shared/studio-yoan/claude"
+  "config_claude": "/Users/Shared/studio-yoan/claude",
+  "polices_locales": {
+    "Satoshi-Black.woff2": "~/Workspace Claude Code/projets/perso/content/monteur/style/polices/Satoshi-Black.woff2"
+  }
 }

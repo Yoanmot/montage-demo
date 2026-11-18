@@ -1,10 +1,11 @@
 /* Studio de Yoan (@ia.yoan). Thème tiré de la charte v1 (content/banque/da) :
    noir chaud #0A0A09, orange de surface #C2700B, orange d'éclat #FFA31A, texte #F2EEE8,
-   Anton pour le titre du fichier ouvert, Instrument Sans pour tout le reste, JetBrains Mono pour les nombres
+   Satoshi Black en capitales pour le titre du fichier ouvert (lot 10, voir plus bas), Instrument Sans pour tout le
+   reste, JetBrains Mono pour les nombres
    (le rôle « service » de la charte : numéros, minutage). Aucune serif italique. Aucune couleur froide : les
    formats et les états restent dans des teintes chaudes.
    Ce qui le distingue du studio de Romain (même base, style.css) : logo « studio. » en Satoshi Black (la police de
-   ses sous-titres) blanc sur noir, titres Anton droits, orange ocre de sa charte, arrondis serrés (6 / 4 / 3 px :
+   ses sous-titres) blanc sur noir, titres Satoshi Black capitales, orange ocre de sa charte, arrondis serrés (6 / 4 / 3 px :
    un atelier, pas une appli ronde), nombres en JetBrains Mono, formats en sable et terre cuite.
    Mêmes variables que le thème de Romain : ce fichier les redéfinit toutes. Le serveur le charge AVANT
    style.css : les sélecteurs du logo, plus bas, sont donc préfixés par :root pour l'emporter.
@@ -14,7 +15,13 @@
    Sombre (le thème de la marque) : #FFA31A, l'orange des petits éléments sur fond noir.
    Clair : #C2700B pour les aplats (texte noir dessus), #8A4C00 pour l'orange écrit en texte et le contour du focus. */
 
-@font-face { font-family: "Anton"; src: url("polices/anton-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+/* Titres (lot 10, demande de Yoan : « la police de son monteur, pas celle des carrousels ») : Satoshi Black en capitales,
+   la voix de ses reels (sous-titres, plein écran, CTA : content/monteur/style/REGLES.md). Anton, l'autre police du
+   monteur, est aussi le titre de toutes ses slides de carrousel (banque/da/typographie.md) : c'est elle que Yoan voit
+   comme « la police des carrousels ». Satoshi (licence Fontshare) n'entre pas dans le dépôt public : l'installation la
+   copie depuis son fichier (polices_locales de clients/yoan.json) et le serveur la sert sous /app/polices-client/.
+   Absente : repli sur Instrument Sans en gras, capitales (même voix pleine, sans la police des carrousels). */
+@font-face { font-family: "Satoshi"; src: url("/app/polices-client/Satoshi-Black.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-latin.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Instrument Sans"; src: url("polices/instrument-sans-italic-latin.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url("polices/jetbrains-mono-latin.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
@@ -51,14 +58,14 @@
   --rayon-petit: 4px;
   --rayon-mini: 3px;
   --texte: "Instrument Sans", system-ui, -apple-system, sans-serif;
-  --titres: "Anton", "Instrument Sans", sans-serif;
-  /* Anton n'a qu'une graisse et pas d'italique : droit, 400 (sinon le navigateur fabrique un faux gras penché). */
+  --titres: "Satoshi", "Instrument Sans", system-ui, sans-serif;
+  /* Satoshi n'est posée qu'en Black (900), droite ; interlettrage de ses pleins écrans (-0,01 em). */
   --titres-style: normal;
-  --titres-graisse: 400;
+  --titres-graisse: 900;
   --titres-casse: uppercase;
-  --titres-interlettrage: 0;
-  --titre-taille: 32px;
-  --titre-interligne: 1.02;
+  --titres-interlettrage: -0.01em;
+  --titre-taille: 28px;
+  --titre-interligne: 1.08;
   --mot-taille: 23px;
   --chiffres: "JetBrains Mono", ui-monospace, monospace;
   --courbe: cubic-bezier(0.16, 1, 0.3, 1);

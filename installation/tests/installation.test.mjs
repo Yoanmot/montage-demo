@@ -556,3 +556,40 @@ test("appli : icône à jour dans le Dock après un remplacement, sans toucher a
   }
   fs.rmSync(maison, { recursive: true, force: true });
 });
+
+test("client.sh : polices locales du client (lot 10) posées dans <racine>/studio/polices, absente sans erreur, Romain rien", () => {
+  const t = tmp();
+  const maison = path.join(t, "maison");
+  fs.mkdirSync(maison);
+  const racine = path.join(t, "racine");
+  const src = path.join(maison, "polices-a-moi", "Ma-Police.woff2");
+  fs.mkdirSync(path.dirname(src), { recursive: true });
+  fs.writeFileSync(src, "wOF2-une");
+  const fichier = path.join(t, "essai.json");
+  fs.writeFileSync(fichier, JSON.stringify({ id: "essai", racine, config_claude: `${racine}/claude`,
+    polices_locales: { "Ma-Police.woff2": "~/polices-a-moi/Ma-Police.woff2", "Absente.woff2": "~/nulle-part/Absente.woff2", "../sort.woff2": "~/polices-a-moi/Ma-Police.woff2", "lisez-moi.txt": "~/polices-a-moi/Ma-Police.woff2" } }));
+  const env = envDe(maison, { STUDIO_CLIENT: "essai", STUDIO_CLIENT_FICHIER: fichier });
+  const poser = () => spawnSync("/bin/bash", ["-c", `. studio/lancement/client.sh; studio_client_charger; studio_poser_polices "${racine}/studio"`], { cwd: DEPOT, env, encoding: "utf8" });
+  let r = poser();
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^POLICE_POSEE Ma-Police\.woff2$/m);
+  assert.match(r.stdout, /^POLICE_ABSENTE Absente\.woff2/m);
+  assert.doesNotMatch(r.stdout, /sort\.woff2|lisez-moi/, "un nom hors règle n'est jamais posé");
+  assert.deepEqual(fs.readdirSync(path.join(racine, "studio", "polices")), ["Ma-Police.woff2"]);
+  assert.match(poser().stdout, /^POLICE_A_JOUR Ma-Police\.woff2$/m);
+  fs.writeFileSync(src, "wOF2-deux");
+  assert.match(poser().stdout, /^POLICE_POSEE Ma-Police\.woff2$/m);
+  assert.equal(fs.readFileSync(path.join(racine, "studio", "polices", "Ma-Police.woff2"), "utf8"), "wOF2-deux");
+  // Le démarrage du service les repose aussi (une police ajoutée arrive au premier redémarrage).
+  assert.match(fs.readFileSync(path.join(DEPOT, "studio/lancement/demarrer.sh"), "utf8"), /studio_poser_polices "\$STUDIO_HOME"/);
+  // Romain : aucune police locale, rien n'est écrit.
+  const rr = spawnSync("/bin/bash", ["-c", `. studio/lancement/client.sh; studio_client_charger; printf '[%s]' "$CLIENT_POLICES"; studio_poser_polices "${t}/romain"`],
+    { cwd: DEPOT, env: envDe(maison, { STUDIO_CLIENT: "romain" }), encoding: "utf8" });
+  assert.equal(rr.stdout, "[]");
+  assert.ok(!fs.existsSync(path.join(t, "romain")));
+  // Yoan : sa police vient de son fichier, hors du dépôt public.
+  const y = JSON.parse(fs.readFileSync(path.join(DEPOT, "studio/clients/yoan.json"), "utf8")).polices_locales;
+  assert.match(y["Satoshi-Black.woff2"], /^~\/Workspace Claude Code\/projets\/perso\/content\/monteur\/style\/polices\/Satoshi-Black\.woff2$/);
+  assert.equal(spawnSync("git", ["ls-files", "--", "*atoshi*.woff2", "*atoshi*.woff", "*atoshi*.ttf", "*atoshi*.otf"], { cwd: DEPOT, encoding: "utf8" }).stdout.trim(), "", "Satoshi n'est pas dans le dépôt");
+  fs.rmSync(t, { recursive: true, force: true });
+});

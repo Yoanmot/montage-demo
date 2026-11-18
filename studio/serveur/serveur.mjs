@@ -27,6 +27,7 @@ import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptio
 import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser } from "./client.mjs";
+import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -507,6 +508,12 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
 
     if (p[0] === "cartes" && p.length >= 2) {
       const slug = exigerSlug(decodeURIComponent(p[1]));
+      // La vignette du hook d'un reel monté (lot 10) : fabriquée une fois par version de la vidéo.
+      if (m === "GET" && p[2] === "vignette" && p.length === 3) {
+        const f = await vignetteReel(config, slug);
+        if (!f) throw new ErreurStudio("INTROUVABLE", "Pas de vignette pour ce contenu.", 404);
+        return servirFichier(req, res, f, { cache: "private, max-age=86400" });
+      }
       if (m === "GET" && p.length === 2) {
         const d = detail(config, slug, etatLocal());
         if (!d) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce contenu.", 404);
@@ -886,6 +893,13 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     if (p[0] === "ressources") {
       ressources.exiger();
       if (m === "GET" && p.length === 1) return envoyerJson(res, 200, await ressources.lister());
+      // Le petit aperçu d'une page (lot 10) : une capture de la page, une fois par version de la page.
+      // (« vignette » : l'ancienne adresse « apercu », l'aperçu local retiré le 18/11, reste introuvable.)
+      if (m === "GET" && p.length === 3 && p[2] === "vignette") {
+        const f = await apercuRessource(config, exigerSlug(decodeURIComponent(p[1])));
+        if (!f) throw new ErreurStudio("INTROUVABLE", "Pas d'aperçu pour cette page.", 404);
+        return servirFichier(req, res, f, { cache: "private, max-age=86400" });
+      }
     }
 
     if (m === "POST" && p[0] === "publication") {
@@ -897,7 +911,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
       if (p[1] === "confirmer") {
         const textes = corps.textes && typeof corps.textes === "object" && !Array.isArray(corps.textes) ? corps.textes : {};
-        const r = await publication.confirmer(String(corps.recap_id || ""), textes);
+        // Le quand de chaque post, choisi après la préparation (lot 10) : « maintenant » ou « AAAA-MM-JJ HH:MM ».
+        const quands = corps.quands && typeof corps.quands === "object" && !Array.isArray(corps.quands) ? corps.quands : {};
+        const r = await publication.confirmer(String(corps.recap_id || ""), textes, quands);
         rafraichir();
         return envoyerJson(res, 200, r);
       }
@@ -971,6 +987,11 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         }
       }
     }
+    // La police de titre que le client ne peut pas mettre dans le dépôt public (lot 10, Satoshi chez Yoan) : posée par
+    // l'installation dans STUDIO_HOME/polices depuis un fichier à lui (polices_locales du fichier du client). Absente :
+    // 404, le thème retombe sur sa police de repli.
+    const pol = /^\/app\/polices-client\/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:woff2|woff|ttf|otf))$/.exec(url.pathname);
+    if (pol) return servirFichier(req, res, path.join(config.home, "polices", pol[1]), { cache: "private, max-age=86400" });
     if (url.pathname === "/favicon.ico") {
       res.writeHead(204);
       return res.end();

@@ -212,7 +212,7 @@ test("serveur yoan : liste fusionnée, état lu à l'adresse, phrases claires, p
   assert.equal(tableur.etat, "en_preparation");
   assert.ok(!("peut_mettre_en_ligne" in tableur), "plus de bouton de mise en ligne");
   assert.equal(tableur.contenu.titre, "Tes messages de 23 h");
-  assert.deepEqual(tableur.problemes, ["Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides en programmant le post qui l'offre."]);
+  assert.deepEqual(tableur.problemes, ["Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides quand tu postes le contenu qui l'offre."]);
   const seul = l.find((x) => x.slug === "exemple-seul");
   assert.equal(seul.etat, "en_preparation");
   assert.equal(seul.contenu, null);
@@ -237,6 +237,19 @@ test("serveur yoan : plus d'aperçu ni de mise en ligne depuis le studio", async
   const r = await requete("/api/ressources/messages-a-23h/mettre-en-ligne", { methode: "POST", corps: {} });
   assert.equal(r.statut, 404, r.texte);
   assert.ok(!appels().some((a) => ["mettre-en-ligne", "servir", "apercu"].includes(a.argv[0])), "aucun outil d'écriture ni d'aperçu");
+});
+
+test("serveur yoan : la carte d'une ressource a l'adresse de sa vignette (lot 10), versionnée par la page, servie en image", async () => {
+  const l = (await requete("/api/ressources")).json.ressources;
+  for (const r of l) {
+    const page = ["site", r.slug, "index.html"]; const brouillon = ["site", "_brouillons", r.slug, "index.html"];
+    const existe = fs.existsSync(path.join(m.depot, ...page)) || fs.existsSync(path.join(m.depot, ...brouillon));
+    if (existe) assert.match(r.vignette_url, new RegExp(`^/api/ressources/${r.slug}/vignette\\?v=[0-9a-f]{12}$`));
+    else assert.equal(r.vignette_url, null, r.slug);
+  }
+  // Une ressource sans page : pas d'image (la carte montre son titre).
+  assert.equal((await requete("/api/ressources/nulle-part/vignette")).statut, 404);
+  assert.ok(!appels().some((a) => ["mettre-en-ligne", "servir", "apercu"].includes(a.argv[0])), "aucun outil d'écriture ni d'aperçu local");
 });
 
 test("serveur yoan : un souci affiché à Yoan ne lui dit pas de se prévenir lui-même", async () => {

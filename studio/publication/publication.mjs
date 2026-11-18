@@ -669,6 +669,9 @@ export async function confirmer(recapOuId, config, opts = {}) {
   const simulation = enSimulation(config);
   const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
   const textes = opts.textes && typeof opts.textes === 'object' ? opts.textes : {};
+  // Le quand choisi après la préparation (lot 10) : il remplace celui du récapitulatif, avec les mêmes contrôles
+  // (date lisible, au moins 10 minutes plus tard) faits plus bas avant tout envoi. Rien d'autre ne change.
+  const quands = opts.quands && typeof opts.quands === 'object' ? opts.quands : {};
   const resultats = [];
   let stop = null;
   const temporaires = [];
@@ -676,6 +679,11 @@ export async function confirmer(recapOuId, config, opts = {}) {
   for (const el of r.elements) {
     const res = (statut, message, detail) => resultats.push({ slug: el.slug, statut, message, ...(detail ? { detail } : {}) });
     if (stop) { res('pas_envoye', "Pas envoyé : je me suis arrêté après le souci précédent."); continue; }
+    if (Object.prototype.hasOwnProperty.call(quands, el.slug)) {
+      const q = typeof quands[el.slug] === 'string' ? quands[el.slug].trim() : '';
+      if (q !== 'maintenant' && !dateZurich(q)) { res('bloque', 'Pas programmé : choisis une date et une heure pour ce contenu.'); continue; }
+      el.quand = q;
+    }
     if (el.bloque) { res('bloque', 'Pas programmé : ' + (el.messages[0] || 'ce contenu ne peut pas partir.')); continue; }
     if (el.quand !== 'maintenant') {
       const d = dateZurich(el.quand);

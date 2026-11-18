@@ -11,6 +11,10 @@
 // Reel d'essai (e.reel_essai présent : client qui l'a activé, reels seulement ; lot 9D) : une case et le
 // choix du passage en reel normal. Comme une date, un changement se revérifie avant de pouvoir programmer.
 // Aucune limite de durée : si Instagram refuse, la phrase du refus le dit.
+// Lot 10 : c'est la « préparation » de « Publier sur Instagram ». Elle se vérifie sans date (comme « tout de suite ») ;
+// le quand de chaque post (jour et heure, ou tout de suite) se choisit APRÈS, en bas de chaque post, sans revérifier :
+// le serveur refait au clic les contrôles de date (lisible, au moins 10 minutes plus tard) avant tout envoi, et la page
+// les montre avant (bouton éteint, raison sous le champ). Le clic envoie le quand choisi (confirmer, « quands »).
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
 import { motAbsent } from "./mot-absent.js";
@@ -24,21 +28,49 @@ const VERDICTS = {
 // conteneur : où dessiner ; chercher() : la promesse du récapitulatif (recap ou semaine du serveur).
 // Les retouches en cours, gardées quand le récapitulatif se revérifie (conteneur -> Map slug -> textes).
 const retouchesDe = new WeakMap();
+// Le quand choisi pour chaque post (conteneur -> Map slug -> "maintenant" | "AAAA-MM-JJ HH:MM"), gardé aux revérifications.
+const quandsDe = new WeakMap();
 
-export async function recapDans(studio, conteneur, chercher, { apres } = {}) {
-  conteneur.replaceChildren(el("p", { class: "recap-charge" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), "Je vérifie chaque publication"));
+// opts.quands : Map slug -> quand proposé au départ ; opts.fermer : refermer la préparation sans rien envoyer.
+export async function recapDans(studio, conteneur, chercher, { apres, quands, fermer } = {}) {
+  if (quands) quandsDe.set(conteneur, new Map(quands));
+  conteneur.replaceChildren(el("p", { class: "recap-charge" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), "Je prépare chaque publication"));
   let recap;
   try { recap = await chercher(); }
-  catch (e) { conteneur.replaceChildren(el("p", { class: "recap-erreur" }, e.message)); return; }
-  dessiner(studio, conteneur, recap, apres);
-}
-
-function dessiner(studio, conteneur, recap, apres) {
-  const els = recap.elements || [];
-  if (!els.length) {
-    conteneur.replaceChildren(el("p", { class: "vide-doux" }, "Rien à programmer ici : aucun contenu monté ou mis en page qui attend. Ce qui est déjà programmé ne bouge pas."));
+  catch (e) {
+    conteneur.replaceChildren(el("div", { class: "recap-erreur-bloc" }, el("p", { class: "recap-erreur" }, e.message), boutonFermer(fermer)));
     return;
   }
+  dessiner(studio, conteneur, recap, apres, chercher, fermer);
+}
+
+function boutonFermer(fermer) {
+  if (!fermer) return null;
+  const b = el("button", { class: "bouton bouton-discret", type: "button" }, "Fermer sans poster");
+  b.addEventListener("click", () => fermer());
+  return b;
+}
+
+// Au moins 10 minutes plus tard (même règle que le serveur) : sinon la raison, sous le champ.
+function erreurQuand(q) {
+  if (q === "maintenant") return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(q || "");
+  if (!m) return "Choisis un jour et une heure.";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(Date.now() + 10 * 60 * 1000)).reduce((o, x) => ({ ...o, [x.type]: x.value }), {});
+  const limite = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+  return q < limite ? "Cette heure est déjà passée, ou dans moins de 10 minutes : choisis plus tard." : null;
+}
+
+function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
+  const els = recap.elements || [];
+  if (!els.length) {
+    conteneur.replaceChildren(el("p", { class: "vide-doux" }, "Rien à poster ici : aucun contenu monté ou mis en page qui attend. Ce qui est déjà programmé ne bouge pas."));
+    return;
+  }
+  if (!quandsDe.has(conteneur)) quandsDe.set(conteneur, new Map());
+  const quands = quandsDe.get(conteneur);
+  for (const e of els) if (!quands.has(e.slug)) quands.set(e.slug, e.quand && e.quand !== "maintenant" ? e.quand : "maintenant");
   const modifs = new Map();
   const choixRessource = new Map(); // slug -> slug de ressource choisi (ou "" pour aucune), s'il a changé
   const choixEssai = new Map(); // slug -> "MANUAL" | "SS_PERFORMANCE" | null, s'il a changé
@@ -46,9 +78,8 @@ function dessiner(studio, conteneur, recap, apres) {
   if (!retouchesDe.has(conteneur)) retouchesDe.set(conteneur, new Map());
   const retouches = retouchesDe.get(conteneur); // slug -> { legende?, message?, bouton?, ressource? }
   const erreurs = new Map(); // "slug:champ" -> phrase
-  const ctx = { recap, retouches, erreurs, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false, maj: () => { if (ctx.pret) majPied(); } };
+  const ctx = { recap, retouches, erreurs, quands, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false, maj: () => { if (ctx.pret) majPied(); } };
   const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource, ctx, choixEssai));
-  const toutDeSuite = els.every((e) => e.quand === "maintenant");
   const resume = el("p", { class: "recap-resume" });
   const confirmer = el("button", { class: "bouton bouton-accent bouton-grand", type: "button" });
   const maj = el("button", { class: "bouton", type: "button", hidden: true, html: `${icone("synchro")}<span>Revérifier avec les changements</span>` });
@@ -58,14 +89,18 @@ function dessiner(studio, conteneur, recap, apres) {
     const change = modifs.size > 0 || retires.size > 0 || choixRessource.size > 0 || choixEssai.size > 0;
     const bloque = restants.some((e) => e.verdict === "BLOQUE");
     const faux = [...erreurs.keys()].some((k) => restants.some((e) => k.startsWith(e.slug + ":")));
+    const tout = restants.length > 0 && restants.every((e) => quands.get(e.slug) === "maintenant");
+    const aucun = restants.every((e) => quands.get(e.slug) !== "maintenant");
     maj.hidden = !change;
     confirmer.hidden = change;
     confirmer.disabled = bloque || faux || !restants.length;
-    confirmer.innerHTML = `${icone("envoi")}<span>${toutDeSuite ? "Publier maintenant" : restants.length > 1 ? `Programmer les ${restants.length}` : "Programmer"}</span>`;
+    const n = restants.length;
+    confirmer.innerHTML = `${icone("envoi")}<span>${tout ? (n > 1 ? `Publier les ${n} maintenant` : "Publier maintenant")
+      : aucun ? (n > 1 ? `Programmer les ${n}` : "Programmer") : `Publier et programmer les ${n}`}</span>`;
     resume.textContent = change ? "Tu as changé quelque chose : je revérifie avant que tu confirmes."
-      : bloque ? "Une publication ne peut pas partir. Change sa date ou retire-la, puis revérifie."
-      : faux ? "Un texte est à corriger (la raison est sous le champ) avant de programmer."
-      : `${pluriel(restants.length, "publication", "publications")}. Rien ne part tant que tu n'as pas cliqué.`;
+      : bloque ? "Une publication ne peut pas partir. Retire-la, ou corrige ce qui est dit, puis revérifie."
+      : faux ? "Un point est à corriger (la raison est sous le champ) avant de poster."
+      : `${pluriel(n, "publication", "publications")}. Rien ne part tant que tu n'as pas cliqué.`;
   }
 
   maj.addEventListener("click", () => {
@@ -74,13 +109,14 @@ function dessiner(studio, conteneur, recap, apres) {
       const essai = choixEssai.has(e.slug) ? choixEssai.get(e.slug) : e.reel_essai?.choix || null;
       return { slug: e.slug, quand: modifs.get(e.slug) || e.quand, ...(r ? { ressource: r } : {}), ...(essai ? { essai } : {}) };
     });
-    if (!elements.length) { conteneur.replaceChildren(); return; }
-    recapDans(studio, conteneur, () => studio.api.recap(elements), { apres });
+    if (!elements.length) { conteneur.replaceChildren(); fermer?.(); return; }
+    recapDans(studio, conteneur, () => (chercher.length ? chercher(elements) : studio.api.recap(elements)), { apres, fermer });
   });
 
   confirmer.addEventListener("click", async () => {
     confirmer.disabled = true;
-    confirmer.innerHTML = `<span>${toutDeSuite ? "Je publie" : "Je programme"}</span>`;
+    const restants = els.filter((e) => !retires.has(e.slug));
+    confirmer.innerHTML = `<span>${restants.every((e) => quands.get(e.slug) === "maintenant") ? "Je publie" : "Je programme"}</span>`;
     try {
       const textes = {};
       for (const e of els) {
@@ -95,27 +131,26 @@ function dessiner(studio, conteneur, recap, apres) {
         }
         if (Object.keys(o).length) textes[e.slug] = o;
       }
-      const r = await studio.api.confirmer(recap.recap_id, textes);
-      retouchesDe.delete(conteneur);
-      resultats(studio, conteneur, r.resultats || [], els);
+      const choisis = {};
+      for (const e of els) if (!retires.has(e.slug)) choisis[e.slug] = quands.get(e.slug);
+      const r = await studio.api.confirmer(recap.recap_id, textes, choisis);
+      retouchesDe.delete(conteneur); quandsDe.delete(conteneur);
+      resultats(studio, conteneur, r.resultats || [], els.map((e) => ({ ...e, quand: choisis[e.slug] || e.quand })), fermer);
       apres?.();
     } catch (e) { annoncer(e.message, "erreur"); majPied(); }
   });
 
-  conteneur.replaceChildren(el("div", { class: "recap" }, ...lignes,
-    el("div", { class: "recap-pied" }, resume, el("div", { class: "recap-boutons" }, maj, confirmer))));
+  conteneur.replaceChildren(el("div", { class: "recap" },
+    el("h2", { class: "recap-titre" }, els.length > 1 ? `Préparer ${els.length} contenus à poster` : "Préparer à poster"),
+    ...lignes,
+    el("div", { class: "recap-pied" }, resume, el("div", { class: "recap-boutons" }, boutonFermer(fermer), maj, confirmer))));
   ctx.pret = true;
   majPied();
 }
 
 function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx, choixEssai) {
   const v = VERDICTS[e.verdict] || VERDICTS.ATTENTION;
-  const toutDeSuite = e.quand === "maintenant";
-  const [j, h] = toutDeSuite ? ["", ""] : (e.quand || " ").split(" ");
-  const date = el("input", { type: "date", class: "champ champ-date", value: j, "aria-label": `Jour de « ${e.titre} »` });
-  const heure = el("input", { type: "time", class: "champ champ-heure", value: h, step: "300", "aria-label": `Heure de « ${e.titre} »` });
-  const change = () => { const q = `${date.value} ${heure.value}`; if (q === e.quand) modifs.delete(e.slug); else modifs.set(e.slug, q); auChangement(); };
-  date.addEventListener("change", change); heure.addEventListener("change", change);
+  void modifs;
   const retirer = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Retirer");
   const n = el("article", { class: `recap-ligne v-${v.cls}` });
   retirer.addEventListener("click", () => {
@@ -151,14 +186,56 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
         verdict),
       messages,
       el("dl", { class: "recap-champs" },
-        el("dt", {}, "Quand"), toutDeSuite ? el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, "Tout de suite, dès que tu confirmes"))
-          : el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, quandLisible(e.quand)), el("span", { class: "quand-champs" }, date, heure)),
         el("dt", {}, "Légende"), el("dd", {}, legende),
         ...(e.reel_essai ? champEssai(e, choixEssai, auChangement) : []),
         ...(Array.isArray(ressources) ? champRessource(e, ressources, choixRessource, auChangement, ctx)
-          : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])),
+          : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))]),
+        // Après la préparation : quand ce post part.
+        el("dt", {}, "Quand"), el("dd", {}, champQuand(e, ctx))),
       el("div", { class: "recap-ligne-pied" }, retirer)));
   return n;
+}
+
+// Tout de suite, ou un jour et une heure (proposés d'avance). Changer le quand ne revérifie rien : seule la date est
+// contrôlée, ici et par le serveur au clic.
+let numeroQuand = 0;
+function champQuand(e, ctx) {
+  const id = `quand-${++numeroQuand}`;
+  const depart = ctx.quands.get(e.slug) || "maintenant";
+  const [j0, h0] = depart === "maintenant" ? propose(e) : depart.split(" ");
+  const plusTard = el("input", { type: "radio", name: id, value: "date", checked: depart !== "maintenant" || null, id: `${id}-date` });
+  const toutDeSuite = el("input", { type: "radio", name: id, value: "maintenant", checked: depart === "maintenant" || null, id: `${id}-maintenant` });
+  const date = el("input", { type: "date", class: "champ champ-date", value: j0, "aria-label": `Jour de « ${e.titre} »` });
+  const heure = el("input", { type: "time", class: "champ champ-heure", value: h0, step: "300", "aria-label": `Heure de « ${e.titre} »` });
+  const erreur = el("p", { class: "recap-champ-erreur", role: "alert", hidden: true });
+  const cle = `${e.slug}:quand`;
+  const maj = () => {
+    const q = toutDeSuite.checked ? "maintenant" : `${date.value} ${heure.value}`;
+    ctx.quands.set(e.slug, q);
+    for (const x of [date, heure]) x.classList.toggle("en-retrait", toutDeSuite.checked);
+    const x = erreurQuand(q);
+    erreur.textContent = x || ""; erreur.hidden = !x;
+    if (x) ctx.erreurs.set(cle, x); else ctx.erreurs.delete(cle);
+    ctx.maj();
+  };
+  for (const n of [plusTard, toutDeSuite]) n.addEventListener("change", maj);
+  for (const n of [date, heure]) {
+    n.addEventListener("change", maj);
+    n.addEventListener("focus", () => { if (!plusTard.checked) { plusTard.checked = true; maj(); } });
+  }
+  maj();
+  return el("fieldset", { class: "recap-quand-choix" },
+    el("legend", { class: "visuel-cache" }, `Quand « ${e.titre} » part`),
+    el("div", { class: "recap-quand-option" }, el("label", { for: `${id}-date` }, plusTard, el("span", {}, "Programmer le")), el("span", { class: "quand-champs" }, date, el("span", { class: "doux" }, "à"), heure)),
+    el("label", { class: "recap-quand-option", for: `${id}-maintenant` }, toutDeSuite, el("span", {}, "Tout de suite, dès que tu confirmes")),
+    erreur);
+}
+
+// Le jour et l'heure proposés quand on passe de « tout de suite » à « programmer » : demain, à l'heure habituelle.
+function propose(e) {
+  const d = new Date(Date.now() + 864e5);
+  const j = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  return [j, e.type === "carrousel" ? "12:15" : "18:30"];
 }
 
 // « Reel d'essai » : une case, puis comment il passe en reel normal.
@@ -282,8 +359,8 @@ function champRessource(e, ressources, choixRessource, auChangement, ctx) {
       m.champ, m.erreur,
       el("label", { class: "recap-dm-bouton" }, el("span", {}, "Bouton"), b.champ), b.erreur,
       el("p", { class: "recap-dm-note" + (dm.a_valider ? " a-valider" : "") }, dm.a_valider
-        ? "Ce message n'est pas encore validé : en cliquant sur Programmer, tu le valides tel qu'il est ici."
-        : "Tu peux le retoucher ici : il est enregistré tel qu'il est affiché quand tu cliques sur Programmer."),
+        ? "Ce message n'est pas encore validé : en cliquant pour poster (Programmer ou Publier maintenant), tu le valides tel qu'il est ici."
+        : "Tu peux le retoucher ici : il est enregistré tel qu'il est affiché quand tu cliques pour poster."),
       el("p", { class: "recap-dm-aide doux" }, "[son prénom] est remplacé par le prénom de la personne qui commente."));
     ctx.maj();
   };
@@ -295,7 +372,7 @@ function champRessource(e, ressources, choixRessource, auChangement, ctx) {
   return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, choix, raisons, note, phrase, message)];
 }
 
-function resultats(studio, conteneur, res, els) {
+function resultats(studio, conteneur, res, els, fermer) {
   const titre = (s) => els.find((e) => e.slug === s)?.titre || "Un contenu";
   const toutDeSuite = els.every((e) => e.quand === "maintenant");
   conteneur.replaceChildren(el("div", { class: "recap" },
@@ -324,5 +401,6 @@ function resultats(studio, conteneur, res, els) {
       return el("li", { class: bon ? "ok" : "ko" }, el("span", { html: icone(bon ? "coche" : "attention") }),
         el("div", {}, el("strong", {}, titre(r.slug)), el("p", {}, r.message || (bon && e ? `Part ${quandLisible(e.quand)}.` : "Pas programmé.")), envoi, brancher));
     })),
-    toutDeSuite ? null : el("p", { class: "recap-note" }, "Tu peux fermer ton Mac : tout part à l'heure prévue.")));
+    toutDeSuite ? null : el("p", { class: "recap-note" }, "Tu peux fermer ton Mac : tout part à l'heure prévue."),
+    fermer ? el("div", { class: "recap-boutons" }, (() => { const b = el("button", { class: "bouton", type: "button" }, "Revenir aux contenus prêts"); b.addEventListener("click", () => fermer()); return b; })()) : null));
 }
