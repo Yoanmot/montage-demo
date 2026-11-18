@@ -70,8 +70,6 @@ export function creerApiServeur() {
     confirmer: (recap_id) => appel("POST", "/api/publication/confirmer", { recap_id }),
     poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
     ressources: () => appel("GET", "/api/ressources"),
-    apercuRessource: (slug) => appel("GET", `/api/ressources/${enc(slug)}/apercu`),
-    mettreEnLigne: (slug) => appel("POST", `/api/ressources/${enc(slug)}/mettre-en-ligne`, {}),
     stats: () => appel("GET", "/api/stats"),
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),
     ecouter: ecouterServeur,

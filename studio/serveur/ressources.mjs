@@ -1,20 +1,22 @@
-// Les ressources gratuites dans le studio (studio de Yoan, lot 4B) : la liste, l'aperçu local d'une page,
-// la mise en ligne au clic du client. Seulement pour un client qui a un site de ressources réglé
+// Les ressources gratuites dans le studio (studio de Yoan, lots 4B et « ressources directes ») : la liste,
+// et ce qui est vraiment en ligne. Seulement pour un client qui a un site de ressources réglé
 // (clients/<id>.json, « ressources.site » ; config.apercuRessources) : sinon rien n'apparaît et aucun
 // outil n'est lancé (Romain aujourd'hui).
 //
-// Les outils du dépôt du head of content font le travail ; le studio lit leur sortie :
-//   outils/ressource.py lister --format json     pages (brouillon, en ligne, vérification)
-//   outils/zernio.py ressources --format json    mot, message, prête pour un post (lecture seule)
-//   outils/ressource.py servir --port 0          aperçu local de site/ (un processus, gardé ouvert)
-//   outils/ressource.py mettre-en-ligne <slug> --oui --pousser --attendre   au seul clic du client
-// Tous tournent dans DEPOT (la copie du studio, où le head of content écrit les brouillons), lecture
-// seule sauf la mise en ligne (son propre git pull, commit, push). Jamais de variable d'écriture Zernio.
-import { spawn } from "node:child_process";
+// Décision de Yoan du 18/11/2026 : plus d'aperçu ni de bouton de mise en ligne. Le head of content met
+// une ressource en ligne dès qu'elle est prête et donne le lien dans le chat ; une modification est
+// remise en ligne derrière. Le studio montre le lien, et l'état lu à l'adresse même de la page.
+//
+// Les outils du dépôt du head of content font le travail ; le studio lit leur sortie (lecture seule) :
+//   outils/ressource.py lister --format json --en-ligne   pages, et la page lue à son adresse
+//                                                        (« en_ligne_reel » : 200 et contenu identique
+//                                                        au dépôt, sinon ce que l'hébergeur a dit)
+//   outils/zernio.py ressources --format json            mot, message, prête pour un post
+// Jamais de variable d'écriture Zernio.
 import path from "node:path";
-import { executer, lireVerdict } from "./commandes.mjs";
+import { executer } from "./commandes.mjs";
 import { existe, lireJson, SLUG_RE } from "./outils.mjs";
-import { ErreurStudio, MESSAGE_GENERIQUE } from "./depot-outils.mjs";
+import { ErreurStudio } from "./depot-outils.mjs";
 import { VARIABLES_ECRITURE, contact } from "./client.mjs";
 
 export const ressourcesActives = (config) => Boolean(config?.apercuRessources);
@@ -78,14 +80,39 @@ export function etatRessourceRapide(config, slug) {
   return "fiche";
 }
 
+// La page lue à son adresse (ressource.py, « en_ligne_reel »), en mots pour le client. Le détail donné
+// par l'hébergeur est gardé tel quel, en plus petit, pour savoir quoi corriger.
+const ETATS_EN_LIGNE = {
+  en_ligne: "La page répond à son adresse, dans sa dernière version.",
+  mise_a_jour: "La nouvelle version sera en ligne dans une minute ou deux.",
+  injoignable: "Je n'arrive pas à joindre la page pour vérifier (pas d'internet ?).",
+};
+const ERREURS_EN_LIGNE = {
+  VERCEL_REFUS: "Le site a refusé la dernière version",
+  VERCEL_ECHEC: "La dernière version n'a pas pu être construite",
+  PAS_A_JOUR: "La page en ligne n'est toujours pas la dernière version, plusieurs minutes après l'envoi.",
+  INTROUVABLE: "La page ne répond pas à son adresse.",
+  NON_ENVOYEE: "Une modification de la page n'a pas été remise en ligne.",
+};
+
+export function etatEnLigne(reel) {
+  if (!reel || !reel.etat) return { etat: "injoignable", texte: ETATS_EN_LIGNE.injoignable, detail: null, http: null };
+  if (reel.etat === "erreur") {
+    // Refus ou échec de l'hébergeur : l'ancienne version reste en ligne, ou rien du tout la première fois.
+    const suite = reel.http === 200 ? " : la page en ligne est restée l'ancienne." : " : la page n'est pas en ligne.";
+    const texte = /^VERCEL_/.test(reel.code || "") ? ERREURS_EN_LIGNE[reel.code] + suite : ERREURS_EN_LIGNE[reel.code];
+    return { etat: "erreur", code: reel.code || null, texte: texte || "La page en ligne a un souci.",
+      detail: reel.detail || null, http: reel.http ?? null };
+  }
+  const etat = ETATS_EN_LIGNE[reel.etat] ? reel.etat : "injoignable";
+  return { etat, code: reel.code || null, texte: ETATS_EN_LIGNE[etat], detail: null, http: reel.http ?? null };
+}
+
 export class Ressources {
   constructor({ config, journal = () => {}, cartes = () => [] }) {
     this.config = config;
     this.journal = journal;
     this.cartes = cartes; // les cartes du studio (titres des contenus reliés)
-    this.apercuProc = null;
-    this.apercuBase = null;
-    this.enLigneEnCours = new Set();
   }
 
   actif() { return ressourcesActives(this.config); }
@@ -94,11 +121,11 @@ export class Ressources {
     if (!this.actif()) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
   }
 
-  // La liste complète : pages, fiches, mots, posts reliés. { actif, ressources: [...] }.
+  // La liste complète : pages, état en ligne lu à l'adresse, fiches, mots, posts reliés.
   async lister() {
     if (!this.actif()) return { actif: false, ressources: [] };
     const [pages, fiches] = await Promise.all([
-      outilJson(this.config, "ressource.py", ["lister", "--format", "json"]),
+      outilJson(this.config, "ressource.py", ["lister", "--format", "json", "--en-ligne"], 90000),
       outilJson(this.config, "zernio.py", ["ressources", "--format", "json"]),
     ]);
     if (!pages && !fiches) {
@@ -114,23 +141,23 @@ export class Ressources {
       if (!SLUG_RE.test(slug)) continue;
       ressources.push(this.fusion(slug, page, fiche, cartes, registre));
     }
-    // En ligne d'abord, puis à vérifier, puis le reste ; par titre.
-    const rang = { en_ligne: 0, a_verifier: 1, a_finir: 2, sans_page: 3 };
+    // En erreur d'abord (à régler), puis en cours, en ligne, en préparation ; par titre.
+    const rang = { erreur: 0, mise_a_jour: 1, en_ligne: 2, injoignable: 3, en_preparation: 4, sans_page: 5 };
     ressources.sort((a, b) => (rang[a.etat] - rang[b.etat]) || a.titre.localeCompare(b.titre, "fr"));
     return { actif: true, site: pages?.site || this.config.apercuRessources, ressources };
   }
 
   fusion(slug, page, fiche, cartes, registre) {
-    const enLigne = Boolean(page ? page.en_ligne : fiche?.en_ligne);
-    const brouillon = Boolean(page?.brouillon) && !page?.page_en_ligne;
+    const surLeSite = Boolean(page ? page.page_en_ligne : fiche?.en_ligne);
+    const brouillon = Boolean(page?.brouillon) && !surLeSite;
     const avant = page?.avant_en_ligne || null;
     const verif = page?.verification || null;
-    const aCorriger = [
+    const aCorriger = brouillon ? [
       ...(avant?.raisons || []).map((r) => r.charAt(0).toUpperCase() + r.slice(1) + "."),
       ...(verif && !verif.ok ? verif.lignes.filter((l) => /^ERREUR/.test(l)).map(ligneVerif) : []),
-    ];
-    const peut = brouillon && Boolean(page?.fiche) && Boolean(verif?.ok) && Boolean(avant?.ok);
-    const etat = enLigne ? "en_ligne" : brouillon ? (peut ? "a_verifier" : "a_finir") : "sans_page";
+    ] : [];
+    const enLigne = surLeSite ? etatEnLigne(page?.en_ligne_reel) : null;
+    const etat = enLigne ? enLigne.etat : brouillon ? "en_preparation" : "sans_page";
     const carte = cartes.get(slug);
     const posts = Object.entries(registre)
       .filter(([, e]) => e && e.ressource === slug)
@@ -145,22 +172,23 @@ export class Ressources {
       }))
       .sort((a, b) => String(b.quand || "").localeCompare(String(a.quand || "")));
     const titre = (page?.titre || fiche?.titre || slug).replace(/^Ressource gratuite\s*:\s*/i, "").trim();
+    // Un post ne peut l'offrir que si la page répond à son adresse (ou qu'on ne peut pas le vérifier).
+    const repond = Boolean(enLigne) && (enLigne.http === 200 || enLigne.etat === "injoignable");
     return {
       slug,
       titre,
       etat,
-      en_ligne: enLigne,
+      en_ligne: surLeSite,
+      en_ligne_reel: enLigne,
       brouillon,
-      peut_mettre_en_ligne: peut,
       a_corriger: aCorriger,
       mot: fiche?.mot || page?.mot || null,
       lien: page?.lien || fiche?.lien || null,
       bouton: fiche?.bouton || null,
       // Le prénom de la personne que Zernio glisse dans le message, lisible par le client.
       message: fiche?.message ? fiche.message.replace(/\{\{\s*first_name\s*\}\}/g, "[son prénom]") : null,
-      prete: Boolean(fiche?.prete),
+      prete: Boolean(fiche?.prete) && repond,
       problemes: [...new Set((fiche?.problemes || []).map(phraseProbleme))],
-      apercu: Boolean(page?.apercu),
       contenu: carte ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
       posts,
     };
@@ -173,100 +201,7 @@ export class Ressources {
     return l.ressources.filter((r) => r.prete && r.mot).map((r) => ({ slug: r.slug, titre: r.titre, mot: r.mot }));
   }
 
-  // ---------------------------------------------------------- aperçu local
-
-  // L'adresse locale où lire la page d'une ressource (brouillon ou en ligne) : le site du dépôt servi par
-  // ressource.py servir, sur un port libre de 127.0.0.1, ouvert à la première demande.
-  async apercu(slug) {
-    this.exiger();
-    if (!SLUG_RE.test(slug)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas cette ressource.", 404);
-    const d = await outilJson(this.config, "ressource.py", ["apercu", slug]);
-    if (!d?.apercu) throw new ErreurStudio("PAS_DE_PAGE", "Cette ressource n'a pas encore de page à regarder.", 404);
-    const base = await this.servir();
-    return { url: base.replace(/\/$/, "") + d.apercu };
-  }
-
-  servir() {
-    if (this.apercuBase && this.apercuProc && this.apercuProc.exitCode === null) return Promise.resolve(this.apercuBase);
-    const fichier = path.join(this.config.depot, "outils", "ressource.py");
-    if (!existe(fichier)) return Promise.reject(new ErreurStudio("OUTIL_ABSENT", MESSAGE_GENERIQUE, 503));
-    return new Promise((resolve, reject) => {
-      const p = spawn("python3", ["-u", fichier, "servir", "--port", "0"], {
-        cwd: this.config.depot, env: environnement(this.config), detached: true, stdio: ["ignore", "pipe", "pipe"],
-      });
-      let tampon = "";
-      let fini = false;
-      const echec = () => {
-        if (fini) return;
-        fini = true;
-        this.arreterApercu();
-        reject(new ErreurStudio("APERCU", `Je n'arrive pas à ouvrir l'aperçu. Réessaie, et si ça recommence, préviens ${contact()}.`, 503));
-      };
-      const minuterie = setTimeout(echec, 15000);
-      p.stdout.setEncoding("utf8");
-      p.stdout.on("data", (d) => {
-        tampon += d;
-        const m = /^APERCU (http:\/\/127\.0\.0\.1:\d+\/)\s*$/m.exec(tampon);
-        if (m && !fini) {
-          fini = true;
-          clearTimeout(minuterie);
-          this.apercuBase = m[1];
-          resolve(m[1]);
-        }
-      });
-      p.stderr.on("data", () => {});
-      p.on("error", () => { clearTimeout(minuterie); echec(); });
-      p.on("exit", () => {
-        clearTimeout(minuterie);
-        if (this.apercuProc === p) { this.apercuProc = null; this.apercuBase = null; }
-        echec();
-      });
-      this.apercuProc = p;
-    });
-  }
-
-  arreterApercu() {
-    const p = this.apercuProc;
-    this.apercuProc = null;
-    this.apercuBase = null;
-    if (!p) return;
-    try { process.kill(-p.pid, "SIGTERM"); } catch { try { p.kill("SIGTERM"); } catch { /* déjà fini */ } }
-  }
-
-  fermer() { this.arreterApercu(); }
-
-  // ---------------------------------------------------------- mise en ligne (au clic)
-
-  async mettreEnLigne(slug) {
-    this.exiger();
-    if (!SLUG_RE.test(slug)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas cette ressource.", 404);
-    if (this.enLigneEnCours.has(slug)) throw new ErreurStudio("OCCUPE", "Elle est déjà en train de partir : attends un instant.", 409);
-    const fichier = path.join(this.config.depot, "outils", "ressource.py");
-    if (!existe(fichier)) throw new ErreurStudio("OUTIL_ABSENT", MESSAGE_GENERIQUE, 503);
-    const attente = Math.max(0, Number(this.config.brut?.ressources_attente_s ?? 120));
-    const args = [fichier, "mettre-en-ligne", slug, "--oui", "--pousser", ...(attente ? ["--attendre", "--delai", String(attente)] : [])];
-    this.enLigneEnCours.add(slug);
-    try {
-      const r = await executer("python3", args, { cwd: this.config.depot, env: environnement(this.config), delaiMs: (attente + 180) * 1000 });
-      const v = lireVerdict(r.sortie);
-      this.journal("ressource_mise_en_ligne", { slug, ok: Boolean(v?.ok), code: v?.code || null });
-      if (v?.ok) {
-        if (/^OK en ligne\b/.test(v.ligne)) return { statut: "en_ligne", message: "C'est en ligne : la page répond à son adresse." };
-        return { statut: "envoyee", message: "C'est envoyé : la page sera visible à son adresse dans une minute ou deux." };
-      }
-      const PHRASES = {
-        PAS_DE_FICHE: "Cette ressource n'a pas encore de fiche : demande-la à ton head of content. Rien n'a changé.",
-        DEJA_EN_LIGNE: "Elle est déjà en ligne.",
-        PAS_DE_BROUILLON: "Je ne trouve plus la page à mettre en ligne. Rien n'a changé.",
-        PAGE_PAS_PRETE: "La page n'est pas prête à partir : rien n'a changé. Demande à ton head of content de la corriger.",
-        SYNCHRO: "Je n'arrive pas à me mettre à jour (pas d'internet ?) : rien n'a changé, réessaie dans un moment.",
-        CONFLIT: "Rien n'a changé : réessaie dans un moment.",
-      };
-      throw new ErreurStudio(v?.code || "ECHEC", (v && PHRASES[v.code]) || MESSAGE_GENERIQUE, 409);
-    } finally {
-      this.enLigneEnCours.delete(slug);
-    }
-  }
+  fermer() { /* plus de processus à arrêter (l'aperçu local n'existe plus) */ }
 }
 
 // Pour lecture.mjs : les dossiers de contenus à garder dans l'arborescence.

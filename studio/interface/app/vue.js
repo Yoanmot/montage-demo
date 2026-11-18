@@ -10,7 +10,12 @@ import { morceauxDuTexte } from "./morceaux.js";
 const enCours = (c) => ["en_cours", "en_file"].includes(c?.activite);
 const sansTitre = (md) => String(md || "").replace(/^#\s+.+\n+/, "").trim();
 const ETATS_RESSOURCE = {
-  en_ligne: { texte: "en ligne" }, a_verifier: { texte: "à vérifier" }, a_finir: { texte: "en préparation" }, sans_page: { texte: "sans page" },
+  erreur: { texte: "en erreur", groupe: "En erreur" },
+  mise_a_jour: { texte: "mise à jour en cours", groupe: "Mise à jour en cours" },
+  en_ligne: { texte: "en ligne", groupe: "En ligne" },
+  injoignable: { texte: "pas vérifiable pour l'instant", groupe: "Pas vérifiable pour l'instant" },
+  en_preparation: { texte: "en préparation", groupe: "En préparation" },
+  sans_page: { texte: "sans page", groupe: "Sans page" },
 };
 const attente = (texte) => el("p", { class: "recap-charge" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), texte);
 
@@ -837,9 +842,11 @@ export class Vue {
       sections.length ? pied : null);
   }
 
-  // ---------- Ressources gratuites (studio de Yoan, lot 4B) ----------
-  // Les pages que reçoivent ceux qui commentent un mot. Tout vient des outils du dépôt (fichiers), jamais
-  // de la mémoire du modèle. La mise en ligne ne part qu'au clic sur « Je l'ai vérifiée, mets-la en ligne ».
+  // ---------- Ressources gratuites (studio de Yoan) ----------
+  // Les pages que reçoivent ceux qui commentent un mot. Tout vient des outils du dépôt (fichiers, et la
+  // page lue à son adresse), jamais de la mémoire du modèle. Décision du 18/11/2026 : plus d'aperçu ni de
+  // bouton de mise en ligne ; le head of content la met en ligne dès qu'elle est prête, le studio donne le
+  // lien et l'état réel, et une modification se demande dans le chat.
 
   // La liste (sans id), ou une ressource seule qui n'a pas de dossier de contenu (id = son slug).
   async vueRessources(jeton, id) {
@@ -851,6 +858,7 @@ export class Vue {
     if (id) {
       const r = liste.find((x) => x.slug === id);
       if (!r) return el("article", { class: "vue" }, ...this.entete("Ressources gratuites"), el("p", { class: "vide-doux" }, "Je ne trouve plus cette ressource."));
+      if (r.etat === "mise_a_jour") this.relireRessources(jeton);
       return el("article", { class: "vue" }, ...this.entete(r.titre), ...this.corpsRessource(r, jeton, liste));
     }
     const ouvrir = (r) => (r.contenu
@@ -859,27 +867,44 @@ export class Vue {
     const ligne = (r) => {
       const meta = [ETATS_RESSOURCE[r.etat]?.texte || "", r.mot ? `mot ${r.mot}` : "pas encore de mot",
         r.posts.length ? pluriel(r.posts.length, "post relié", "posts reliés") : null].filter(Boolean).join(" · ");
-      return el("button", { class: "accueil-ligne res-ligne", type: "button", onclick: () => ouvrir(r) },
+      return el("button", { class: `accueil-ligne res-ligne res-${r.etat}`, type: "button", onclick: () => ouvrir(r) },
         el("span", { class: "res-pastille", html: icone("cadeau") }),
         el("span", { class: "ligne-corps" }, el("strong", {}, r.titre), el("span", { class: "ligne-meta" }, meta)),
         el("span", { html: icone("fleche") }));
     };
-    const groupes = [["en_ligne", "En ligne"], ["a_verifier", "À vérifier"], ["a_finir", "En préparation"], ["sans_page", "Sans page"]]
-      .map(([etat, titre]) => [titre, liste.filter((r) => r.etat === etat)]).filter(([, l]) => l.length);
+    const groupes = Object.entries(ETATS_RESSOURCE)
+      .map(([etat, e]) => [e.groupe, liste.filter((r) => r.etat === etat)]).filter(([, l]) => l.length);
+    if (liste.some((r) => r.etat === "mise_a_jour")) this.relireRessources(jeton);
     return el("article", { class: "vue" }, ...this.entete("Ressources gratuites", "Les pages que reçoivent ceux qui commentent ton mot. Tu choisis laquelle offrir au moment de programmer un post."),
       groupes.length ? groupes.map(([titre, l]) => this.bloc(titre, el("div", { class: "accueil-liste" }, ...l.map(ligne)), { aide: pluriel(l.length, "ressource", "ressources") }))
-        : el("p", { class: "vide-doux" }, "Pas encore de ressource. Demande-en une à ton head of content dans le chat : elle arrive ici, à vérifier avant d'être en ligne."));
+        : el("p", { class: "vide-doux" }, "Pas encore de ressource. Demande-en une à ton head of content dans le chat : il la met en ligne dès qu'elle est prête et te donne le lien."));
+  }
+
+  // Une mise à jour est en cours : on relit dans quelques secondes, tant que la même vue est affichée et
+  // que rien n'est en train d'être écrit.
+  relireRessources(jeton) {
+    clearTimeout(this._relireRes);
+    this._relireRes = setTimeout(() => {
+      if (jeton !== this.jeton) return;
+      if (this.edition || document.activeElement?.closest?.(".res-demande")) { this.relireRessources(jeton); return; }
+      this.afficher();
+    }, 8000);
   }
 
   // Le fichier « Ressource gratuite » d'un dossier de contenu.
   vueFichierRessource(d, jeton) {
+    return this.ficheRessource(d.slug, jeton, d);
+  }
+
+  ficheRessource(slug, jeton, carte = null) {
     const zone = el("div", {}, attente("Je regarde ta ressource"));
     this.api.ressources().then((l) => {
       if (jeton !== this.jeton) return;
       const liste = l.ressources || [];
-      const r = liste.find((x) => x.slug === d.slug);
-      zone.replaceChildren(...(r ? this.corpsRessource(r, jeton, liste, d)
-        : [el("p", { class: "vide-doux" }, "Je ne trouve pas encore la page de cette ressource : demande-la à ton head of content dans le chat.")]));
+      const r = liste.find((x) => x.slug === slug);
+      zone.replaceChildren(...(r ? this.corpsRessource(r, jeton, liste, carte)
+        : [el("p", { class: "vide-doux" }, "Je ne trouve pas encore cette ressource : demande-la à ton head of content dans le chat.")]));
+      if (r?.etat === "mise_a_jour") this.relireRessources(jeton);
     }, (e) => { if (jeton === this.jeton) zone.replaceChildren(el("p", { class: "recap-erreur" }, e.message)); });
     return zone;
   }
@@ -887,66 +912,75 @@ export class Vue {
   corpsRessource(r, jeton, liste, carte = null) {
     const s = this.studio;
     const chatId = r.contenu ? `${r.contenu.slug}:hoc` : "general";
+    const envoyer = async (texte, bouton) => {
+      bouton.disabled = true;
+      try { await this.api.envoyer(chatId, texte); annoncer(`C'est demandé à ton head of content : sa réponse arrive dans le chat ${ouChat()}.`); return true; }
+      catch (e) { annoncer(e.message, "erreur"); bouton.disabled = false; return false; }
+    };
     const demander = (texte, libelle) => {
       const b = el("button", { class: "bouton", type: "button", html: `${icone("bulle")}<span>${libelle}</span>` });
-      b.addEventListener("click", async () => {
-        b.disabled = true;
-        try { await this.api.envoyer(chatId, texte); annoncer(`C'est demandé à ton head of content : sa réponse arrive dans le chat ${ouChat()}.`); }
-        catch (e) { annoncer(e.message, "erreur"); b.disabled = false; }
-      });
+      b.addEventListener("click", () => envoyer(texte, b));
       return b;
     };
-    const voir = r.en_ligne && r.lien ? el("button", { class: "bouton", type: "button", html: `${icone("lien")}<span>Voir en ligne</span>`,
-      onclick: () => this.api.ouvrirLien(r.lien).then(() => annoncer("C'est ouvert dans ton navigateur."), (e) => annoncer(e.message, "erreur")) }) : null;
+    const blocs = [];
+    const surLeSite = ["en_ligne", "mise_a_jour", "erreur", "injoignable"].includes(r.etat);
 
-    let etape;
-    if (r.etat === "en_ligne") {
-      etape = this.etape("<strong>En ligne.</strong> Pour l'offrir, choisis-la au moment de programmer un post : ceux qui commentent son mot reçoivent le lien en message.", voir);
-    } else if (r.etat === "a_verifier") {
-      const mettre = el("button", { class: "bouton bouton-plein", type: "button", html: `${icone("coche")}<span>Je l'ai vérifiée, mets-la en ligne</span>` });
-      mettre.addEventListener("click", async () => {
-        mettre.disabled = true;
-        mettre.innerHTML = "<span>Je la mets en ligne</span>";
-        this.edition = "ressource";
-        try { const x = await this.api.mettreEnLigne(r.slug); annoncer(x.message); }
-        catch (e) { annoncer(e.message, "erreur"); }
-        finally { this.edition = null; this.afficher(); }
+    // 1. Le lien, en premier, puis l'état lu à l'adresse même de la page.
+    if (surLeSite && r.lien) {
+      const reel = r.en_ligne_reel || {};
+      const lien = el("a", { class: "res-lien", href: r.lien, target: "_blank", rel: "noopener noreferrer" },
+        el("span", { html: icone("lien") }), el("span", {}, r.lien.replace(/^https:\/\//, "")));
+      lien.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.api.ouvrirLien(r.lien).then(() => annoncer("C'est ouvert dans ton navigateur."), (x) => annoncer(x.message, "erreur"));
       });
-      etape = this.etape("<strong>À vérifier.</strong> Lis la page ci-dessous comme un de tes abonnés. Si tout est juste, mets-la en ligne : elle sera visible par tout le monde à son adresse.", mettre, { aToi: true });
-    } else if (r.etat === "a_finir") {
-      etape = this.etape("<strong>Pas encore prête.</strong> Ton head of content doit d'abord corriger ce qui est listé plus bas. Ensuite, tu la vérifies et tu la mets en ligne.",
-        r.a_corriger.length ? demander(`Corrige la page de la ressource « ${r.titre} » pour qu'elle puisse partir en ligne. Ce qui bloque encore :\n${r.a_corriger.map((x) => `- ${x}`).join("\n")}`, "Lui demander de corriger") : null);
+      const etat = el("div", { class: `res-etat res-etat-${r.etat}`, role: "status" },
+        r.etat === "mise_a_jour" ? el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")) : el("span", { class: "res-point", "aria-hidden": "true" }),
+        el("div", {}, el("strong", {}, ETATS_RESSOURCE[r.etat].texte.charAt(0).toUpperCase() + ETATS_RESSOURCE[r.etat].texte.slice(1)),
+          el("p", {}, r.etat === "en_ligne" ? "La page répond à son adresse, dans sa dernière version. Ouvre-la pour la vérifier en vrai." : reel.texte || ""),
+          reel.detail ? el("p", { class: "res-detail" }, `Détail : ${reel.detail}`) : null));
+      blocs.push(el("section", { class: "res-tete" }, lien, el("div", { class: "res-tete-outils" }, this.boutonCopier(r.lien)), etat,
+        r.etat === "erreur" ? demander(`La ressource gratuite « ${r.titre} » est en erreur : ${reel.texte}${reel.detail ? ` (détail : ${reel.detail})` : ""}. Regarde ce qui coince, remets-la en ligne et donne-moi le lien quand elle répond.`, "Lui demander de régler ça") : null));
+    } else if (r.etat === "en_preparation") {
+      blocs.push(this.etape("<strong>Pas encore en ligne.</strong> Ton head of content la met en ligne dès qu'elle est prête et te donne le lien dans le chat.",
+        r.a_corriger.length ? demander(`Termine la page de la ressource « ${r.titre} » pour qu'elle puisse partir en ligne. Ce qui bloque encore :\n${r.a_corriger.map((x) => `- ${x}`).join("\n")}`, "Lui demander de la finir") : null));
+      if (r.a_corriger.length) blocs.push(this.bloc("Ce qui bloque encore", el("ul", { class: "res-liste" }, ...r.a_corriger.map((x) => el("li", {}, x)))));
     } else {
-      etape = this.etape("<strong>Pas encore de page.</strong> Demande-la à ton head of content dans le chat.");
+      blocs.push(this.etape("<strong>Pas encore de page.</strong> Demande-la à ton head of content dans le chat."));
     }
 
-    const blocs = [etape];
-    if (r.etat !== "en_ligne" && r.a_corriger.length) {
-      blocs.push(this.bloc("Ce qui reste à corriger", el("ul", { class: "res-liste" }, ...r.a_corriger.map((x) => el("li", {}, x)))));
+    // 2. Demander une modification : elle part dans le chat du contenu, et la page est remise en ligne derrière.
+    if (r.etat !== "sans_page") {
+      const champ = el("textarea", { class: "champ res-demande-champ", rows: "3", "aria-label": "La modification à faire",
+        placeholder: surLeSite ? "Ce que tu veux changer sur la page" : "Ce que tu veux changer avant qu'elle parte" });
+      const go = el("button", { class: "bouton bouton-plein", type: "button", html: `${icone("bulle")}<span>Demander dans le chat</span>` });
+      // Un texte en cours d'écriture n'est jamais effacé par une relecture de la vue.
+      const libere = () => { this.edition = null; if (this.aRecharger) this.afficher(); };
+      champ.addEventListener("input", () => { if (champ.value.trim()) this.edition = "ressource"; else libere(); });
+      go.addEventListener("click", async () => {
+        const texte = champ.value.trim();
+        if (!texte) { champ.focus(); annoncer("Écris d'abord ce que tu veux changer."); return; }
+        const ok = await envoyer(surLeSite
+          ? `Modifie la ressource gratuite « ${r.titre} » (${r.lien}) : ${texte}\nRemets-la en ligne ensuite et donne-moi le lien.`
+          : `Pour la ressource gratuite « ${r.titre} » : ${texte}`, go);
+        if (ok) { champ.value = ""; go.disabled = false; libere(); }
+      });
+      blocs.push(this.bloc("Demander une modification", el("div", { class: "res-demande" },
+        el("p", { class: "vide-doux" }, surLeSite ? "Ton head of content la modifie et la remet en ligne : quelques secondes, puis le lien reste le même." : "Ton head of content en tient compte avant de la mettre en ligne."),
+        champ, el("div", { class: "programmer-ligne" }, go))));
     }
 
-    // Le mot, le message envoyé, et si un post peut déjà l'offrir.
+    // 3. Le mot, le message envoyé, et si un post peut déjà l'offrir.
     const champs = [
       el("dt", {}, "Mot à commenter"), el("dd", {}, r.mot ? el("strong", { class: "mot-com" }, r.mot) : el("span", { class: "doux" }, "Pas encore choisi")),
       el("dt", {}, "Message envoyé"), el("dd", {}, r.message ? el("div", { class: "res-message" }, el("p", {}, r.message), r.bouton ? el("span", { class: "res-bouton" }, r.bouton) : null) : el("span", { class: "doux" }, "Pas encore écrit")),
       el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant.")
-        : el("div", {}, el("span", { class: "doux" }, r.en_ligne ? "Pas encore : le message doit être complet." : "Pas encore : elle doit d'abord être en ligne."),
-          r.en_ligne && r.problemes.length ? el("ul", { class: "res-liste" }, ...r.problemes.map((x) => el("li", {}, x))) : null)),
+        : el("div", {}, el("span", { class: "doux" }, surLeSite && r.problemes.length ? "Pas encore : le message doit être complet." : surLeSite ? "Pas encore : la page doit d'abord répondre à son adresse." : "Pas encore : elle doit d'abord être en ligne."),
+          surLeSite && r.problemes.length ? el("ul", { class: "res-liste" }, ...r.problemes.map((x) => el("li", {}, x))) : null)),
     ];
-    if (r.lien) champs.push(el("dt", {}, "Adresse"), el("dd", { class: "res-adresse" }, r.lien.replace(/^https:\/\//, "")));
     blocs.push(this.bloc("Le mot en commentaire", el("dl", { class: "recap-champs res-champs" }, ...champs)));
 
-    // Aperçu de la page, servie en local (brouillon compris).
-    if (r.apercu) {
-      const cadre = el("div", { class: "res-apercu" }, attente("J'ouvre la page"));
-      this.api.apercuRessource(r.slug).then((a) => {
-        if (jeton !== this.jeton) return;
-        cadre.replaceChildren(el("iframe", { class: "res-iframe", src: a.url, title: `Aperçu de « ${r.titre} »`, loading: "lazy" }));
-      }, (e) => { if (jeton === this.jeton) cadre.replaceChildren(el("p", { class: "recap-erreur" }, e.message)); });
-      blocs.push(this.bloc("La page", cadre, { aide: r.en_ligne ? "telle qu'elle est en ligne" : "telle qu'elle partira en ligne" }));
-    }
-
-    // Les posts qui l'offrent (registre des publications).
+    // 4. Les posts qui l'offrent (registre des publications).
     blocs.push(this.bloc("Posts reliés", r.posts.length ? el("div", { class: "accueil-liste" }, ...r.posts.map((p) => {
       const c = s.cartes.get(p.slug);
       const quand = p.quand ? `${p.statut === "publié" ? "sorti" : "part"} ${quandLisible(String(p.quand).replace("T", " ").slice(0, 16))}` : p.statut || "";
@@ -956,7 +990,7 @@ export class Vue {
         c ? el("span", { html: icone("fleche") }) : null);
     })) : el("p", { class: "vide-doux" }, "Aucun post ne l'offre encore."), { aide: r.posts.length ? pluriel(r.posts.length, "post", "posts") : null }));
 
-    // La réutiliser avec un autre contenu : la légende de ce contenu doit annoncer le mot.
+    // 5. La réutiliser avec un autre contenu : la légende de ce contenu doit annoncer le mot.
     if (r.prete) {
       const cibles = [...s.cartes.values()].filter((c) => c.slug && c.slug !== r.slug && !["programme", "publie", "abandonne", "de_cote"].includes(c.stade))
         .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));

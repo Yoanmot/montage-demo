@@ -42,7 +42,7 @@ function etatFichier(c, f) {
   }
   if (f === "ressource") {
     if (c.ressource === "en_ligne") return ["en ligne", false];
-    if (c.ressource === "brouillon") return ["à vérifier", true];
+    if (c.ressource === "brouillon") return ["en préparation", false];
     return ["en préparation", false];
   }
   if (f === "video" || f === "slides") {

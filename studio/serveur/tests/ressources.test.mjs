@@ -1,6 +1,8 @@
-// Ressources gratuites dans le studio (studio de Yoan, lot 4B) et phrases adressées au client quand il
-// est son propre contact. STUDIO_CLIENT=yoan dans tout ce fichier. Les outils du dépôt sont des faux
-// (outils/ressource.py, outils/zernio.py) qui notent leurs appels : aucune mise en ligne, aucun réseau.
+// Ressources gratuites dans le studio (studio de Yoan, lot 4B, puis « ressources directes » du
+// 18/11/2026 : plus d'aperçu ni de bouton de mise en ligne, état lu à l'adresse de la page) et phrases
+// adressées au client quand il est son propre contact. STUDIO_CLIENT=yoan dans tout ce fichier. Les
+// outils du dépôt sont des faux (outils/ressource.py, outils/zernio.py) qui notent leurs appels : aucune
+// mise en ligne, aucun réseau.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -10,10 +12,10 @@ import path from "node:path";
 process.env.STUDIO_CLIENT = "yoan";
 const { adresser, contactEstLeClient } = await import("../client.mjs");
 const { demarrer } = await import("../studio.mjs");
-const { monde, attendreQue, vivant } = await import("./aide.mjs");
+const { monde } = await import("./aide.mjs");
 
 const FAUX = String.raw`#!/usr/bin/env python3
-import json, os, sys, time
+import json, os, sys
 outil = os.path.basename(sys.argv[0])
 with open(os.environ["FAUX_OUTILS_LOG"], "a") as f:
     f.write(json.dumps({"outil": outil, "argv": sys.argv[1:], "pid": os.getpid(),
@@ -33,7 +35,16 @@ if outil == "ressource.py" and cmd == "lister":
          "avant_en_ligne": {"ok": False, "raisons": ["la page porte encore le bandeau « Exemple »"]}},
         {"slug": "le-carnet", "titre": "Le carnet", "statut": "en ligne le 10/11/2026", "fiche": True, "brouillon": False,
          "page_en_ligne": True, "en_ligne": True, "mot": "CARNET", "lien": "https://ressources.yoanmottier.com/le-carnet/",
-         "apercu": "/le-carnet/", "verification": {"ok": True, "lignes": []}}]}))
+         "apercu": "/le-carnet/", "verification": {"ok": True, "lignes": []},
+         "en_ligne_reel": {"etat": "en_ligne", "code": "OK", "detail": "", "http": 200}},
+        {"slug": "la-grille", "titre": "La grille", "statut": "en ligne le 18/11/2026", "fiche": True, "brouillon": False,
+         "page_en_ligne": True, "en_ligne": True, "mot": "GRILLE", "lien": "https://ressources.yoanmottier.com/la-grille/",
+         "apercu": "/la-grille/", "verification": {"ok": True, "lignes": []},
+         "en_ligne_reel": {"etat": "erreur", "code": "VERCEL_REFUS", "detail": "Deployment was blocked", "http": 404}},
+        {"slug": "le-plan", "titre": "Le plan", "statut": "en ligne le 18/11/2026", "fiche": True, "brouillon": False,
+         "page_en_ligne": True, "en_ligne": True, "mot": "PLANNING", "lien": "https://ressources.yoanmottier.com/le-plan/",
+         "apercu": "/le-plan/", "verification": {"ok": True, "lignes": []},
+         "en_ligne_reel": {"etat": "mise_a_jour", "code": "EN_COURS", "detail": "envoyée", "http": 200}}]}))
 elif outil == "zernio.py" and cmd == "ressources":
     print(json.dumps({"version": 1, "ressources": [
         {"slug": "messages-a-23h", "titre": "Ressource gratuite : Le tableur", "mot": "TABLEUR", "lien": None, "bouton": None,
@@ -41,14 +52,10 @@ elif outil == "zernio.py" and cmd == "ressources":
          "problemes": ["message pas validé par Yoan (ligne « Validé par Yoan » vide)"]},
         {"slug": "le-carnet", "titre": "Le carnet", "mot": "CARNET", "lien": "https://ressources.yoanmottier.com/le-carnet/",
          "bouton": "Ouvrir", "message": "Voici le carnet.", "valide": True, "statut": "en ligne le 10/11/2026",
+         "en_ligne": True, "prete": True, "problemes": []},
+        {"slug": "la-grille", "titre": "La grille", "mot": "GRILLE", "lien": "https://ressources.yoanmottier.com/la-grille/",
+         "bouton": "Ouvrir", "message": "Voici la grille.", "valide": True, "statut": "en ligne le 18/11/2026",
          "en_ligne": True, "prete": True, "problemes": []}]}))
-elif outil == "ressource.py" and cmd == "apercu":
-    print(json.dumps({"slug": sys.argv[2], "apercu": "/_brouillons/%s/" % sys.argv[2]}))
-elif outil == "ressource.py" and cmd == "servir":
-    print("APERCU http://127.0.0.1:45999/", flush=True)
-    time.sleep(120)
-elif outil == "ressource.py" and cmd == "mettre-en-ligne":
-    print("OK en ligne https://ressources.yoanmottier.com/%s/" % sys.argv[2])
 else:
     print("BLOQUE INCONNU")
     sys.exit(2)
@@ -80,7 +87,7 @@ function requete(chemin, { methode = "GET", corps } = {}) {
 const appels = () => (fs.existsSync(journal) ? fs.readFileSync(journal, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : []);
 
 before(async () => {
-  m = monde({ config: { prenom: undefined, ressources_attente_s: 0 } });
+  m = monde({ config: { prenom: undefined } });
   journal = path.join(m.racine, "outils.jsonl");
   modeFichier = path.join(m.racine, "mode");
   m.env.FAUX_OUTILS_LOG = journal;
@@ -146,47 +153,42 @@ test("serveur yoan : ressources dans l'état, fichier « Ressource gratuite » d
   assert.equal(e.cartes.find((x) => x.slug === "le-carnet").ressource, "en_ligne");
 });
 
-test("serveur yoan : liste fusionnée, phrases claires, posts reliés ; rien ne part en ligne sans le clic", async () => {
+test("serveur yoan : liste fusionnée, état lu à l'adresse, phrases claires, posts reliés", async () => {
   const r = await requete("/api/ressources");
   assert.equal(r.statut, 200, r.texte);
+  const lister = appels().filter((a) => a.outil === "ressource.py" && a.argv[0] === "lister");
+  assert.ok(lister.length && lister.every((a) => a.argv.includes("--en-ligne")), "la page est lue à son adresse");
   const l = r.json.ressources;
-  assert.deepEqual(l.map((x) => x.slug), ["le-carnet", "messages-a-23h", "exemple-seul"]);
+  assert.deepEqual(l.map((x) => x.slug), ["la-grille", "le-plan", "le-carnet", "messages-a-23h", "exemple-seul"]);
   const tableur = l.find((x) => x.slug === "messages-a-23h");
-  assert.equal(tableur.etat, "a_verifier");
-  assert.equal(tableur.peut_mettre_en_ligne, true);
+  assert.equal(tableur.etat, "en_preparation");
+  assert.ok(!("peut_mettre_en_ligne" in tableur), "plus de bouton de mise en ligne");
   assert.equal(tableur.contenu.titre, "Tes messages de 23 h");
   assert.deepEqual(tableur.problemes, ["Tu n'as pas encore validé le message que reçoivent ceux qui commentent."]);
   const seul = l.find((x) => x.slug === "exemple-seul");
-  assert.equal(seul.etat, "a_finir");
-  assert.equal(seul.peut_mettre_en_ligne, false);
+  assert.equal(seul.etat, "en_preparation");
   assert.equal(seul.contenu, null);
   assert.deepEqual(seul.a_corriger, ["La page porte encore le bandeau « Exemple »."]);
   const carnet = l.find((x) => x.slug === "le-carnet");
+  assert.equal(carnet.etat, "en_ligne");
+  assert.equal(carnet.en_ligne_reel.http, 200);
   assert.equal(carnet.prete, true);
   assert.equal(carnet.titre, "Le carnet");
   assert.deepEqual(carnet.posts.map((p) => [p.slug, p.regle]), [["le-carnet", "posee"]]);
-  assert.ok(!appels().some((a) => a.argv[0] === "mettre-en-ligne"), "aucune mise en ligne sans clic");
+  const grille = l.find((x) => x.slug === "la-grille");
+  assert.equal(grille.etat, "erreur");
+  assert.match(grille.en_ligne_reel.texte, /refusé la dernière version/);
+  assert.equal(grille.en_ligne_reel.detail, "Deployment was blocked");
+  assert.equal(grille.prete, false, "une page qui ne répond pas ne s'offre pas sur un post");
+  assert.equal(l.find((x) => x.slug === "le-plan").etat, "mise_a_jour");
   assert.ok(appels().every((a) => !a.ecriture.length), "jamais de variable d'écriture Zernio");
 });
 
-test("serveur yoan : aperçu servi par un seul processus, arrêté avec le studio", async () => {
-  const a = await requete("/api/ressources/messages-a-23h/apercu");
-  assert.equal(a.statut, 200, a.texte);
-  assert.equal(a.json.url, "http://127.0.0.1:45999/_brouillons/messages-a-23h/");
-  await requete("/api/ressources/messages-a-23h/apercu");
-  const servirs = appels().filter((x) => x.argv[0] === "servir");
-  assert.equal(servirs.length, 1, "un seul serveur d'aperçu");
-  assert.ok(vivant(servirs[0].pid));
-});
-
-test("serveur yoan : « Je l'ai vérifiée, mets-la en ligne » lance la mise en ligne, avec --oui, au clic seulement", async () => {
+test("serveur yoan : plus d'aperçu ni de mise en ligne depuis le studio", async () => {
+  assert.equal((await requete("/api/ressources/messages-a-23h/apercu")).statut, 404);
   const r = await requete("/api/ressources/messages-a-23h/mettre-en-ligne", { methode: "POST", corps: {} });
-  assert.equal(r.statut, 200, r.texte);
-  assert.equal(r.json.statut, "en_ligne");
-  const a = appels().filter((x) => x.argv[0] === "mettre-en-ligne");
-  assert.equal(a.length, 1);
-  assert.deepEqual(a[0].argv, ["mettre-en-ligne", "messages-a-23h", "--oui", "--pousser"]);
-  assert.equal((await requete("/api/ressources/x/mettre-en-ligne", { methode: "GET" })).statut, 404, "jamais par une simple lecture");
+  assert.equal(r.statut, 404, r.texte);
+  assert.ok(!appels().some((a) => ["mettre-en-ligne", "servir", "apercu"].includes(a.argv[0])), "aucun outil d'écriture ni d'aperçu");
 });
 
 test("serveur yoan : un souci affiché à Yoan ne lui dit pas de se prévenir lui-même", async () => {
@@ -199,11 +201,4 @@ test("serveur yoan : un souci affiché à Yoan ne lui dit pas de se prévenir lu
   } finally {
     fs.unlinkSync(modeFichier);
   }
-});
-
-test("serveur yoan : arrêt du studio = arrêt du serveur d'aperçu", async () => {
-  const pid = appels().find((x) => x.argv[0] === "servir").pid;
-  await s.arreter("fin");
-  s = null;
-  await attendreQue(() => !vivant(pid), { delaiMs: 5000 });
 });

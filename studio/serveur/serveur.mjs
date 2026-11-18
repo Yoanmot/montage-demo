@@ -727,18 +727,11 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
     }
 
-    // Ressources gratuites (studio de Yoan, lot 4B) : 404 pour un client sans site de ressources.
+    // Ressources gratuites (studio de Yoan) : 404 pour un client sans site de ressources. Lecture seule :
+    // la mise en ligne est faite par le head of content dès qu'une ressource est prête (18/11/2026).
     if (p[0] === "ressources") {
       ressources.exiger();
       if (m === "GET" && p.length === 1) return envoyerJson(res, 200, await ressources.lister());
-      const slug = p[1] ? decodeURIComponent(p[1]) : "";
-      if (m === "GET" && p.length === 3 && p[2] === "apercu") return envoyerJson(res, 200, await ressources.apercu(slug));
-      if (m === "POST" && p.length === 3 && p[2] === "mettre-en-ligne") {
-        await avantAction();
-        const r = await ressources.mettreEnLigne(slug);
-        rafraichir();
-        return envoyerJson(res, 200, r);
-      }
     }
 
     if (m === "POST" && p[0] === "publication") {
