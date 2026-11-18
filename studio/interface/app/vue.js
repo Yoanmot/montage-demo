@@ -962,7 +962,7 @@ export class Vue {
   async vueRessources(jeton, id) {
     const s = this.studio;
     let liste;
-    try { liste = (await this.api.ressources()).ressources || []; }
+    try { liste = this.noterEtatsRessources((await this.api.ressources()).ressources || []); }
     catch (e) { return el("article", { class: "vue" }, ...this.entete("Ressources gratuites"), el("p", { class: "recap-erreur" }, e.message)); }
     if (jeton !== this.jeton) return null;
     if (id) {
@@ -1002,6 +1002,16 @@ export class Vue {
   }
 
   // Le fichier « Ressource gratuite » d'un dossier de contenu.
+  // L'état lu à l'adresse de chaque page (en ligne, mise à jour en cours, erreur) : l'arborescence le montre
+  // au lieu de « en ligne » dès que la page est dans le site (test de bout en bout du 18/11).
+  noterEtatsRessources(liste) {
+    const s = this.studio;
+    const avant = JSON.stringify([...(s.etatsRessources || new Map())]);
+    s.etatsRessources = new Map(liste.map((r) => [r.slug, r.etat]));
+    if (JSON.stringify([...s.etatsRessources]) !== avant) s.arbre?.dessiner();
+    return liste;
+  }
+
   vueFichierRessource(d, jeton) {
     return this.ficheRessource(d.slug, jeton, d);
   }
@@ -1010,7 +1020,7 @@ export class Vue {
     const zone = el("div", {}, attente("Je regarde ta ressource"));
     this.api.ressources().then((l) => {
       if (jeton !== this.jeton) return;
-      const liste = l.ressources || [];
+      const liste = this.noterEtatsRessources(l.ressources || []);
       const r = liste.find((x) => x.slug === slug);
       zone.replaceChildren(...(r ? this.corpsRessource(r, jeton, liste, carte)
         : [el("p", { class: "vide-doux" }, "Je ne trouve pas encore cette ressource : demande-la à ton head of content dans le chat.")]));
@@ -1086,8 +1096,12 @@ export class Vue {
       el("dt", {}, "Message envoyé"), el("dd", {}, r.message ? el("div", { class: "res-message" }, el("p", {}, r.message), r.bouton ? el("span", { class: "res-bouton" }, r.bouton) : null) : el("span", { class: "doux" }, "Pas encore écrit")),
       el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant.")
         : surLeSite && r.repond && r.mot && !(r.bloquants || []).length ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant. Ton clic sur Programmer validera son message, que tu pourras encore retoucher.")
-        : el("div", {}, el("span", { class: "doux" }, surLeSite && r.problemes.length ? "Pas encore : le message doit être complet." : surLeSite ? "Pas encore : la page doit d'abord répondre à son adresse." : "Pas encore : elle doit d'abord être en ligne."),
-          surLeSite && r.problemes.length ? el("ul", { class: "res-liste" }, ...r.problemes.map((x) => el("li", {}, x))) : null)),
+        // La vraie raison d'abord : une page envoyée qui ne répond pas encore n'a pas un « message incomplet »
+        // (test de bout en bout du 18/11) ; la liste ne garde que ce qui bloque vraiment.
+        : el("div", {}, el("span", { class: "doux" }, !surLeSite ? "Pas encore : elle doit d'abord être en ligne."
+            : !r.repond ? "Pas encore : la page doit d'abord répondre à son adresse."
+            : !r.mot ? "Pas encore : il lui faut un mot à commenter." : "Pas encore : le message doit être complet."),
+          surLeSite && (r.bloquants || []).length ? el("ul", { class: "res-liste" }, ...r.bloquants.map((x) => el("li", {}, x))) : null)),
     ];
     blocs.push(this.bloc("Le mot en commentaire", el("dl", { class: "recap-champs res-champs" }, ...champs)));
 

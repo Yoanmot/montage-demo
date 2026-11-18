@@ -27,7 +27,7 @@ function progression(c) {
 }
 
 // Ce que dit un fichier à côté de son nom, selon le stade du dossier.
-function etatFichier(c, f) {
+function etatFichier(c, f, etatsRessources = null) {
   const s = c.stade;
   if (f === "idee" && s === "proposee") return ["à garder ?", true];
   if (f === "idee" && s === "de_cote") return ["en réserve", false];
@@ -41,7 +41,13 @@ function etatFichier(c, f) {
     if (s === "planche") return c.activite === "en_cours" ? ["en cours", false] : ["aperçu à valider", true];
   }
   if (f === "ressource") {
-    if (c.ressource === "en_ligne") return ["en ligne", false];
+    if (c.ressource === "en_ligne") {
+      // Dans le site, mais lue à son adresse ? L'état réel s'il est connu (liste des ressources déjà lue).
+      const reel = etatsRessources?.get(c.slug);
+      if (reel === "mise_a_jour") return ["mise en ligne", false];
+      if (reel === "erreur") return ["en erreur", true];
+      return ["en ligne", false];
+    }
     if (c.ressource === "brouillon") return ["en préparation", false];
     return ["en préparation", false];
   }
@@ -157,7 +163,7 @@ export class Arbre {
       const liste = el("ul", { class: "fichiers", role: "group" });
       for (const f of c.fichiers || ["idee"]) {
         const choisi = choisiDossier && s.sel.fichier === f;
-        const etat = etatFichier(c, f);
+        const etat = etatFichier(c, f, s.etatsRessources);
         const n = el("li", { class: `fichier${avant && !avant.includes(f) ? " nouveau" : ""}`, role: "treeitem", tabindex: "0", "aria-selected": String(choisi), dataset: { nav: `f:${k}:${f}` } },
           el("span", { html: icone(ICONES_FICHIERS[f]) }), el("span", {}, NOMS_FICHIERS[f]),
           etat ? el("span", { class: `fichier-etat${etat[1] ? " a-toi" : ""}` }, etat[0]) : null);
