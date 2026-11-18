@@ -351,3 +351,10 @@ Tous les autres gestes n'ont aucun réglage. Pour relire la liste à jour :
   - **Captures d'écran natives dans un effet sur mesure** : `origine.natif: true` dans `calque.json` (couleurs, rayons et
     polices du vrai format) et `data-natif` sur la partie native ; une mise en page faite par le navigateur au chargement
     (marge, défilement) se calcule une fois dans le script du calque, avant la timeline.
+- 2026-11-18 (rendu, sons : musique ; monteur de Yoan) : `sons.json` peut porter `"musique": { "fichier": <piste wav déjà
+  réglée sous la voix, de la durée de la vidéo coupée, chemin absolu ou relatif au dossier de montage>, "gain_db"?: 0 }`.
+  `bande_son` de la brique rendu (donc le rendu, l'aperçu et l'écoute qui la partagent) l'ajoute telle quelle au mix,
+  avant le limiteur ; `null` (Romain) ne change rien. La piste est préparée par `animations-yoan/scripts/yoan.py sons`
+  (musique du pipeline de Yoan : boucle, ducking). Le monteur de Yoan (`agents/monteur-yoan.md`, relié sous le nom
+  `monteur` chez lui seulement) écrit ses couches avec les skills `plan-montage-yoan`, `animations-yoan`,
+  `sous-titres-yoan` (réservés au client yoan, fichier `CLIENT`) : mêmes fichiers et même contrat que ci-dessus.

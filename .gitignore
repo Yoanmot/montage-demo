@@ -11,3 +11,7 @@ skills/carrousel-yoan/scripts/node_modules/
 skills/carrousel-yoan/da/illustrations/
 skills/carrousel-yoan/da/fonts/easy-pixel*
 skills/carrousel-yoan/da/fonts/EasyPixel*
+
+# Monteur de Yoan : caches Python, Satoshi (posée dans la bibliothèque à l installation)
+__pycache__/
+skills/animations-yoan/moteur/style/polices/Satoshi*

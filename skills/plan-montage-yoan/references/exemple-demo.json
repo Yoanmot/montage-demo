@@ -1,0 +1,998 @@
+{
+ "contrat": "timeline/1",
+ "_note": "Démo du pipeline de Yoan validée par lui après 3 passages (2026-10-23, rush IMG_7203, 52,8 s, 41 éléments + 47 sons). Exemple d'écriture, pas un modèle de dosage pour un autre reel. Ancres sur la vidéo coupée de l'époque : ne les recopie pas. Les médias (medias/...) étaient propres à ce reel. Sorties de zoom dezoom_eclair, dezoom_lent, retour_adouci et le suivi n'existent pas dans ce moteur (voir catalogue.md).",
+ "densite": "dense",
+ "ambiance": "hiphop",
+ "elements": [
+  {
+   "type": "hook",
+   "cadre": {
+    "variante": "large",
+    "vers": "droite"
+   },
+   "ouverture": {
+    "groupes": [
+     [
+      "VOICI CE QUI"
+     ],
+     [
+      "TE MANQUE|POUR QUE"
+     ],
+     [
+      "TON IA SONNE"
+     ]
+    ]
+   },
+   "lignes": [
+    "EXACTEMENT",
+    "COMME TOI"
+   ],
+   "dore": "EXACTEMENT",
+   "secondaire": "COMMENT DONNER|TA VOIX À UNE IA",
+   "jusqua": "@coupe1",
+   "sortie": "dezoom_eclair"
+  },
+  {
+   "type": "motion",
+   "gabarit": "objet-tournant",
+   "support": "camera",
+   "de": "@debut",
+   "a": "@coupe1",
+   "params": {
+    "cx": 915,
+    "cy": 625,
+    "taille": 130,
+    "image": "medias/bloc-mystere.png",
+    "entree": {
+     "@": "@debut+0.1"
+    }
+   }
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "@debut+0.1"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "je#1",
+   "groupes": [
+    [
+     "JE VOIS BEAUCOUP|DE COACHS QUI",
+     "COACHS"
+    ],
+    [
+     "SE SERVENT|DE L'IA"
+    ],
+    [
+     "POUR STRUCTURER|LEURS IDÉES"
+    ],
+    [
+     "ET POUR ÉCRIRE|DU TEXTE"
+    ],
+    [
+     "PLUS GLOBALEMENT"
+    ],
+    [
+     "ET QUI SE|RETROUVENT"
+    ],
+    [
+     "AVEC DES TRUCS"
+    ],
+    [
+     "HYPER|GÉNÉRALISTES",
+     "HYPER GÉNÉRALISTES",
+     {
+      "accent": "fort"
+     }
+    ],
+    [
+     "QUI PUENT L'IA."
+    ]
+   ]
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "généralistes#1+0.3"
+  },
+  {
+   "type": "zoom",
+   "geste": "lent",
+   "a": "beaucoup#1",
+   "fin": "globalement#1:fin"
+  },
+  {
+   "type": "zoom",
+   "geste": "eclair",
+   "a": "hyper#1",
+   "sortie": {
+    "geste": "dezoom_eclair",
+    "a": "qui#4"
+   }
+  },
+  {
+   "type": "plein_ecran",
+   "de": "@coupe2",
+   "a": "la#1",
+   "variante": "seule",
+   "lignes": [
+    "LE PROBLÈME",
+    "PAS L'IA EN",
+    "ELLE-MÊME",
+    "C'EST JUSTE"
+   ]
+  },
+  {
+   "type": "motion",
+   "gabarit": "image-plein",
+   "support": "plein",
+   "de": "la#1",
+   "a": "donc#1:fin+0.06",
+   "params": {
+    "image": "medias/singe-ordinateur-yoan-1080.png",
+    "entree": {
+     "@": "manière#1"
+    },
+    "h": 506
+   }
+  },
+  {
+   "type": "son",
+   "fichier": "medias/son-singe-vine-boom.wav",
+   "sousVoix": -2,
+   "a": "manière#1+0.03"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "la#1",
+   "groupes": [
+    [
+     "LA MANIÈRE|DONT TU T'EN SERS",
+     "MANIÈRE"
+    ]
+   ]
+  },
+  {
+   "type": "suivi",
+   "de": "@coupe3",
+   "a": "@coupe4"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "donc#1",
+   "groupes": [
+    [
+     "DONC LE TRUC|QUI TE MANQUE"
+    ],
+    [
+     "ET CE DONT|JE TE PARLAIS"
+    ],
+    [
+     "AU DÉBUT|DE LA VIDÉO,"
+    ],
+    [
+     "C'EST JUSTE|UN FICHIER"
+    ],
+    [
+     "DE CONTEXTE|DÉDIÉ À TA VOIX.",
+     "CONTEXTE"
+    ]
+   ]
+  },
+  {
+   "type": "zoom",
+   "geste": "adouci",
+   "a": "manque#2",
+   "sortie": {
+    "geste": "retour_adouci",
+    "a": "c'est#3"
+   }
+  },
+  {
+   "type": "motion",
+   "gabarit": "fichier-heros",
+   "support": "camera",
+   "de": "un#1-0.06",
+   "a": "@coupe4",
+   "params": {
+    "mode": "camera",
+    "doc": {
+     "x": 410,
+     "y": 1110,
+     "k": 0.52
+    },
+    "taille": 96,
+    "tDoc": {
+     "@": "un#1-0.06"
+    },
+    "tIA": {
+     "@": "fichier#1+0.1"
+    },
+    "titre": {
+     "t": {
+      "@": "fichier#1+0.25"
+     },
+     "texte": "contexte-voix.md"
+    },
+    "sections": [
+     {
+      "@": "contexte#1+0.3"
+     },
+     {
+      "@": "dédié#1"
+     },
+     {
+      "@": "à#1"
+     }
+    ],
+    "tOr": {
+     "@": "voix#1"
+    }
+   }
+  },
+  {
+   "type": "son",
+   "son": "whoosh",
+   "a": "un#1-0.06"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "fichier#1+0.1"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "contexte#1+0.3"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "dédié#1"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "à#1"
+  },
+  {
+   "type": "son",
+   "son": "shimmer",
+   "a": "voix#1"
+  },
+  {
+   "type": "faisceau",
+   "a": "@coupe4"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "t'as#1",
+   "groupes": [
+    [
+     "T'AS JUSTE À|PRENDRE 30 MINUTES"
+    ],
+    [
+     "UNE SEULE FOIS,",
+     "UNE SEULE FOIS,"
+    ]
+   ]
+  },
+  {
+   "type": "zoom",
+   "geste": "lent",
+   "a": "t'as#1",
+   "fin": "tu#2"
+  },
+  {
+   "type": "motion",
+   "gabarit": "minuteur-suite",
+   "support": "camera",
+   "de": "30#1-0.05",
+   "a": "@coupe6",
+   "params": {
+    "minuteur": {
+     "cx": 540,
+     "cy": 1240,
+     "depart": 1800,
+     "entree": {
+      "@": "30#1"
+     },
+     "debut": {
+      "@": "30#1"
+     },
+     "fin": {
+      "@": "@coupe6"
+     },
+     "etiquette": {
+      "texte": "Temps à prévoir",
+      "t": {
+       "@": "30#1+0.08"
+      }
+     },
+     "reduction": {
+      "t": {
+       "@": "tu#2"
+      },
+      "d": 0.45,
+      "x": 392,
+      "y": 1052,
+      "echelle": 0.34
+     }
+    },
+    "panneau": {
+     "x": 380,
+     "y": 1100,
+     "w": 500,
+     "entree": {
+      "@": "tu#2+0.15"
+     },
+     "entete": {
+      "gauche": "Une fois",
+      "droite": "30 min"
+     }
+    },
+    "liste": {
+     "y0": 124,
+     "pas": 96,
+     "items": [
+      {
+       "icone": "video",
+       "texte": "Transcriptions",
+       "t": {
+        "@": "transcription#1-0.02"
+       }
+      },
+      {
+       "icone": "fichier",
+       "texte": "Anciens contenus",
+       "t": {
+        "@": "anciens#1-0.02"
+       }
+      },
+      {
+       "icone": "micro",
+       "texte": "Vocaux",
+       "t": {
+        "@": "vocaux#1-0.02"
+       }
+      },
+      {
+       "icone": "onde",
+       "texte": "Tout audio naturel",
+       "t": {
+        "@": "audio#1-0.02"
+       }
+      }
+     ]
+    },
+    "camera": true
+   }
+  },
+  {
+   "type": "son",
+   "son": "glisse",
+   "a": "tu#2"
+  },
+  {
+   "type": "son",
+   "son": "whoosh",
+   "a": "tu#2+0.15"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "transcription#1-0.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "anciens#1-0.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "vocaux#1-0.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "audio#1-0.02"
+  },
+  {
+   "type": "zoom",
+   "geste": "eclair",
+   "a": "vocaux#1",
+   "sortie": {
+    "geste": "coupe",
+    "a": "@coupe5"
+   }
+  },
+  {
+   "type": "zoom",
+   "geste": "eclair",
+   "a": "naturellement#1",
+   "sortie": {
+    "geste": "coupe",
+    "a": "@coupe6"
+   }
+  },
+  {
+   "type": "son",
+   "son": "cta",
+   "a": "30#1"
+  },
+  {
+   "type": "son",
+   "son": "cta_lignes",
+   "a": "30#1+0.25"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "tu#2",
+   "groupes": [
+    [
+     "TU RÉCUPÈRES|LA TRANSCRIPTION"
+    ],
+    [
+     "DE TES ANCIENS|CONTENUS,"
+    ],
+    [
+     "DE VOCAUX,"
+    ],
+    [
+     "BREF,"
+    ],
+    [
+     "TOUT CE QUI EST"
+    ],
+    [
+     "UNE TRANSCRIPTION|D'UN AUDIO",
+     "TRANSCRIPTION"
+    ],
+    [
+     "OÙ TU PARLES|NATURELLEMENT."
+    ]
+   ]
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "et#5",
+   "groupes": [
+    [
+     "ET ENSUITE,|T'AS JUSTE À"
+    ],
+    [
+     "TOUT DONNER|À UNE IA"
+    ],
+    [
+     "ET TU LUI|DEMANDES"
+    ],
+    [
+     "D'ANALYSER|TA VOIX"
+    ],
+    [
+     "ET DE TE CRÉER|UN FICHIER"
+    ],
+    [
+     "DE CONTEXTE|SPÉCIALISÉ",
+     "CONTEXTE"
+    ],
+    [
+     "PRÉCIS|SUR TA VOIX.",
+     "VOIX."
+    ]
+   ]
+  },
+  {
+   "type": "motion",
+   "gabarit": "fichier-heros",
+   "support": "plein",
+   "de": "tout#2-0.12",
+   "a": "@coupe8",
+   "params": {
+    "mode": "plein",
+    "doc": {
+     "x": 140,
+     "y": 600,
+     "k": 1
+    },
+    "taille": 100,
+    "sources": [
+     {
+      "x": 240,
+      "y": 470,
+      "t": {
+       "@": "tout#2"
+      }
+     },
+     {
+      "x": 440,
+      "y": 470,
+      "t": {
+       "@": "donner#1"
+      }
+     },
+     {
+      "x": 640,
+      "y": 470,
+      "t": {
+       "@": "à#4-0.1"
+      }
+     },
+     {
+      "x": 840,
+      "y": 470,
+      "t": {
+       "@": "une#3-0.05"
+      }
+     }
+    ],
+    "tDoc": {
+     "@": "IA#2-0.07"
+    },
+    "tIA": {
+     "@": "IA#2+0.08"
+    },
+    "verse": [
+     {
+      "@": "d'analyser#1-0.03"
+     },
+     {
+      "@": "d'analyser#1+0.13"
+     },
+     {
+      "@": "d'analyser#1+0.29"
+     },
+     {
+      "@": "d'analyser#1+0.45"
+     }
+    ],
+    "titre": {
+     "t": {
+      "@": "créer#1+0.04"
+     },
+     "texte": "contexte-voix.md"
+    },
+    "sections": [
+     {
+      "@": "contexte#2-0.02"
+     },
+     {
+      "@": "spécialisé#1-0.02"
+     },
+     {
+      "@": "précis#1-0.02"
+     }
+    ],
+    "tOr": {
+     "@": "voix#3"
+    }
+   }
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "tout#2"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "donner#1"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "à#4-0.1"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "une#3-0.05"
+  },
+  {
+   "type": "son",
+   "son": "whoosh",
+   "a": "IA#2-0.07"
+  },
+  {
+   "type": "son",
+   "son": "glisse",
+   "a": "d'analyser#1-0.03"
+  },
+  {
+   "type": "son",
+   "son": "glisse",
+   "a": "d'analyser#1+0.29"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "contexte#2-0.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "spécialisé#1-0.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "précis#1-0.02"
+  },
+  {
+   "type": "son",
+   "son": "shimmer",
+   "a": "voix#3"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "et#8",
+   "groupes": [
+    [
+     "ET CE FICHIER,"
+    ],
+    [
+     "TU LE GARDES|PRÉCIEUSEMENT",
+     "PRÉCIEUSEMENT"
+    ],
+    [
+     "PARCE QUE TU|POURRAS T'EN SERVIR"
+    ],
+    [
+     "SUR N'IMPORTE|QUELLE IA"
+    ],
+    [
+     "ET N'IMPORTE|QUEL OUTIL"
+    ],
+    [
+     "POUR QU'À|CHAQUE FOIS,"
+    ],
+    [
+     "ELLE PARLE|AVEC TES MOTS.",
+     "MOTS."
+    ]
+   ]
+  },
+  {
+   "type": "zoom",
+   "geste": "eclair",
+   "a": "précieusement#1",
+   "sortie": {
+    "geste": "dezoom_lent",
+    "a": "parce#1",
+    "fin": "servir#1:fin"
+   }
+  },
+  {
+   "type": "demi_ecran",
+   "de": "sur#2-0.12",
+   "a": "@coupe9",
+   "sortie": "coupe",
+   "contenu": {
+    "gabarit": "fichier-partout",
+    "params": {
+     "mode": "copies",
+     "centre": {
+      "x": 540,
+      "y": 720
+     },
+     "k": 0.3,
+     "taille": 100,
+     "tuiles": [
+      {
+       "logo": "openai",
+       "x": 200,
+       "y": 560,
+       "t": {
+        "@": "ia#3-0.04"
+       }
+      },
+      {
+       "logo": "claude",
+       "x": 200,
+       "y": 720,
+       "t": {
+        "@": "ia#3+0.08"
+       }
+      },
+      {
+       "logo": "gemini",
+       "x": 200,
+       "y": 880,
+       "t": {
+        "@": "ia#3+0.2"
+       }
+      },
+      {
+       "logo": "mistral",
+       "x": 880,
+       "y": 560,
+       "t": {
+        "@": "quel#1"
+       }
+      },
+      {
+       "logo": "n8n",
+       "x": 880,
+       "y": 720,
+       "t": {
+        "@": "outil#1"
+       }
+      },
+      {
+       "logo": "notion",
+       "x": 880,
+       "y": 880,
+       "t": {
+        "@": "outil#1+0.15"
+       }
+      }
+     ],
+     "tFichier": {
+      "@": "quelle#1+0.1"
+     },
+     "tPrecieux": {
+      "@": "quelle#1+0.4"
+     },
+     "cadre": {
+      "x": 110,
+      "y": 470,
+      "w": 860,
+      "h": 520
+     },
+     "copies": [
+      {
+       "@": "pour#4+0.00"
+      },
+      {
+       "@": "pour#4+0.17"
+      },
+      {
+       "@": "pour#4+0.34"
+      },
+      {
+       "@": "pour#4+0.51"
+      },
+      {
+       "@": "pour#4+0.68"
+      },
+      {
+       "@": "pour#4+0.85"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "ia#3-0.04"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "ia#3+0.08"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "ia#3+0.2"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "quel#1"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "outil#1"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "outil#1+0.15"
+  },
+  {
+   "type": "son",
+   "son": "whoosh",
+   "a": "quelle#1+0.1"
+  },
+  {
+   "type": "son",
+   "son": "shimmer",
+   "a": "quelle#1+0.4"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+0.34"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+0.51"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+0.68"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+0.85"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+1.02"
+  },
+  {
+   "type": "son",
+   "son": "clic",
+   "a": "pour#4+1.19"
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "et#10",
+   "groupes": [
+    [
+     "ET À FORCE|DE CORRECTION,"
+    ],
+    [
+     "TU POURRAS|L'AFFINER"
+    ],
+    [
+     "POUR QU'IL|DEVIENNE"
+    ],
+    [
+     "DE PLUS EN|PLUS PRÉCIS",
+     "PRÉCIS"
+    ],
+    [
+     "AVEC LE TEMPS."
+    ]
+   ]
+  },
+  {
+   "type": "motion",
+   "gabarit": "regle-pin",
+   "support": "camera",
+   "de": "force#1-0.06",
+   "a": "@coupe10",
+   "params": {
+    "y": 1390,
+    "entree": {
+     "@": "force#1-0.06"
+    },
+    "sortie": {
+     "@": "temps#1+0.34"
+    },
+    "reperes": [
+     {
+      "x": 160,
+      "texte": "V1"
+     },
+     {
+      "x": 296,
+      "texte": "V2"
+     },
+     {
+      "x": 432,
+      "texte": "V3"
+     },
+     {
+      "x": 568,
+      "texte": "V4"
+     },
+     {
+      "x": 704,
+      "texte": "V5"
+     },
+     {
+      "x": 840,
+      "texte": "V6"
+     }
+    ],
+    "pin": {
+     "t": {
+      "@": "correction#1+0.04"
+     },
+     "arrets": [
+      {
+       "x": 160,
+       "texte": "V1"
+      },
+      {
+       "t": {
+        "@": "l'affiner#1+0.06"
+       },
+       "x": 296,
+       "texte": "V2",
+       "d": 0.3
+      },
+      {
+       "t": {
+        "@": "de#10+0.04"
+       },
+       "x": 840,
+       "texte": "V6",
+       "d": 0.6
+      }
+     ]
+    },
+    "ellipse": {
+     "t": {
+      "@": "précis#2+0.1"
+     }
+    }
+   }
+  },
+  {
+   "type": "son",
+   "son": "whoosh",
+   "a": "force#1-0.06"
+  },
+  {
+   "type": "son",
+   "son": "pop",
+   "a": "correction#1+0.04"
+  },
+  {
+   "type": "son",
+   "son": "curseur",
+   "a": "l'affiner#1+0.06",
+   "duree": 0.3
+  },
+  {
+   "type": "son",
+   "son": "curseur",
+   "a": "de#10+0.04",
+   "duree": 0.6
+  },
+  {
+   "type": "son",
+   "son": "shimmer",
+   "a": "précis#2+0.1"
+  },
+  {
+   "type": "zoom",
+   "geste": "eclair",
+   "a": "précis#2",
+   "sortie": {
+    "geste": "coupe",
+    "a": "@coupe10"
+   }
+  },
+  {
+   "type": "sous_titres",
+   "depuis": "si#1",
+   "groupes": [
+    [
+     "SI TU VEUX|DE L'AIDE"
+    ],
+    [
+     "POUR CRÉER|CE FICHIER"
+    ],
+    [
+     "POUR TOI-MÊME,"
+    ]
+   ]
+  },
+  {
+   "type": "cta",
+   "support": "camera",
+   "mot": "CONTEXTE",
+   "consigne": "COMMENTE",
+   "bas": "ET JE T'AIDE EN DM",
+   "quand": {
+    "consigne": "commente#1",
+    "mot": "contexte#3",
+    "bas": "et#11-0.02"
+   },
+   "jusqua": "@fin"
+  }
+ ]
+}

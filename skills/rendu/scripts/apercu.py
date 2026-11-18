@@ -93,17 +93,17 @@ def image_camera(w, info, video, ff, C, total, A):
     return out, cle, True
 
 
-def camera(w, info, video, ff, C, biblio, total, sons, A):
+def camera(w, info, video, ff, C, biblio, total, sons, A, musique=None):
     """camera-<clé>.mp4 : l'image légère + la bande son exacte du rendu (voix et sons). Le son se refait quand les sons
     changent, l'image jamais (copiée telle quelle)."""
     image, cle_i, neuve = image_camera(w, info, video, ff, C, total, A)
-    sj = json.dumps(sons, sort_keys=True, ensure_ascii=False)
+    sj = json.dumps(sons, sort_keys=True, ensure_ascii=False) + (json.dumps(musique, sort_keys=True, ensure_ascii=False) if musique else "")
     cle = R.empreinte(cle_i, (w / "filtre.txt").read_text(encoding="utf-8-sig"), sj, json.dumps(C["SONS"], sort_keys=True), "son-1")[:12]
     out = A / f"camera-{cle}.mp4"
     if out.exists():
         return out, {}, neuve, False
     cache = A / "cache"
-    audio, mesures = R.bande_son(ff, w, info, total, sons, C, biblio, cache)
+    audio, mesures = R.bande_son(ff, w, info, total, sons, C, biblio, cache, musique)
     tmp = A / f"camera-{cle}.partiel.mp4"
     ffmpeg([ff, "-nostdin", "-v", "error", "-y", "-i", str(image), "-i", str(audio), "-map", "0:v", "-map", "1:a",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ar", str(R.SR), "-movflags", "+faststart", str(tmp)], "son", A)
@@ -238,14 +238,15 @@ def main():
         R.echec(2, "COUCHE_MANQUANTE zooms : lance d'abord la brique zooms (preparer).")
     sources = [s for s in ("animations", "sous-titres") if s in couches]
     calques = R.calques_demandes(w, sources, total) if sources else []
-    sons = []
+    sons = []; musique = None
     if "sons" in couches:
         if not (w / "sons.json").exists():
             R.echec(2, "COUCHE_MANQUANTE sons : lance d'abord la brique sound-design (sons.json).")
-        sons = R.lit_json(w / "sons.json", 3, "SONS").get("sons") or []
+        sj = R.lit_json(w / "sons.json", 3, "SONS")
+        sons = sj.get("sons") or []; musique = sj.get("musique") or None
 
     t0 = time.time()
-    cam, mesures, image_neuve, son_neuf = camera(w, info, video, ff, C, biblio, total, sons, A)
+    cam, mesures, image_neuve, son_neuf = camera(w, info, video, ff, C, biblio, total, sons, A, musique)
     dire(f"  vidéo coupée légère : {'faite' if image_neuve else 'déjà prête'}, son {'refait' if son_neuf else 'déjà prêt'} "
          f"en {time.time() - t0:.0f} s")
 

@@ -382,6 +382,66 @@ test("mettre-a-jour.sh : le skill de mise en page du client est relié sous le n
   }
 });
 
+test("mettre-a-jour.sh : le monteur du client est relié sous le nom monteur, ses skills réservés chez lui seulement", () => {
+  // [client, monteur du fichier, monteur attendu, skills réservés à « essai » reliés ?]
+  for (const [id, monteur, attendu, reserves] of [["essai", "monteur-essai", "monteur-essai", true], ["autre", null, "monteur", false]]) {
+    const t = tmp();
+    const maison = path.join(t, "maison");
+    fs.mkdirSync(maison);
+    const racine = path.join(t, "racine");
+    const src = path.join(t, "montage-src");
+    for (const s of ["animations", "plan-montage-essai", "zooms"]) {
+      fs.mkdirSync(path.join(src, "skills", s), { recursive: true });
+      fs.writeFileSync(path.join(src, "skills", s, "SKILL.md"), `---\nname: ${s}\n---\n`);
+    }
+    fs.writeFileSync(path.join(src, "skills/plan-montage-essai/CLIENT"), "essai\n");
+    fs.mkdirSync(path.join(src, "agents"), { recursive: true });
+    fs.writeFileSync(path.join(src, "agents/monteur.md"), "---\nname: monteur\n---\nRomain\n");
+    fs.writeFileSync(path.join(src, "agents/monteur-essai.md"), "---\nname: monteur\n---\nEssai\n");
+    fs.cpSync(path.join(DEPOT, "installation"), path.join(src, "installation"), { recursive: true });
+    fs.mkdirSync(path.join(src, "studio/lancement"), { recursive: true });
+    fs.mkdirSync(path.join(src, "studio/clients"), { recursive: true });
+    fs.copyFileSync(path.join(DEPOT, "studio/lancement/client.sh"), path.join(src, "studio/lancement/client.sh"));
+    fs.copyFileSync(path.join(DEPOT, "studio/lancement/commun.sh"), path.join(src, "studio/lancement/commun.sh"));
+    fs.writeFileSync(path.join(src, `studio/clients/${id}.json`), JSON.stringify({
+      id, prenom: "Camille", racine, branche_mise_a_jour: "main", config_claude: `${racine}/claude`,
+      head_of_content: { depot: "", cle_ssh: `${racine}/cle` }, ...(monteur ? { monteur } : {}),
+    }));
+    const g = (cwd, a) => execFileSync("git", a, { cwd, stdio: "pipe", encoding: "utf8" });
+    g(src, ["init", "-q", "-b", "main"]); g(src, ["add", "."]);
+    g(src, ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"]);
+    fs.mkdirSync(racine);
+    g(t, ["clone", "-q", "--branch", "main", src, path.join(racine, "montage-demo")]);
+    fs.writeFileSync(path.join(racine, "client.json"), JSON.stringify({ id }));
+    const clone = path.join(racine, "montage-demo");
+    // Ce qu'une version d'avant a relié : le monteur de Romain sous monteur.md, l'autre sous son nom, le skill réservé partout.
+    fs.mkdirSync(path.join(racine, "claude/skills"), { recursive: true });
+    fs.mkdirSync(path.join(racine, "claude/agents"), { recursive: true });
+    fs.symlinkSync(path.join(clone, "agents/monteur.md"), path.join(racine, "claude/agents/monteur.md"));
+    fs.symlinkSync(path.join(clone, "agents/monteur-essai.md"), path.join(racine, "claude/agents/monteur-essai.md"));
+    fs.symlinkSync(path.join(clone, "skills/plan-montage-essai"), path.join(racine, "claude/skills/plan-montage-essai"));
+
+    const r = bash(path.join(clone, "installation/mettre-a-jour.sh"), [], envDe(maison));
+    assert.equal(r.code, 0, r.sortie);
+    const ag = path.join(racine, "claude/agents"), sk = path.join(racine, "claude/skills");
+    assert.equal(fs.readlinkSync(path.join(ag, "monteur.md")), path.join(clone, "agents", `${attendu}.md`), r.sortie);
+    assert.ok(!fs.existsSync(path.join(ag, "monteur-essai.md")), "monteur d'un client relié sous son nom");
+    assert.equal(fs.existsSync(path.join(sk, "plan-montage-essai")), reserves, r.sortie);
+    assert.equal(fs.readlinkSync(path.join(sk, "zooms")), path.join(clone, "skills/zooms"));
+    fs.rmSync(t, { recursive: true, force: true });
+  }
+});
+
+test("client.sh : monteur du client, Romain inchangé ; le monteur de Yoan et ses briques sont dans le dépôt", () => {
+  assert.equal(variables(envDe(tmp())).CLIENT_MONTEUR, "monteur");
+  assert.equal(variables(envDe("/Users/yoanmottier", { STUDIO_CLIENT: "yoan" })).CLIENT_MONTEUR, "monteur-yoan");
+  assert.match(fs.readFileSync(path.join(DEPOT, "agents/monteur-yoan.md"), "utf8"), /^---\nname: monteur\n/);
+  for (const s of ["plan-montage-yoan", "animations-yoan", "sous-titres-yoan"]) {
+    assert.ok(fs.existsSync(path.join(DEPOT, "skills", s, "SKILL.md")), s);
+    assert.equal(fs.readFileSync(path.join(DEPOT, "skills", s, "CLIENT"), "utf8").trim(), "yoan", s);
+  }
+});
+
 test("client.sh : skill de mise en page des carrousels, Romain inchangé", () => {
   assert.equal(variables(envDe(tmp())).CLIENT_SKILL_CARROUSEL, "carrousel");
   assert.equal(variables(envDe("/Users/yoanmottier", { STUDIO_CLIENT: "yoan" })).CLIENT_SKILL_CARROUSEL, "carrousel-yoan");

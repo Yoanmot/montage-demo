@@ -1,0 +1,2 @@
+Étalonnage P20 (ffmpeg -vf), généré par _grades/interpoler.py :
+colortemperature=temperature=5020:mix=0.640,curves=all='0/0.0020 0.2/0.1836 0.5/0.4680 0.8/0.7340 1/0.9040',colorbalance=rs=0.0480:gs=0.0040:bs=-0.0560:rm=0.0440:bm=-0.0440:rh=0.0100:bh=-0.0120,huesaturation=saturation=-0.4200:colors=b+c,eq=contrast=1.0120:saturation=1.0100,vignette=angle=0.6488:x0=w/2:y0=h*0.42,noise=c0s=1:c0f=t
