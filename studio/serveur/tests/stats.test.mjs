@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { Stats, ajouterReleve, variationAbonnes, sourceStats } from "../stats.mjs";
+import { Stats, ajouterReleve, variationAbonnes, sourceStats, parFormat } from "../stats.mjs";
 import { chargerConfig } from "../config.mjs";
 import { demarrer } from "../studio.mjs";
 import { monde, attendreQue } from "./aide.mjs";
@@ -172,5 +172,29 @@ test("simulation avec stats.instagram_en_simulation dans la config : vrais chiff
     const config = chargerConfig({ home: m.home, env: m.env });
     assert.equal(config.simulation, true);
     assert.equal(sourceStats(config), "instagram");
+  } finally { m.nettoyer(); }
+});
+
+test("stats par format (lot 10) : toutes les publications des 30 jours, reels et carrousels séparés, rien d'inventé", async () => {
+  const m = monde();
+  try {
+    // 14 publications (avant le lot 10, seules les 6 premières arrivaient à l'interface) : 10 reels, 4 carrousels, une sans chiffre.
+    const pubs = Array.from({ length: 14 }, (_, i) => ({ le: `2026-11-${String(16 - i).padStart(2, "0")}T17:30:00Z`, type: i % 3 === 2 ? "carrousel" : "reel",
+      sujet: `Sujet ${i}`, lien: null, slug: null, vues: i === 4 ? null : 1000 + i, x_vues: null, comparable: false }));
+    m.json("stats-exemple.json", { ...EXEMPLE(), normale_vues: { reel: 1100, carrousel: null }, publications: pubs });
+    fs.writeFileSync(path.join(m.home, "studio.config.json"), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(m.home, "studio.config.json"))), stats: { fichier: path.join(m.racine, "stats-exemple.json") } }));
+    const s = new Stats({ config: chargerConfig({ home: m.home, env: m.env }) });
+    await s.actualiser();
+    const v = s.vue();
+    assert.equal(v.publications.length, 14);
+    assert.equal(v.formats.reel.publications, 10);
+    assert.equal(v.formats.carrousel.publications, 4);
+    const reels = pubs.filter((p) => p.type === "reel" && typeof p.vues === "number");
+    assert.equal(v.formats.reel.vues, reels.reduce((a, p) => a + p.vues, 0), "la publication sans chiffre n'est pas comptée comme 0");
+    assert.equal(v.formats.reel.normale, 1100);
+    assert.equal(v.formats.carrousel.normale, null, "normale absente : absente, pas 0");
+    // Aucun chiffre lu : formats vides, vues absentes.
+    assert.deepEqual(parFormat([], null), { reel: { publications: 0, vues: null, normale: null }, carrousel: { publications: 0, vues: null, normale: null } });
+    assert.equal(parFormat(Array.from({ length: 80 }, () => ({ type: "reel", vues: 1 })), {}).reel.publications, 80);
   } finally { m.nettoyer(); }
 });

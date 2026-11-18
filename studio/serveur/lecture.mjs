@@ -10,6 +10,7 @@ import {
 import { stade, libelle, estMonte, estOriginale } from "./stades.mjs";
 import { contact } from "./client.mjs";
 import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
+import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -312,6 +313,10 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     ]),
   };
   carte.fichiers = fichiersDuDossier(config, slug, contenu.format, fichiers);
+  // L'image de la carte (lot 10, « Publier sur Instagram ») : la vignette du hook tirée de la vidéo montée (fabriquée à
+  // la demande, l'adresse change avec la vidéo), ou la première slide d'un carrousel mis en page.
+  const vignette = vignetteDe(config, slug, contenu.format);
+  if (vignette) carte.vignette = vignette;
   // Ressource gratuite (client qui a un site de ressources) : un fichier de plus dans le dossier, et
   // son état lu sur le disque (« fiche », « brouillon », « en_ligne »).
   const ressource = ressourcesActives(config) ? etatRessourceRapide(config, slug) : null;
@@ -326,6 +331,16 @@ function carteContenu(config, slug, depotLu, etatLocal) {
   if (t) carte.tournage_id = t.id || t.fichier.replace(/\.json$/, "");
   if (etat?.proposition) carte.proposition_id = etat.proposition;
   return carte;
+}
+
+function vignetteDe(config, slug, format) {
+  if (format === "reel") {
+    const v = videoMonteeDe(config, slug);
+    return v ? `/api/cartes/${encodeURIComponent(slug)}/vignette?v=${versionVideo(v)}` : null;
+  }
+  const dossier = path.join(config.media, slug, "slides");
+  const premiere = imagesDe(dossier).find((n) => /^slide-\d+\.(png|jpe?g)$/i.test(n));
+  return premiere ? `${urlMedia(slug, "slides", premiere)}?v=${Math.round(stat(path.join(dossier, premiere))?.mtimeMs || 0)}` : null;
 }
 
 function carteProposition(p) {

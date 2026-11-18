@@ -7,6 +7,8 @@ import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefa
 import { recapDans } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
 import { Apercu } from "./apercu.js";
+import { courbeAbonnes, colonnesVues, comparaison, etapesFormat, nombreFr } from "./graphiques.js";
+import { comptesParFormat } from "./etapes.js";
 
 const enCours = (c) => ["en_cours", "en_file"].includes(c?.activite);
 const sansTitre = (md) => String(md || "").replace(/^#\s+.+\n+/, "").trim();
@@ -165,9 +167,8 @@ export class Vue {
 
   reglages(c) {
     if (["programme", "publie", "abandonne"].includes(c.stade)) return null;
-    const jour = el("input", { type: "date", class: "champ champ-date", value: c.jour_prevu || "", "aria-label": "Jour prévu" });
-    jour.addEventListener("change", async () => { try { await this.api.jour(c.slug, jour.value || null); annoncer(jour.value ? `Prévu ${jourCourt(jour.value)}.` : "Plus de jour prévu."); } catch (e) { annoncer(e.message, "erreur"); } });
-    const z = el("div", { class: "vue-reglages" }, el("label", { class: "jour-prevu" }, el("span", {}, "Jour prévu"), jour));
+    // Lot 10 : plus de « Jour prévu » ici. Le jour et l'heure se choisissent à la fin, au moment de poster.
+    const z = el("div", { class: "vue-reglages" });
     const cote = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("ecarter")}<span>Mettre de côté</span>` });
     cote.addEventListener("click", () => {
       const raison = el("input", { class: "champ", type: "text", maxlength: "60", placeholder: "Pourquoi ? (facultatif)", "aria-label": "Pourquoi tu le mets de côté (facultatif)" });
@@ -261,19 +262,16 @@ export class Vue {
       : el("p", {}, String(src.type || "").startsWith("idee_") ? "Ton idée, notée en passant." : src.type === "declinaison" ? (c.republication ? "À republier : un de tes contenus déjà sortis." : "Tirée d'un de tes contenus.") : "Sortie du chat.");
     const deCote = c.stade === "de_cote";
     const garder = el("button", { class: "bouton bouton-plein", type: "button", html: `${icone("coche")}<span>Garder cette idée</span>` });
-    const jour = el("select", { class: "champ", "aria-label": "Jour prévu (facultatif)" },
-      el("option", { value: "" }, "Sans jour prévu"),
-      ...Array.from({ length: 14 }, (_, i) => { const j = ajouterJours(aujourdhui(), i + 1); return el("option", { value: j }, jourCourt(j)); }));
     // Lot 12 : « Mettre de côté » (pas pour maintenant, elle reste en réserve) et « Supprimer » (elle
     // disparaît ; la raison, facultative, sert à mieux viser les prochaines idées).
     const cote = el("button", { class: "bouton", type: "button", html: deCote ? `${icone("fleche")}<span>Remettre dans les idées</span>` : `${icone("ranger")}<span>Mettre de côté</span>` });
     const supprimer = el("button", { class: "bouton bouton-discret", type: "button", html: `${icone("croix")}<span>Supprimer</span>` });
-    const choix = el("div", { class: "choix-idee" }, garder, jour, cote, supprimer);
+    const choix = el("div", { class: "choix-idee" }, garder, cote, supprimer);
     garder.addEventListener("click", async () => {
       garder.disabled = true;
       this.studio.sel.attendGarde = true;
       try {
-        const r = await this.api.garder(c.proposition_id, jour.value || null);
+        const r = await this.api.garder(c.proposition_id, null);
         annoncer("C'est gardé : ton dossier est prêt.");
         if (r.slug) this.attendreDossier(r.slug);
       } catch (e) { annoncer(e.message, "erreur"); garder.disabled = false; this.studio.sel.attendGarde = false; }
@@ -561,35 +559,28 @@ export class Vue {
   }
 
   // ---------- Vidéo montée, images ----------
+  // Lot 10 : ici on regarde ce qui est prêt. Poster, programmer et la légende se font à un seul endroit, « Publier sur
+  // Instagram » (préparation, puis quand). La légende se retouche dans le brief.
   vueVideo(d) {
     const m = d.medias || {};
-    const [formulaire, recap] = this.programmer(d);
     return el("div", {}, this.etapePublication(d),
-      el("div", { class: "lecture" },
-        m.video_montee ? el("video", { class: "video", src: m.video_montee, controls: true, preload: "metadata", playsinline: true, width: "340", height: "604" }) : el("p", { class: "vide-doux" }, "Pas encore de vidéo montée."),
-        el("div", {}, formulaire, this.legende(d))),
-      recap);
+      m.video_montee ? el("video", { class: "video video-seule", src: m.video_montee, controls: true, preload: "metadata", playsinline: true, width: "340", height: "604" }) : el("p", { class: "vide-doux" }, "Pas encore de vidéo montée."));
   }
 
   vueSlides(d) {
     const urls = d.medias?.slides || [];
-    const [formulaire, recap] = this.programmer(d);
     return el("div", {}, this.etapePublication(d),
-      el("div", { class: "slides-grille" }, ...urls.map((u, i) => el("figure", {}, el("img", { src: u, alt: `Image ${i + 1} du carrousel`, width: "300", height: "375", loading: "lazy" }), el("figcaption", {}, `Image ${i + 1}`)))),
-      formulaire, this.legende(d), recap);
-  }
-
-  legende(d) {
-    if (!d.brief?.legende) return null;
-    const outils = [this.boutonCopier(d.brief.legende)];
-    if (!["programme", "publie"].includes(d.stade)) outils.push(this.aller(d, "brief", "La retoucher", "crayon", "bouton bouton-discret bouton-petit"));
-    return this.bloc("Légende", el("div", { class: "prose", html: markdown(d.brief.legende) }), { outils });
+      el("div", { class: "slides-grille" }, ...urls.map((u, i) => el("figure", {}, el("img", { src: u, alt: `Image ${i + 1} du carrousel`, width: "300", height: "375", loading: "lazy" }), el("figcaption", {}, `Image ${i + 1}`)))));
   }
 
   etapePublication(d) {
     if (d.stade === "programme" && d.publication) return this.etape(`<strong>Programmé ${quandLisible(d.publication.quand)}.</strong> Ça part tout seul, même Mac fermé.`);
     if (d.stade === "publie") return this.etape("<strong>Publié.</strong>", d.publication?.lien ? el("a", { class: "bouton", href: d.publication.lien, target: "_blank", rel: "noopener", html: `${icone("lien")}<span>Voir la publication</span>` }) : null);
-    if (["monte", "mis_en_page"].includes(d.stade)) return this.etape("<strong>Prêt à programmer.</strong> Choisis le jour et l'heure : je vérifie tout et je te montre ce qui partira avant que tu confirmes.", null, { aToi: false });
+    if (["monte", "mis_en_page"].includes(d.stade)) {
+      return this.etape(`<strong>Prêt à poster.</strong> Tu le prépares dans « Publier sur Instagram » : tu relis sa légende et ce qu'il offre, puis tu choisis quand il part.`,
+        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Publier sur Instagram</span>`,
+          onclick: () => this.studio.selectionner({ genre: "transverse", quoi: "publier", vers: d.slug }) }));
+    }
     return null;
   }
 
@@ -601,115 +592,86 @@ export class Vue {
     return `${j} ${cfg.heures_par_defaut?.[c.format] || "18:30"}`;
   }
 
-  // Le choix du jour et de l'heure, et la place où le récapitulatif s'affiche (sous le fichier).
-  programmer(d) {
-    if (!["monte", "mis_en_page"].includes(d.stade)) return [null, null];
-    const [j, h] = this.quandParDefaut(d).split(" ");
-    const date = el("input", { type: "date", class: "champ champ-date", value: j, "aria-label": "Jour de publication" });
-    const heure = el("input", { type: "time", class: "champ champ-heure", value: h, step: "300", "aria-label": "Heure de publication" });
-    const zone = el("div", { class: "zone-recap" });
-    const verifier = el("button", { class: "bouton bouton-plein bouton-verifier", type: "button", html: `${icone("calendrier")}<span>Vérifier avant de programmer</span>` });
-    verifier.addEventListener("click", () => {
-      if (!date.value || !heure.value) { annoncer("Choisis un jour et une heure.", "erreur"); return; }
-      recapDans(this.studio, zone, () => this.api.recap([{ slug: d.slug, quand: `${date.value} ${heure.value}` }]));
-      setTimeout(() => zone.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    });
-    // Poster tout de suite : le même récapitulatif, rien ne part sans le clic qui le confirme.
-    const maintenant = el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Poster tout de suite</span>` });
-    maintenant.addEventListener("click", () => {
-      recapDans(this.studio, zone, () => this.api.recap([{ slug: d.slug, quand: "maintenant" }]));
-      setTimeout(() => zone.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    });
-    return [this.bloc("Programmer", el("div", { class: "programmer" },
-      el("div", { class: "programmer-ligne" }, el("label", {}, el("span", {}, "Le"), date), el("label", {}, el("span", {}, "à"), heure)),
-      el("div", { class: "programmer-boutons" }, verifier, maintenant),
-      el("p", { class: "vide-doux" }, "Tu verras tout ce qui partira avant de confirmer."))), zone];
-  }
-
-  // ---------- Vues d'ensemble ----------
-  // ---------- Vue d'ensemble : les données seulement (lot 10) ----------
-  // Les chiffres Instagram qui montrent la progression, puis combien de contenus à chaque stade.
-  // Ce qui attend Romain est déjà dans l'arborescence (étiquettes, compteur orange) : pas de doublon.
+  // ---------- Vue d'ensemble (lot 10) : les chiffres Instagram en graphiques, puis les contenus par format ----------
+  // Ce qui attend le client est déjà dans l'arborescence (étiquettes, compteur orange) : pas de doublon ici.
   vueAccueil() {
     const s = this.studio;
-    const cs = [...s.cartes.values()];
-    const compte = (f) => cs.filter(f).length;
-    const stades = [
-      ["idées proposées", compte((c) => c.stade === "proposee")],
-      ["brief à écrire", compte((c) => c.stade === "gardee")],
-      ["brief à relire", compte((c) => c.stade === "script_ecrit")],
-      ["à tourner", compte((c) => c.format === "reel" && ["valide", "tournage_prevu"].includes(c.stade))],
-      ["à mettre en page", compte((c) => c.format === "carrousel" && c.stade === "valide")],
-      ["rushs reçus", compte((c) => c.stade === "rushs_recus")],
-      ["planche à valider", compte((c) => c.stade === "planche")],
-      ["prêts à publier", compte((c) => ["monte", "mis_en_page"].includes(c.stade))],
-      ["programmés", compte((c) => c.stade === "programme")],
-      ["publiés", compte((c) => c.stade === "publie")],
-    ];
-    return el("article", { class: "vue" },
+    const formats = comptesParFormat([...s.cartes.values()]);
+    return el("article", { class: "vue vue-accueil" },
       el("header", { class: "vue-tete" }, el("div", {}, el("h1", { class: "vue-titre" }, "Ton studio"),
         el("p", { class: "vide-doux", style: "margin-top:8px" }, "Tes chiffres Instagram, et où en sont tes contenus."))),
       this.blocStats(),
-      this.bloc("Tes contenus", el("div", { class: "chiffres chiffres-stades" }, ...stades.map(([t, n]) =>
-        el("div", { class: `chiffre${n ? "" : " zero"}` }, el("strong", {}, String(n)), el("span", {}, t)))), { aide: "combien à chaque étape" }));
+      this.bloc("Tes contenus", el("div", { class: "etapes-formats" }, ...formats.map((f) => etapesFormat(f))),
+        { aide: "combien à chaque étape, reels puis carrousels" }));
   }
 
   blocStats() {
     const s = this.studio;
     const st = s.stats;
-    const fr = (n) => (typeof n === "number" ? Math.round(n).toLocaleString("fr-CH").replace(/[’']/g, " ") : null);
     const maj = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", disabled: st?.en_cours || !st?.source || null, html: `${icone("synchro")}<span>Mettre à jour</span>` });
     maj.addEventListener("click", async () => {
       maj.disabled = true; maj.querySelector("span").textContent = "Je lis tes chiffres";
-      try { s.stats = await s.api.actualiserStats(); this.afficher(); } catch (e) { annoncer(e.message, "erreur"); maj.disabled = false; }
+      try {
+        s.stats = await s.api.actualiserStats(); this.afficher();
+        // Les chiffres peuvent être les mêmes qu'avant : on dit que la lecture est faite.
+        annoncer(s.stats?.erreur ? s.stats.erreur : "Tes chiffres Instagram sont à jour.", s.stats?.erreur ? "erreur" : undefined);
+      } catch (e) { annoncer(e.message, "erreur"); maj.disabled = false; }
     });
+    // Pas encore de chiffres : en train de les lire (points qui bougent), ou la raison.
     if (!st || !st.disponible) {
-      const texte = st?.erreur || (st?.en_cours || st?.source ? "Je lis tes chiffres Instagram, ils arrivent dans un instant." : "Tes chiffres Instagram arrivent ici dès que je les ai lus.");
-      return this.bloc("Ton Instagram", el("p", { class: "vide-doux" }, texte), { outils: st?.source ? [maj] : null });
+      const lit = !st || st.en_cours || (st.source && !st.erreur);
+      const texte = st?.erreur || (lit ? "Je lis tes chiffres Instagram, ils arrivent dans un instant." : "Tes chiffres Instagram arrivent ici dès que je les ai lus.");
+      return this.bloc("Ton Instagram", lit && !st?.erreur ? attente(texte) : el("p", { class: st?.erreur ? "graph-erreur" : "vide-doux" }, texte), { outils: st?.source ? [maj] : null });
     }
-    // Variation en clair, le signe écrit (jamais la couleur seule).
-    const variation = (avant, apres, unite) => {
-      if (typeof avant !== "number" || typeof apres !== "number" || avant <= 0) return null;
-      const p = Math.round(((apres - avant) / avant) * 100);
-      return el("span", { class: `evolution ${p > 0 ? "hausse" : p < 0 ? "baisse" : ""}` }, `${p > 0 ? "+" : ""}${p} %`, el("span", { class: "doux" }, ` ${unite}`));
-    };
     const c28 = st.compte_28j || {}; const av = st.compte_28j_avant || {};
     const v = st.variation_abonnes;
+    // Variation en clair, le signe écrit (jamais la couleur seule).
+    const variation = (avant, apres) => {
+      if (typeof avant !== "number" || typeof apres !== "number" || avant <= 0) return null;
+      const p = Math.round(((apres - avant) / avant) * 100);
+      return el("span", { class: `evolution ${p > 0 ? "hausse" : p < 0 ? "baisse" : ""}` }, `${p > 0 ? "+" : ""}${p} %`, el("span", { class: "doux" }, " par rapport aux 28 jours d'avant"));
+    };
     const tuile = (titre, valeur, sous, extra) => el("div", { class: "tuile" },
       el("span", { class: "tuile-titre" }, titre),
       valeur !== null ? el("strong", { class: "tuile-valeur" }, valeur) : el("strong", { class: "tuile-valeur absente" }, "pas de chiffre"),
       sous || null, extra || null);
     const abonnesSous = v
-      ? el("span", { class: `evolution ${v.valeur > 0 ? "hausse" : v.valeur < 0 ? "baisse" : ""}` }, `${v.valeur > 0 ? "+" : ""}${fr(v.valeur)}`,
+      ? el("span", { class: `evolution ${v.valeur > 0 ? "hausse" : v.valeur < 0 ? "baisse" : ""}` }, `${v.valeur > 0 ? "+" : ""}${nombreFr(v.valeur)}`,
         el("span", { class: "doux" }, v.partielle ? ` depuis le ${dateCourte(v.depuis)}` : " en 30 jours"))
-      : el("span", { class: "doux" }, "La progression s'affiche au fil des jours.");
+      : null;
     const tuiles = el("div", { class: "tuiles" },
-      tuile("Abonnés", fr(st.abonnes), abonnesSous, st.historique?.length >= 2 ? courbe(st.historique) : null),
-      tuile("Vues, 28 derniers jours", fr(c28.vues), variation(av.vues, c28.vues, "par rapport aux 28 jours d'avant")),
-      tuile("Comptes touchés, 28 jours", fr(c28.portee), variation(av.portee, c28.portee, "par rapport aux 28 jours d'avant")),
-      tuile("Visites de ton profil, 28 jours", fr(c28.visites_profil), variation(av.visites_profil, c28.visites_profil, "par rapport aux 28 jours d'avant")));
-    const pubs = st.publications || [];
-    const liste = pubs.length ? el("div", { class: "pubs" }, ...pubs.map((p) => {
-      const carte = p.slug ? s.cartes.get(p.slug) : null;
-      const titre = carte ? el("button", { class: "pub-titre lien-texte", type: "button", onclick: () => s.selectionner({ genre: "dossier", cle: p.slug }) }, p.titre || carte.titre)
-        : el("span", { class: "pub-titre" }, p.titre || "Sans légende");
-      const x = p.comparable && typeof p.x_vues === "number"
-        ? el("span", { class: `pub-x ${p.x_vues >= 1.5 ? "fort" : p.x_vues < 0.7 ? "faible" : ""}` }, `${String(p.x_vues.toFixed(1)).replace(".", ",")} fois ta normale`)
-        : el("span", { class: "pub-x doux" }, "trop récent pour comparer");
-      return el("div", { class: "pub" },
-        el("span", { class: `pastille pastille-${p.type === "carrousel" ? "carrousel" : "reel"}`, "aria-hidden": "true" }),
-        el("div", { class: "pub-corps" }, titre, el("span", { class: "pub-meta" }, `${p.type === "carrousel" ? "Carrousel" : p.type === "reel" ? "Reel" : "Publication"}, ${p.le ? jourCourt(p.le.slice(0, 10)) : ""}`)),
-        el("span", { class: "pub-vues" }, el("strong", {}, fr(p.vues) ?? "?"), " vues"), x,
-        p.lien ? el("a", { class: "bouton bouton-discret bouton-petit", href: p.lien, target: "_blank", rel: "noopener", "aria-label": `Voir « ${p.titre || "la publication"} » sur Instagram`, html: `${icone("lien")}<span>Voir</span>` }) : el("span"));
-    })) : el("p", { class: "vide-doux" }, "Pas de publication ces 30 derniers jours.");
+      tuile("Abonnés", nombreFr(st.abonnes), abonnesSous),
+      tuile("Vues, 28 derniers jours", nombreFr(c28.vues), variation(av.vues, c28.vues), comparaison(av.vues, c28.vues)),
+      tuile("Comptes touchés, 28 jours", nombreFr(c28.portee), variation(av.portee, c28.portee), comparaison(av.portee, c28.portee)),
+      tuile("Visites de ton profil, 28 jours", nombreFr(c28.visites_profil), variation(av.visites_profil, c28.visites_profil), comparaison(av.visites_profil, c28.visites_profil)));
     const quand = st.chiffres_du || st.maj;
     const note = el("p", { class: "stats-note" },
       st.exemple ? el("span", { class: "tag tag-exemple" }, "chiffres d'exemple") : null,
       quand ? `Chiffres d'Instagram du ${jourCourt(dateEnJour(new Date(quand)))} à ${heure(quand).replace(":", " h ")}.` : "",
       st.en_cours ? " Je les mets à jour." : "", st.erreur ? ` ${st.erreur}` : "");
+    // Un clic sur une colonne : le dossier du contenu s'il est dans le studio, sinon la publication sur Instagram.
+    const ouvrir = (p) => {
+      const carte = p.slug ? s.cartes.get(p.slug) : null;
+      if (carte) return { libelle: "clic pour ouvrir son dossier", faire: () => s.selectionner({ genre: "dossier", cle: p.slug }) };
+      if (p.lien) return { libelle: "clic pour la voir sur Instagram", faire: () => this.api.ouvrirLien(p.lien).then(() => annoncer("C'est ouvert dans ton navigateur."), (e) => annoncer(e.message, "erreur")) };
+      return null;
+    };
+    const pubs = st.publications || [];
+    const f = st.formats || {};
+    const parFormat = (format, nom, pluriel) => {
+      const ps = pubs.filter((p) => p.type === format);
+      const x = f[format] || {};
+      return el("section", { class: "graph-bloc" },
+        el("h4", { class: "graph-titre" }, el("span", { class: `pastille pastille-${format}`, "aria-hidden": "true" }), `Les vues de chaque ${nom}`,
+          el("span", { class: "graph-sous" }, ps.length ? `${ps.length} ${ps.length > 1 ? pluriel : nom} en 30 jours${typeof x.vues === "number" ? `, ${nombreFr(x.vues)} vues en tout` : ""}` : "30 derniers jours")),
+        colonnesVues(ps, { normale: x.normale ?? st.normale_vues?.[format] ?? null, ouvrir, nom }));
+    };
     return el("div", {},
-      this.bloc("Ton Instagram", el("div", {}, note, tuiles), { outils: [maj] }),
-      this.bloc("Tes dernières publications", liste, { aide: "vues, et comparées à ce que tu fais d'habitude" }));
+      this.bloc("Ton Instagram", el("div", {}, note, tuiles,
+        el("section", { class: "graph-bloc" },
+          el("h4", { class: "graph-titre" }, "Tes abonnés, jour après jour", el("span", { class: "graph-sous" }, "90 derniers jours")),
+          courbeAbonnes(st.historique)),
+        el("div", { class: "graph-paire" }, parFormat("reel", "reel", "reels"), parFormat("carrousel", "carrousel", "carrousels"))), { outils: [maj] }));
   }
 
   entete(titre, sous) {
@@ -974,19 +936,29 @@ export class Vue {
     const ouvrir = (r) => (r.contenu
       ? s.selectionner({ genre: "dossier", cle: r.contenu.slug, fichier: "ressource" })
       : s.selectionner({ genre: "transverse", quoi: "ressources", id: r.slug }));
+    // Une carte par ressource (lot 10) : un petit aperçu de la page (capture du site), son titre, son état, son mot.
     const ligne = (r) => {
-      const meta = [ETATS_RESSOURCE[r.etat]?.texte || "", r.mot ? `mot ${r.mot}` : "pas encore de mot",
+      const meta = [r.mot ? `mot ${r.mot}` : "pas encore de mot",
         r.posts.length ? pluriel(r.posts.length, "post relié", "posts reliés") : null].filter(Boolean).join(" · ");
-      return el("button", { class: `accueil-ligne res-ligne res-${r.etat}`, type: "button", onclick: () => ouvrir(r) },
-        el("span", { class: "res-pastille", html: icone("cadeau") }),
-        el("span", { class: "ligne-corps" }, el("strong", {}, r.titre), el("span", { class: "ligne-meta" }, meta)),
-        el("span", { html: icone("fleche") }));
+      const repli = () => el("span", { class: "res-apercu-vide", "aria-hidden": "true" }, el("span", { html: icone("cadeau") }), el("span", {}, r.titre));
+      const image = r.vignette_url ? el("img", { class: "res-apercu-img", src: r.vignette_url, alt: "", width: "500", height: "880", loading: "lazy" }) : null;
+      const cadre = el("span", { class: `res-apercu${image ? " charge" : ""}` }, image || repli(),
+        image ? el("span", { class: "res-apercu-attente", "aria-hidden": "true" }, el("span", { class: "points" }, el("i"), el("i"), el("i"))) : null);
+      if (image) {
+        image.addEventListener("load", () => cadre.classList.remove("charge"), { once: true });
+        image.addEventListener("error", () => { cadre.classList.remove("charge"); image.replaceWith(repli()); }, { once: true });
+      }
+      return el("button", { class: `res-carte res-${r.etat}`, type: "button", onclick: () => ouvrir(r), "aria-label": `${r.titre}, ${ETATS_RESSOURCE[r.etat]?.texte || ""}, ${meta}` },
+        cadre,
+        el("span", { class: "res-carte-corps" },
+          el("strong", { class: "res-carte-titre" }, r.titre),
+          el("span", { class: "ligne-meta" }, meta)));
     };
     const groupes = Object.entries(ETATS_RESSOURCE)
       .map(([etat, e]) => [e.groupe, liste.filter((r) => r.etat === etat)]).filter(([, l]) => l.length);
     if (liste.some((r) => r.etat === "mise_a_jour")) this.relireRessources(jeton);
-    return el("article", { class: "vue" }, ...this.entete("Ressources gratuites", "Les pages que reçoivent ceux qui commentent ton mot. Tu choisis laquelle offrir au moment de programmer un post."),
-      groupes.length ? groupes.map(([titre, l]) => this.bloc(titre, el("div", { class: "accueil-liste" }, ...l.map(ligne)), { aide: pluriel(l.length, "ressource", "ressources") }))
+    return el("article", { class: "vue" }, ...this.entete("Ressources gratuites", "Les pages que reçoivent ceux qui commentent ton mot. Tu choisis laquelle offrir quand tu prépares un post à poster."),
+      groupes.length ? groupes.map(([titre, l]) => this.bloc(titre, el("div", { class: "res-grille" }, ...l.map(ligne)), { aide: pluriel(l.length, "ressource", "ressources") }))
         : el("p", { class: "vide-doux" }, "Pas encore de ressource. Demande-en une à ton head of content dans le chat : il la met en ligne dès qu'elle est prête et te donne le lien."));
   }
 
@@ -1094,8 +1066,8 @@ export class Vue {
     const champs = [
       el("dt", {}, "Mot à commenter"), el("dd", {}, r.mot ? el("strong", { class: "mot-com" }, r.mot) : el("span", { class: "doux" }, "Pas encore choisi")),
       el("dt", {}, "Message envoyé"), el("dd", {}, r.message ? el("div", { class: "res-message" }, el("p", {}, r.message), r.bouton ? el("span", { class: "res-bouton" }, r.bouton) : null) : el("span", { class: "doux" }, "Pas encore écrit")),
-      el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant.")
-        : surLeSite && r.repond && r.mot && !(r.bloquants || []).length ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant. Ton clic sur Programmer validera son message, que tu pourras encore retoucher.")
+      el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en préparant un post.")
+        : surLeSite && r.repond && r.mot && !(r.bloquants || []).length ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en préparant un post. Ton clic pour le poster validera son message, que tu pourras encore retoucher.")
         // La vraie raison d'abord : une page envoyée qui ne répond pas encore n'a pas un « message incomplet »
         // (test de bout en bout du 18/11) ; la liste ne garde que ce qui bloque vraiment.
         : el("div", {}, el("span", { class: "doux" }, !surLeSite ? "Pas encore : elle doit d'abord être en ligne."
@@ -1126,7 +1098,7 @@ export class Vue {
         go.addEventListener("click", async () => {
           const cible = choix.value; go.disabled = true;
           try {
-            await this.api.envoyer(`${cible}:hoc`, `Je veux offrir la ressource gratuite « ${r.titre} » avec ce contenu : ceux qui commentent ${r.mot} la recevront. Ajoute l'appel à commenter ${r.mot} dans la légende, sans changer le reste. Je choisirai la ressource au moment de programmer.`);
+            await this.api.envoyer(`${cible}:hoc`, `Je veux offrir la ressource gratuite « ${r.titre} » avec ce contenu : ceux qui commentent ${r.mot} la recevront. Ajoute l'appel à commenter ${r.mot} dans la légende, sans changer le reste. Je choisirai la ressource au moment de le préparer à poster.`);
             annoncer("C'est demandé : ton head of content ajoute le mot à la légende de ce contenu.");
             s.selectionner({ genre: "dossier", cle: cible });
           } catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
@@ -1139,55 +1111,77 @@ export class Vue {
     return blocs;
   }
 
-  // ---------- Publier sur Instagram (lot 10, remplace « Programmer la semaine ») ----------
-  // Ce qui est prêt (coché, avec son jour et son heure), ce qui est programmé, ce qui est sorti.
-  // Rien ne part sans le récapitulatif et le clic sur « Programmer » (programmer.js, inchangé).
+  // ---------- Publier sur Instagram (refait au lot 10 des deux studios) ----------
+  // Une carte par contenu prêt (titre, image du hook). « Préparer à poster » ouvre le récapitulatif : légende et message
+  // retouchables, ressource, reel d'essai ; le quand (jour et heure, ou tout de suite) se choisit après, en bas. Plusieurs
+  // cartes cochées se préparent ensemble. Rien ne part sans le clic final (programmer.js).
   vuePublier() {
     const s = this.studio;
     const cs = [...s.cartes.values()];
-    const prets = cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).sort((a, b) => String(a.jour_prevu || "9").localeCompare(String(b.jour_prevu || "9")) || a.titre.localeCompare(b.titre, "fr"));
+    const prets = cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).sort((a, b) => (a.format === b.format ? 0 : a.format === "reel" ? -1 : 1) || a.titre.localeCompare(b.titre, "fr"));
     const programmes = cs.filter((c) => c.stade === "programme").sort((a, b) => String(a.publication_quand).localeCompare(String(b.publication_quand)));
     const publies = cs.filter((c) => c.stade === "publie").sort((a, b) => String(b.publication_quand || b.jour_prevu).localeCompare(String(a.publication_quand || a.jour_prevu))).slice(0, 6);
-    if (s.sel.slugs) { this.choixPublier = new Set(s.sel.slugs); delete s.sel.slugs; }
-    this.choixPublier ||= new Set(prets.map((c) => c.slug));
-    this.quandPublier ||= new Map();
-    const pris = new Set([...this.quandPublier.values()].map((q) => q.slice(0, 10)));
-    for (const c of prets) if (!this.quandPublier.has(c.slug)) this.quandPublier.set(c.slug, this.quandParDefaut(c, pris));
-    const zone = el("div", { class: "zone-recap" });
-    const verifier = el("button", { class: "bouton bouton-plein bouton-verifier", type: "button" });
-    const majBouton = () => {
-      const n = prets.filter((c) => this.choixPublier.has(c.slug)).length;
-      verifier.disabled = !n;
-      verifier.innerHTML = `${icone("calendrier")}<span>${n > 1 ? `Vérifier les ${n} avant de programmer` : "Vérifier avant de programmer"}</span>`;
-    };
-    verifier.addEventListener("click", () => {
-      const elements = prets.filter((c) => this.choixPublier.has(c.slug)).map((c) => ({ slug: c.slug, quand: this.quandPublier.get(c.slug) }));
-      if (elements.some((e) => !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(e.quand || ""))) { annoncer("Choisis un jour et une heure pour chaque contenu coché.", "erreur"); return; }
-      // Pendant le récapitulatif, l'écran ne se redessine pas tout seul (il effacerait ce que tu vérifies).
+    this.choixPublier ||= new Set();
+    for (const k of [...this.choixPublier]) if (!prets.some((c) => c.slug === k)) this.choixPublier.delete(k);
+    const zone = el("div", { class: "zone-recap", id: "preparation" });
+    const preparer = (liste) => {
+      const pris = new Set();
+      const quands = new Map(liste.map((c) => [c.slug, this.quandParDefaut(c, pris)]));
+      // Pendant la préparation, l'écran ne se redessine pas tout seul (il effacerait ce que tu relis).
       this.edition = "recap";
-      recapDans(s, zone, () => this.api.recap(elements), { apres: () => { this.choixPublier = null; this.quandPublier = null; } });
-      setTimeout(() => zone.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    });
-    const lignes = prets.map((c) => {
-      const caseC = el("input", { type: "checkbox", checked: this.choixPublier.has(c.slug) || null, "aria-label": `Programmer « ${c.titre} »` });
-      caseC.addEventListener("change", () => { if (caseC.checked) this.choixPublier.add(c.slug); else this.choixPublier.delete(c.slug); majBouton(); });
-      const [j, h] = (this.quandPublier.get(c.slug) || " ").split(" ");
-      const date = el("input", { type: "date", class: "champ champ-date", value: j, "aria-label": `Jour de « ${c.titre} »` });
-      const hr = el("input", { type: "time", class: "champ champ-heure", value: h, step: "300", "aria-label": `Heure de « ${c.titre} »` });
-      const change = () => this.quandPublier.set(c.slug, `${date.value} ${hr.value}`);
-      date.addEventListener("change", change); hr.addEventListener("change", change);
-      return el("div", { class: `choix-ligne f-${c.format}` },
-        el("label", { class: "choix-case" }, caseC),
-        el("span", { class: "ligne-corps" }, el("button", { class: "lien-texte", type: "button", onclick: () => s.selectionner({ genre: "dossier", cle: cle(c) }) }, el("strong", {}, c.titre)),
-          el("span", { class: "ligne-meta" }, c.format === "reel" ? "Reel monté" : "Carrousel mis en page")),
-        el("span", { class: "quand-champs" }, date, hr));
-    });
-    majBouton();
+      for (const c of prets) cartes.get(c.slug)?.classList.toggle("en-preparation", liste.some((x) => x.slug === c.slug));
+      recapDans(s, zone, (elements) => this.api.recap(elements || liste.map((c) => ({ slug: c.slug, quand: "maintenant" }))), {
+        quands, apres: () => { this.choixPublier = new Set(); },
+        fermer: () => { this.edition = null; this.afficher(); },
+      });
+      setTimeout(() => defiler(zone, "debut"), 50);
+    };
+    const groupe = el("button", { class: "bouton bouton-plein pub-groupe", type: "button" });
+    const vider = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Tout décocher");
+    const barre = el("div", { class: "pub-barre", role: "region", "aria-label": "Préparer plusieurs contenus ensemble" },
+      el("p", { class: "pub-barre-texte" }), groupe, vider);
+    const majGroupe = () => {
+      const n = this.choixPublier.size;
+      barre.hidden = n < 1;
+      barre.querySelector(".pub-barre-texte").textContent = n > 1 ? `${n} contenus choisis : tu les prépares ensemble, puis tu choisis quand chacun part.` : "1 contenu choisi : coche-en d'autres pour les préparer ensemble.";
+      groupe.disabled = n < 2;
+      groupe.innerHTML = `${icone("envoi")}<span>${n > 1 ? `Préparer les ${n} à poster` : "Préparer ensemble"}</span>`;
+      for (const [k, n2] of cartes) n2.classList.toggle("choisie", this.choixPublier.has(k));
+    };
+    groupe.addEventListener("click", () => preparer(prets.filter((c) => this.choixPublier.has(c.slug))));
+    vider.addEventListener("click", () => { this.choixPublier.clear(); for (const x of grille.querySelectorAll("input[type=checkbox]")) x.checked = false; majGroupe(); });
+    const cartes = new Map();
+    const grille = el("div", { class: "pub-grille" }, ...prets.map((c) => {
+      const caseC = el("input", { type: "checkbox", checked: this.choixPublier.has(c.slug) || null, id: `pub-${c.slug}` });
+      caseC.addEventListener("change", () => { if (caseC.checked) this.choixPublier.add(c.slug); else this.choixPublier.delete(c.slug); majGroupe(); });
+      const image = c.vignette
+        ? el("img", { class: "pub-image", src: c.vignette, alt: c.format === "reel" ? `Le début de la vidéo « ${c.titre} »` : `La première image du carrousel « ${c.titre} »`, width: c.format === "reel" ? "180" : "200", height: c.format === "reel" ? "320" : "250", loading: "lazy" })
+        : el("span", { class: "pub-image pub-image-vide" }, c.format === "reel" ? "Pas encore d'image de la vidéo" : "Pas encore d'image du carrousel");
+      if (c.vignette) image.addEventListener("error", () => image.replaceWith(el("span", { class: "pub-image pub-image-vide" }, "Image pas disponible")), { once: true });
+      const bouton = el("button", { class: "bouton bouton-plein pub-preparer", type: "button", html: `${icone("envoi")}<span>Préparer à poster</span>` });
+      bouton.addEventListener("click", () => preparer([c]));
+      const carte = el("article", { class: `pub-carte f-${c.format}`, dataset: { slug: c.slug } },
+        el("div", { class: `pub-media pub-media-${c.format}` }, image,
+          el("label", { class: "pub-choix", for: `pub-${c.slug}` }, caseC, el("span", {}, "Choisir"))),
+        el("div", { class: "pub-corps" },
+          el("span", { class: `tag tag-format f-${c.format}` }, el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), c.format === "reel" ? "Reel monté" : "Carrousel mis en page"),
+          el("button", { class: "pub-titre lien-texte", type: "button", onclick: () => s.selectionner({ genre: "dossier", cle: cle(c) }) }, c.titre),
+          bouton));
+      cartes.set(c.slug, carte);
+      return carte;
+    }));
+    majGroupe();
+    // Arrivé depuis le fichier « Vidéo montée » ou « Images » : sa carte est mise en avant.
+    if (s.sel.vers) {
+      const k = s.sel.vers; delete s.sel.vers;
+      setTimeout(() => { const n = cartes.get(k); if (n) { defiler(n, "centre"); n.querySelector(".pub-preparer")?.focus({ preventScroll: true }); } }, 60);
+    }
     const ligneSimple = (c, meta) => el("button", { class: `accueil-ligne f-${c.format}`, type: "button", onclick: () => s.selectionner({ genre: "dossier", cle: cle(c) }) },
       el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), el("span", { class: "ligne-corps" }, el("strong", {}, c.titre), el("span", { class: "ligne-meta" }, meta)), el("span", { html: icone("fleche") }));
-    return el("article", { class: "vue" }, ...this.entete("Publier sur Instagram", "Ce qui est prêt part au jour et à l'heure que tu choisis, même Mac fermé. Je te montre tout avant, rien ne part sans ton clic."),
-      this.bloc("Prêts à publier", prets.length ? el("div", {}, el("div", { class: "choix-liste" }, ...lignes), el("div", { class: "bloc-pied" }, verifier)) : el("p", { class: "vide-doux" }, "Rien de prêt pour l'instant : une vidéo montée ou un carrousel mis en page arrive ici."),
-        { aide: prets.length ? pluriel(prets.length, "contenu", "contenus") : null }),
+    return el("article", { class: "vue" }, ...this.entete("Publier sur Instagram", "Prépare ce qui est prêt : tu relis sa légende et ce qu'il offre, puis tu choisis s'il part tout de suite ou à un jour et une heure, même Mac fermé. Rien ne part sans ton clic."),
+      this.bloc("Prêts à poster", prets.length ? el("div", {}, grille, barre)
+        : el("p", { class: "vide-doux" }, "Rien de prêt pour l'instant : une vidéo montée ou un carrousel mis en page arrive ici."),
+      { aide: prets.length ? `${pluriel(prets.length, "contenu", "contenus")}${prets.length > 1 ? ", coche-en plusieurs pour les préparer ensemble" : ""}` : null }),
       zone,
       this.bloc("Déjà programmés", programmes.length ? el("div", { class: "accueil-liste" }, ...programmes.map((c) => ligneSimple(c, c.publication_quand ? `part ${quandLisible(c.publication_quand)}` : c.libelle)))
         : el("p", { class: "vide-doux" }, "Rien de programmé."), { aide: programmes.length ? pluriel(programmes.length, "contenu", "contenus") : null }),
@@ -1195,32 +1189,14 @@ export class Vue {
   }
 }
 
-// Petite courbe des abonnés (un relevé par jour, écrit par le serveur) : une ligne fine, le dernier
-// point marqué, chaque point survolable (jour et nombre). Une seule série : pas de légende.
-function courbe(historique) {
-  const h = historique.slice(-90);
-  const L = 240, H = 46, m = 4;
-  const vals = h.map((x) => x.abonnes);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const t0 = Date.parse(`${h[0].jour}T12:00:00Z`), t1 = Date.parse(`${h[h.length - 1].jour}T12:00:00Z`);
-  const X = (j) => m + ((Date.parse(`${j}T12:00:00Z`) - t0) / Math.max(1, t1 - t0)) * (L - 2 * m);
-  const Y = (v) => (max === min ? H / 2 : H - m - ((v - min) / (max - min)) * (H - 2 * m));
-  const pts = h.map((x) => `${X(x.jour).toFixed(1)},${Y(x.abonnes).toFixed(1)}`).join(" ");
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", `0 0 ${L} ${H}`); svg.setAttribute("class", "courbe"); svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `Abonnés du ${dateCourte(h[0].jour)} (${h[0].abonnes}) au ${dateCourte(h[h.length - 1].jour)} (${h[h.length - 1].abonnes})`);
-  const ligne = document.createElementNS(ns, "polyline");
-  ligne.setAttribute("points", pts); ligne.setAttribute("class", "courbe-ligne"); ligne.setAttribute("vector-effect", "non-scaling-stroke");
-  svg.append(ligne);
-  for (const [i, x] of h.entries()) {
-    const zone = document.createElementNS(ns, "circle");
-    zone.setAttribute("cx", X(x.jour)); zone.setAttribute("cy", Y(x.abonnes)); zone.setAttribute("r", i === h.length - 1 ? 3 : 6);
-    zone.setAttribute("class", i === h.length - 1 ? "courbe-fin" : "courbe-zone");
-    const titre = document.createElementNS(ns, "title"); titre.textContent = `${dateCourte(x.jour)} : ${x.abonnes} abonnés`;
-    zone.append(titre); svg.append(zone);
-  }
-  return el("div", { class: "courbe-cadre" }, svg);
+// Fait défiler la colonne du fichier ouvert jusqu'à un élément, sans faire bouger la page entière (scrollIntoView fait
+// aussi défiler le corps de la page, qui ne défile pas : la barre du haut sortait de l'écran). Téléphone : la page défile.
+function defiler(n, ou = "debut") {
+  const col = n.closest(".col-vue");
+  if (!col || col.scrollHeight <= col.clientHeight || getComputedStyle(col).overflowY === "visible") { n.scrollIntoView({ block: ou === "centre" ? "center" : "start" }); return; }
+  const r = n.getBoundingClientRect(), c = col.getBoundingClientRect();
+  const haut = col.scrollTop + r.top - c.top - (ou === "centre" ? (col.clientHeight - r.height) / 2 : 16);
+  col.scrollTo({ top: Math.max(0, haut), behavior: ou === "centre" ? "auto" : "smooth" });
 }
 
 export { ICONES_FICHIERS };

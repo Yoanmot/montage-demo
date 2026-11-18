@@ -204,6 +204,14 @@ main() {
     fi
   fi
 
+  # 3 bis. Les polices locales du client (polices_locales, lot 10), copiées si elles ont changé.
+  if [ -d "$BASE/studio" ] && type studio_poser_polices >/dev/null 2>&1; then
+    local lp
+    while IFS= read -r lp; do case "$lp" in POLICE_POSEE*|POLICE_ABSENTE*) journal "$lp";; esac; done <<EOF_POL
+$(studio_poser_polices "$BASE/studio")
+EOF_POL
+  fi
+
   # 4. Le studio : redémarrage du service si son code a changé et qu'aucune session ne tourne (les sessions
   #    du studio ouvrent Claude, donc lancent ce script : un redémarrage les tuerait). Sinon le repère reste
   #    et l'icône Studio ou la prochaine ouverture de Claude au repos s'en chargent.

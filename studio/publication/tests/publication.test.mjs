@@ -371,3 +371,43 @@ describe('outils', () => {
     assert.equal(dossierSlides('pas-rendu', config), path.join(os.homedir(), 'Pictures', 'Carrousels', 'carrousel-pas-rendu'));
   });
 });
+
+// Lot 10 : « Préparer à poster » vérifie sans date (comme tout de suite) ; le quand se choisit après, et part avec le clic.
+describe('préparation, puis le quand choisi au clic (lot 10)', () => {
+  test('groupe préparé sans date : chaque post part au quand choisi au clic (un programmé, un tout de suite)', async () => {
+    const r = await recap([{ slug: 'faim-a-16h', quand: 'maintenant' }, { slug: 'trois-erreurs', quand: 'maintenant' }], config);
+    assert.ok(r.elements.every((e) => e.verdict !== 'BLOQUE'), 'préparé sans date : rien de bloqué par une date');
+    fs.unlinkSync(log);
+    const c = await confirmer(r.recap_id, config, { quands: { 'faim-a-16h': `${DEMAIN} 18:30`, 'trois-erreurs': 'maintenant' } });
+    assert.deepEqual(c.resultats.map((x) => x.statut), ['simulation', 'simulation']);
+    const pub = appels().filter((a) => a.argv[0] === 'publier');
+    assert.deepEqual(pub[0].argv.slice(-2), ['--quand', `${DEMAIN} 18:30`]);
+    assert.ok(pub[1].argv.includes('--maintenant') && !pub[1].argv.includes('--quand'), JSON.stringify(pub[1].argv));
+    assert.match(c.resultats[0].message, /programmée pour \S+ \d+ \S+ à 18 h 30/);
+    assert.match(c.resultats[1].message, /tout de suite/);
+  });
+
+  test('quand choisi passé, trop proche ou illisible : ce post ne part pas, les autres si, mêmes contrôles qu\'avant', async () => {
+    const r = await recap([{ slug: 'faim-a-16h', quand: 'maintenant' }, { slug: 'trois-erreurs', quand: 'maintenant' }], config);
+    fs.unlinkSync(log);
+    const c = await confirmer(r.recap_id, config, { quands: { 'faim-a-16h': '2020-01-01 18:30', 'trois-erreurs': `${DEMAIN} 12:15` } });
+    assert.equal(c.resultats[0].statut, 'bloque');
+    assert.match(c.resultats[0].message, /l'heure choisie est passée/);
+    assert.equal(c.resultats[1].statut, 'simulation');
+    assert.equal(appels().filter((a) => a.argv[0] === 'publier').length, 1);
+    const r2 = await recap([{ slug: 'faim-a-16h', quand: 'maintenant' }], config);
+    fs.unlinkSync(log);
+    const c2 = await confirmer(r2.recap_id, config, { quands: { 'faim-a-16h': 'demain soir' } });
+    assert.equal(c2.resultats[0].statut, 'bloque');
+    assert.match(c2.resultats[0].message, /choisis une date et une heure/);
+    assert.equal(appels().filter((a) => a.argv[0] === 'publier').length, 0);
+  });
+
+  test('sans quand choisi au clic : celui de la préparation, comme avant', async () => {
+    const r = await recap([{ slug: 'faim-a-16h', quand: `${DEMAIN} 18:30` }], config);
+    fs.unlinkSync(log);
+    const c = await confirmer(r.recap_id, config, { quands: {} });
+    assert.equal(c.resultats[0].statut, 'simulation');
+    assert.deepEqual(appels().filter((a) => a.argv[0] === 'publier')[0].argv.slice(-2), ['--quand', `${DEMAIN} 18:30`]);
+  });
+});

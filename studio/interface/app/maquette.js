@@ -71,6 +71,12 @@ function slide(n, titre, fond, encre) {
   <rect x="32" y="440" width="90" height="6" fill="#F15A24"/></svg>`);
 }
 const VIDEO = "/app/maquette/video-exemple.mp4";
+// L'image de la carte dans « Publier sur Instagram » (lot 10) : fabriquée ici, comme le reste de la maquette.
+function vignetteDe(c) {
+  if (c.format === "reel" && c.fichiers.includes("video")) return vignette("Le hook", "#6b4a35");
+  if (c.format === "carrousel" && c.fichiers.includes("slides")) return slide(1, c.titre, "#111111", "#F3F3F3");
+  return null;
+}
 
 // ---------- Jeu de données ----------
 function fabriquer() {
@@ -80,7 +86,7 @@ function fabriquer() {
   const j = (base, n) => ajouterJours(base, n);
   const carte = (o) => {
     const c = { activite: null, a_toi: false, jour_prevu: null, declinaison_de: null, maj: maintenant(), ...o };
-    c.semaine = c.jour_prevu ? lundiDe(c.jour_prevu) : null; c.libelle = libelle(c); c.fichiers = fichiersDe(c);
+    c.semaine = c.jour_prevu ? lundiDe(c.jour_prevu) : null; c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.vignette = vignetteDe(c);
     return c;
   };
   const propositions = [
@@ -225,7 +231,7 @@ export function creerApiMaquette() {
   const parSlug = (s) => d.contenus.find((c) => c.slug === s);
   const majCarte = (c, champs) => {
     Object.assign(c, champs, { maj: maintenant() });
-    c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.semaine = c.jour_prevu ? lundiDe(c.jour_prevu) : null;
+    c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.vignette = vignetteDe(c); c.semaine = c.jour_prevu ? lundiDe(c.jour_prevu) : null;
     emettre("carte", { ...c });
   };
   const config = { prenom: document.documentElement.dataset.prenom || "Romain", jours_par_defaut: ["mardi", "jeudi", "dimanche"], heures_par_defaut: { reel: "18:30", carrousel: "12:15" } };
@@ -358,7 +364,7 @@ export function creerApiMaquette() {
       if (reel) e.video_url = VIDEO;
       else e.slides_urls = [slide(1, c.titre, "#111111", "#F3F3F3"), slide(2, "Une par semaine", "#F5F3EF", "#151515"), slide(3, "Trois si tu peux", "#F15A24", "#111111")];
       if (!reel) { e.verdict = "ATTENTION"; e.messages = ["Pas de mot en commentaire : personne ne recevra de message automatique. Ça peut partir comme ça."]; }
-      if (quand && quand.slice(0, 10) < aujourdhui()) { e.verdict = "BLOQUE"; e.messages = ["Cette date est déjà passée : choisis un autre jour."]; }
+      if (quand && quand !== "maintenant" && quand.slice(0, 10) < aujourdhui()) { e.verdict = "BLOQUE"; e.messages = ["Cette date est déjà passée : choisis un autre jour."]; }
       return e;
     });
     recaps[id] = els;
@@ -452,7 +458,7 @@ export function creerApiMaquette() {
       emettre("carte_retiree", { proposition_id: id });
       const slug = p.titre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
       const c = { slug, titre: p.titre, format: p.format, stade: "gardee", activite: null, a_toi: false, jour_prevu: jour || null, declinaison_de: p.declinaison_de, maj: maintenant() };
-      c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.semaine = jour ? lundiDe(jour) : null;
+      c.libelle = libelle(c); c.fichiers = fichiersDe(c); c.vignette = vignetteDe(c); c.semaine = jour ? lundiDe(jour) : null;
       d.contenus.push(c); emettre("carte", { ...c });
       return { slug };
     },
@@ -558,10 +564,12 @@ export function creerApiMaquette() {
       return { ...d.stats };
     },
     async actualiserStats() { await attendre(900); d.stats = { ...d.stats, maj: maintenant(), chiffres_du: maintenant() }; return { ...d.stats }; },
-    async confirmer(recap_id) {
+    async confirmer(recap_id, textes, quands = {}) {
       await attendre(800);
-      const resultats = (recaps[recap_id] || []).map((e) => {
+      const resultats = (recaps[recap_id] || []).map((x) => {
+        const e = { ...x, quand: quands[x.slug] || x.quand };
         if (e.verdict === "BLOQUE") return { slug: e.slug, statut: "bloque", message: e.messages[0] };
+        if (e.quand === "maintenant") { majCarte(parSlug(e.slug), { stade: "publie", publication_quand: `${aujourdhui()} 12:00` }); return { slug: e.slug, statut: "publié", message: "C'est en ligne." }; }
         majCarte(parSlug(e.slug), { stade: "programme", programme_le: e.quand, publication_quand: e.quand, jour_prevu: e.quand.slice(0, 10) });
         return { slug: e.slug, statut: "programmé", message: null };
       });

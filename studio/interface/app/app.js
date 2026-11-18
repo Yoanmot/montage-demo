@@ -275,7 +275,7 @@ class Studio {
     const demo = params.get("demo");
     if (demo === "stream" && this.sel.genre === "dossier") setTimeout(() => this.api._demoRepondre(this.porteeChat().id, "plus court, et je le fais au salon"), 400);
     if (demo === "edition") setTimeout(() => document.querySelector(".bloc-texte .bouton-modifier")?.click(), 500);
-    if (demo === "recap") setTimeout(() => document.querySelector(".bouton-verifier")?.click(), 500);
+    if (demo === "recap") setTimeout(() => { for (const x of document.querySelectorAll(".pub-choix input")) x.click(); document.querySelector(".pub-groupe")?.click(); }, 500);
     if (demo === "envoi") setTimeout(() => document.querySelector(".prise-envoi input")?.click(), 700);
     if (demo === "supprimer") setTimeout(() => [...document.querySelectorAll(".choix-idee button")].find((b) => /Supprimer/.test(b.textContent))?.click(), 600);
     if (demo === "nouvelles") setTimeout(() => this.api._demoNouvellesIdees(), 600);

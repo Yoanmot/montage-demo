@@ -26,5 +26,6 @@
   "reels_essai": false,
   "branche_mise_a_jour": "studio-multi-clients",
   "config_claude": "/Users/Shared/studio-romain-test/claude",
-  "simulation_forcee": true
+  "simulation_forcee": true,
+  "polices_locales": {}
 }

@@ -190,8 +190,6 @@ body.glisse-clip .ligne.dossier-cible { outline: 1px dashed var(--encre-3); outl
 .tag-format.f-reel { background: var(--reel-pale); color: var(--reel); }
 .tag-format.f-carrousel { background: var(--carrousel-pale); color: var(--carrousel); }
 .vue-reglages { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
-.jour-prevu { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--encre-2); }
-.jour-prevu .champ { height: 30px; font-size: 13px; }
 .confirmer-cote { display: inline-flex; gap: 6px; align-items: center; }
 .confirmer-cote .champ { height: 30px; width: 180px; }
 
@@ -268,23 +266,16 @@ details.repli > div { padding-top: 8px; }
 .planche-lignes .n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--encre); color: var(--inverse); font-weight: 750; font-size: 13px; font-variant-numeric: tabular-nums; }
 
 /* vidéo montée, images, programmation */
-/* Colonne vidéo à largeur fixe : en « auto », la taille réelle de la vidéo (1080 px) élargissait la colonne
-   et écrasait la programmation et la légende (une ligne par mot, défilement de côté). */
-.lecture { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
 .video { width: 100%; max-width: 340px; height: auto; aspect-ratio: 9 / 16; border-radius: var(--rayon); background: #000; display: block; }
 .slides-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .slides-grille figure { margin: 0; display: grid; gap: 6px; }
 .slides-grille img { width: 100%; height: auto; aspect-ratio: 4 / 5; border-radius: var(--rayon-petit); border: 1px solid var(--trait); object-fit: cover; }
 .slides-grille figcaption { font-size: 12.5px; color: var(--encre-3); }
-.programmer { display: grid; gap: 12px; justify-items: start; }
 .zone-recap { margin-top: 8px; scroll-margin-top: 16px; }
 /* Un récapitulatif ouvert ne colle pas au bloc qui suit (« Déjà programmés ») */
 .zone-recap:not(:empty) { margin-bottom: 26px; }
-.programmer-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
 .programmer-ligne { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .programmer-ligne label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--encre-2); }
-.statut-pub { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: var(--rayon); background: var(--vert-pale); color: var(--vert); font-weight: 650; }
-.statut-pub a { color: inherit; }
 
 .recap { display: grid; gap: 12px; }
 .recap-charge { display: inline-flex; gap: 10px; align-items: center; color: var(--encre-2); padding: 14px 0; }
@@ -360,8 +351,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .recap-essai-note { font-size: 12.5px; }
 
 /* ressources gratuites (préfixe res-) */
-.res-ligne .res-pastille { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: var(--rayon-petit); background: var(--fond-2); }
-.res-ligne .res-pastille .ico { color: var(--encre-2); }
 .res-liste { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--encre-2); }
 .res-champs { grid-template-columns: 150px minmax(0, 1fr); }
 .res-message { display: grid; gap: 8px; justify-items: start; max-width: 60ch; padding: 10px 12px; border-radius: var(--rayon-petit); background: var(--fond-2); }
@@ -394,12 +383,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .accueil-ligne:hover { border-color: var(--trait-fort); }
 .accueil-ligne .ligne-corps { gap: 2px; }
 .accueil-ligne .ico { color: var(--encre-3); }
-.chiffres { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.chiffre { padding: 12px 14px; border-radius: var(--rayon); background: var(--fond); border: 1px solid var(--trait); }
-.chiffre strong { display: block; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.chiffre span { font-size: 13px; color: var(--encre-2); }
-.chiffre.zero strong { color: var(--encre-3); }
-.chiffres-stades { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
 .lien-texte { border: 0; background: none; padding: 0; text-align: left; color: inherit; font: inherit; }
 .lien-texte:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -414,22 +397,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .evolution { font-size: 13px; font-weight: 750; color: var(--encre); }
 .evolution.hausse { color: var(--vert); }
 .evolution .doux { font-weight: 500; }
-.courbe-cadre { margin-top: 6px; }
-.courbe { display: block; width: 100%; height: auto; overflow: visible; }
-.courbe-ligne { fill: none; stroke: var(--encre-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.courbe-fin { fill: var(--encre); stroke: var(--fond); stroke-width: 2; }
-.courbe-zone { fill: transparent; }
-.courbe-zone:hover { fill: var(--encre-3); }
-.pubs { display: grid; gap: 6px; }
-.pub { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); }
-.pub-corps { display: grid; gap: 1px; min-width: 0; }
-.pub-titre { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pub-meta { font-size: 12.5px; color: var(--encre-3); }
-.pub-vues { font-size: 13px; color: var(--encre-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.pub-vues strong { color: var(--encre); font-size: 15px; }
-.pub-x { font-size: 12.5px; font-weight: 700; white-space: nowrap; padding: 2px 8px; border-radius: var(--rayon-mini); background: var(--fond-2); }
-.pub-x.fort { background: var(--vert-pale); color: var(--vert); }
-.pub-x.doux { background: none; font-weight: 500; }
 
 /* listes à cocher (tournages, publier, actions en lot dans un fichier) */
 .choix-liste { display: grid; gap: 6px; }
@@ -525,8 +492,8 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 
 /* ---------- Nombres ---------- */
 /* Compteurs, chiffres Instagram, minutage de l'aperçu, numéros : la police des nombres du thème (--chiffres). */
-.chiffre strong, .tuile-valeur, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n, .planche-lignes .n,
-.pub-vues strong, .msg-romain time, .apercu-temps, .apercu-note-t { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
+.tuile-valeur, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n, .planche-lignes .n,
+.etp-n, .cmp-valeur, .graph-bulle strong, .msg-romain time, .apercu-temps, .apercu-note-t { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
 
 /* ---------- Mouvement ---------- */
 @keyframes tourne { to { transform: rotate(360deg); } }
@@ -550,13 +517,10 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 }
 @media (max-width: 1120px) {
   :root { --arbre-l: 256px; --chat-l: 312px; }
-  .lecture { grid-template-columns: minmax(0, 1fr); }
   .vue-tete { flex-direction: column; }
   .vue-reglages { justify-content: flex-start; }
 }
 @media (max-width: 860px) {
-  .pub { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .pub .pub-x, .pub > .bouton, .pub > span:last-child { grid-column: 2 / -1; justify-self: start; }
   .choix-ligne { flex-wrap: wrap; }
   body { overflow: auto; }
   .app { height: auto; min-height: 100vh; }
@@ -576,7 +540,7 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
   .recap-boutons { flex-wrap: wrap; }
   /* Au doigt : tout ce qui se touche fait au moins 44 px de haut. */
   .bouton, .bouton-petit, .champ, .segment button, .file-bouton, .chat-envoyer, .chat-stop, .groupe-tete,
-  .fichier, .entree, .ligne, .quand-champs .champ, .jour-prevu .champ, .recap-ressource, .ranger-actions .champ { min-height: 44px; }
+  .fichier, .entree, .ligne, .quand-champs .champ, .recap-ressource, .ranger-actions .champ { min-height: 44px; }
   .recap-essai-case, .recap-essai-option { min-height: 44px; }
   .bouton-icone { width: 44px; height: 44px; }
   .recap-slides { max-width: 220px; }
@@ -685,3 +649,119 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .apercu-fin { display: grid; gap: 8px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--trait); justify-items: start; }
 .apercu-fab-etat { margin: 0; font-size: 13px; color: var(--encre-3); }
 .apercu-fab-etat:empty { display: none; }
+
+/* ---------- Lot 10 ---------- */
+/* Les vues mesurent leur largeur (graphiques, étapes, cartes) : fenêtre réduite et téléphone se règlent ici. */
+.vue { container-type: inline-size; }
+.video-seule { margin-top: 4px; }
+
+/* Vue d'ensemble : graphiques. Une couleur par graphique (l'encre), filets discrets, chiffres dans la police des
+   nombres du thème. La forme dit la tendance, la bulle donne la valeur (survol et clavier). */
+.graph-bloc { margin-top: 24px; min-width: 0; }
+.graph-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 10px; font-size: 14px; font-weight: 750; }
+.graph-sous { font-size: 13px; font-weight: 500; color: var(--encre-3); }
+.graph-paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 28px; }
+.graph-cadre { position: relative; }
+.graph-zone { width: 100%; min-height: 120px; }
+.graph { display: block; overflow: visible; }
+.graph-grille { stroke: var(--trait); stroke-width: 1; }
+.graph-base { stroke: var(--trait-fort); stroke-width: 1; }
+.graph-axe { fill: var(--encre-3); font-family: var(--chiffres); font-size: 11px; }
+.graph-ligne { fill: none; stroke: var(--encre-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.graph-point { fill: var(--encre); stroke: var(--surface); stroke-width: 2; }
+.graph-fin { fill: var(--encre); font-family: var(--chiffres); font-size: 12px; font-weight: 700; }
+.graph-repere { stroke: var(--encre-3); stroke-width: 1; }
+.graph-colonne { fill: var(--encre-2); transition: fill .12s; }
+.graph-barre.actif .graph-colonne { fill: var(--encre); }
+.graph-normale { stroke: var(--encre-3); stroke-width: 1; }
+.graph-normale-texte { fill: var(--encre-2); font-size: 11.5px; font-weight: 650; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.graph-capte { fill: transparent; outline: none; }
+.graph-capte.cliquable { cursor: pointer; }
+.graph-capte:focus-visible { stroke: var(--focus); stroke-width: 2; }
+.graph-bulle { position: absolute; z-index: 3; pointer-events: none; display: grid; gap: 1px; max-width: 280px; padding: 7px 10px; border-radius: var(--rayon-petit);
+  background: var(--encre); color: var(--inverse); box-shadow: var(--ombre-pop); font-size: 12.5px; line-height: 1.35; }
+.graph-bulle strong { font-size: 15px; }
+.graph-bulle span { display: inline; }
+.graph-bulle-detail { opacity: .85; }
+.graph-vide { padding: 16px; border: 1px dashed var(--trait-fort); border-radius: var(--rayon); background: var(--fond); color: var(--encre-2); font-size: 14px; }
+.graph-erreur { color: var(--rouge); font-weight: 600; font-size: 14px; }
+@container (max-width: 620px) { .graph-paire { grid-template-columns: minmax(0, 1fr); } }
+
+/* 28 jours contre les 28 d'avant, dans la tuile : deux barres qui se comparent sans lire les chiffres. */
+.tuile { container-type: inline-size; }
+.cmp { display: grid; gap: 5px; margin-top: 8px; }
+.cmp-ligne { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: var(--encre-2); }
+.cmp-piste { display: block; height: 8px; min-width: 0; }
+/* Ces 28 jours en encre pleine, les 28 d'avant en encre claire : deux tons qui se distinguent, chacun à plus de 3:1
+   sur la tuile, et le chiffre écrit au bout. */
+.cmp-barre { display: block; height: 8px; border-radius: 0 4px 4px 0; background: var(--encre); }
+.cmp-avant .cmp-barre { background: var(--encre-3); }
+.cmp-valeur { font-size: 12px; color: var(--encre-2); }
+@container (max-width: 220px) { .cmp-ligne { grid-template-columns: minmax(0, 1fr) auto; } .cmp-quoi { grid-column: 1 / -1; } }
+
+/* Tes contenus : reels puis carrousels. Tous les chiffres sur une ligne, le tiret de chaque étape juste dessous (comme
+   la barre de l'arborescence), son nom sous le tiret. Tiret plein : au moins un contenu à cette étape. */
+.etapes-formats { display: grid; gap: 26px; }
+.etapes-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; font-weight: 750; }
+.etapes-total { font-size: 13px; font-weight: 500; color: var(--encre-3); }
+.etapes-ligne { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 3px; row-gap: 18px; }
+.etp { display: grid; grid-template-rows: auto 4px auto; row-gap: 8px; min-width: 0; align-content: start; }
+.etp-n { font-size: 26px; font-weight: 700; line-height: 1; padding-left: 1px; }
+.etp.zero .etp-n { color: var(--encre-3); font-weight: 500; }
+.etp-tiret { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--encre) 16%, transparent); }
+.etp:not(.zero) .etp-tiret { background: var(--encre-2); }
+.etp-nom { font-size: 12px; line-height: 1.3; color: var(--encre-2); padding-right: 4px; overflow-wrap: break-word; hyphens: manual; }
+.etp.zero .etp-nom { color: var(--encre-3); }
+@container (max-width: 640px) { .etapes-ligne { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container (max-width: 430px) { .etapes-ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); } .etp-n { font-size: 22px; } }
+
+/* Publier sur Instagram : une carte par contenu prêt (préfixe pub-). L'image du hook en haut, cadrée en haut (le titre
+   du hook y est), le titre, puis « Préparer à poster ». Choisir plusieurs cartes ouvre la barre du groupe. */
+.pub-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 16px; }
+.pub-carte { display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.pub-carte:hover { border-color: var(--trait-fort); }
+.pub-carte.choisie { border-color: var(--encre); box-shadow: inset 0 0 0 1px var(--encre); }
+.pub-carte.en-preparation { border-color: var(--encre-2); }
+.pub-media { position: relative; aspect-ratio: 4 / 5; background: #0A0A09; overflow: hidden; }
+.pub-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.pub-image-vide { display: grid; place-items: center; padding: 16px; text-align: center; color: #C8C0B5; font-size: 13px; }
+.pub-choix { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 10px;
+  border-radius: var(--rayon-petit); background: rgb(10 10 9 / 0.74); color: #F7F4EF; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.pub-choix:hover { background: rgb(10 10 9 / 0.9); }
+.pub-choix:focus-within { outline: 2px solid #F7F4EF; outline-offset: 1px; }
+.pub-choix input { accent-color: #F7F4EF; }
+.pub-corps { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 12px; }
+.pub-corps .tag { justify-self: start; }
+.pub-titre { font-size: 14.5px; font-weight: 700; line-height: 1.35; text-wrap: pretty; }
+.pub-preparer { justify-content: center; margin-top: 2px; }
+.pub-barre { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-top: 14px; padding: 12px 14px;
+  border: 1px solid var(--trait-fort); border-radius: var(--rayon); background: var(--fond-2); }
+.pub-barre-texte { flex: 1; min-width: 200px; font-size: 14px; color: var(--encre-2); }
+@container (max-width: 470px) { .pub-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .pub-corps { padding: 10px; } }
+
+/* La préparation (récapitulatif) : un titre, puis le quand en dernier dans chaque post. */
+.recap-titre { margin: 4px 0 2px; font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+.recap-quand-choix { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.recap-quand-option { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.recap-quand-option label, label.recap-quand-option { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.recap-quand-option:has(input:checked) > span:not(.quand-champs), .recap-quand-option:has(input:checked) label span { font-weight: 650; }
+.quand-champs .en-retrait { opacity: .55; }
+.recap-erreur-bloc { display: grid; gap: 10px; justify-items: start; }
+@media (max-width: 860px) { .recap-quand-option label, label.recap-quand-option { min-height: 44px; } }
+
+/* Ressources gratuites : une carte par ressource avec un petit aperçu de la page (préfixe res-). */
+.res-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 14px; }
+.res-carte { display: grid; grid-template-rows: auto 1fr; padding: 0; min-width: 0; text-align: left; color: inherit; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); overflow: hidden; }
+.res-carte:hover { border-color: var(--trait-fort); }
+.res-apercu { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; background: var(--fond-3); border-bottom: 1px solid var(--trait); }
+.res-apercu-img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; transition: opacity .2s; }
+.res-apercu.charge .res-apercu-img { opacity: 0; }
+.res-apercu-attente { position: absolute; inset: 0; display: none; place-items: center; }
+.res-apercu.charge .res-apercu-attente { display: grid; }
+.res-apercu-vide { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 16px; text-align: center; font-size: 14px; font-weight: 750; color: var(--encre-2); }
+.res-apercu-vide .ico { width: 26px; height: 26px; color: var(--encre-3); }
+.res-carte-corps { display: grid; gap: 4px; align-content: start; padding: 10px 12px 12px; }
+.res-carte-titre { font-size: 14px; line-height: 1.35; }
+@container (max-width: 470px) { .res-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+/* Une vidéo prend le focus du clavier sans :focus-visible dans Chrome : son contour, sinon on ne voit pas où l'on est. */
+video:focus { outline: 2px solid var(--focus); outline-offset: 2px; }

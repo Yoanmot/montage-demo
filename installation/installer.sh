@@ -226,6 +226,16 @@ main() {
     else ok "client $CLIENT_ID"; fi
   fi
 
+  # Les polices du client que le dépôt public ne peut pas contenir (polices_locales, lot 10) : copiées depuis son
+  # fichier à lui dans <racine>/studio/polices ; absente : le thème retombe sur sa police de repli.
+  local ligne_pol
+  while IFS= read -r ligne_pol; do
+    case "$ligne_pol" in POLICE_POSEE*) installe "${ligne_pol#POLICE_POSEE }";; POLICE_A_JOUR*) ok "police ${ligne_pol#POLICE_A_JOUR }";;
+      POLICE_ABSENTE*) echo "  A_VOIR police absente : ${ligne_pol#POLICE_ABSENTE } (le studio prend la police de repli)";; esac
+  done <<EOF_POL
+$(type studio_poser_polices >/dev/null 2>&1 && studio_poser_polices "$BASE/studio")
+EOF_POL
+
   # Ce qui a été retiré du dépôt : l'ancien skill montage, le skill du plugin, rangés (jamais effacés).
   local stamp vieux
   stamp="$(date +%Y%m%d-%H%M%S)"

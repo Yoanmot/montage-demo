@@ -70,7 +70,7 @@ export function creerApiServeur() {
     placer: (fichier, slug, type) => appel("POST", "/api/rangement/placer", { fichier, slug, type }),
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),
-    confirmer: (recap_id, textes) => appel("POST", "/api/publication/confirmer", { recap_id, ...(textes ? { textes } : {}) }),
+    confirmer: (recap_id, textes, quands) => appel("POST", "/api/publication/confirmer", { recap_id, ...(textes ? { textes } : {}), ...(quands ? { quands } : {}) }),
     poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
     ressources: () => appel("GET", "/api/ressources"),
     stats: () => appel("GET", "/api/stats"),

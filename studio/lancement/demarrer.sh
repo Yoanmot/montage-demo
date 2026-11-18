@@ -32,6 +32,10 @@ fi
 
 horodate() { date '+%Y-%m-%d %H:%M:%S'; }
 
+# Les polices locales du client (lot 10) : reposées à chaque démarrage si elles ont changé (le service redémarre après
+# une mise à jour du code, donc une police ajoutée au fichier du client arrive au premier redémarrage).
+type studio_poser_polices >/dev/null 2>&1 && studio_poser_polices "$STUDIO_HOME" | while IFS= read -r l; do case "$l" in POLICE_A_JOUR*) ;; *) echo "$(horodate) $l";; esac; done
+
 if [ ! -f "$SERVEUR" ]; then
   echo "$(horodate) SERVEUR_ABSENT $SERVEUR : rien à lancer (relancer l'installation)"
   exit 0

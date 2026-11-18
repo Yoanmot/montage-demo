@@ -74,10 +74,11 @@ export class Publication {
   }
 
   // textes : { <slug>: { legende?, message?, bouton? } } retouchés au récapitulatif juste avant le clic.
-  async confirmer(recapId, textes) {
+  // quands : { <slug>: "maintenant" | "AAAA-MM-JJ HH:MM" } choisis après la préparation (lot 10).
+  async confirmer(recapId, textes, quands = {}) {
     await this.pousser();
     try {
-      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config), { textes }));
+      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config), { textes, quands }));
       await this.tirer();
       this.journal("publication", { recap_id: recapId, simulation: Boolean(r.simulation), n: r.resultats?.length || 0 });
       return { resultats: r.resultats };

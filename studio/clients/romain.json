@@ -4,18 +4,27 @@
   "contact": "Yoan",
   "racine": "~/.montage-yoan",
   "label_launchd": "com.montage-yoan.studio",
-  "appli": { "nom": "Studio", "icone": "romain" },
+  "appli": {
+    "nom": "Studio",
+    "icone": "romain"
+  },
   "port": 4747,
   "theme": "romain",
   "head_of_content": {
     "depot": "git@github.com:Yoanmot/head-of-content-romain.git",
     "cle_ssh": "~/.ssh/fitavecromain_head_of_content"
   },
-  "zernio": { "compte": "fitavecromain", "profil": "6ac75dec9a27558cf4810eff" },
-  "ressources": { "site": null },
+  "zernio": {
+    "compte": "fitavecromain",
+    "profil": "6ac75dec9a27558cf4810eff"
+  },
+  "ressources": {
+    "site": null
+  },
   "skill_carrousel": "carrousel",
   "monteur": "monteur",
   "reels_essai": false,
   "branche_mise_a_jour": "main",
-  "config_claude": null
+  "config_claude": null,
+  "polices_locales": {}
 }
