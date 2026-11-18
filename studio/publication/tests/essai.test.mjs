@@ -2,7 +2,8 @@
 //
 // Même montage que ressources.test.mjs : dépôt temporaire avec le client.json de Yoan, faux zernio.py qui
 // charge le VRAI zernio.py de Yoan (réseau, git et --envoyer coupés). Les vidéos sont de vraies petites
-// vidéos (ffmpeg) : la durée est lue par ffprobe. Le chemin « pour de vrai » passe par un exécuteur injecté.
+// vidéos (ffmpeg). Aucune limite de durée (décision de Yoan, 18/11/2026) : une vidéo de 96 s part en essai.
+// Le chemin « pour de vrai » passe par un exécuteur injecté.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { confirmer, oublierRecaps, recap, textesSimules, DUREE_ESSAI } from '../publication.mjs';
+import { confirmer, oublierRecaps, recap, textesSimules } from '../publication.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const HOC = process.env.ZERNIO_REEL_YOAN
@@ -23,7 +24,6 @@ const FFMPEG = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'].find((f) =>
 const SAUTER = !fs.existsSync(REEL) ? `zernio.py de Yoan introuvable (${REEL})` : !FFMPEG ? 'ffmpeg absent' : false;
 const DANS_3_JOURS = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 const QUAND = `${DANS_3_JOURS} 18:30`;
-const EM = String.fromCharCode(0x2014);
 
 let racine, depot, media, log, config, configRomain;
 
@@ -37,7 +37,7 @@ function reel(slug, secondes) {
   ecrire(path.join(depot, 'contenus', slug, 'script.md'), `# ${slug}\n\n## Texte complet\n\nBla.\n\n## Légende\n\nUne légende sans appel à commenter.\n`);
   const f = path.join(media, slug, 'face', 'rush-monte.mp4');
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  const r = spawnSync(FFMPEG, ['-v', 'error', '-f', 'lavfi', '-i', `color=c=black:s=64x112:d=${secondes}:r=5`, '-y', f], { stdio: 'ignore' });
+  const r = spawnSync(FFMPEG, ['-v', 'error', '-f', 'lavfi', '-i', `color=c=black:s=64x112:d=${secondes}:r=1`, '-y', f], { stdio: 'ignore' });
   assert.equal(r.status, 0, 'ffmpeg');
 }
 
@@ -59,7 +59,7 @@ before(() => {
   config = { ...base, client: { id: 'yoan', racine: path.join(racine, 'racine'), reels_essai: true, zernio: { compte: 'ia.yoan' } } };
   configRomain = { ...base, client: { id: 'romain', racine: path.join(racine, 'racine'), reels_essai: false, zernio: { compte: 'fitavecromain' } } };
   reel('court-et-bon', 12);
-  reel('trop-long', DUREE_ESSAI.max + 5);
+  reel('long', 96);
 });
 
 after(() => { if (racine) fs.rmSync(racine, { recursive: true, force: true }); delete process.env.STUDIO_RACINE; });
@@ -73,28 +73,21 @@ describe('reel d\'essai', { skip: SAUTER }, () => {
     assert.ok(appels().every((a) => !a.argv.includes('--reel-essai')));
   });
 
-  test('vidéo de 12 s : case possible, rien de choisi par défaut', async () => {
+  test('case proposée, rien de choisi par défaut', async () => {
     const r = await recap([{ slug: 'court-et-bon', quand: QUAND }], config);
-    assert.deepEqual(r.elements[0].reel_essai, { possible: true, raison: null, choix: null });
+    assert.deepEqual(r.elements[0].reel_essai, { choix: null });
     assert.ok(!appels()[0].argv.includes('--reel-essai'));
   });
 
-  test('vidéo trop longue : case grisée avec la raison, sans jargon', async () => {
-    const r = await recap([{ slug: 'trop-long', quand: QUAND }], config);
-    const x = r.elements[0].reel_essai;
-    assert.equal(x.possible, false);
-    assert.match(x.raison, new RegExp(`dure ${DUREE_ESSAI.max + 5} secondes : un reel d'essai doit durer entre ${DUREE_ESSAI.min} et ${DUREE_ESSAI.max} secondes`));
-    assert.doesNotMatch(x.raison, /ffprobe|trial|MANUAL|\//);
-    assert.ok(!x.raison.includes(EM));
-    assert.equal(r.elements[0].verdict, 'OK');
-  });
-
-  test('vidéo trop longue mais essai demandé : bloqué, la phrase dit de décocher', async () => {
-    const r = await recap([{ slug: 'trop-long', quand: QUAND, essai: 'MANUAL' }], config);
-    assert.equal(r.elements[0].verdict, 'BLOQUE');
-    assert.ok(r.elements[0].messages.some((m) => /Décoche « Reel d'essai »/.test(m)), r.elements[0].messages.join(' / '));
-    assert.equal(r.elements[0].reel_essai.choix, 'MANUAL');
-    assert.ok(appels().every((a) => !a.argv.includes('--reel-essai')));
+  test('aucune limite de durée : une vidéo de 96 s part en essai, sans message sur sa durée', async () => {
+    const r = await recap([{ slug: 'long', quand: QUAND, essai: 'MANUAL' }], config);
+    const x = r.elements[0];
+    assert.equal(x.verdict, 'OK', x.messages.join(' / '));
+    assert.deepEqual(x.reel_essai, { choix: 'MANUAL' });
+    assert.ok(x.messages.every((m) => !/dure|secondes/.test(m)), x.messages.join(' / '));
+    const v = appels().find((a) => a.argv[0] === 'verifier');
+    const i = v.argv.indexOf('--reel-essai');
+    assert.deepEqual(v.argv.slice(i, i + 2), ['--reel-essai', 'MANUAL']);
   });
 
   test('stratégie inconnue : ignorée', async () => {
@@ -127,7 +120,7 @@ describe('reel d\'essai', { skip: SAUTER }, () => {
   });
 
   test('en vrai, Instagram refuse le reel d\'essai : phrase claire, rien ne s\'arrête après', async () => {
-    const r = await recap([{ slug: 'court-et-bon', quand: QUAND, essai: 'MANUAL' }, { slug: 'trop-long', quand: QUAND }], config);
+    const r = await recap([{ slug: 'court-et-bon', quand: QUAND, essai: 'MANUAL' }, { slug: 'long', quand: QUAND }], config);
     const vus = [];
     const executer = async (args) => {
       vus.push(args);

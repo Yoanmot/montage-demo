@@ -10,7 +10,7 @@
 // il disparaît dès que la légende retouchée contient le mot, revient s'il en sort.
 // Reel d'essai (e.reel_essai présent : client qui l'a activé, reels seulement ; lot 9D) : une case et le
 // choix du passage en reel normal. Comme une date, un changement se revérifie avant de pouvoir programmer.
-// Vidéo hors durée (ou illisible) : case grisée avec la raison.
+// Aucune limite de durée : si Instagram refuse, la phrase du refus le dit.
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
 import { motAbsent } from "./mot-absent.js";
@@ -161,15 +161,13 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
   return n;
 }
 
-// « Reel d'essai » : une case, puis comment il passe en reel normal. Grisée avec sa raison si la vidéo ne
-// peut pas partir en essai (durée hors limites, durée illisible), sauf pour décocher un choix déjà fait.
+// « Reel d'essai » : une case, puis comment il passe en reel normal.
 let numeroEssai = 0;
 function champEssai(e, choixEssai, auChangement) {
   const info = e.reel_essai;
   const id = `essai-${++numeroEssai}`;
   const depart = info.choix || null;
-  const coche = el("input", { type: "checkbox", id, checked: depart ? true : null, disabled: !info.possible && !depart ? true : null,
-    "aria-describedby": info.raison ? `${id}-raison` : null });
+  const coche = el("input", { type: "checkbox", id, checked: depart ? true : null, "aria-describedby": `${id}-note` });
   const option = (valeur, texte) => {
     const r = el("input", { type: "radio", name: `${id}-passage`, value: valeur, checked: (depart || "MANUAL") === valeur ? true : null });
     return { r, label: el("label", { class: "recap-essai-option" }, r, el("span", {}, texte)) };
@@ -188,11 +186,10 @@ function champEssai(e, choixEssai, auChangement) {
   coche.addEventListener("change", change);
   manuel.r.addEventListener("change", change);
   auto.r.addEventListener("change", change);
-  return [el("dt", {}, "Reel d'essai"), el("dd", { class: "recap-essai" + (!info.possible && !depart ? " eteint" : "") },
-    el("label", { class: "recap-essai-case", for: id }, coche, el("span", {}, "Le montrer seulement aux gens qui ne te suivent pas")),
-    info.raison ? el("p", { class: "recap-essai-raison", id: `${id}-raison` }, info.raison) : null,
+  return [el("dt", {}, "Format"), el("dd", { class: "recap-essai" },
+    el("label", { class: "recap-essai-case", for: id }, coche, el("span", {}, "Reel d'essai")),
     passage,
-    info.possible ? el("p", { class: "recap-essai-note doux" }, "Instagram doit avoir ouvert cette fonction sur ton compte. Sinon, il la refuse et rien ne part.") : null)];
+    el("p", { class: "recap-essai-note doux", id: `${id}-note` }, "Instagram doit avoir ouvert cette fonction sur ton compte. Sinon, il la refuse et rien ne part."))];
 }
 
 // Les contrôles de zernio.py sur ce qui part (mêmes phrases que le serveur, publication.mjs erreursTextes).

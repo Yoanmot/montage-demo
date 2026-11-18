@@ -23,9 +23,9 @@
 // Reel d'essai (client dont le fichier dit « reels_essai » : true ; studio de Yoan, lot 9D) : un reel du
 // récapitulatif peut porter `essai` (MANUAL : le client le passe en reel normal depuis Instagram ;
 // SS_PERFORMANCE : Instagram le passe tout seul s'il marche). Montré seulement aux gens qui ne suivent pas le
-// compte. Passé en --reel-essai à verifier et à publier. Vidéo de 3 à 90 s (DUREE_ESSAI), lue ici par
-// ffprobe : hors limites ou illisible, la case est grisée avec la raison. Sans le réglage (Romain), rien ne
-// change : `essai` est ignoré et aucune ligne n'apparaît.
+// compte. Passé en --reel-essai à verifier et à publier. Aucune limite de durée (décision de Yoan,
+// 18/11/2026 : rien d'officiel) ; si Instagram le refuse, ESSAI_REFUSE donne la phrase claire. Sans le
+// réglage (Romain), rien ne change : `essai` est ignoré et aucune ligne n'apparaît.
 //
 // Sécurité :
 //   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE=<compte> (plus
@@ -37,7 +37,7 @@
 //   - Un récapitulatif sert une fois, expire au bout de 30 minutes, et confirmer() revérifie que la vidéo
 //     et la légende sont celles qui ont été montrées. Après une erreur d'envoi, rien n'est relancé.
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -45,14 +45,12 @@ import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 import { motAbsent } from '../interface/app/mot-absent.js';
-import { outil } from '../rangement/lib/commun.mjs';
 export { motAbsent };
 
 export const RECAP_MINUTES = 30;
-// Reel d'essai : les deux façons de le passer en reel normal (Zernio, trialParams.graduationStrategy) et
-// la durée de vidéo acceptée, en secondes (mêmes valeurs que zernio.py, ESSAIS et DUREE_ESSAI).
+// Reel d'essai : les deux façons de le passer en reel normal (Zernio, trialParams.graduationStrategy ;
+// mêmes valeurs que ESSAIS dans zernio.py).
 export const ESSAIS = ['MANUAL', 'SS_PERFORMANCE'];
-export const DUREE_ESSAI = { min: 3, max: 90 };
 const MONTE = /-monte(?:-\d+)?\.mp4$/;
 const QUAND = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/;
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -228,7 +226,6 @@ const BLOQUES = [
   [/^la ressource \S+ n'est pas en ligne/, () => "La ressource choisie n'est pas encore en ligne : mets-la en ligne dans « Ressources gratuites », ou choisis-en une autre."],
   [/^ressource \S+ : message pas validé/, () => "Tu n'as pas encore validé le message que reçoivent ceux qui commentent : valide-le avec ton head of content, ou choisis une autre ressource."],
   [/^ressource \S+ : /, () => "Le message automatique de la ressource choisie n'est pas prêt : demande à ton head of content de le finir, ou choisis une autre ressource."],
-  [/^reel d'essai : la vidéo dure ([\d,]+) s/, (m) => `Ta vidéo dure ${m[1]} secondes : un reel d'essai doit durer entre ${DUREE_ESSAI.min} et ${DUREE_ESSAI.max} secondes. Décoche « Reel d'essai » pour la publier en reel normal.`],
   [/^reel d'essai : seulement pour un reel/, () => "Un carrousel ne peut pas partir en reel d'essai : décoche la case."],
   [/^le mot du script \((\S+)\) n'est pas celui en attente \((\S+)\)/, (m) => `Le mot de ton script (${m[1]}) n'est pas celui qui attend (${m[2]}) : demande à ton head of content de remettre le bon mot en attente.`],
 ];
@@ -330,29 +327,6 @@ export function videoMontee(slug, config) {
 // Le reel d'essai est-il proposé à ce client ? (clients/<id>.json, « reels_essai »)
 export function essaiActif(config) {
   return Boolean((config && config.client ? config.client : clientActif())?.reels_essai);
-}
-
-// Durée d'une vidéo en secondes (ffprobe), ou null si elle ne se lit pas.
-export function dureeVideo(chemin) {
-  let ffprobe;
-  try { ffprobe = outil('ffprobe'); } catch { return null; }
-  const r = spawnSync(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', chemin],
-    { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'ignore'] });
-  const d = r.status === 0 ? Number.parseFloat(String(r.stdout).trim()) : NaN;
-  return Number.isFinite(d) ? d : null;
-}
-
-const secondes = (d) => String(Math.round(d * 10) / 10).replace('.', ',');
-
-// Ce que la case « Reel d'essai » peut faire pour cette vidéo : { possible, raison, duree }.
-export function essaiPossible(video) {
-  const d = video ? dureeVideo(video.chemin) : null;
-  if (d === null) return { possible: false, raison: "Je n'arrive pas à lire la durée de la vidéo : elle ne peut pas partir en reel d'essai.", duree: null };
-  if (d < DUREE_ESSAI.min || d > DUREE_ESSAI.max) {
-    return { possible: false, duree: d,
-      raison: `Ta vidéo dure ${secondes(d)} secondes : un reel d'essai doit durer entre ${DUREE_ESSAI.min} et ${DUREE_ESSAI.max} secondes.` };
-  }
-  return { possible: true, raison: null, duree: d };
 }
 
 // Ce qui identifie les slides montrées : nom, taille et date de chaque image vue par le lien.
@@ -492,14 +466,8 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     }
     el.video_url = urlMedia(slug, 'face', el.video.nom);
     if (essaiActif(config)) {
-      el.essai_info = essaiPossible(el.video);
-      const voulu = demande && ESSAIS.includes(demande.essai) ? demande.essai : null;
-      if (voulu && el.essai_info.possible) el.essai = voulu;
-      else if (voulu) {
-        el.essai_voulu = voulu;
-        el.messages.push(`${el.essai_info.raison} Décoche « Reel d'essai » pour la publier en reel normal.`);
-        el.bloque = true;
-      }
+      el.essai_propose = true;
+      if (demande && ESSAIS.includes(demande.essai)) el.essai = demande.essai;
     }
   } else {
     lierSlides(slug, config);
@@ -567,9 +535,8 @@ function versApi(el) {
   }
   // Seule la légende d'un reel se retouche ici (celle d'un carrousel part avec ses slides mises en page).
   o.legende_modifiable = el.type === 'reel' && Boolean(el.script_empreinte) && el.legende !== null;
-  // La case « Reel d'essai » (client qui l'a activée, reels seulement) : grisée avec sa raison si la vidéo
-  // ne peut pas partir en essai.
-  if (el.essai_info) o.reel_essai = { possible: el.essai_info.possible, raison: el.essai_info.raison, choix: el.essai || el.essai_voulu || null };
+  // La case « Reel d'essai » (client qui l'a activée, reels seulement) et le choix fait.
+  if (el.essai_propose) o.reel_essai = { choix: el.essai || null };
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
   else if (el.video_url) o.video_url = el.video_url;
   return o;
