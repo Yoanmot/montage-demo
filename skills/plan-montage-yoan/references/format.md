@@ -34,7 +34,7 @@ Dans les `params` d'un gabarit, un instant s'écrit `{"@": "ancre"}`.
 | `sous_titres` | **auto** : `{"type": "sous_titres", "auto": true, "dores": [...], "forts": [...]}` (voir plus bas) ; ou explicite : `depuis` (premier mot), `groupes`: `[["LIGNE 1\|LIGNE 2", "MOT DORÉ"?, {"accent": "fort"}?], ...]` |
 | `zoom` | `geste`: `eclair` \| `adouci` \| `lent`, `a` (le mot), `sortie`: `{"geste": "coupe", "a": "@coupeN"}` (éclair) ; `fin` (lent) |
 | `mot_derriere` | `mot` (en MAJUSCULES, dit), `a` (son mot), `jusqua` |
-| `plein_ecran` | `de`, `a`, `variante`: `seule` \| `milieu`, `lignes` (mots dits, dans l'ordre, en MAJUSCULES), `dore` (obligatoire en `milieu`) |
+| `plein_ecran` | `de`, `a`, `variante`: `seule` \| `milieu`, `lignes` (mots dits, dans l'ordre, en MAJUSCULES, 11 caractères par ligne environ : 120 px dans 900 px), `dore` (un seul mot, obligatoire en `milieu` ; une expression dorée passe par les sous-titres) |
 | `demi_ecran` | `de`, `a`, `contenu`: `{"gabarit": ..., "params": {...}}`, `bascule`?: `{"type": "pousse"\|"faisceau", "a": ancre}`, `sortie`: `remonte` \| `coupe` |
 | `motion` | `gabarit`, `support`: `plein` \| `camera`, `de`, `a`, `params` |
 | `sur_mesure` | `calque`: `"calques/<id>"` (écrit avant, skill animations-yoan), `de`, `a`, `plein`? (faisceaux aux deux bouts), `perforer`? (derrière la tête) |
@@ -69,21 +69,24 @@ y 1190 à 1480. Plein écran : contenu de y 560 à ~1500. **Demi-écran** : le f
 y 1080) et pousse le visage vers le bas ; son contenu va de y 500 à ~1000 (jamais plus haut : les sous-titres sont en
 haut), et il entre après la descente (0,7 s après `de`).
 
-## Exemple (extrait)
+## Exemple (extrait, tiré de la démo validée par Yoan : ses ancres sont celles d'une autre vidéo)
 ```json
 { "contrat": "timeline/1", "densite": "dense", "ambiance": "hiphop", "elements": [
-  {"type": "hook", "ouverture": {"groupes": [["CETTE VIDÉO|A ÉTÉ"]]}, "lignes": ["ENTIÈREMENT", "MONTÉE PAR CLAUDE"],
-   "dore": "ENTIÈREMENT", "secondaire": "LE SYSTÈME|ÉTAPE PAR ÉTAPE", "jusqua": "@coupe1", "sortie": "coupe"},
-  {"type": "zoom", "geste": "eclair", "a": "voir#1", "sortie": {"geste": "coupe", "a": "@coupe2"}},
-  {"type": "faisceau", "a": "@coupe3"},
-  {"type": "motion", "gabarit": "minuteur", "support": "plein", "de": "30-0.1", "a": "@coupe7",
-   "params": {"cx": 540, "cy": 900, "depart": 1800, "entree": {"@": "30"}, "debut": {"@": "30"}, "fin": {"@": "@coupe7"},
-              "etiquette": {"texte": "Montage par vidéo", "t": {"@": "30+0.08"}}}},
-  {"type": "son", "son": "cta", "a": "30"}, {"type": "son", "son": "cta_lignes", "a": "30+0.25"},
-  {"type": "mot_derriere", "mot": "MONTEUR", "a": "monteur-là", "jusqua": "@coupe10"},
-  {"type": "cta", "support": "camera", "mot": "MONTEUR", "consigne": "COMMENTE", "bas": "JE T'ENVOIE LE GUIDE",
-   "quand": {"consigne": "commenter", "mot": "monteur#3", "bas": "t'enverrai"}, "jusqua": "@fin"},
-  {"type": "sous_titres", "auto": true, "dores": ["touché", {"a": "tenir", "mots": 3}], "forts": [{"a": "pas#1", "mots": 3}]}
+  {"type": "hook", "ouverture": {"groupes": [["VOICI CE QUI"], ["TE MANQUE|POUR QUE"], ["TON IA SONNE"]]},
+   "lignes": ["EXACTEMENT", "COMME TOI"], "dore": "EXACTEMENT", "secondaire": "COMMENT DONNER|TA VOIX À UNE IA",
+   "jusqua": "@coupe1", "sortie": "coupe"},
+  {"type": "plein_ecran", "de": "@coupe2", "a": "la#1", "variante": "seule", "lignes": ["LE PROBLÈME", "PAS L'IA EN", "ELLE-MÊME", "C'EST JUSTE"]},
+  {"type": "zoom", "geste": "eclair", "a": "vocaux#1", "sortie": {"geste": "coupe", "a": "@coupe5"}},
+  {"type": "faisceau", "a": "@coupe4"},
+  {"type": "motion", "gabarit": "regle-pin", "support": "camera", "de": "force#1-0.06", "a": "@coupe10",
+   "params": {"y": 1390, "entree": {"@": "force#1-0.06"}, "sortie": {"@": "temps#1+0.34"},
+              "reperes": [{"x": 160, "texte": "V1"}, {"x": 500, "texte": "V3"}, {"x": 840, "texte": "V6"}],
+              "pin": {"t": {"@": "correction#1+0.04"}, "arrets": [{"x": 160, "texte": "V1"}, {"t": {"@": "de#10+0.04"}, "x": 840, "texte": "V6", "d": 0.6}]},
+              "ellipse": {"t": {"@": "précis#2+0.1"}}}},
+  {"type": "son", "son": "whoosh", "a": "force#1-0.06"}, {"type": "son", "son": "curseur", "a": "de#10+0.04"},
+  {"type": "cta", "support": "camera", "mot": "CONTEXTE", "consigne": "COMMENTE", "bas": "ET JE T'AIDE EN DM",
+   "quand": {"consigne": "commente#1", "mot": "contexte#3", "bas": "et#11-0.02"}, "jusqua": "@fin"},
+  {"type": "sous_titres", "auto": true, "dores": ["manière#1", {"a": "une#3", "mots": 3}], "forts": [{"a": "hyper#1", "mots": 2}]}
 ] }
 ```
 Un exemple complet écrit par le planificateur de Yoan : `exemple-demo.json` (ses ancres sont celles d'une autre vidéo).

@@ -118,7 +118,8 @@ ordre :
 **En mode studio : l'aperçu** (`rendu`, section « L'aperçu, la validation dans le studio »).
 1. **Regarde toi-même les moments clés** avec la planche (outil interne, `rendu`, « La planche ») : le hook (ouverture
    puis titre), chaque plein écran, chaque demi-écran, chaque animation sur lui, l'accent fort, le CTA, la fin. Tu la
-   regardes avec Read, tu ne la lui montres pas. Vérifie : titre derrière la tête (la tête passe devant la 2e ligne),
+   regardes avec Read, tu ne la lui montres pas et tu ne la nommes jamais : pendant ce temps, dans le chat, tu écris
+   seulement « je regarde les moments clés » (jamais « planche », « vignette », « calque », « plan caméra »). Vérifie : titre derrière la tête (la tête passe devant la 2e ligne),
    sous-titres en haut jamais sur le visage, rien hors cadre, animation qui illustre la phrase, CTA au-dessus de la tête
    sans la toucher. Corrige avant.
 2. Lance l'aperçu : `STUDIO_CLIENT=yoan /usr/bin/python3 "$SK/rendu/scripts/apercu.py" "<nom>-montage"` (timeout

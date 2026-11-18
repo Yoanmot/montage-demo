@@ -243,6 +243,15 @@ def contraintes_moteur(res):
         if b0 < a1 - 1e-3: out.append(f"{na} et {nb} : deux zooms dans le même plan (le premier tient jusqu'à la coupe qui suit)")
     if hook:
         if hook["a"] < 1.0: out.append("hook : il sort avant 1 s (le dézoom d'ouverture du moteur dure au moins 1 s)")
+    PE = STYLE["pleinEcran"]
+    for r in res["elements"]:
+        if r["type"] != "plein_ecran": continue
+        for l in r["lignes"]:
+            t = " ".join(x[0] for x in l)
+            lg = VT.largeur_satoshi(t.replace(" ", ""), PE["taille"], PE["interlettrage"]) + 0.25 * PE["taille"] * (len(l) - 1)
+            if lg > PE["largeur"]:
+                out.append(f"{r['_nom']} : ligne « {t} » trop large pour le plein écran ({lg:.0f} px pour {PE['largeur']}) : "
+                           f"coupe-la (11 caractères par ligne environ, comme « LE PROBLÈME »)")
     for r in res["elements"]:
         n = r["_nom"]
         if r["type"] == "suivi":
