@@ -32,11 +32,13 @@ else
   t="$(mktemp)"
   if defaults export com.apple.dock "$t" 2>/dev/null; then
     r="$(/usr/bin/python3 - "$t" "file://$STUDIO_APP/" <<'PYEOF'
-import plistlib, sys
+import plistlib, sys, urllib.parse
 p, url = sys.argv[1], sys.argv[2]
+# Adresse posee avant (brute) ou encodee (nom avec espaces, ex. Studio Romain (test)).
+urls = {url.rstrip("/"), ("file://" + urllib.parse.quote(url[len("file://"):], safe="/()")).rstrip("/")}
 d = plistlib.load(open(p, "rb"))
 apps = d.get("persistent-apps") or []
-garde = [a for a in apps if ((a.get("tile-data") or {}).get("file-data") or {}).get("_CFURLString", "").rstrip("/") != url.rstrip("/")]
+garde = [a for a in apps if ((a.get("tile-data") or {}).get("file-data") or {}).get("_CFURLString", "").rstrip("/") not in urls]
 if len(garde) == len(apps):
     print("ABSENT")
 else:
