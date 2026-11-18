@@ -23,6 +23,7 @@
     "site": "https://ressources.yoanmottier.com"
   },
   "skill_carrousel": "carrousel-yoan",
+  "monteur": "monteur-yoan",
   "branche_mise_a_jour": "studio-multi-clients",
   "config_claude": "/Users/Shared/studio-yoan/claude"
 }

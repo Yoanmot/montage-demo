@@ -19,6 +19,9 @@
 #   CLIENT_SITE CLIENT_BRANCHE CLIENT_CONFIG_CLAUDE (vide si null) CLIENT_FICHIER
 #   CLIENT_SKILL_CARROUSEL  le skill de mise en page des carrousels (skills/<nom>), relié sous le nom
 #                    « carrousel » : skill_carrousel du fichier, sinon carrousel (celui de Romain)
+#   CLIENT_MONTEUR   l'agent monteur du client (agents/<nom>.md), relié sous le nom « monteur » : monteur du fichier,
+#                    sinon monteur (celui de Romain). Les skills qui portent un fichier CLIENT (son id dedans) ne sont
+#                    reliés que chez ce client.
 #   CLIENT_CLAUDE    dossier de config Claude effectif : config_claude, sinon ~/.claude (Romain)
 #   CLIENT_ISOLE     1 si config_claude est posé : tout ce que l'installation écrit reste dans la racine
 #   CLIENT_SONS      dossier de la clé et du cache ElevenLabs : ~/.config/monteur-romain (Romain),
@@ -119,6 +122,7 @@ v = {
     "CLIENT_SONS": os.path.join(racine, "monteur") if config else os.path.join(maison, ".config", "monteur-romain"),
     "CLIENT_HOOK": hook,
     "CLIENT_SKILL_CARROUSEL": g("skill_carrousel", defaut="carrousel"),
+    "CLIENT_MONTEUR": g("monteur", defaut="monteur"),
     "CLIENT_PREVENIR": ("Envoie un message à %s." % contact) if contact else "",
     "CLIENT_SIMULATION_FORCEE": "1" if c.get("simulation_forcee") is True else "",
 }

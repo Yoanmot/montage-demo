@@ -109,6 +109,8 @@ main() {
     case "$n" in
       carrousel|carrousel-*) [ "$n" = "$SKC" ] || continue; n=carrousel;;
     esac
+    # Un skill réservé à un client (fichier CLIENT, son id dedans : les briques du monteur de Yoan) n'est relié que chez lui.
+    if [ -f "$src/CLIENT" ] && [ "$(tr -d '[:space:]' < "$src/CLIENT")" != "$CLIENT_ID" ]; then continue; fi
     cible="$SKILLS/$n"
     if [ -L "$cible" ]; then
       [ "$(readlink "$cible")" = "$src" ] || { ln -sfn "$src" "$cible"; journal "LIEN_REFAIT skills/$n"; }
@@ -129,9 +131,17 @@ main() {
       ln -s "$src" "$cible"; journal "AJOUTE skills/$n"
     fi
   done
+  # L'agent monteur : celui du client (monteur du fichier du client, agents/<nom>.md), relié sous le nom « monteur.md »
+  # (celui qu'ouvre le studio) ; les monteurs des autres clients ne sont pas reliés.
+  local MTR="${CLIENT_MONTEUR:-monteur}"
+  [ -f "$CLONE/agents/$MTR.md" ] || MTR=monteur
   for f in "$CLONE"/agents/*.md; do
     [ -f "$f" ] || continue
-    n="$(basename "$f")"; cible="$AGENTS/$n"
+    n="$(basename "$f")"
+    case "$n" in
+      monteur.md|monteur-*.md) [ "$n" = "$MTR.md" ] || continue; n=monteur.md;;
+    esac
+    cible="$AGENTS/$n"
     if [ -L "$cible" ]; then
       [ "$(readlink "$cible")" = "$f" ] || { ln -sfn "$f" "$cible"; journal "LIEN_REFAIT agents/$n"; }
     elif [ -e "$cible" ]; then
@@ -152,6 +162,20 @@ main() {
     t="$(readlink "$l")"
     case "$t" in
       "$CLONE"/*|"$HOC"/*) [ -e "$l" ] || { rm -f "$l"; journal "RETIRE ${l#$CC/} (plus dans le dépôt)"; } ;;
+    esac
+  done
+  # Ce qu'une version d'avant ce script a pu relier pour un autre client (premier passage après la mise à jour) :
+  # un monteur d'un autre client sous son nom, un skill réservé (fichier CLIENT) à un autre client.
+  for l in "$AGENTS"/monteur-*.md; do
+    [ -L "$l" ] || continue
+    case "$(readlink "$l")" in "$CLONE"/agents/*) rm -f "$l"; journal "RETIRE ${l#$CC/} (monteur relié sous le nom monteur.md)";; esac
+  done
+  for l in "$SKILLS"/*; do
+    [ -L "$l" ] || continue
+    t="$(readlink "$l")"
+    case "$t" in
+      "$CLONE"/skills/*)
+        if [ -f "$t/CLIENT" ] && [ "$(tr -d '[:space:]' < "$t/CLIENT")" != "$CLIENT_ID" ]; then rm -f "$l"; journal "RETIRE ${l#$CC/} (réservé à un autre client)"; fi;;
     esac
   done
   # Le skill de mise en page d'un autre client (carrousel-<client>), relié sous son nom par une version

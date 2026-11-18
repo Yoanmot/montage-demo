@@ -14,6 +14,7 @@
   "zernio": { "compte": "fitavecromain", "profil": "6ac75dec9a27558cf4810eff" },
   "ressources": { "site": null },
   "skill_carrousel": "carrousel",
+  "monteur": "monteur",
   "branche_mise_a_jour": "main",
   "config_claude": null
 }

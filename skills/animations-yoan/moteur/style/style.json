@@ -1,0 +1,827 @@
+{
+ "_note": "Constantes du style @ia.yoan (Style Lab, 2026-10-22). SEULE source des valeurs lues par executeur/ et briques/gabarits/. Valeurs reprises de style/REGLES.md et du code des cartes verrouillées. Chemins de fichiers relatifs à ce dossier style/. Un autre style (un client) = un autre dossier avec son style.json.",
+ "nom": "ia.yoan",
+ "format": {
+  "largeur": 1080,
+  "hauteur": 1920,
+  "ips": 30
+ },
+ "couleurs": {
+  "dore": "#F2B544",
+  "blanc": "#F2EEE6",
+  "creme": "#F4EFE4",
+  "texteUI": "#FCF8F5",
+  "fondFS": "#1C0F08"
+ },
+ "polices": {
+  "satoshi": {
+   "fichier": "polices/Satoshi-Black.woff2",
+   "famille": "Satoshi"
+  },
+  "anton": {
+   "fichier": "polices/Anton-Regular.ttf",
+   "famille": "Anton"
+  },
+  "inter": {
+   "fichier": "polices/Inter.ttf",
+   "famille": "Inter"
+  },
+  "jetbrains": {
+   "fichier": "polices/JetBrainsMono.ttf",
+   "famille": "JetBrains Mono"
+  },
+  "plex": {
+   "fichier": "polices/IBMPlexMono-Medium.ttf",
+   "famille": "IBM Plex Mono",
+   "poids": "500"
+  }
+ },
+ "halo": {
+  "_note": "halo du doré : rayon en em, opacité (text-shadow)",
+  "couches": [
+   [
+    0.143,
+    0.75
+   ],
+   [
+    0.4,
+    0.45
+   ],
+   [
+    0.857,
+    0.25
+   ]
+  ],
+  "trait": [
+   [
+    3,
+    0.75
+   ],
+   [
+    10,
+    0.35
+   ]
+  ]
+ },
+ "entrees": {
+  "texte": {
+   "duree": 0.22,
+   "flou": 14,
+   "avance": 0.04,
+   "courbe": "power2.out"
+  },
+  "objet": {
+   "duree": 0.17,
+   "flou": 12
+  },
+  "sortie": {
+   "duree": 0.12,
+   "flou": 10,
+   "courbe": "power1.in"
+  },
+  "hook": {
+   "duree": 0.32,
+   "flou": 22
+  },
+  "cta": {
+   "duree": 0.26,
+   "flou": 16
+  }
+ },
+ "sousTitres": {
+  "police": "satoshi",
+  "taille": 70,
+  "interligne": 1.12,
+  "top": 242,
+  "gauche": 100,
+  "largeur": 880,
+  "espace": 0.13,
+  "ombre": "0 2px 12px rgba(0,0,0,0.28)",
+  "z": 60,
+  "debutAvantMot": 0.06,
+  "finApresMot": 0.6,
+  "crochets": {
+   "bras": 24,
+   "trait": 3,
+   "D": 26,
+   "marge": 11,
+   "mode": "capitales",
+   "duree": 0.2,
+   "courbe": "power2.out"
+  },
+  "expression": {
+   "_source": "retours de Yoan du 2026-10-23 : une expression de plusieurs mots s'accentue en entier (« UNE SEULE FOIS », « HYPER GÉNÉRALISTES »)",
+   "crochets": "les crochets entourent toute l'expression (bord gauche de l'encre du premier mot, bord droit du dernier, hauteur des capitales la plus haute), ils se resserrent à l'entrée du dernier mot de l'expression, quand elle est complète"
+  },
+  "accentFort": {
+   "_source": "retours de Yoan du 2026-10-23 sur HYPER GÉNÉRALISTES : « le texte plus gros, un peu comme sur le CTA mais sans le prolongement du quadrillage »",
+   "taille": 104,
+   "interligne": 1.0,
+   "interlettrage": -0.005,
+   "top": 250,
+   "largeurMax": 900,
+   "plus": {
+    "marge": {
+     "x": 30,
+     "y": 22
+    }
+   },
+   "entree": "cta",
+   "_note": "l'expression seule dans son groupe, en doré avec halo, Satoshi Black 104 px (126 px du CTA ramenés à la largeur sûre : GÉNÉRALISTES fait 880 px), une ligne par mot si besoin, entre quatre « + » crème posés comme ceux du CTA (30 px des côtés de l'encre, 22 px du haut et du bas) qui arrivent avec le dernier mot ; aucune ligne tirée à travers le cadre, aucun quadrillage ; entrée de chaque mot comme le CTA (flou 16 px, 0,26 s) calée sur sa voix"
+  }
+ },
+ "pleinEcran": {
+  "police": "satoshi",
+  "taille": 120,
+  "ligne": 130,
+  "interlettrage": -0.01,
+  "gauche": 90,
+  "largeur": 900,
+  "centreY": 960,
+  "ombre": "0 4px 30px rgba(0,0,0,0.25)",
+  "z": 10,
+  "sortieLigne": 0.066,
+  "remontee": {
+   "duree": 0.25,
+   "courbe": "power2.out"
+  },
+  "fondAvant": 0.2,
+  "fondApres": 0.1,
+  "retourCamera": 1.08,
+  "crochets": {
+   "bras": 40,
+   "trait": 4,
+   "D": 26,
+   "marge": 11,
+   "mode": "capitales",
+   "ecartMin": 16
+  }
+ },
+ "faisceau": {
+  "couleur": "#F4EFE4",
+  "largeur": 2200,
+  "hauteur": 3200,
+  "gauche": -560,
+  "haut": -640,
+  "rotation": 12,
+  "bord": 16,
+  "depart": 2300,
+  "arrivee": -2500,
+  "armement": 0.2,
+  "z": 80,
+  "aller": {
+   "duree": 0.067,
+   "courbe": "power1.in"
+  },
+  "retour": {
+   "duree": 0.09,
+   "courbe": "none"
+  }
+ },
+ "fond": {
+  "_source": "style/textures/fonds.json, clé c (r4-01c verrouillé)",
+  "angle": 187,
+  "base": [
+   "rgb(172,96,50) 0%",
+   "rgb(131,69,36) 22%",
+   "rgb(117,60,33) 30%",
+   "rgb(89,46,26) 44%",
+   "rgb(58,29,15) 64%",
+   "rgb(53,27,14) 68%",
+   "rgb(28,15,8) 100%"
+  ],
+  "lum": [
+   "rgba(255,193,124,0.875) 0%",
+   "rgba(238,150,82,0.630) 24%",
+   "rgba(231,139,73,0.550) 30%",
+   "rgba(201,104,50,0.278) 50%",
+   "rgba(188,93,44,0.177) 58%",
+   "rgba(175,85,40,0.000) 72%"
+  ],
+  "L": {
+   "cx": 1024.4,
+   "cy": -126.20000000000002,
+   "r": 1207.1414
+  },
+  "vig": "radial-gradient(ellipse 87.5% 72.5% at 58.5% 34%,rgba(0,0,0,0) 52.5%,rgba(9,4,2,0.525) 100%)",
+  "grain": {
+   "fichier": "textures/grain.png",
+   "opacite": 0.55,
+   "amplitude": 100,
+   "marge": 120,
+   "graine": 12345
+  }
+ },
+ "hook": {
+  "titre": {
+   "police": "anton",
+   "taille": 145.35,
+   "tops": [
+    235.76,
+    380.76
+   ],
+   "ombre": "0 0.03em 0.3em rgba(20,10,4,0.30)",
+   "rythme": {
+    "debut": 0.06,
+    "pas": 0.1,
+    "pasLigne": 0.14
+   }
+  },
+  "etiquette": {
+   "centreY": 1420,
+   "taille": 34,
+   "interlettrage": 0.24,
+   "hauteur": 74,
+   "padX": 30,
+   "fond": "rgba(20,10,4,0.45)",
+   "cadre": 2,
+   "ombre": "0 2px 10px rgba(0,0,0,0.35)",
+   "z": 30,
+   "entree": {
+    "t": 0.33,
+    "montee": 28,
+    "duree": 0.3,
+    "courbe": "power2.out"
+   },
+   "_note": "remplacée le 2026-10-23 par hook.secondaire (retours de Yoan) ; gardée pour le banc (carte r7-03b) seulement, le pilote ne la pose plus"
+  },
+  "camera": {
+   "zoom": 1.3,
+   "cheveuxY": 430,
+   "variantes": {
+    "_source": "retours de Yoan du 2026-10-23 : le doigt pointe vers le haut, une animation au-dessus, « faut revoir le zoom ou le cadrage en même temps »",
+    "serre": {
+     "zoom": 1.3,
+     "cheveuxY": 430,
+     "decalage": 0,
+     "_note": "r2-04a, le cadre par défaut"
+    },
+    "large": {
+     "zoom": 1.15,
+     "cheveuxY": 430,
+     "decalage": 60,
+     "_note": "laisse la place à une animation à l'endroit que pointe la main : zoom 1,15 (au lieu de 1,30), cheveux toujours à y 430 (le titre reste derrière la tête), tête décalée de 60 px du côté opposé au geste (vers) ; 1,12 garde moins d'air au-dessus du doigt, 1,18 le recoupe au bord (IMG_7203)"
+    }
+   }
+  },
+  "ouverture": {
+   "_source": "retours de Yoan sur la démo (2026-10-23) : les mots dits avant le titre défilent derrière la tête comme des sous-titres, dans le style du titre",
+   "police": "anton",
+   "ligneSeule": 0,
+   "_note": "même corps, mêmes lignes (tops) et même entrée que le titre (entrees.hook) ; chaque mot entre à l'attaque de sa voix moins entrees.texte.avance ; le groupe disparaît net au début du suivant, le dernier au premier mot du titre ; ligneSeule : ligne utilisée par un groupe d'une seule ligne"
+  },
+  "secondaire": {
+   "_source": "retours de Yoan sur la démo (2026-10-23) : remplace l'étiquette « IA POUR COACHS » ; un second hook visuel dans un rectangle noir à coins arrondis, contour doré lumineux",
+   "centreY": 1390,
+   "largeurMax": 860,
+   "lignesMax": 2,
+   "caracteresMax": 18,
+   "police": "satoshi",
+   "taille": 58,
+   "interlettrage": 0.02,
+   "interligne": 1.12,
+   "couleur": "#F4EFE4",
+   "ombreTexte": "0 2px 10px rgba(0,0,0,0.35)",
+   "padX": 46,
+   "padY": 30,
+   "fond": "rgba(10,7,5,0.92)",
+   "rayon": 28,
+   "bord": 2.5,
+   "glow": [
+    [
+     6,
+     0.75
+    ],
+    [
+     18,
+     0.45
+    ],
+    [
+     40,
+     0.25
+    ]
+   ],
+   "glowInterieur": [
+    16,
+    0.16
+   ],
+   "z": 31,
+   "variante": "presente",
+   "variantes": {
+    "flou": "le bloc entre en fondu depuis un flou (entree), contour doré déjà allumé",
+    "allume": "le bloc entre en fondu depuis un flou avec un contour crème discret, le doré et son halo s'allument à l'entrée du mot doré du titre",
+    "apres": "comme flou, mais le bloc entre quand le titre est posé (dernier mot du titre + apresTitre)",
+    "presente": "déjà là à la première image du reel, sans entrée (retours de Yoan du 2026-10-23 : « il faut qu'il soit là dès la première frame ») ; contour doré allumé"
+   },
+   "entree": {
+    "t": 0.33,
+    "flou": 12,
+    "duree": 0.22,
+    "courbe": "power2.out"
+   },
+   "allume": {
+    "duree": 0.4,
+    "courbe": "sine.inOut",
+    "bordRepos": "rgba(244,239,228,0.30)"
+   },
+   "apresTitre": 0.12,
+   "_variante": "choix de Yoan du 2026-10-23 : le fondu depuis un flou (« flou ») est validé comme entrée, puis « présent dès la première image » demandé : variante presente"
+  }
+ },
+ "motDerriere": {
+  "police": "anton",
+  "taille": 300,
+  "interlettrage": 0.01,
+  "halo": [
+   [
+    22,
+    0.45
+   ],
+   [
+    60,
+    0.22
+   ]
+  ],
+  "profondeur": 90,
+  "capitale": 0.86,
+  "hautCapitale": 0.0636,
+  "entree": {
+   "duree": 0.3,
+   "flou": 16
+  }
+ },
+ "broll": {
+  "filtre": "grayscale(1) contrast(1.12) brightness(0.92)",
+  "zoom": {
+   "de": 1.0,
+   "a": 1.12,
+   "origine": [
+    540,
+    1040
+   ]
+  },
+  "grain": {
+   "opacite": 0.45,
+   "graine": 4321
+  },
+  "fondPage": "#121212",
+  "vignette": "radial-gradient(ellipse 80% 65% at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,0.6) 100%)",
+  "annotation": {
+   "trait": 3,
+   "point": 7,
+   "taille": 32,
+   "interlettrage": 0.06,
+   "interligne": 1.15,
+   "ombre": "0 2px 10px rgba(0,0,0,0.35)",
+   "dessin": 0.35,
+   "etiquette": {
+    "decalage": 0.08,
+    "duree": 0.26
+   },
+   "tenue": 0.8,
+   "retour": {
+    "duree": 0.3,
+    "courbe": "sine.inOut"
+   },
+   "haloTrait": "drop-shadow(0 0 6px rgba(242,181,68,0.8))"
+  }
+ },
+ "cta": {
+  "mot": {
+   "taille": 126,
+   "interlettrage": -0.005
+  },
+  "consigne": {
+   "taille": 38,
+   "interlettrage": 0.32
+  },
+  "bas": {
+   "taille": 32,
+   "interlettrage": 0.26,
+   "opacite": {
+    "fond": 0.82,
+    "camera": 0.92
+   }
+  },
+  "ombre": {
+   "fond": 0.3,
+   "camera": 0.55
+  },
+  "consigneAuDessus": 125,
+  "basSous": 26,
+  "plus": {
+   "taille": 32,
+   "trait": 2
+  },
+  "marge": {
+   "x": 30,
+   "y": 24
+  },
+  "lignes": {
+   "trait": 3,
+   "couleur": "rgba(244,239,228,0.62)",
+   "decalage": 0.25,
+   "duree": 0.25,
+   "tenue": 0.7,
+   "effacement": 0.45,
+   "plusDecalage": 0.05
+  },
+  "grille": {
+   "pas": 60,
+   "couleur": "rgba(244,239,228,0.10)",
+   "apparition": 0.5
+  },
+  "fond": {
+   "motTop": 915
+  },
+  "camera": {
+   "morsure": 30,
+   "dessus": {
+    "marge": 24,
+    "_source": "retours de Yoan du 2026-10-23 (3e passage) : « il faut juste que ce soit au-dessus de ma tête pour que les 2 ne se superposent pas » : tout le bloc (ligne du bas comprise) finit 24 px au-dessus du point le plus haut des cheveux pendant le CTA ; remplace la morsure de 30 px (r6-01b) et le torse (abandonné pour le CTA)"
+   }
+  },
+  "z": 40
+ },
+ "demiEcran": {
+  "decalage": 560,
+  "hauteur": 1080,
+  "fondu": 260,
+  "sortie": 0.07,
+  "courbe": "banque",
+  "bascule": {
+   "duree": 0.5,
+   "courbe": "power2.inOut"
+  },
+  "champSplitY": 560,
+  "champPleinY": 820,
+  "champ": {
+   "largeur": 760,
+   "hauteur": 200,
+   "rayon": 34,
+   "fond": "rgba(24,20,17,0.72)",
+   "bord": "1.5px solid rgba(255,236,214,0.10)",
+   "ombre": "0 18px 50px rgba(10,4,2,0.45),inset 0 1px 0 rgba(255,240,225,0.06)",
+   "flou": 18,
+   "texte": 40
+  },
+  "courbes": {
+   "banque": {
+    "_source": "ressources/archives/content-reset-2026-10-21/banque/effets/half-anim-apparition/template.mjs (COURBE, 43 images à 60 i/s, 0,70 s), paliers d'export retirés : un point par nouvelle image, interpolation monotone PCHIP",
+    "duree": 0.7,
+    "table": [
+     0.0,
+     0.00679,
+     0.01364,
+     0.02083,
+     0.0282,
+     0.03576,
+     0.04356,
+     0.05165,
+     0.05977,
+     0.06764,
+     0.07558,
+     0.08392,
+     0.09299,
+     0.10312,
+     0.11464,
+     0.12864,
+     0.14664,
+     0.16739,
+     0.18949,
+     0.21155,
+     0.2343,
+     0.25883,
+     0.28366,
+     0.30729,
+     0.32827,
+     0.34664,
+     0.36336,
+     0.37911,
+     0.39458,
+     0.41046,
+     0.42745,
+     0.44623,
+     0.46854,
+     0.4937,
+     0.51912,
+     0.54226,
+     0.56073,
+     0.57585,
+     0.58913,
+     0.60122,
+     0.61281,
+     0.62455,
+     0.63712,
+     0.65119,
+     0.66712,
+     0.68424,
+     0.70168,
+     0.71854,
+     0.73414,
+     0.74964,
+     0.7648,
+     0.77885,
+     0.791,
+     0.80079,
+     0.8091,
+     0.81642,
+     0.82313,
+     0.82964,
+     0.83633,
+     0.84362,
+     0.85195,
+     0.86166,
+     0.87189,
+     0.88163,
+     0.88988,
+     0.89615,
+     0.9015,
+     0.90621,
+     0.91054,
+     0.91473,
+     0.91902,
+     0.92364,
+     0.92884,
+     0.93454,
+     0.94042,
+     0.94613,
+     0.9513,
+     0.95591,
+     0.96032,
+     0.96443,
+     0.9681,
+     0.9712,
+     0.97384,
+     0.97619,
+     0.97832,
+     0.9803,
+     0.98219,
+     0.98406,
+     0.98597,
+     0.98801,
+     0.99013,
+     0.99214,
+     0.99386,
+     0.99512,
+     0.99616,
+     0.99716,
+     0.99807,
+     0.99885,
+     0.99946,
+     0.99986,
+     1.0
+    ]
+   }
+  }
+ },
+ "motion": {
+  "verre": "rgba(40,35,27,0.84)",
+  "verreCam": "rgba(34,30,24,0.80)",
+  "verreObjet": "rgba(28,24,19,0.92)",
+  "tuile": "rgba(58,42,27,0.94)",
+  "filet": "rgba(244,239,228,0.30)",
+  "filetFort": "rgba(244,239,228,0.62)",
+  "filetDoux": "rgba(244,239,228,0.16)",
+  "trait": 1.5,
+  "attenue": "rgba(242,238,230,0.42)",
+  "secondaire": "rgba(242,238,230,0.64)",
+  "rayon": {
+   "champ": 18,
+   "bouton": 9,
+   "tuile": 21,
+   "principal": 6,
+   "panneau": 2
+  },
+  "cascade": 0.05,
+  "morph": 0.13,
+  "croix": {
+   "taille": 30,
+   "trait": 2,
+   "couleur": "rgba(244,239,228,0.85)"
+  },
+  "crochet": {
+   "bras": 22,
+   "trait": 3,
+   "D": 26
+  },
+  "icone": 3,
+  "etiquettes": {
+   "satoshi": {
+    "family": "Satoshi",
+    "taille": 24,
+    "ls": 0.24,
+    "poids": 900
+   },
+   "jetbrains": {
+    "family": "JetBrains Mono",
+    "taille": 25,
+    "ls": 0.3,
+    "poids": 500
+   },
+   "plex": {
+    "family": "IBM Plex Mono",
+    "taille": 25,
+    "ls": 0.3,
+    "poids": 500
+   }
+  },
+  "etiquette": "jetbrains",
+  "ui": {
+   "family": "Inter",
+   "taille": 34,
+   "poids": 450
+  },
+  "capture": {
+   "haut": "#1D3D65",
+   "bas": "#416F96",
+   "reflet": "#766498"
+  }
+ },
+ "camera": {
+  "source": {
+   "largeur": 2160,
+   "hauteur": 3840
+  },
+  "repos": {
+   "x0": 176.19,
+   "y0": 144.27,
+   "largeur": 1928.57
+  },
+  "visage": [
+   550.0,
+   830.0
+  ],
+  "cheveuxRepos": 608.0,
+  "eclair": {
+   "echelle": 1.15,
+   "duree": 0.13,
+   "courbe": "power2.out"
+  },
+  "adouci": {
+   "echelle": 1.12,
+   "duree": 0.25,
+   "courbe": "power2.out",
+   "retour": {
+    "duree": 0.25,
+    "courbe": "sine.inOut"
+   }
+  },
+  "lent": {
+   "de": 1.0,
+   "a": 1.12
+  },
+  "dezoomLent": {
+   "courbe": "sine.inOut"
+  },
+  "flou": {
+   "sousImages": 10
+  },
+  "suivi": {
+   "zoom": 1.13,
+   "gain": 0.75,
+   "tau": 0.25,
+   "lissage": 1,
+   "x": 540
+  },
+  "attaqueAvance": 0.04
+ },
+ "etalonnage": {
+  "nom": "P20",
+  "ffmpeg": "colortemperature=temperature=5020:mix=0.640,curves=all='0/0.0020 0.2/0.1836 0.5/0.4680 0.8/0.7340 1/0.9040',colorbalance=rs=0.0480:gs=0.0040:bs=-0.0560:rm=0.0440:bm=-0.0440:rh=0.0100:bh=-0.0120,huesaturation=saturation=-0.4200:colors=b+c,eq=contrast=1.0120:saturation=1.0100,vignette=angle=0.6488:x0=w/2:y0=h*0.42,noise=c0s=1:c0f=t",
+  "_source": "style/etalonnage/grades.sh (GRADE_P20), recette.txt"
+ },
+ "son": {
+  "voix": {
+   "rmsParle": -15.5,
+   "seuilParole": -45,
+   "fenetre": 0.05
+  },
+  "flash": {
+   "fichier": "sons/flash.wav",
+   "repere": 0.1,
+   "decalage": 0.007,
+   "picSousVoix": 4.1
+  },
+  "cta": {
+   "fichier": "sons/cta-apparition.wav",
+   "rmsSousVoix": 17,
+   "lignes": {
+    "decalage": 0.25,
+    "gain": -11
+   }
+  },
+  "tic": {
+   "fichier": "sons/cta-apparition.wav",
+   "rmsSousVoix": 18
+  },
+  "musique": {
+   "defaut": "hiphop",
+   "sousVoixK": 15,
+   "ducking": 2,
+   "attaque": 0.08,
+   "relache": 0.3,
+   "entree": 0.3,
+   "sortie": 0.6,
+   "boucle": {
+    "mesures": 2,
+    "bpm": 135,
+    "fonduCroise": 0.03,
+    "recalage": 0.015
+   },
+   "ambiances": {
+    "hiphop": {
+     "fichier": "sons/musiques/m-a-v5.mp3",
+     "debut": 0.0,
+     "tempoMesure": 137.55,
+     "tempo": 135.0,
+     "carte": "r6-03a"
+    },
+    "trap": {
+     "fichier": "sons/musiques/m-b-v1.mp3",
+     "debut": 0.5,
+     "tempoMesure": 135.0,
+     "tempo": 135.0,
+     "carte": "r6-03b"
+    },
+    "boombap": {
+     "fichier": "sons/musiques/m-c-v6.mp3",
+     "debut": 0.0,
+     "tempoMesure": 96.05,
+     "tempo": 67.5,
+     "carte": "r6-03c"
+    },
+    "nappe": {
+     "fichier": "sons/musiques/nappe-pads-r5-04a.wav",
+     "debut": 0.0,
+     "tempoMesure": 70.0,
+     "tempo": 70.0,
+     "sousVoixK": 22,
+     "ducking": 3,
+     "carte": "r5-04a"
+    }
+   }
+  },
+  "master": {
+   "crete": -1.0,
+   "limiteur": 0.84,
+   "attaque": 2,
+   "relache": 40
+  },
+  "effets": {
+   "_source": "retours de Yoan du 2026-10-23, 3e passage : sound design « motion design premium de SaaS explainer » sur toutes les animations, discret sous la voix. Famille générée avec ElevenLabs, prompts et choix : sons/SOURCES.md. La famille du 2e passage (pop, glisse, curseur, bruh) est retirée.",
+   "whoosh": {
+    "fichier": "sons/whoosh.wav",
+    "rmsSousVoix": 21,
+    "_note": "un panneau, un document ou un objet qui entre (posé au début de l'entrée : sa montée de 0,11 s tombe sur l'arrivée)"
+   },
+   "clic": {
+    "fichier": "sons/clic.wav",
+    "rmsSousVoix": 18,
+    "_note": "un élément d'interface qui arrive : ligne de liste, tuile, section, « + »"
+   },
+   "pop": {
+    "fichier": "sons/pop.wav",
+    "rmsSousVoix": 18,
+    "_note": "un petit objet qui éclot : source, icône, objet mystère"
+   },
+   "glisse": {
+    "fichier": "sons/glisse.wav",
+    "rmsSousVoix": 21,
+    "_note": "un objet qui glisse, se réduit ou se verse"
+   },
+   "shimmer": {
+    "fichier": "sons/shimmer.wav",
+    "rmsSousVoix": 22,
+    "_note": "un état qui passe au doré (fichier, ellipse, mot doré final)"
+   },
+   "curseur": {
+    "fichier": "sons/curseur.wav",
+    "rmsSousVoix": 20,
+    "_note": "un curseur numérique qui se déplace (ticks et petite glisse électronique), coupé à la durée du déplacement"
+   },
+   "_niveaux": "1er rendu du 3e passage : clic et pop à 22 dB sous la voix noyés sous la parole (émergence -35 à -4 dB dans leur bande), whoosh et glisse à 24 dB (-11 à 0 dB) ; relevés à 18 (clic, pop, comme le tic du style) et 21 dB (whoosh, glisse) ; shimmer (22) et curseur (20) ressortaient déjà (+8 à +17 dB)"
+  }
+ },
+ "export": {
+  "crf": 20,
+  "preset": "slow",
+  "profil": "high",
+  "debitMax": "16M",
+  "audio": {
+   "codec": "aac",
+   "debit": "192k",
+   "frequence": 48000
+  },
+  "couleur": "-pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv"
+ },
+ "transitions": {
+  "_source": "seuils du validateur (valider_timeline.py), tirés du reel 4 (style/mesures/references-notes.md section 6, 6-mesures.json, r8-02-mesure.md), des cartes r3-03 et des retours de Yoan sur la démo du 2026-10-23",
+  "demiApresCamera": 0.9,
+  "_demiApresCamera": "écart minimal entre la fin d'un mouvement de caméra rapide (zoom ou dézoom éclair, zoom ou retour adouci, coupe avec recadrage, sortie du hook) et l'entrée d'un demi-écran. Reel 4 : seul demi-écran après un zoom, zoom -11 % à 11,37 s puis demi-écran à 12,40 s, soit 1,03 s entre les départs et environ 0,9 s après la fin du mouvement. Refusé par Yoan : démo v1, demi-écran 0,77 s après le dézoom du hook. Les mouvements lents (zoom lent, dézoom lent) ne comptent pas : le demi-écran de la démo v1 à 39,5 s entrait pendant un dézoom lent et Yoan l'a jugé propre.",
+  "etatMin": 1.6,
+  "_etatMin": "durée minimale d'un état demi-écran ou plein écran (refus). Accepté par Yoan dans la démo v1 : plein écran de 1,60 s après une bascule par faisceau, demi-écran de 2,23 s. Refusé (démo v1 à 48 s) : demi-écran de 1,47 s puis plein écran de 1,13 s puis caméra. Carte r3-03a : 1,6 s de demi-écran avant la bascule.",
+  "etatConseille": 2.4,
+  "_etatConseille": "plus court état demi ou plein du reel 4 (plein écran 4,77 -> 7,17 s ; demi-écran 54,03 -> 56,57 s, 2,53 s) : avertissement en dessous."
+ }
+}

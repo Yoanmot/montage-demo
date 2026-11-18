@@ -715,9 +715,11 @@ def limite_crete(x, plafond_db, np):
     return y, float(-20 * np.log10(g.min())), touche
 
 
-def bande_son(ff, w, info, total, sons, C, biblio, cache):
+def bande_son(ff, w, info, total, sons, C, biblio, cache, musique=None):
     """Voix (voix_coupee) + sons de sons.json aux niveaux mesurés (repris de mix21.py du labo). Écrit
-    rendu-cache/audio.wav (48 kHz stéréo 24 bits) ; renvoie les mesures."""
+    rendu-cache/audio.wav (48 kHz stéréo 24 bits) ; renvoie les mesures.
+    musique (clé « musique » de sons.json, null chez Romain) : { "fichier": piste déjà réglée sous la voix, de la durée
+    de la vidéo coupée (chemin absolu ou relatif au dossier de montage), "gain_db"?: 0 } ; ajoutée telle quelle."""
     try:
         import numpy as np
         from scipy.signal import lfilter
@@ -792,6 +794,15 @@ def bande_son(ff, w, info, total, sons, C, biblio, cache):
         ecart = (lufs(cg[a]) - vl) if mesure[0] == "lu_sous_voix" else (float(db(np.sqrt((cg[a] ** 2).mean()))) - vr)
         poses.append(dict(fichier=str(s["fichier"]), image=image, niveau=dict([mesure]), gain_db=round(g, 1),
                           ecart_mesure=round(ecart, 1), pourquoi=s.get("pourquoi", "")))
+    mus = None
+    if musique:
+        fm = Path(str(musique.get("fichier", "")))
+        fm = fm if fm.is_absolute() else w / fm
+        if not fm.exists():
+            echec(2, f"MUSIQUE_INTROUVABLE : {fm} (relance la préparation des sons).")
+        m = lit(fm)[:N] * 10 ** (float(musique.get("gain_db", 0)) / 20)
+        bus[:len(m)] += m
+        mus = dict(fichier=str(fm), gain_db=float(musique.get("gain_db", 0)), crete_dbfs=round(float(db(np.abs(m).max())), 1))
     mix = v + bus
     pk0 = float(db(np.abs(mix).max()))
     mix, red, touche = limite_crete(mix, C["SONS"]["cretMax"], np)
@@ -805,7 +816,8 @@ def bande_son(ff, w, info, total, sons, C, biblio, cache):
     if rr.returncode != 0:
         echec(5, "RENDU_RATÉ audio : écriture de la bande son impossible.")
     return out, dict(voix_lufs_mono=round(vl, 1), voix_rms_parle_dbfs=round(vr, 1), crete_mix_dbfs=round(pk, 2),
-                     crete_avant_limiteur_dbfs=round(pk0, 2), limiteur_db=round(red, 2), limiteur_ms=round(touche, 1), sons=poses)
+                     crete_avant_limiteur_dbfs=round(pk0, 2), limiteur_db=round(red, 2), limiteur_ms=round(touche, 1), sons=poses,
+                     **({"musique": mus} if mus else {}))
 
 
 # ------------------------------------------------------------------------------------------------ rendu
@@ -853,14 +865,13 @@ def main():
         brolls = lit_brolls(w, W0, H0, OW, OH, ff, cache)
     sources = [s for s in ("animations", "sous-titres") if s in demande]
     calques = calques_demandes(w, sources, total) if sources else []
-    sons = None
+    sons = None; musique = None
     if "sons" in demande:
         if not (w / "sons.json").exists():
             echec(2, "COUCHE_MANQUANTE sons : lance d'abord la brique sound-design (sons.json).")
         sj = lit_json(w / "sons.json", 3, "SONS")
         sons = sj.get("sons") or []
-        if sj.get("musique"):
-            dire("  attention : « musique » de sons.json n'est pas encore prise en charge par le rendu, ignorée.")
+        musique = sj.get("musique") or None
 
     dire(f"Fabrication de la vidéo ({OW}x{OH}, {total} images, {total / FPS:.1f} s), couches : {', '.join(c for c in COUCHES if c in demande)}")
     # 1. calques HyperFrames
@@ -881,7 +892,7 @@ def main():
         dire(f"  détourage : {sum(c['couche'] == 'derriere' for c in calques)} calque(s) derrière lui en {time.time() - t0:.0f} s")
     # 3. bande son
     t0 = time.time()
-    audio, mesures = bande_son(ff, w, info, total, sons or [], C, biblio, cache)
+    audio, mesures = bande_son(ff, w, info, total, sons or [], C, biblio, cache, musique)
     dire(f"  son : voix {mesures['voix_lufs_mono']} LUFS, {len(mesures['sons'])} son(s), crête {mesures['crete_mix_dbfs']} dBFS en {time.time() - t0:.0f} s")
 
     # 4. le graphe : un seul passage depuis l'original

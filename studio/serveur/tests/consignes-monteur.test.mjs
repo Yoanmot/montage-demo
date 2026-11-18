@@ -55,3 +55,13 @@ test("briques : la planche est dite outil interne dans le studio, jamais nommée
     assert.ok(!lire(f).includes("—"), `${f} : pas de tiret long`);
   }
 });
+
+test("monteur de Yoan : même règle de vocabulaire (aperçu, jamais planche ni storyboard, ni pixels) et pas de storyboard à valider", () => {
+  const m = lire("agents/monteur-yoan.md").replace(/\s+/g, " ");
+  assert.match(m, /Ce qu'il valide s'appelle \*\*l'aperçu\*\* : jamais « planche », « storyboard » ni « vignette »/);
+  assert.match(m, /jamais en pixels, coordonnées, pourcentages ni numéros d'image/);
+  assert.match(m, /\*\*Pas de storyboard à valider\*\*/);
+  assert.match(m, /tu écris seulement « je regarde les moments clés » \(jamais « planche »/);
+  assert.match(m, /Tu ne fabriques la vidéo que sur son clic « Fabrique la vidéo »/);
+  for (const p of phrasesExemples(lire("agents/monteur-yoan.md"))) assert.doesNotMatch(p, INTERDITS, p);
+});
