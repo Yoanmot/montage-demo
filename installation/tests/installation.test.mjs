@@ -163,10 +163,13 @@ test("studio.sh installer : Romain identique à avant le multi-clients (service,
   const hoc = fauxHoc(t);
   // L'ancien code (b100e4f) et le nouveau, chacun dans sa copie, chacun dans son HOME de test.
   const copies = {};
-  for (const [nom, ref] of [["ancien", REF_ROMAIN], ["nouveau", null]]) {
+  // « repli » : le nouveau code quand l'appli Mac ne se lance pas (ici : demandé) ; il doit poser
+  // exactement l'appli d'avant (petit script qui ouvre le navigateur).
+  for (const [nom, ref, ajout] of [["ancien", REF_ROMAIN], ["nouveau", null], ["repli", null, { STUDIO_APPLI_NAVIGATEUR: "1" }]]) {
     const c = path.join(t, nom);
     for (const f of ["installation/studio.sh", "studio/lancement/commun.sh", "studio/lancement/client.sh", "studio/lancement/demarrer.sh",
-      "studio/lancement/ouvrir.sh", "studio/lancement/icone.icns", "studio/studio.config.exemple.json", "studio/clients/romain.json"]) {
+      "studio/lancement/ouvrir.sh", "studio/lancement/appli.sh", "studio/lancement/appli/Studio",
+      "studio/lancement/icone.icns", "studio/studio.config.exemple.json", "studio/clients/romain.json"]) {
       fs.mkdirSync(path.dirname(path.join(c, f)), { recursive: true });
       if (ref) {
         const r = spawnSync("git", ["show", `${ref}:${f}`], { cwd: DEPOT, maxBuffer: 1 << 24 });
@@ -177,17 +180,29 @@ test("studio.sh installer : Romain identique à avant le multi-clients (service,
     }
     const maison = path.join(t, `maison-${nom}`);
     fs.mkdirSync(maison);
-    const r = bash(path.join(c, "installation/studio.sh"), ["installer"], envDe(maison, { HOC_DEPOT_URL: hoc }));
+    const r = bash(path.join(c, "installation/studio.sh"), ["installer"], envDe(maison, { HOC_DEPOT_URL: hoc, ...ajout }));
     assert.match(r.sortie, /STUDIO_FIN ok=\d+ a_faire=0 echecs=1/, r.sortie); // seul échec : pas de serveur dans la copie
     copies[nom] = { c, maison };
   }
   const norm = (s, { c, maison }) => s.split(c).join("<CODE>").split(maison).join("<HOME>");
-  for (const f of ["Library/LaunchAgents/com.montage-yoan.studio.plist", "Applications/Studio.app/Contents/Info.plist",
-    "Applications/Studio.app/Contents/MacOS/Studio", ".montage-yoan/studio/studio.config.json"]) {
-    const a = norm(fs.readFileSync(path.join(copies.ancien.maison, f), "utf8"), copies.ancien);
-    const b = norm(fs.readFileSync(path.join(copies.nouveau.maison, f), "utf8"), copies.nouveau);
-    assert.equal(b, a, f);
+  const lire = (k, f) => norm(fs.readFileSync(path.join(copies[k].maison, f), "utf8"), copies[k]);
+  for (const f of ["Library/LaunchAgents/com.montage-yoan.studio.plist", ".montage-yoan/studio/studio.config.json"]) {
+    assert.equal(lire("nouveau", f), lire("ancien", f), f);
   }
+  for (const f of ["Applications/Studio.app/Contents/Info.plist", "Applications/Studio.app/Contents/MacOS/Studio"]) {
+    assert.equal(lire("repli", f), lire("ancien", f), `repli ${f}`);
+  }
+  // L'appli Mac de Romain : même nom, même identifiant, même icône, au même endroit ; son binaire est
+  // celui du dépôt, elle demande l'adresse à ouvrir.sh de sa copie et ne se cache plus du Dock.
+  const app = path.join(copies.nouveau.maison, "Applications/Studio.app/Contents");
+  const plist = lire("nouveau", "Applications/Studio.app/Contents/Info.plist");
+  assert.match(plist, /<key>CFBundleIdentifier<\/key>\s*<string>com\.montage-yoan\.studio\.app<\/string>/);
+  assert.match(plist, /<key>CFBundleName<\/key>\s*<string>Studio<\/string>/);
+  assert.match(plist, /<key>StudioOuvrir<\/key>\s*<string><CODE>\/studio\/lancement\/ouvrir\.sh<\/string>/);
+  assert.doesNotMatch(plist, /LSUIElement|StudioEnvironnement/);
+  assert.ok(fs.readFileSync(path.join(app, "MacOS/Studio")).equals(fs.readFileSync(path.join(DEPOT, "studio/lancement/appli/Studio"))));
+  assert.ok(fs.readFileSync(path.join(app, "Resources/Studio.icns")).equals(fs.readFileSync(path.join(DEPOT, "studio/lancement/icone.icns"))));
+  assert.match(execFileSync(path.join(app, "MacOS/Studio"), ["--verifier"], { encoding: "utf8" }), /^OK appli /);
   const git = (m, k) => execFileSync("git", ["-C", path.join(m, ".montage-yoan/studio/head-of-content"), "config", k], { encoding: "utf8" }).trim();
   assert.equal(git(copies.nouveau.maison, "user.name"), "Mac de Romain");
   assert.equal(git(copies.nouveau.maison, "user.email"), "mac-romain@users.noreply.github.com");
@@ -228,9 +243,11 @@ test("studio.sh installer : autre client isolé, tout dans sa racine, rien de Ro
   assert.match(plist, new RegExp(`[>:]${racine}/bin:`));
   const app = path.join(applis, "Studio Camille.app");
   assert.match(fs.readFileSync(path.join(app, "Contents/Info.plist"), "utf8"), /<string>Studio Camille<\/string>/);
-  const exe = fs.readFileSync(path.join(app, "Contents/MacOS/Studio"), "utf8");
+  const exe = fs.readFileSync(path.join(app, "Contents/MacOS/Studio"), "latin1");
   assert.doesNotMatch(exe, /Yoan|Romain/);
-  assert.match(exe, /STUDIO_SERVICES_DOSSIER/);
+  // Les dossiers du bac à sable passent à ouvrir.sh par les réglages de l'appli.
+  assert.match(fs.readFileSync(path.join(app, "Contents/Info.plist"), "utf8"),
+    new RegExp(`<key>StudioEnvironnement</key>\\s*<dict>[\\s\\S]*<key>STUDIO_SERVICES_DOSSIER</key>\\s*<string>${services}</string>`));
 
   const conf = JSON.parse(fs.readFileSync(path.join(racine, "studio/studio.config.json"), "utf8"));
   assert.equal(conf.prenom, "Camille");
@@ -370,4 +387,24 @@ test("client.sh : skill de mise en page des carrousels, Romain inchangé", () =>
   assert.equal(variables(envDe("/Users/yoanmottier", { STUDIO_CLIENT: "yoan" })).CLIENT_SKILL_CARROUSEL, "carrousel-yoan");
   assert.ok(fs.existsSync(path.join(DEPOT, "skills/carrousel-yoan/SKILL.md")));
   assert.match(fs.readFileSync(path.join(DEPOT, "skills/carrousel-yoan/SKILL.md"), "utf8"), /^---\nname: carrousel\n/);
+});
+
+test("appli : l'ancienne icône (script) devient l'appli Mac au même endroit, puis ne bouge plus", () => {
+  const maison = tmp();
+  const applis = path.join(maison, "applis");
+  const poser = (ajout = {}) => spawnSync("/bin/bash", ["-c",
+    `. "${DEPOT}/studio/lancement/commun.sh" && . "${DEPOT}/studio/lancement/appli.sh" && studio_poser_appli`],
+  { env: envDe(maison, { STUDIO_CLIENT: "romain", STUDIO_APPLIS_DOSSIER: applis, ...ajout }), encoding: "utf8" }).stdout.trim();
+  assert.equal(poser({ STUDIO_APPLI_NAVIGATEUR: "1" }), "POSEE navigateur (demandé)");
+  const exe = path.join(applis, "Studio.app/Contents/MacOS/Studio");
+  assert.match(fs.readFileSync(exe, "utf8"), /^#!\/bin\/bash/);
+  assert.equal(poser(), "POSEE native");
+  assert.match(execFileSync(exe, ["--verifier"], { encoding: "utf8" }), /^OK appli /);
+  assert.equal(poser(), "PRESENTE native");
+  // ouvrir.sh --adresse ne pose ni n'ouvre rien : il rend l'adresse ou une alerte (ici, pas de service).
+  const r = spawnSync("/bin/bash", [path.join(DEPOT, "studio/lancement/ouvrir.sh"), "--adresse"], {
+    env: envDe(maison, { STUDIO_CLIENT: "romain", STUDIO_APPLIS_DOSSIER: applis, STUDIO_SERVICES_DOSSIER: path.join(maison, "services"), STUDIO_LABEL: "com.essai.inexistant" }),
+    encoding: "utf8" });
+  assert.match(r.stdout, /^ALERTE Le studio n/m);
+  fs.rmSync(maison, { recursive: true, force: true });
 });

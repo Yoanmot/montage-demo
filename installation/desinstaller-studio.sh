@@ -59,6 +59,10 @@ fi
 
 # L'appli
 if [ -d "$STUDIO_APP" ]; then
+  # L'appli Mac ouverte se ferme d'abord (sinon sa fenêtre resterait sur un studio arrêté).
+  if [ -z "${STUDIO_SANS_DOCK:-}" ] && [ -n "$(lsappinfo find "bundleid=$STUDIO_LABEL.app" 2>/dev/null)" ]; then
+    osascript -e "tell application id \"$STUDIO_LABEL.app\" to quit" >/dev/null 2>&1 || true
+  fi
   rm -rf "$STUDIO_APP"
   if [ -z "${STUDIO_SANS_DOCK:-}" ]; then
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$STUDIO_APP" >/dev/null 2>&1 || true

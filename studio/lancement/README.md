@@ -7,15 +7,23 @@ l'ouverture de session, l'appli « Studio » du Dock et son icône. L'installati
 | Fichier | Rôle |
 |---|---|
 | `demarrer.sh` | ce que lance le service : trouve `node` et `claude`, puis `node serveur/studio.mjs` |
-| `ouvrir.sh` | ce que lance l'appli Studio : vérifie que le studio répond (le démarre sinon), lit le jeton, ouvre la fenêtre |
+| `ouvrir.sh` | vérifie que le studio répond (le démarre sinon), lit le jeton ; `--adresse` rend l'adresse à l'appli Mac, `--navigateur` ouvre le navigateur (repli) |
+| `appli/Studio.swift`, `appli/Studio` | l'appli Mac du Dock (fenêtre WebKit, une seule fenêtre, point sous l'icône, Cmd+Tab) ; `appli/Studio` est le binaire universel (Apple et Intel) signé ad hoc, construit sur le Mac de Yoan par `appli/construire.sh` et gardé dans le dépôt : rien à compiler chez le client |
+| `appli.sh` | pose ou remplace l'appli dans `~/Applications` (installation, mise à jour automatique, première ouverture depuis l'ancienne icône) ; si le binaire ne se lance pas sur ce Mac, pose le repli (script qui ouvre le navigateur) |
 | `icone.svg` | dessin de l'icône (source) |
 | `icone.icns` | icône de l'appli, fabriquée par `fabriquer-icone.sh` (Chrome sans fenêtre, `sips`, `iconutil`) et gardée dans le dépôt : rien à fabriquer chez Romain |
 
 Sur le Mac :
 - service : `~/Library/LaunchAgents/com.montage-yoan.studio.plist` (au démarrage de session, relancé
   s'il tombe en erreur), journal de lancement `~/.montage-yoan/studio/lancement.log` ;
-- appli : `~/Applications/Studio.app` (un petit paquet dont l'exécutable appelle `ouvrir.sh` du
-  dépôt : une amélioration de `ouvrir.sh` arrive avec la mise à jour automatique, sans refaire l'appli) ;
+- appli : `~/Applications/Studio.app`, l'appli Mac (2026-11-18). Elle demande l'adresse du jour à
+  `ouvrir.sh --adresse` (qui démarre le service s'il le faut) et l'affiche dans sa fenêtre. Un clic sur
+  l'icône ramène la fenêtre ouverte (jamais une deuxième) et revérifie le jeton ; fermer la fenêtre ou
+  quitter l'appli n'arrête pas le service. Les liens vers ailleurs s'ouvrent dans le navigateur, les
+  vidéos se lisent dans la fenêtre, la dictée (deux fois fn) marche dans les champs. Si la page ne
+  s'affiche pas (trois essais), l'appli ouvre le studio dans le navigateur et se ferme. La mise à jour
+  automatique remplace l'appli quand elle change, au même chemin : l'icône du Dock reste à sa place et
+  aucun réglage du Dock n'est écrit. Journal : `ouvrir.log` (lignes « appli ... ») ;
 - Dock : l'icône est ajoutée une seule fois (repère `~/.montage-yoan/studio/.dock-ajoute`) ; si Romain
   la retire, on ne la remet pas.
 

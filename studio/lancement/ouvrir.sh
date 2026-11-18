@@ -1,12 +1,18 @@
 #!/bin/bash
-# Ce que fait l'icône Studio du Dock : vérifier que le studio tourne (le démarrer sinon, le
-# redémarrer s'il attend une mise à jour et qu'il est au repos), lire le jeton du démarrage en cours,
-# ouvrir le studio dans une fenêtre d'appli de Chrome (sinon le navigateur par défaut).
-# Appelé par ~/Applications/<nom de l'appli du client>.app/Contents/MacOS/Studio.
+# Vérifie que le studio tourne (le démarre sinon, le redémarre s'il attend une mise à jour et qu'il est
+# au repos), lit le jeton du démarrage en cours, puis :
+#   ouvrir.sh --adresse      écrit « URL <adresse> » (ou « ALERTE <phrase> ») : ce que demande l'appli Mac
+#                            du studio (appli/Studio.swift) à son ouverture et à chaque clic sur son icône ;
+#   ouvrir.sh --navigateur   ouvre le studio dans une fenêtre d'appli de Chrome (sinon le navigateur par
+#                            défaut) : le repli de l'appli Mac quand la page ne s'y affiche pas ;
+#   ouvrir.sh                appelé par l'ancienne icône (un script) : pose l'appli Mac à sa place et
+#                            l'ouvre ; si elle ne se lance pas sur ce Mac, ouvre le navigateur comme avant.
 # Test (Yoan) : STUDIO_SANS_FENETRE=1 écrit l'adresse au lieu d'ouvrir une fenêtre ou une alerte.
 
 # shellcheck source=commun.sh
 . "$(dirname "$0")/commun.sh"
+MODE="${1:-}"
+[ "$MODE" = "--adresse" ] && STUDIO_SANS_FENETRE=1
 
 alerte() {
   if [ -n "${STUDIO_SANS_FENETRE:-}" ]; then echo "ALERTE $1"; return; fi
@@ -20,6 +26,23 @@ OSA
 journal() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$STUDIO_HOME/ouvrir.log" 2>/dev/null; }
 
 mkdir -p "$STUDIO_HOME"
+
+# L'ancienne icône (un petit script qui appelle ce fichier) : l'appli Mac prend sa place, au même
+# endroit (le Dock n'est pas touché), puis s'ouvre quand ce script a fini (même identifiant : tant qu'il
+# tourne, macOS le prendrait pour elle et ne lancerait rien).
+if [ -z "$MODE" ] && [ -z "${STUDIO_SANS_FENETRE:-}" ] && head -c 2 "$STUDIO_APP/Contents/MacOS/Studio" 2>/dev/null | grep -q '#!'; then
+  # shellcheck source=appli.sh
+  . "$(dirname "$0")/appli.sh"
+  r_app="$(studio_poser_appli)"
+  journal "APPLI $r_app"
+  case "$r_app" in
+    "POSEE native"|"PRESENTE native")
+      nohup /bin/bash -c 'i=0; while kill -0 "$1" 2>/dev/null && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done; open "$2"' \
+        _ "$$" "$STUDIO_APP" >/dev/null 2>&1 &
+      exit 0;;
+  esac
+fi
+
 r="$(studio_redemarrer_si_demande)"
 [ "$r" = "REDEMARRE" ] && journal "REDEMARRE (mise à jour en attente)"
 
@@ -45,7 +68,10 @@ if [ -z "$jeton" ]; then
 fi
 url="http://127.0.0.1:$(studio_port)/?t=$jeton"
 
-if [ -n "${STUDIO_SANS_FENETRE:-}" ]; then echo "URL $url"; exit 0; fi
+if [ -n "${STUDIO_SANS_FENETRE:-}" ]; then
+  [ "$MODE" = "--adresse" ] && journal "ADRESSE donnée à l'appli"
+  echo "URL $url"; exit 0
+fi
 
 chrome=""
 for a in "/Applications/Google Chrome.app" "$HOME/Applications/Google Chrome.app"; do

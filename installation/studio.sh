@@ -33,6 +33,8 @@ CODE="$CLONE/studio"
 LANCEMENT="$CODE/lancement"
 # shellcheck source=../studio/lancement/commun.sh
 . "$LANCEMENT/commun.sh"
+# shellcheck source=../studio/lancement/appli.sh
+. "$LANCEMENT/appli.sh"
 
 BASE="$STUDIO_RACINE"
 HOC_URL="${HOC_DEPOT_URL:-$CLIENT_HOC_DEPOT}"
@@ -278,76 +280,14 @@ EOF
     fi
   fi
 
-  # L'appli Studio (~/Applications) et son icône
-  local app_neuve="$STUDIO_HOME/.Studio.app.$$"
-  rm -rf "$app_neuve"
-  mkdir -p "$app_neuve/Contents/MacOS" "$app_neuve/Contents/Resources"
-  local nom_app; nom_app="$(printf '%s' "$STUDIO_APP_NOM" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
-  cat > "$app_neuve/Contents/Info.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>Studio</string>
-  <key>CFBundleIdentifier</key>
-  <string>$STUDIO_LABEL.app</string>
-  <key>CFBundleName</key>
-  <string>$nom_app</string>
-  <key>CFBundleDisplayName</key>
-  <string>$nom_app</string>
-  <key>CFBundleIconFile</key>
-  <string>Studio</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>1.0</string>
-  <key>CFBundleVersion</key>
-  <string>1</string>
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>12.0</string>
-  <key>LSUIElement</key>
-  <true/>
-  <key>NSHighResolutionCapable</key>
-  <true/>
-</dict>
-</plist>
-EOF
-  {
-    echo '#!/bin/bash'
-    echo '# Icône Studio : tout se passe dans ouvrir.sh du dépôt (mis à jour tout seul).'
-    [ "$STUDIO_LABEL" != "$CLIENT_LABEL" ] && printf 'export STUDIO_LABEL=%q\n' "$STUDIO_LABEL"
-    [ -n "${STUDIO_SERVICES_DOSSIER:-}" ] && printf 'export STUDIO_SERVICES_DOSSIER=%q\n' "$STUDIO_SERVICES_DOSSIER"
-    [ -n "${STUDIO_APPLIS_DOSSIER:-}" ] && printf 'export STUDIO_APPLIS_DOSSIER=%q\n' "$STUDIO_APPLIS_DOSSIER"
-    printf 'O=%q\n' "$LANCEMENT/ouvrir.sh"
-    echo 'if [ -f "$O" ]; then exec /bin/bash "$O"; fi'
-    if [ "$CLIENT_ID" = "romain" ]; then
-      echo "osascript -e 'display dialog \"Le studio n’est plus installé sur ce Mac. Envoie un message à Yoan.\" with title \"Studio\" buttons {\"OK\"} default button \"OK\"' >/dev/null 2>&1"
-    else
-      printf 'osascript - %q %q <<'"'"'OSA'"'"' >/dev/null 2>&1\non run argv\n  display dialog (item 1 of argv) with title (item 2 of argv) buttons {"OK"} default button "OK"\nend run\nOSA\n' \
-        "Le studio n’est plus installé sur ce Mac.${CLIENT_PREVENIR:+ $CLIENT_PREVENIR}" "$STUDIO_APP_NOM"
-    fi
-    echo 'exit 1'
-  } > "$app_neuve/Contents/MacOS/Studio"
-  chmod 755 "$app_neuve/Contents/MacOS/Studio"
-  if [ -n "$CLIENT_ICONE" ] && [ -f "$CLIENT_ICONE" ]; then cp "$CLIENT_ICONE" "$app_neuve/Contents/Resources/Studio.icns"
-  elif [ -f "$LANCEMENT/icone.icns" ]; then
-    cp "$LANCEMENT/icone.icns" "$app_neuve/Contents/Resources/Studio.icns"
-    ok "studio-icone : pas d'icône propre au client ($CLIENT_ID) dans studio/lancement/icones/, icône par défaut"
-  fi
-  printf 'APPL????' > "$app_neuve/Contents/PkgInfo"
-  mkdir -p "$(dirname "$STUDIO_APP")"
-  if [ -d "$STUDIO_APP" ] && diff -rq "$app_neuve" "$STUDIO_APP" >/dev/null 2>&1; then
-    rm -rf "$app_neuve"; ok "studio-app $STUDIO_APP_NOM présente"
-  else
-    rm -rf "$STUDIO_APP"; mv "$app_neuve" "$STUDIO_APP"
-    if [ -z "${STUDIO_SANS_DOCK:-}" ]; then
-      /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$STUDIO_APP" >/dev/null 2>&1 || true
-    fi
-    installe "studio-app $STUDIO_APP_NOM dans le dossier Applications de $QUI"
-  fi
+  # L'appli Studio (~/Applications) et son icône : l'appli Mac, ou le navigateur si elle ne se lance pas ici
+  local r_app; r_app="$(studio_poser_appli)"
+  case "$r_app" in
+    PRESENTE*) ok "studio-app $STUDIO_APP_NOM présente (${r_app#PRESENTE })";;
+    POSEE*) installe "studio-app $STUDIO_APP_NOM dans le dossier Applications de $QUI (${r_app#POSEE })";;
+    *) echec "studio-app : ${r_app#ECHEC }";;
+  esac
+  { [ -z "$CLIENT_ICONE" ] || [ ! -f "$CLIENT_ICONE" ]; } && ok "studio-icone : pas d'icône propre au client ($CLIENT_ID) dans studio/lancement/icones/, icône par défaut"
   [ -f "$STUDIO_APP/Contents/Resources/Studio.icns" ] || echec "studio-app : icône absente du dépôt ($LANCEMENT/icone.icns)"
 
   # Le Dock : une seule fois (si le client retire l'icône, on ne la remet pas)
@@ -418,7 +358,8 @@ cmd_verifier() {
 
   if [ -x "$STUDIO_APP/Contents/MacOS/Studio" ] && plutil -lint -s "$STUDIO_APP/Contents/Info.plist" >/dev/null 2>&1 \
      && [ -s "$STUDIO_APP/Contents/Resources/Studio.icns" ]; then
-    okv "studio-app $STUDIO_APP_NOM présente avec son icône"
+    if head -c 2 "$STUDIO_APP/Contents/MacOS/Studio" | grep -q '#!'; then okv "studio-app $STUDIO_APP_NOM présente avec son icône (ouverture dans le navigateur)"
+    else okv "studio-app $STUDIO_APP_NOM présente avec son icône (appli Mac)"; fi
   else
     kov "studio-app : $STUDIO_APP_NOM.app absente ou incomplète"
   fi
