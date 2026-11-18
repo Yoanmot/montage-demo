@@ -363,6 +363,20 @@ test("vue Montage : rushs titrés par rôle avec les mots du plan, prises pas en
   assert.equal(broll.vignette_url, "/api/media/_bibliotheque/vignettes/20261116-143012-kq3x-2.jpg");
   assert.deepEqual(d.montage.manquants.map((x) => x.titre), ["Tu marches", "Photo : ton bol de skyr"]);
   assert.ok(!JSON.stringify(d.montage).includes(m.racine));
+  assert.equal(face.detail, "Reconnu à ce que tu dis dans ton texte.");
+  assert.equal(face.range_par_toi, undefined);
+  // Une prise sautée dans le plan (« Je ne la fais pas ») n'est plus attendue (test de bout en bout du 18/11).
+  m.json("studio/tournages/2026-11-16-1400.json", { version: 1, coches: [1], sautees: [3], envoi: true });
+  assert.deepEqual(detail(m.config, s, {}).montage.manquants.map((x) => x.titre), ["Photo : ton bol de skyr"]);
+  // Vidéo mise de côté par le rangement puis rangée à la main dans « À ranger » : elle n'a pas été reconnue.
+  m.json("Contenu/_journal-rangement.json", { version: 1, rangements: [
+    { id: "a", commande: "ranger", tournage: "2026-11-16-1400", ops: [{ op: "deplacement", de: "/x/IMG_1.MOV", vers: path.join(m.media, "_a-ranger", "IMG_1.MOV"), raison: "a_ranger" }], annule: null },
+    { id: "b", commande: "placer", tournage: "2026-11-16-1400", ops: [{ op: "deplacement", de: "/y", vers: path.join(m.media, s, "face", "IMG_1.MOV"), raison: "face" }], annule: null }] });
+  const facePlacee = detail(m.config, s, {}).montage.rushs[0];
+  assert.equal(facePlacee.detail, "Rangée ici par toi.");
+  assert.equal(facePlacee.range_par_toi, true);
+  fs.rmSync(path.join(m.media, "_journal-rangement.json"));
+  fs.rmSync(path.join(m.home, "tournages"), { recursive: true });
   // Les plans de tournage : liste (en cours tant qu'une face manque) et lecture.
   m.ecrire("depot/tournages/2026-11-16-1400.md", "# Ton tournage\n");
   const [t] = listeTournages(m.config);

@@ -701,18 +701,38 @@ function dureeCourte(s) {
 
 // Les rushs rangés dans MEDIA/<slug>/, titrés par leur rôle (face caméra, sujet du plan, photo), et les
 // prises du plan de tournage prévues pour ce contenu qui ne sont pas encore arrivées.
+// Qui a mis ce fichier là, d'après le journal des rangements : « placer » = le client l'a rangé lui-même
+// (« À ranger »), « ranger » = le rangement l'a reconnu. Sans trace : null.
+function origineRangement(config, chemin) {
+  const j = lireJson(path.join(config.media, "_journal-rangement.json"), null);
+  let origine = null;
+  for (const r of Array.isArray(j?.rangements) ? j.rangements : []) {
+    if (r?.annule) continue;
+    if ((r.ops || []).some((o) => o?.op === "deplacement" && o.vers === chemin)) origine = r.commande === "placer" ? "toi" : "rangement";
+  }
+  return origine;
+}
+
 export function montageDe(config, slug, lu, tournage) {
   const base = path.join(config.media, slug);
   const faceDir = path.join(base, "face");
   const rushs = [];
   const faces = lister(faceDir).filter((e) => !e.isDirectory() && estOriginale(e.name)).map((e) => e.name).sort();
-  faces.forEach((n, i) => rushs.push({
-    id: `face/${n}`, url: urlMedia(slug, "face", n), type: "face",
-    titre: faces.length > 1 ? `Plan face caméra (prise ${i + 1})` : "Plan face caméra",
-    detail: "Reconnu à ce que tu dis dans ton texte.",
-  }));
+  faces.forEach((n, i) => {
+    // Une vidéo rangée à la main n'a pas été « reconnue » : le dire serait faux (rush mis de côté puis placé).
+    const parToi = origineRangement(config, path.join(faceDir, n)) === "toi";
+    rushs.push({
+      id: `face/${n}`, url: urlMedia(slug, "face", n), type: "face",
+      titre: faces.length > 1 ? `Plan face caméra (prise ${i + 1})` : "Plan face caméra",
+      detail: parToi ? "Rangée ici par toi." : "Reconnu à ce que tu dis dans ton texte.",
+      ...(parToi ? { range_par_toi: true } : {}),
+    });
+  });
   const index = lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {};
-  const prises = (tournage?.prises || []).filter((p) => (p.contenus || []).some((c) => c.slug === slug));
+  // Les prises que le client a sautées dans son plan (« Je ne la fais pas ») ne sont plus attendues.
+  const idPlan = tournage ? tournage.id || String(tournage.fichier || "").replace(/\.json$/, "") : null;
+  const sautees = new Set(idPlan && config.home ? lireJson(path.join(config.home, "tournages", `${idPlan}.json`), null)?.sautees || [] : []);
+  const prises = (tournage?.prises || []).filter((p) => (p.contenus || []).some((c) => c.slug === slug) && !sautees.has(p.n));
   const servies = new Set();
   for (const e of clipsBroll(path.join(base, "b-roll"))) {
     const id = e.name.replace(/\.[^.]+$/, "");

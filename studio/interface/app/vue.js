@@ -497,7 +497,10 @@ export class Vue {
     if (verifiable) {
       const go = el("button", { class: "bouton bouton-plein", type: "button", html: `${icone("ciseaux")}<span>C'est bon, envoie au montage</span>` });
       go.addEventListener("click", async () => { go.disabled = true; try { await this.studio.lancer("montage", [d.slug]); } catch { go.disabled = false; } });
-      r.push(this.etape(`<strong>Vérifie tes vidéos.</strong> Je les ai rangées toutes seules : regarde si chacune est la bonne. Si une n'a rien à faire là, « Pas la bonne ». Puis envoie au montage.`, go, { aToi: true }));
+      // Rangées à la main (« À ranger ») : ne pas dire « toutes seules ».
+      const parToi = m.rushs.some((x) => x.range_par_toi);
+      const qui = parToi ? (m.rushs.every((x) => x.range_par_toi) ? "Tu les as rangées ici" : "Elles sont rangées ici") : "Je les ai rangées toutes seules";
+      r.push(this.etape(`<strong>Vérifie tes vidéos.</strong> ${qui} : regarde si chacune est la bonne. Si une n'a rien à faire là, « Pas la bonne ». Puis envoie au montage.`, go, { aToi: true }));
       r.push(this.enLot(d, "montage"));
     } else if (d.stade === "rushs_recus" || (enCours(d) && d.stade !== "planche")) {
       r.push(this.etape(`Le montage est en cours (une demi-heure environ). Tu peux suivre et parler à ton monteur dans le chat ${ouChat()}.`, null, { cours: true }));
