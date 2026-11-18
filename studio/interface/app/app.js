@@ -199,7 +199,16 @@ class Studio {
       extra.push(el("div", { class: "chat-planche" }, el("img", { src: d.medias.planche, alt: "" }),
         el("span", {}, el("strong", {}, ETROIT.matches ? "Ta planche est plus haut. " : "Ta planche est à gauche. "), "Réponds ici : « ok », ou ce que tu changes avec son numéro.")));
     }
-    zone.replaceChildren(el("div", { class: "chat-pile" }, ...extra, ch.racine));
+    // Le chat ne bouge pas de la page quand seuls les à-côtés changent (une carte qui avance, un
+    // message qui part) : le déplacer le renvoyait tout en haut et faisait perdre la saisie en cours.
+    let pile = zone.firstElementChild;
+    if (!pile?.classList.contains("chat-pile") || pile.lastElementChild !== ch.racine) {
+      pile = el("div", { class: "chat-pile" }, ch.racine);
+      zone.replaceChildren(pile);
+      ch.rattache();
+    }
+    while (pile.firstChild && pile.firstChild !== ch.racine) pile.firstChild.remove();
+    for (const x of extra) pile.insertBefore(x, ch.racine);
     this.chatActif = ch;
   }
 

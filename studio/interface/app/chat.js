@@ -28,7 +28,29 @@ export class Chat {
     this.stop = el("button", { class: "bouton chat-stop", type: "button", hidden: true, html: `${icone("arreter")}<span>Arrêter</span>` });
     const aide = el("p", { class: "chat-aide" }, "Entrée envoie, Maj + Entrée va à la ligne. Pour dicter, appuie deux fois sur la touche fn.");
     const zone = el("div", { class: "chat-saisie" }, this.bandeau, el("div", { class: "chat-ligne" }, this.champ, this.bouton, this.stop), aide);
-    this.racine.append(this.fil, this.ecrit, zone);
+    // « Nouveaux messages » : seulement quand on est remonté lire plus haut et que quelque chose arrive.
+    this.nouveaux = el("button", { class: "chat-nouveaux", type: "button", hidden: true, html: `<span>Nouveaux messages</span>${icone("bas")}` });
+    this.nouveaux.addEventListener("click", () => { this._collé = true; this.basDeFil(true, true); });
+    const cadre = el("div", { class: "chat-cadre" }, this.fil, this.nouveaux);
+    this.racine.append(cadre, this.ecrit, zone);
+
+    // Défilement comme une messagerie : collé en bas tant qu'on y est (on y est au départ), libre dès
+    // qu'on remonte. Seul un défilement fait par la personne change ce choix ; tout ce qui fait grandir
+    // le fil (message, réponse en cours, étape, bandeau, zone de saisie) le recolle en bas s'il l'était.
+    this._collé = true; this._pos = 0;
+    this.fil.addEventListener("scroll", () => {
+      if (!this.fil.isConnected || !this.fil.clientHeight) return;
+      this._collé = this.enBas(); this._pos = this.fil.scrollTop;
+      if (this._collé) this.nouveaux.hidden = true;
+    }, { passive: true });
+    const recoller = () => { if (this._collé && this.fil.isConnected) this.basDeFil(true); };
+    this._obs = new MutationObserver(() => {
+      if (!this.fil.isConnected) return;
+      if (this._collé) this.basDeFil(true);
+      else if (this.messages.size && !this.enBas()) this.nouveaux.hidden = false;
+    });
+    this._obs.observe(this.fil, { childList: true, subtree: true, characterData: true });
+    if (typeof ResizeObserver === "function") new ResizeObserver(recoller).observe(this.fil);
 
     this.champ.addEventListener("input", () => this.ajuster());
     this.champ.addEventListener("keydown", (e) => {
@@ -48,16 +70,27 @@ export class Chat {
       this.messages.clear();
       for (const m of r.messages || []) this.recevoir(m, false, true);
       this.poserEtat(r.etat ?? this.etat);
-      this.basDeFil(true);
+      if (this._collé) this.basDeFil(true); else this.fil.scrollTop = this._pos;
+      this._obs.takeRecords(); // un rechargement n'est pas un nouveau message
     } catch (e) { annoncer(e.message, "erreur"); }
     finally { this.fil.classList.remove("charge"); }
   }
 
   enBas() { return this.fil.scrollHeight - this.fil.scrollTop - this.fil.clientHeight < 60; }
-  basDeFil(force) { if (force || this._collé) this.fil.scrollTop = this.fil.scrollHeight; }
+  basDeFil(force, doux) {
+    if (!force && !this._collé) return;
+    this.nouveaux.hidden = true;
+    if (doux) { this.fil.scrollTo({ top: this.fil.scrollHeight, behavior: "smooth" }); return; }
+    this.fil.scrollTop = this.fil.scrollHeight; this._pos = this.fil.scrollTop;
+  }
+
+  // Le fil vient d'être (re)mis dans la page (changement de dossier, chat redessiné) : un élément qui
+  // défile revient en haut quand on le déplace ; on remet la position d'avant, ou le bas s'il y était.
+  rattache() {
+    if (this._collé) this.basDeFil(true); else this.fil.scrollTop = this._pos;
+  }
 
   recevoir(m, partiel, silencieux) {
-    this._collé = this.enBas();
     if (m.type === "etat") { this.poserEtat(m.etat); if (!LIGNES_ETAT[m.etat]) return; }
     const exist = this.messages.get(m.n);
     const noeud = this.dessiner(m, partiel);
@@ -65,7 +98,7 @@ export class Chat {
     this.messages.set(m.n, { message: m, noeud });
     this.videNoeud.hidden = this.messages.size > 0;
     if (m.type === "texte" && m.role === "studio" && this.etat !== "en_cours" && partiel) this.poserEtat("en_cours");
-    if (!silencieux) this.basDeFil();
+    if (!silencieux && this._collé) this.basDeFil(true);
   }
 
   dessiner(m, partiel) {
@@ -91,7 +124,8 @@ export class Chat {
     if (!texte || this.etat === "en_cours") return;
     this.champ.value = ""; this.ajuster();
     this.bouton.disabled = true;
-    try { await this.api.envoyer(this.chatId, texte); this.poserEtat("en_cours"); this._collé = true; }
+    this._collé = true; this.basDeFil(true);
+    try { await this.api.envoyer(this.chatId, texte); this.poserEtat("en_cours"); this._collé = true; this.basDeFil(true); }
     catch (e) { this.champ.value = texte; this.ajuster(); annoncer(e.message, "erreur"); }
     finally { this.bouton.disabled = false; }
   }

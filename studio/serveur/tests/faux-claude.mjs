@@ -7,6 +7,8 @@
 //                         et chaque message reçu (une ligne JSON par événement)
 //   FAUX_CLAUDE_SCENARIO  normal (défaut) | lent (attend avant de répondre, lance un sous-processus
 //                         `sleep` du même groupe) | erreur (résultat en erreur) | coupe (sort sans résultat)
+//                         | long (réponse longue écrite morceau par morceau, pour regarder le défilement du chat)
+//   FAUX_CLAUDE_DELAI_LONG ms entre deux morceaux du scénario long (défaut 60)
 //   FAUX_CLAUDE_ATTENTE   ms d'attente du scénario lent (défaut 60000)
 //   FAUX_CLAUDE_ECRIT     chemin relatif au dossier de travail à écrire avant le résultat ;
 //                         {slug} = slug trouvé dans le message (« contenus/<slug>/ ») ou nom du dossier
@@ -50,6 +52,14 @@ function ecrire(evt) {
   process.stdout.write(t + "\n");
 }
 
+const REPONSE_LONGUE = [
+  "Voilà dix idées tirées de ta semaine, de la plus simple à tourner à la plus longue.",
+  "",
+  ...Array.from({ length: 10 }, (_, i) => `${i + 1}. **Idée ${i + 1}** : une question qu'on t'a posée cette semaine, reprise telle quelle, avec ta réponse en trente secondes et un exemple de ta journée.`),
+  "",
+  "Dis-moi lesquelles tu gardes : je les range dans tes dossiers et je prépare les briefs dans la foulée.",
+].join("\n");
+
 let premier = true;
 async function repondre(message) {
   const texte = typeof message?.content === "string" ? message.content
@@ -60,8 +70,27 @@ async function repondre(message) {
     noter({ evenement: "sous_processus", pid_enfant: enfant.pid });
     await pause(Number(process.env.FAUX_CLAUDE_ATTENTE || 60000));
   }
+  let texteFait = false;
   for (const evt of modele) {
     if (evt.type === "system" && evt.subtype === "init" && !premier) continue;
+    if (scenario === "long") {
+      // Le texte enregistré est remplacé par une réponse longue, écrite par petits morceaux.
+      const d = evt.type === "stream_event" && evt.event?.type === "content_block_delta" && evt.event.delta?.type === "text_delta";
+      if (d) {
+        if (texteFait) continue;
+        texteFait = true;
+        for (const morceau of REPONSE_LONGUE.match(/[^ ]+ ?/g)) {
+          ecrire({ ...evt, event: { ...evt.event, delta: { type: "text_delta", text: morceau } } });
+          await pause(Number(process.env.FAUX_CLAUDE_DELAI_LONG || 60));
+        }
+        continue;
+      }
+      if (evt.type === "assistant" && (evt.message?.content || []).some((b) => b.type === "text")) {
+        ecrire({ ...evt, message: { ...evt.message, content: [{ type: "text", text: REPONSE_LONGUE }] } });
+        continue;
+      }
+      if (evt.type === "result") { ecrire({ ...evt, result: REPONSE_LONGUE }); continue; }
+    }
     if (evt.type === "result") {
       if (scenario === "coupe") process.exit(1);
       const cible = process.env.FAUX_CLAUDE_ECRIT;
