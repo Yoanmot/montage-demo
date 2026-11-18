@@ -178,3 +178,18 @@ test("jamais de perte : plan validé sans rien de rangé, il reste « à finir �
   e = (await api("GET", "/api/etat")).json;
   assert.deepEqual([e.tournages[0].a_finir, e.a_ranger], [undefined, []]);
 });
+
+test("« Réessayer de tout ranger » sur un plan à finir : le fichier rangé, le plan n'est plus « à finir » (test de bout en bout du 18/11)", { skip: !MAC && "macOS seulement" }, async () => {
+  const slug = "montee-par-claude-code", id = "2026-11-17-2005";
+  const { m, arrivees, api } = await studio(slug, id);
+  ecrireSuivi(m.config, id, { coches: [1], sautees: [], envoi: true, valide_le: isoZurich(), verification: { complet: true, message: "Tout est arrivé." },
+    rangement: { fini_le: isoZurich(), places: 0, a_ranger: 0 } });
+  const f = path.join(arrivees, "IMG_7254.mov");
+  const envoi = airdrop(f, video(path.join(m.racine, "source.mov")));
+  envoi.finir();
+  assert.equal((await api("POST", "/api/rangement/relancer", {})).statut, 200);
+  await attendreQue(() => fs.existsSync(path.join(m.media, slug, "face", "IMG_7254.mov")) && lireSuivi(m.config, id).rangement?.reste, { delaiMs: 60000 });
+  assert.equal(lireSuivi(m.config, id).rangement.places, 1);
+  const e = (await api("GET", "/api/etat")).json;
+  assert.deepEqual([e.tournages[0].a_finir, e.a_ranger], [undefined, []]);
+});

@@ -363,6 +363,24 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     }
   }
 
+  // Le bilan d'un rangement dans le suivi du plan : posé par « Valider la fin » et « Ranger maintenant », et
+  // aussi par « Réessayer de tout ranger » (qui range le dernier plan validé) : sans lui, un plan « à finir »
+  // le restait alors que ses fichiers étaient rangés (studio de Yoan, 18/11).
+  function noterRangement(id, lu, { valider = false } = {}) {
+    const t = lireTournage(config, id);
+    const s = lireSuivi(config, id);
+    if (!t || (!valider && !s.valide_le)) return;
+    s.valide_le ||= isoZurich();
+    // Ce qui n'a pas pu être rangé reste visible : fichiers laissés où ils étaient (encore en réception,
+    // illisibles) et prises attendues qui ne sont ni rangées ni dans « À ranger ».
+    s.rangement = { fini_le: isoZurich(), places: lu?.fin?.places ?? lu?.places?.length ?? 0, a_ranger: lu?.fin?.a_ranger ?? lu?.a_ranger?.length ?? 0,
+      en_attente: lu?.ignores?.length ?? 0, reste: resteARanger(config, { ...t.brut, id }, s) };
+    ecrireSuivi(config, id, s);
+    rafraichir();
+    majARanger({ frais: true });
+    diffuser("tournages", { tournages: listeTournages(config) });
+  }
+
   async function copierBibliotheque() {
     const idx = indexSansChemins(config);
     if (!idx) return;
@@ -721,16 +739,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         }
         rangementsTournage.add(id);
         rangerMaintenant(id).then((lu) => {
-          const s = lireSuivi(config, id);
-          s.valide_le ||= isoZurich();
-          // Ce qui n'a pas pu être rangé reste visible : fichiers laissés où ils étaient (encore en réception,
-          // illisibles) et prises attendues qui ne sont ni rangées ni dans « À ranger ».
-          s.rangement = { fini_le: isoZurich(), places: lu?.fin?.places ?? lu?.places?.length ?? 0, a_ranger: lu?.fin?.a_ranger ?? lu?.a_ranger?.length ?? 0,
-            en_attente: lu?.ignores?.length ?? 0, reste: resteARanger(config, plan, s) };
-          ecrireSuivi(config, id, s);
-          rafraichir();
-          majARanger({ frais: true });
-          diffuser("tournages", { tournages: listeTournages(config) });
+          noterRangement(id, lu, { valider: true });
         }).catch((e) => {
           rangementsTournage.delete(id);
           const s = lireSuivi(config, id);
@@ -865,7 +874,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return envoyerJson(res, 200, {});
       }
       if (p[1] === "relancer") {
-        rangerMaintenant().catch(() => {});
+        // Le plan rangé (le dernier validé) garde son bilan, comme après « Ranger maintenant ».
+        const dernier = listeTournages(config).filter((x) => x.valide && Date.now() - (Date.parse(x.cree_le) || 0) < 7 * 86400e3)[0];
+        rangerMaintenant(dernier?.id || null).then((lu) => { if (lu && dernier) noterRangement(dernier.id, lu); }).catch(() => {});
         return envoyerJson(res, 200, {});
       }
     }
