@@ -123,6 +123,7 @@ devant un titre plus doux (masque basse définition, sans la décontamination du
 l'étalonnage qui suit le zoom au lieu de rester fixe, et en lecture continue une image peut sauter (exact en pause).
 
 ## La planche, avant de fabriquer (hors studio ; outil interne du monteur dans le studio)
+Dans le studio, la personne ne voit que l'aperçu : la planche ne se montre pas et ne se nomme pas dans le chat.
 Avant le rendu complet, le monteur montre à Romain une planche de 8 à 12 vignettes : de vraies images de SA vidéo
 montée, une par moment du plan, composées comme le rendu le fera, sans fabriquer la vidéo. Romain répond « ok » ou par
 numéro (« enlève le 4 », « le 6 plutôt en orange »).

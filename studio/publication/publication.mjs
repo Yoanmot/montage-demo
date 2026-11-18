@@ -37,6 +37,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
+import { motAbsent } from '../interface/app/mot-absent.js';
+export { motAbsent };
 
 export const RECAP_MINUTES = 30;
 const MONTE = /-monte(?:-\d+)?\.mp4$/;
@@ -477,6 +479,10 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     // Le studio choisit lui-même la dernière retouche (-monte-2.mp4...) : pas d'alerte pour elle.
     if (/^le fichier ne finit pas par -monte\.mp4/.test(a) && el.video && MONTE.test(el.video.nom)) continue;
     if (motSansRessource && /^la légende semble demander un mot en commentaire/.test(a)) continue;
+    // « La légende ne cite pas le mot » : gardé à part, le studio le recalcule pendant que la légende se
+    // retouche (même règle que zernio.py, motAbsent) et le retire dès qu'elle cite le mot.
+    const absent = /^la légende ne cite pas le mot (\S+)/.exec(a);
+    if (absent) { el.mot_absent = { mot: absent[1], message: phrase('ATTENTION', a) }; continue; }
     el.messages.push(phrase('ATTENTION', a));
     el.attention = true;
   }
@@ -488,10 +494,16 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
 }
 
 function versApi(el) {
+  // L'avertissement du mot absent compte dans le verdict et les messages ; `mot_absent` dit lequel c'est et
+  // quel verdict resterait sans lui, pour que l'interface le suive pendant une retouche de la légende.
+  const sansMot = el.bloque ? 'BLOQUE' : el.attention ? 'ATTENTION' : 'OK';
+  const absent = el.mot_absent && motAbsent(el.legende, el.mot_absent.mot) ? el.mot_absent : null;
   const o = {
     slug: el.slug, titre: el.titre, type: el.type, quand: el.quand, legende: el.legende, mot: el.mot,
-    verdict: el.bloque ? 'BLOQUE' : el.attention ? 'ATTENTION' : 'OK', messages: el.messages,
+    verdict: absent && sansMot === 'OK' ? 'ATTENTION' : sansMot,
+    messages: absent ? [...el.messages, absent.message] : el.messages,
   };
+  if (el.mot_absent) o.mot_absent = { mot: el.mot_absent.mot, message: el.mot_absent.message, verdict_sinon: sansMot };
   if ('ressource' in el) { o.ressource = el.ressource; o.ressource_titre = el.ressource_titre; }
   if (el.message_dm) {
     o.message_dm = { mot: el.message_dm.mot, message: versClient(el.message_dm.message), bouton: el.message_dm.bouton, a_valider: el.message_dm.a_valider };
@@ -535,7 +547,31 @@ export async function recap(elements, config, opts = {}) {
 function argsPublier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
   const quand = el.quand === 'maintenant' ? ['--maintenant'] : ['--quand', el.quand];
-  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsLegende(el)];
+  const message = el.message_fichier ? ['--message-fichier', el.message_fichier] : [];
+  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsLegende(el), ...message];
+}
+
+// Ce qui partirait, lu dans les requêtes que `publier` montre en simulation (3-post, 4-mot) : la légende,
+// le message et le bouton exacts, tels que la personne les verra (« [son prénom] »).
+export function textesSimules(sortie) {
+  const corps = (titre) => {
+    const lignes = String(sortie || '').split('\n');
+    const i = lignes.findIndex((l) => l.startsWith(`REQUETE ${titre} `));
+    if (i < 0 || lignes[i + 1] !== '{') return null;
+    const fin = lignes.indexOf('}', i + 1);
+    if (fin < 0) return null;
+    try { return JSON.parse(lignes.slice(i + 1, fin + 1).join('\n')); } catch { return null; }
+  };
+  const post = corps('3-post');
+  if (!post || typeof post.content !== 'string') return null;
+  const o = { legende: post.content };
+  const regle = corps('4-mot');
+  if (regle && typeof regle.dmMessage === 'string') {
+    o.mot = (regle.keywords || [])[0] || null;
+    o.message = versClient(regle.dmMessage);
+    o.bouton = regle.buttons?.[0]?.title || '';
+  }
+  return o;
 }
 
 // « Ceux qui commentent MOT reçoivent « titre » », pour les résultats.
@@ -615,12 +651,14 @@ export async function confirmer(recapOuId, config, opts = {}) {
     if (ecrit) { res('bloque', 'Pas programmé : ' + ecrit); continue; }
 
     if (simulation) {
+      // publier lit les textes retouchés (légende et message en fichiers, message tenu pour validé) : les
+      // requêtes montrées sont exactement celles qui partiraient au même clic en vrai.
       const { sortie } = await executer(argsPublier(el), { ecriture: false });
-      // Message à valider : publier le refuse tant que la fiche n'est pas écrite, ce que la simulation ne fait pas.
-      const seulementValidation = el.message_dm && !arret(sortie) && lireVerifier(sortie).bloque.length > 0
-        && lireVerifier(sortie).bloque.every((b) => MESSAGE_PAS_VALIDE.test(b));
-      if (/^SIMULATION_OK$/m.test(sortie) || seulementValidation) {
-        res('simulation', `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}${phraseEcrits(el)}`);
+      if (/^SIMULATION_OK$/m.test(sortie)) {
+        const envoi = textesSimules(sortie);
+        resultats.push({ slug: el.slug, statut: 'simulation',
+          message: `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}${phraseEcrits(el)}`,
+          ...(envoi ? { envoi } : {}) });
       } else {
         const a = arret(sortie);
         const b = lireVerifier(sortie).bloque[0];
@@ -737,6 +775,14 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
       const b = blocageOutil(sortie);
       if (b && b.code === 'MESSAGE') return phrase('BLOQUE', `ressource ${el.ressource} : ${b.texte}`);
       return (b && PHRASES_ECRITURE[b.code]) || `Je n'ai pas pu enregistrer ton message : rien n'est parti. Préviens ${contact()} si ça recommence.`;
+    }
+    // Simulation : rien n'est écrit dans la fiche, publier lit donc le message (retouché ou tel quel) dans
+    // un fichier et le tient pour validé, comme le clic l'aurait fait.
+    if (simulation) {
+      const e = {};
+      if (retouches.message !== undefined) e.message = retouches.message;
+      if (retouches.bouton !== undefined) e.bouton = retouches.bouton;
+      el.message_fichier = fichierEntree(temporaires, e);
     }
   }
 

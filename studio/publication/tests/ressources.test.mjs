@@ -13,7 +13,8 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { spawnSync } from 'node:child_process';
-import { confirmer, oublierRecaps, poserMot, recap, PHRASE_MOT_SANS_RESSOURCE } from '../publication.mjs';
+import { confirmer, lancerZernio, motAbsent, oublierRecaps, poserMot, recap, PHRASE_MOT_SANS_RESSOURCE } from '../publication.mjs';
+import { motAbsent as motAbsentInterface } from '../../interface/app/mot-absent.js';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const HOC = process.env.ZERNIO_REEL_YOAN
@@ -229,6 +230,60 @@ describe('message pas validé et retouches au récapitulatif', { skip: SAUTER },
     assert.equal(fs.readFileSync(path.join(depot, 'contenus', 'video-montee', 'script.md'), 'utf8'), script);
     const pub = appels().find((x) => x.argv[0] === 'publier');
     assert.ok(pub.argv.includes('--legende-fichier'), pub.argv.join(' '));
+  });
+
+  test('simulation : ce qui est montré est ce qui partirait, légende, message et bouton retouchés (pas ceux de la fiche)', async () => {
+    const fiche = path.join(depot, 'contenus', 'le-monteur', 'ressource.md');
+    const avant = fs.readFileSync(fiche, 'utf8');
+    const sorties = [];
+    const executer = async (args, o) => { const r = await lancerZernio(config, args, o); sorties.push({ args, sortie: r.sortie }); return r; };
+    const r = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: [ligneMonteur()], executer });
+    const c = await confirmer(r.recap_id, config, { executer, textes: { 'video-montee': {
+      legende: 'Commente MONTEUR, je t\'envoie tout.', message: 'Salut [son prénom], la méthode retouchée est là.', bouton: 'Voir  la méthode' } } });
+    const x = c.resultats[0];
+    assert.equal(x.statut, 'simulation', x.message);
+    assert.deepEqual(x.envoi, { legende: 'Commente MONTEUR, je t\'envoie tout.', mot: 'MONTEUR',
+      message: 'Salut [son prénom], la méthode retouchée est là.', bouton: 'Voir la méthode' });
+    // Les requêtes exactes que publier aurait envoyées : rien de la fiche ne reste.
+    const pub = sorties.find((y) => y.args[0] === 'publier');
+    assert.ok(pub.args.includes('--message-fichier') && pub.args.includes('--legende-fichier'), pub.args.join(' '));
+    assert.match(pub.sortie, /^SIMULATION_OK$/m);
+    assert.match(pub.sortie, /"content": "Commente MONTEUR, je t'envoie tout\."/);
+    assert.match(pub.sortie, /"dmMessage": "Salut \{\{first_name\}\}, la méthode retouchée est là\."/);
+    assert.match(pub.sortie, /"title": "Voir la méthode"/);
+    assert.ok(!pub.sortie.includes('voici le tableur') && !pub.sortie.includes('Ouvrir le tableur'), 'ni message ni bouton de la fiche');
+    assert.equal(fs.readFileSync(fiche, 'utf8'), avant, 'la fiche ne bouge pas en simulation');
+    // Message pas retouché, mais à valider : celui de la fiche, tenu pour validé (le clic le valide), et montré.
+    const r2 = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: [ligneMonteur()] });
+    const c2 = await confirmer(r2.recap_id, config, {});
+    assert.equal(c2.resultats[0].statut, 'simulation', c2.resultats[0].message);
+    assert.equal(c2.resultats[0].envoi.message, 'Salut [son prénom], voici le tableur.');
+    assert.equal(c2.resultats[0].envoi.bouton, 'Ouvrir le tableur');
+    assert.equal(c2.resultats[0].envoi.legende, 'Commente MONTEUR et je t\'envoie la méthode.');
+  });
+
+  test('« la légende ne cite pas le mot » : à part, avec le verdict sans lui ; même règle que zernio.py côté interface', async () => {
+    reel('sans-le-mot', 'Je t\'envoie la méthode en message.');
+    const r = await recap([{ slug: 'sans-le-mot', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-tableur-de-suivi' }], config, { ressources: PRETES });
+    const e = r.elements[0];
+    assert.equal(e.verdict, 'ATTENTION', e.messages.join(' / '));
+    assert.deepEqual(e.mot_absent, { mot: 'TABLEUR', message: e.messages.at(-1), verdict_sinon: 'OK' });
+    assert.match(e.mot_absent.message, /^La légende ne cite pas le mot TABLEUR/);
+    // L'interface le retire dès que la légende retouchée cite le mot (sans accents ni casse), le remet sinon.
+    for (const f of [motAbsent, motAbsentInterface]) {
+      assert.equal(f(e.legende, 'TABLEUR'), true);
+      assert.equal(f('Commente « tableur » et je t\'envoie la méthode.', 'TABLEUR'), false);
+      assert.equal(f('Commente TABLÉUR.', 'TABLEUR'), false);
+      assert.equal(f('Commente TABLE.', 'TABLEUR'), true);
+      assert.equal(f('peu importe', null), false);
+    }
+    // Revérifié avec la légende qui cite le mot : plus d'avertissement, verdict OK (le serveur dit pareil).
+    const script = path.join(depot, 'contenus', 'sans-le-mot', 'script.md');
+    fs.writeFileSync(script, fs.readFileSync(script, 'utf8').replace('Je t\'envoie la méthode en message.', 'Commente tableur, je t\'envoie la méthode.'));
+    const r2 = await recap([{ slug: 'sans-le-mot', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-tableur-de-suivi' }], config, { ressources: PRETES });
+    assert.equal(r2.elements[0].verdict, 'OK', r2.elements[0].messages.join(' / '));
+    assert.ok(!('mot_absent' in r2.elements[0]));
+    assert.ok(!r2.elements[0].messages.some((m) => /ne cite pas le mot/.test(m)));
   });
 
   test('retouche fausse : bloqué avec la raison, aucun outil d\'écriture lancé', async () => {

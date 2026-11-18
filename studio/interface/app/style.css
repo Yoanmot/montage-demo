@@ -321,6 +321,9 @@ details.repli > div { padding-top: 8px; }
 .recap-resultats p { color: var(--encre-2); font-size: 14px; }
 .recap-note { color: var(--encre-2); font-size: 14px; }
 .recap-resultats li .bouton { margin-top: 8px; }
+.recap-envoi { margin: 8px 0 0; display: grid; gap: 2px; font-size: 13.5px; }
+.recap-envoi dt { font-size: 12.5px; font-weight: 700; color: var(--encre-2); margin-top: 6px; }
+.recap-envoi dd { margin: 0; white-space: pre-wrap; color: var(--encre); }
 .recap-ressource-champ { display: grid; gap: 6px; justify-items: start; }
 .recap-ressource { height: 32px; font-size: 13.5px; max-width: 100%; }
 .recap-mot { font-size: 14px; color: var(--encre); }

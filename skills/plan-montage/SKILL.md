@@ -92,6 +92,9 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 
 ## La validation par Romain : la planche
 
+Dans le studio, il valide sur **l'aperçu** (agent monteur, étape 6, « En mode studio ») : la planche n'y est qu'un
+outil interne, et dans le chat on dit toujours « l'aperçu », jamais « planche », « vignette » ni pixels.
+
 Romain ne valide pas un texte : il valide une **planche de 8 à 12 images de sa vidéo**, une par moment
 du plan, avec chaque élément dans son style final (agent monteur, étape 6, et brique rendu, section
 « La planche, avant de fabriquer »). Le plan est d'abord préparé par les briques (animations,

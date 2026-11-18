@@ -6,8 +6,11 @@
 // Retouches en place (18/11/2026) : la légende d'un reel et le message de la ressource choisie se
 // modifient ici ; le clic sur Programmer les enregistre (et valide le message) avant d'envoyer, et ce
 // qui part est ce qui est affiché. Une retouche fausse bloque le bouton, avec la raison sous le champ.
+// « La légende ne cite pas le mot X » suit la légende en direct (même règle que zernio.py, motAbsent) :
+// il disparaît dès que la légende retouchée contient le mot, revient s'il en sort.
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
+import { motAbsent } from "./mot-absent.js";
 
 const VERDICTS = {
   OK: { cls: "ok", texte: "Prêt à partir" },
@@ -119,17 +122,33 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
     ? el("video", { class: "recap-video", src: e.video_url, controls: true, preload: "metadata", width: "110", height: "196" })
     : e.slides_urls?.length ? el("div", { class: "recap-slides" }, ...e.slides_urls.slice(0, 4).map((u, i) => el("img", { src: u, alt: `Image ${i + 1}`, width: "54", height: "68", loading: "lazy" }))) : null;
   if (!media) n.classList.add("sans-media");
+  // Les messages du serveur, et l'avertissement du mot absent qui suit la légende telle qu'elle est tapée.
+  const absent = e.mot_absent || null;
+  const base = (e.messages || []).filter((m) => !absent || m !== absent.message);
+  const messages = el("ul", { class: "recap-messages" });
+  const verdict = el("span", { class: "verdict" });
+  const majMot = (legende) => {
+    const manque = Boolean(absent) && motAbsent(legende, absent.mot);
+    const x = VERDICTS[absent ? (manque && absent.verdict_sinon === "OK" ? "ATTENTION" : absent.verdict_sinon) : e.verdict] || VERDICTS.ATTENTION;
+    messages.replaceChildren(...base.map((m) => el("li", {}, m)), ...(manque ? [el("li", { class: "recap-mot-absent" }, absent.message)] : []));
+    messages.hidden = !messages.children.length;
+    verdict.className = `verdict verdict-${x.cls}`;
+    verdict.replaceChildren(el("span", { html: icone(x.cls === "ok" ? "coche" : "attention") }), x.texte);
+    for (const c of ["ok", "attention", "bloque"]) n.classList.toggle(`v-${c}`, c === x.cls);
+  };
+  const legende = e.legende_modifiable ? champLegende(e, ctx, majMot) : el("p", { class: "recap-legende" }, e.legende || "Pas de légende.");
+  if (!e.legende_modifiable) majMot(e.legende);
   n.append(
     media ? el("div", { class: "recap-media" }, media) : null,
     el("div", { class: "recap-infos" },
       el("div", { class: "recap-ligne-tete" },
         el("h4", {}, e.titre),
-        el("span", { class: `verdict verdict-${v.cls}` }, el("span", { html: icone(v.cls === "ok" ? "coche" : "attention") }), v.texte)),
-      e.messages?.length ? el("ul", { class: "recap-messages" }, ...e.messages.map((m) => el("li", {}, m))) : null,
+        verdict),
+      messages,
       el("dl", { class: "recap-champs" },
         el("dt", {}, "Quand"), toutDeSuite ? el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, "Tout de suite, dès que tu confirmes"))
           : el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, quandLisible(e.quand)), el("span", { class: "quand-champs" }, date, heure)),
-        el("dt", {}, "Légende"), el("dd", {}, e.legende_modifiable ? champLegende(e, ctx) : el("p", { class: "recap-legende" }, e.legende || "Pas de légende.")),
+        el("dt", {}, "Légende"), el("dd", {}, legende),
         ...(Array.isArray(ressources) ? champRessource(e, ressources, choixRessource, auChangement, ctx)
           : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])),
       el("div", { class: "recap-ligne-pied" }, retirer)));
@@ -150,7 +169,7 @@ function erreurTexte(champ, valeur, limites) {
 }
 
 // Un champ retouchable : la valeur affichée est celle qui partira ; l'erreur s'écrit dessous et bloque le bouton.
-function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource } = {}) {
+function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource, aChaqueFrappe } = {}) {
   const t = ctx.retouches.get(e.slug) || {};
   const garde = ressource === undefined || t.ressource === ressource;
   const valeur = garde && typeof t[champ] === "string" ? t[champ] : initiale || "";
@@ -174,14 +193,15 @@ function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource } 
     if (ressource !== undefined && r.ressource !== ressource) { delete r.message; delete r.bouton; r.ressource = ressource; }
     r[champ] = n.value;
     ctx.retouches.set(e.slug, r);
-    verifier(); ctx.maj();
+    verifier(); aChaqueFrappe?.(n.value); ctx.maj();
   });
   verifier();
+  aChaqueFrappe?.(n.value);
   return { champ: n, erreur, oublier: () => ctx.erreurs.delete(cle) };
 }
 
-function champLegende(e, ctx) {
-  const c = champTexte(e, ctx, "legende", e.legende, { label: `Légende de « ${e.titre} »` });
+function champLegende(e, ctx, aChaqueFrappe) {
+  const c = champTexte(e, ctx, "legende", e.legende, { label: `Légende de « ${e.titre} »`, aChaqueFrappe });
   return el("div", { class: "recap-texte-bloc" }, c.champ, c.erreur);
 }
 
@@ -255,8 +275,14 @@ function resultats(studio, conteneur, res, els) {
           catch (err) { annoncer(err.message, "erreur"); brancher.disabled = false; brancher.textContent = "Brancher le mot"; }
         });
       }
+      // Simulation : les textes exacts qui partiraient (lus dans les requêtes préparées, retouches comprises).
+      const envoi = r.envoi ? el("dl", { class: "recap-envoi" },
+        el("dt", {}, "Légende qui partirait"), el("dd", {}, r.envoi.legende),
+        ...(typeof r.envoi.message === "string" ? [
+          el("dt", {}, `Message à ceux qui commentent ${r.envoi.mot || ""}`.trim()), el("dd", {}, r.envoi.message),
+          el("dt", {}, "Bouton"), el("dd", {}, r.envoi.bouton)] : [])) : null;
       return el("li", { class: bon ? "ok" : "ko" }, el("span", { html: icone(bon ? "coche" : "attention") }),
-        el("div", {}, el("strong", {}, titre(r.slug)), el("p", {}, r.message || (bon && e ? `Part ${quandLisible(e.quand)}.` : "Pas programmé.")), brancher));
+        el("div", {}, el("strong", {}, titre(r.slug)), el("p", {}, r.message || (bon && e ? `Part ${quandLisible(e.quand)}.` : "Pas programmé.")), envoi, brancher));
     })),
     toutDeSuite ? null : el("p", { class: "recap-note" }, "Tu peux fermer ton Mac : tout part à l'heure prévue.")));
 }
