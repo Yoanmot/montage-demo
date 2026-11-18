@@ -1082,6 +1082,7 @@ export class Vue {
       el("dt", {}, "Mot à commenter"), el("dd", {}, r.mot ? el("strong", { class: "mot-com" }, r.mot) : el("span", { class: "doux" }, "Pas encore choisi")),
       el("dt", {}, "Message envoyé"), el("dd", {}, r.message ? el("div", { class: "res-message" }, el("p", {}, r.message), r.bouton ? el("span", { class: "res-bouton" }, r.bouton) : null) : el("span", { class: "doux" }, "Pas encore écrit")),
       el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant.")
+        : surLeSite && r.repond && r.mot && !(r.bloquants || []).length ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en programmant. Ton clic sur Programmer validera son message, que tu pourras encore retoucher.")
         : el("div", {}, el("span", { class: "doux" }, surLeSite && r.problemes.length ? "Pas encore : le message doit être complet." : surLeSite ? "Pas encore : la page doit d'abord répondre à son adresse." : "Pas encore : elle doit d'abord être en ligne."),
           surLeSite && r.problemes.length ? el("ul", { class: "res-liste" }, ...r.problemes.map((x) => el("li", {}, x))) : null)),
     ];

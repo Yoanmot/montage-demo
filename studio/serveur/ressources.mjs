@@ -50,7 +50,7 @@ const PROBLEMES = [
   [/^mot invalide/, "Le mot à commenter doit être un seul mot sans accent, de 5 à 14 lettres."],
   [/^mot trop courant/, "Le mot est trop courant : des gens l'écriraient sans avoir vu ton post. Il faut un mot propre à la ressource."],
   [/^le lien doit être/, "Le lien vers la page n'est pas encore le bon."],
-  [/^message pas validé/, "Tu n'as pas encore validé le message que reçoivent ceux qui commentent."],
+  [/^message pas validé/, "Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides en programmant le post qui l'offre."],
   [/^message vide ou trop long/, "Le message que reçoivent ceux qui commentent est vide ou trop long."],
   [/^texte du bouton/, "Le texte du bouton du message manque, ou il est trop long."],
   [/tiret long/, "Le message contient un tiret long."],
@@ -188,17 +188,44 @@ export class Ressources {
       // Le prénom de la personne que Zernio glisse dans le message, lisible par le client.
       message: fiche?.message ? fiche.message.replace(/\{\{\s*first_name\s*\}\}/g, "[son prénom]") : null,
       prete: Boolean(fiche?.prete) && repond,
+      valide: Boolean(fiche?.valide),
+      empreinte: fiche?.empreinte || null,
+      repond,
       problemes: [...new Set((fiche?.problemes || []).map(phraseProbleme))],
+      // Ce qui empêche un post de l'offrir, hors validation du message (le clic sur Programmer la fait).
+      bloquants: [...new Set((fiche?.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))],
       contenu: carte ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
       posts,
     };
   }
 
-  // Les ressources qu'un post peut offrir : en ligne, message complet et validé (zernio.py « prete »).
-  async pretes() {
-    if (!this.actif()) return [];
+  // La liste déroulante du récapitulatif : chaque ressource du site, offrable ou non (avec la raison).
+  // Un message pas encore validé ne l'empêche pas : le clic sur Programmer le valide (18/11/2026).
+  // `note` dit pourquoi la liste est vide, ou qu'aucune ne peut être offerte.
+  async pourUnPost() {
+    if (!this.actif()) return { ressources: [], note: null };
     const l = await this.lister();
-    return l.ressources.filter((r) => r.prete && r.mot).map((r) => ({ slug: r.slug, titre: r.titre, mot: r.mot }));
+    const ressources = [];
+    let enPreparation = 0;
+    for (const r of l.ressources) {
+      if (!r.en_ligne) { if (r.brouillon) enPreparation++; continue; }
+      const raisons = [...r.bloquants];
+      if (!r.repond) raisons.unshift(r.en_ligne_reel?.texte || "La page ne répond pas à son adresse.");
+      if (!r.mot && !raisons.length) raisons.push("Il n'y a pas encore de mot à commenter.");
+      const o = { slug: r.slug, titre: r.titre, mot: r.mot, disponible: !raisons.length };
+      if (o.disponible) Object.assign(o, { a_valider: !r.valide, message: r.message, bouton: r.bouton, empreinte: r.empreinte });
+      else o.probleme = raisons[0];
+      ressources.push(o);
+    }
+    let note = null;
+    if (!ressources.length) {
+      note = "Aucune ressource gratuite n'est en ligne pour l'instant"
+        + (enPreparation ? ` (${enPreparation > 1 ? `${enPreparation} sont en préparation` : "une est en préparation"})` : "")
+        + " : personne ne reçoit de message.";
+    } else if (!ressources.some((r) => r.disponible)) {
+      note = "Aucune ressource ne peut être offerte pour l'instant : la raison est sous la liste.";
+    }
+    return { ressources, note };
   }
 
   fermer() { /* plus de processus à arrêter (l'aperçu local n'existe plus) */ }

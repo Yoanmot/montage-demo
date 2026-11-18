@@ -3,6 +3,9 @@
 // Ressources gratuites (recap.ressources présent : client qui a un site de ressources) : chaque post
 // choisit dans une liste la ressource que reçoivent ceux qui commentent son mot ; ce choix se revérifie
 // comme une date. Sans recap.ressources (Romain), la ligne « Mot en commentaire » d'avant reste.
+// Retouches en place (18/11/2026) : la légende d'un reel et le message de la ressource choisie se
+// modifient ici ; le clic sur Programmer les enregistre (et valide le message) avant d'envoyer, et ce
+// qui part est ce qui est affiché. Une retouche fausse bloque le bouton, avec la raison sous le champ.
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
 
@@ -13,6 +16,9 @@ const VERDICTS = {
 };
 
 // conteneur : où dessiner ; chercher() : la promesse du récapitulatif (recap ou semaine du serveur).
+// Les retouches en cours, gardées quand le récapitulatif se revérifie (conteneur -> Map slug -> textes).
+const retouchesDe = new WeakMap();
+
 export async function recapDans(studio, conteneur, chercher, { apres } = {}) {
   conteneur.replaceChildren(el("p", { class: "recap-charge" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), "Je vérifie chaque publication"));
   let recap;
@@ -30,7 +36,11 @@ function dessiner(studio, conteneur, recap, apres) {
   const modifs = new Map();
   const choixRessource = new Map(); // slug -> slug de ressource choisi (ou "" pour aucune), s'il a changé
   const retires = new Set();
-  const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource));
+  if (!retouchesDe.has(conteneur)) retouchesDe.set(conteneur, new Map());
+  const retouches = retouchesDe.get(conteneur); // slug -> { legende?, message?, bouton?, ressource? }
+  const erreurs = new Map(); // "slug:champ" -> phrase
+  const ctx = { recap, retouches, erreurs, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false, maj: () => { if (ctx.pret) majPied(); } };
+  const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource, ctx));
   const toutDeSuite = els.every((e) => e.quand === "maintenant");
   const resume = el("p", { class: "recap-resume" });
   const confirmer = el("button", { class: "bouton bouton-accent bouton-grand", type: "button" });
@@ -40,12 +50,14 @@ function dessiner(studio, conteneur, recap, apres) {
     const restants = els.filter((e) => !retires.has(e.slug));
     const change = modifs.size > 0 || retires.size > 0 || choixRessource.size > 0;
     const bloque = restants.some((e) => e.verdict === "BLOQUE");
+    const faux = [...erreurs.keys()].some((k) => restants.some((e) => k.startsWith(e.slug + ":")));
     maj.hidden = !change;
     confirmer.hidden = change;
-    confirmer.disabled = bloque || !restants.length;
+    confirmer.disabled = bloque || faux || !restants.length;
     confirmer.innerHTML = `${icone("envoi")}<span>${toutDeSuite ? "Publier maintenant" : restants.length > 1 ? `Programmer les ${restants.length}` : "Programmer"}</span>`;
     resume.textContent = change ? "Tu as changé quelque chose : je revérifie avant que tu confirmes."
       : bloque ? "Une publication ne peut pas partir. Change sa date ou retire-la, puis revérifie."
+      : faux ? "Un texte est à corriger (la raison est sous le champ) avant de programmer."
       : `${pluriel(restants.length, "publication", "publications")}. Rien ne part tant que tu n'as pas cliqué.`;
   }
 
@@ -62,7 +74,21 @@ function dessiner(studio, conteneur, recap, apres) {
     confirmer.disabled = true;
     confirmer.innerHTML = `<span>${toutDeSuite ? "Je publie" : "Je programme"}</span>`;
     try {
-      const r = await studio.api.confirmer(recap.recap_id);
+      const textes = {};
+      for (const e of els) {
+        if (retires.has(e.slug)) continue;
+        const t = retouches.get(e.slug);
+        if (!t) continue;
+        const o = {};
+        if (typeof t.legende === "string" && e.legende_modifiable) o.legende = t.legende;
+        if (e.message_dm && t.ressource === e.ressource) {
+          if (typeof t.message === "string") o.message = t.message;
+          if (typeof t.bouton === "string") o.bouton = t.bouton;
+        }
+        if (Object.keys(o).length) textes[e.slug] = o;
+      }
+      const r = await studio.api.confirmer(recap.recap_id, textes);
+      retouchesDe.delete(conteneur);
       resultats(studio, conteneur, r.resultats || [], els);
       apres?.();
     } catch (e) { annoncer(e.message, "erreur"); majPied(); }
@@ -70,10 +96,11 @@ function dessiner(studio, conteneur, recap, apres) {
 
   conteneur.replaceChildren(el("div", { class: "recap" }, ...lignes,
     el("div", { class: "recap-pied" }, resume, el("div", { class: "recap-boutons" }, maj, confirmer))));
+  ctx.pret = true;
   majPied();
 }
 
-function ligne(e, modifs, retires, auChangement, ressources, choixRessource) {
+function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx) {
   const v = VERDICTS[e.verdict] || VERDICTS.ATTENTION;
   const toutDeSuite = e.quand === "maintenant";
   const [j, h] = toutDeSuite ? ["", ""] : (e.quand || " ").split(" ");
@@ -102,37 +129,109 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource) {
       el("dl", { class: "recap-champs" },
         el("dt", {}, "Quand"), toutDeSuite ? el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, "Tout de suite, dès que tu confirmes"))
           : el("dd", { class: "recap-quand" }, el("span", { class: "quand-texte" }, quandLisible(e.quand)), el("span", { class: "quand-champs" }, date, heure)),
-        el("dt", {}, "Légende"), el("dd", {}, el("p", { class: "recap-legende" }, e.legende || "Pas de légende.")),
-        ...(Array.isArray(ressources) ? champRessource(e, ressources, choixRessource, auChangement)
+        el("dt", {}, "Légende"), el("dd", {}, e.legende_modifiable ? champLegende(e, ctx) : el("p", { class: "recap-legende" }, e.legende || "Pas de légende.")),
+        ...(Array.isArray(ressources) ? champRessource(e, ressources, choixRessource, auChangement, ctx)
           : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])),
       el("div", { class: "recap-ligne-pied" }, retirer)));
   return n;
 }
 
-// La ressource offerte par ce post : la liste de toutes les ressources en ligne (celle dont la légende
-// cite le mot en premier), choisie par le client, jamais d'office. Puis la phrase de ce qui se passera.
-function champRessource(e, ressources, choixRessource, auChangement) {
+// Les contrôles de zernio.py sur ce qui part (mêmes phrases que le serveur, publication.mjs erreursTextes).
+const TIRET_LONG = "\u2014";
+function erreurTexte(champ, valeur, limites) {
+  const v = champ === "bouton" ? String(valeur).split(/\s+/).filter(Boolean).join(" ") : String(valeur).trim();
+  const nom = { legende: "La légende", message: "Le message", bouton: "Le texte du bouton" }[champ];
+  if (!v) return champ === "bouton" ? "Le bouton a besoin d'un texte." : `${nom} ne peut pas être vide.`;
+  if (v.includes(TIRET_LONG)) return `${nom} contient un tiret long : remplace-le par une virgule ou deux points.`;
+  const n = champ === "legende" ? Array.from(v).length : champ === "message" ? v.replace(/\[\s*son\s+pr[ée]nom\s*\]/gi, "{{first_name}}").length : v.length;
+  if (n > limites[champ]) return champ === "legende" ? `La légende est trop longue pour Instagram (${n} caractères, ${limites[champ]} au plus).`
+    : `${nom} est trop long (${n} caractères, ${limites[champ]} au plus).`;
+  return null;
+}
+
+// Un champ retouchable : la valeur affichée est celle qui partira ; l'erreur s'écrit dessous et bloque le bouton.
+function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource } = {}) {
+  const t = ctx.retouches.get(e.slug) || {};
+  const garde = ressource === undefined || t.ressource === ressource;
+  const valeur = garde && typeof t[champ] === "string" ? t[champ] : initiale || "";
+  const lignes = Math.min(14, Math.max(3, String(valeur).split("\n").length + 1));
+  const n = multi
+    ? el("textarea", { class: `champ recap-texte recap-texte-${champ}`, rows: String(lignes), "aria-label": label, spellcheck: "true" }, valeur)
+    : el("input", { type: "text", class: `champ recap-texte recap-texte-${champ}`, value: valeur, "aria-label": label });
+  const erreur = el("p", { class: "recap-champ-erreur", role: "alert", hidden: true });
+  const cle = `${e.slug}:${champ}`;
+  const verifier = () => {
+    const x = erreurTexte(champ, n.value, ctx.limites);
+    erreur.textContent = x || ""; erreur.hidden = !x; n.classList.toggle("faux", Boolean(x));
+    if (x) ctx.erreurs.set(cle, x); else ctx.erreurs.delete(cle);
+  };
+  n.addEventListener("input", () => {
+    const r = ctx.retouches.get(e.slug) || {};
+    if (ressource !== undefined && r.ressource !== ressource) { delete r.message; delete r.bouton; r.ressource = ressource; }
+    r[champ] = n.value;
+    ctx.retouches.set(e.slug, r);
+    verifier(); ctx.maj();
+  });
+  verifier();
+  return { champ: n, erreur, oublier: () => ctx.erreurs.delete(cle) };
+}
+
+function champLegende(e, ctx) {
+  const c = champTexte(e, ctx, "legende", e.legende, { label: `Légende de « ${e.titre} »` });
+  return el("div", { class: "recap-texte-bloc" }, c.champ, c.erreur);
+}
+
+// La ressource offerte par ce post : la liste des ressources du site (celle dont la légende cite le mot
+// en premier), choisie par le client, jamais d'office. Une ressource qui ne peut pas être offerte est
+// grisée, avec sa raison sous la liste ; une liste vide dit pourquoi. Puis le message exact du DM.
+function champRessource(e, ressources, choixRessource, auChangement, ctx) {
   const legende = String(e.legende || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   const cite = (r) => r.mot && new RegExp(`(^|[^A-Z0-9])${r.mot}([^A-Z0-9]|$)`).test(legende);
-  const triees = [...ressources].sort((a, b) => (cite(b) - cite(a)) || a.titre.localeCompare(b.titre, "fr"));
+  const offrable = (r) => r.disponible !== false;
+  const triees = [...ressources].sort((a, b) => (offrable(b) - offrable(a)) || (cite(b) - cite(a)) || a.titre.localeCompare(b.titre, "fr"));
   const choix = el("select", { class: "champ recap-ressource", "aria-label": `Ressource offerte avec « ${e.titre} »` },
     el("option", { value: "" }, "Aucune ressource"),
-    ...triees.map((r) => el("option", { value: r.slug, selected: r.slug === e.ressource || null }, `${r.mot} : ${r.titre}${cite(r) ? " (dans ta légende)" : ""}`)));
+    ...triees.map((r) => el("option", { value: r.slug, selected: r.slug === e.ressource || null, disabled: !offrable(r) && r.slug !== e.ressource ? true : null },
+      `${r.mot || "Sans mot"} : ${r.titre}${!offrable(r) ? " (indisponible)" : cite(r) ? " (dans ta légende)" : ""}`)));
   if (!triees.some((r) => r.slug === e.ressource) && e.ressource) {
     choix.append(el("option", { value: e.ressource, selected: true }, `${e.ressource_titre || "Ressource choisie"} (pas en ligne)`));
   }
+  const grisees = triees.filter((r) => !offrable(r));
+  const raisons = grisees.length ? el("ul", { class: "recap-ressource-raisons" },
+    ...grisees.map((r) => el("li", {}, el("strong", {}, r.titre), ` : ${r.probleme || "elle ne peut pas être offerte pour l'instant."}`))) : null;
+  const note = ctx.recap.ressources_note ? el("p", { class: "recap-ressource-note doux" }, ctx.recap.ressources_note) : null;
   const phrase = el("p", { class: "recap-mot" });
+  const message = el("div", { class: "recap-dm" });
+  let champsDm = [];
   const majPhrase = () => {
-    const r = triees.find((x) => x.slug === choix.value);
+    const r = triees.find((x) => x.slug === choix.value && offrable(x));
     phrase.replaceChildren(...(r ? ["Ceux qui commentent ", el("strong", { class: "mot-com" }, r.mot), " reçoivent : ", el("span", {}, r.titre)]
-      : [el("span", { class: "doux" }, triees.length ? "Aucun mot : personne ne reçoit de message." : "Aucune ressource en ligne pour l'instant : personne ne reçoit de message.")]));
+      : [el("span", { class: "doux" }, triees.some(offrable) ? "Aucun mot : personne ne reçoit de message." : "Personne ne reçoit de message.")]));
+    for (const c of champsDm) c.oublier();
+    champsDm = [];
+    // Le message exact du DM : celui vérifié au récapitulatif si c'est la ressource choisie, sinon celui de la liste.
+    const dm = r && r.slug === e.ressource && e.message_dm ? e.message_dm : r && typeof r.message === "string" ? { mot: r.mot, message: r.message, bouton: r.bouton || "", a_valider: r.a_valider } : null;
+    if (!dm) { message.replaceChildren(); message.hidden = true; ctx.maj(); return; }
+    const m = champTexte(e, ctx, "message", dm.message, { label: `Message privé envoyé à ceux qui commentent ${dm.mot}`, ressource: r.slug });
+    const b = champTexte(e, ctx, "bouton", dm.bouton, { multi: false, label: "Texte du bouton du message", ressource: r.slug });
+    champsDm = [m, b];
+    message.hidden = false;
+    message.replaceChildren(
+      el("p", { class: "recap-dm-titre" }, "Le message privé qu'ils reçoivent"),
+      m.champ, m.erreur,
+      el("label", { class: "recap-dm-bouton" }, el("span", {}, "Bouton"), b.champ), b.erreur,
+      el("p", { class: "recap-dm-note" + (dm.a_valider ? " a-valider" : "") }, dm.a_valider
+        ? "Ce message n'est pas encore validé : en cliquant sur Programmer, tu le valides tel qu'il est ici."
+        : "Tu peux le retoucher ici : il est enregistré tel qu'il est affiché quand tu cliques sur Programmer."),
+      el("p", { class: "recap-dm-aide doux" }, "[son prénom] est remplacé par le prénom de la personne qui commente."));
+    ctx.maj();
   };
   choix.addEventListener("change", () => {
     if ((choix.value || null) === (e.ressource || null)) choixRessource.delete(e.slug); else choixRessource.set(e.slug, choix.value);
     majPhrase(); auChangement();
   });
   majPhrase();
-  return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, choix, phrase)];
+  return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, choix, raisons, note, phrase, message)];
 }
 
 function resultats(studio, conteneur, res, els) {

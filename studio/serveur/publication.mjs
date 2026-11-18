@@ -52,16 +52,20 @@ export class Publication {
     try { await this.synchro?.tirer(); } catch { /* hors ligne */ }
   }
 
-  // Les ressources qu'un post peut offrir (en ligne, message prêt), pour la liste du récapitulatif.
-  async pretes() {
-    if (!this.ressources?.actif()) return null;
-    try { return await this.ressources.pretes(); } catch { return []; }
+  // La liste des ressources du récapitulatif (offrables ou non, avec la raison) et la phrase qui dit
+  // pourquoi elle est vide. Jamais une liste vide sans explication.
+  async choixRessources() {
+    if (!this.ressources?.actif()) return { ressources: null, note: null };
+    try { return await this.ressources.pourUnPost(); } catch {
+      return { ressources: [], note: "Je n'arrive pas à lire tes ressources gratuites pour l'instant : revérifie dans un moment." };
+    }
   }
 
   async recap(elements) {
     await this.pousser();
     try {
-      const r = await pub.recap(elements, configBrute(this.config), { ressources: await this.pretes() });
+      const c = await this.choixRessources();
+      const r = await pub.recap(elements, configBrute(this.config), { ressources: c.ressources, ressourcesNote: c.note });
       this.journal("recap_publication", { recap_id: r.recap_id, n: r.elements.length });
       return r;
     } catch (e) {
@@ -69,10 +73,11 @@ export class Publication {
     }
   }
 
-  async confirmer(recapId) {
+  // textes : { <slug>: { legende?, message?, bouton? } } retouchés au récapitulatif juste avant le clic.
+  async confirmer(recapId, textes) {
     await this.pousser();
     try {
-      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config)));
+      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config), { textes }));
       await this.tirer();
       this.journal("publication", { recap_id: recapId, simulation: Boolean(r.simulation), n: r.resultats?.length || 0 });
       return { resultats: r.resultats };

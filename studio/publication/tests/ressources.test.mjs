@@ -12,6 +12,7 @@ import path from 'node:path';
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { spawnSync } from 'node:child_process';
 import { confirmer, oublierRecaps, poserMot, recap, PHRASE_MOT_SANS_RESSOURCE } from '../publication.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -73,7 +74,12 @@ before(() => {
   ecrire(path.join(depot, 'contenus', 'le-tableur-de-suivi', 'ressource.md'), RESSOURCE);
   ecrire(path.join(depot, 'site', 'le-tableur-de-suivi', 'index.html'), '<!doctype html>\n');
   ecrire(path.join(depot, 'contenus', 'pas-en-ligne', 'ressource.md'), RESSOURCE.replace('en ligne le 20/11/2026', 'à vérifier par Yoan').replace(/TABLEUR/g, 'CARNET').replace('le-tableur-de-suivi', 'pas-en-ligne'));
+  // Une ressource en ligne dont le message n'est pas encore validé (le cas de la ressource MONTEUR).
+  ecrire(path.join(depot, 'contenus', 'le-monteur', 'ressource.md'), RESSOURCE.replace(/TABLEUR/g, 'MONTEUR')
+    .replace(/le-tableur-de-suivi/g, 'le-monteur').replace('- Validé par Yoan : 20/11/2026', '- Validé par Yoan : '));
+  ecrire(path.join(depot, 'site', 'le-monteur', 'index.html'), '<!doctype html>\n');
   reel('messages-a-23h', 'Tu réponds à 23 h ? Commente TABLEUR et je t\'envoie mon modèle.');
+  reel('video-montee', 'Commente MONTEUR et je t\'envoie la méthode.');
   reel('sans-mot', 'Une légende sans appel à commenter.');
 });
 
@@ -177,6 +183,98 @@ describe('récapitulatif avec ressources', { skip: SAUTER }, () => {
     assert.match(v.message, /TABLEUR/);
     assert.ok(vus[1].args.includes('--envoyer') && vus[1].ecriture);
     await assert.rejects(poserMot('x', 'y', { ...config, ressources: false }, { executer }), /pas de ressources/);
+  });
+});
+
+// La ligne de la liste telle que le serveur la donne (ressources.mjs pourUnPost), empreinte lue par le vrai zernio.py.
+function ligneMonteur() {
+  const r = spawnSync('python3', [path.join(depot, 'outils', 'zernio.py'), 'ressources', '--format', 'json'],
+    { cwd: depot, env: { ...process.env, HOC_DEPOT: depot }, encoding: 'utf8' });
+  const f = JSON.parse(r.stdout.trim().split('\n').pop()).ressources.find((x) => x.slug === 'le-monteur');
+  assert.equal(f.valide, false);
+  return { slug: 'le-monteur', titre: 'Le monteur', mot: 'MONTEUR', disponible: true, a_valider: true,
+    message: f.message, bouton: f.bouton, empreinte: f.empreinte };
+}
+
+describe('message pas validé et retouches au récapitulatif', { skip: SAUTER }, () => {
+  test('liste : le message pas validé ne bloque pas, il est montré tel que la personne le recevra', async () => {
+    const liste = [...PRETES, ligneMonteur(), { slug: 'la-grille', titre: 'La grille', mot: 'GRILLE', disponible: false, probleme: 'La page ne répond pas à son adresse.' }];
+    const r = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: liste });
+    const e = r.elements[0];
+    assert.equal(e.verdict, 'OK', e.messages.join(' / '));
+    assert.equal(e.message_dm.a_valider, true);
+    assert.equal(e.message_dm.message, 'Salut [son prénom], voici le tableur.');
+    assert.equal(e.message_dm.bouton, 'Ouvrir le tableur');
+    assert.equal(e.legende_modifiable, true);
+    const grille = r.ressources.find((x) => x.slug === 'la-grille');
+    assert.deepEqual(grille, { slug: 'la-grille', titre: 'La grille', mot: 'GRILLE', disponible: false, probleme: 'La page ne répond pas à son adresse.' });
+    // Une ressource grisée choisie quand même : bloqué, avec sa raison.
+    const g = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'la-grille' }], config, { ressources: liste });
+    assert.equal(g.elements[0].verdict, 'BLOQUE');
+    assert.ok(g.elements[0].messages.some((m) => /ne répond pas à son adresse/.test(m)), g.elements[0].messages.join(' / '));
+  });
+
+  test('simulation : retouches contrôlées par les vrais outils, rien d\'écrit ; la légende retouchée est celle que publier lit', async () => {
+    const fiche = path.join(depot, 'contenus', 'le-monteur', 'ressource.md');
+    const avant = fs.readFileSync(fiche, 'utf8');
+    const script = fs.readFileSync(path.join(depot, 'contenus', 'video-montee', 'script.md'), 'utf8');
+    const r = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: [ligneMonteur()] });
+    const c = await confirmer(r.recap_id, config, { textes: { 'video-montee': {
+      legende: 'Commente MONTEUR, je t\'envoie tout.\n\n#montage #ia', message: 'Salut [son prénom], la méthode est là.', bouton: 'Voir la méthode' } } });
+    assert.equal(c.resultats[0].statut, 'simulation', c.resultats[0].message);
+    assert.match(c.resultats[0].message, /légende retouchée serait enregistrée, ton message retouché serait enregistré et validé/);
+    const v = appels().find((x) => x.argv[0] === 'valider-message');
+    assert.ok(v.argv.includes('--essai') && !v.argv.includes('--pousser'), v.argv.join(' '));
+    assert.equal(fs.readFileSync(fiche, 'utf8'), avant, 'la fiche ne bouge pas en simulation');
+    assert.equal(fs.readFileSync(path.join(depot, 'contenus', 'video-montee', 'script.md'), 'utf8'), script);
+    const pub = appels().find((x) => x.argv[0] === 'publier');
+    assert.ok(pub.argv.includes('--legende-fichier'), pub.argv.join(' '));
+  });
+
+  test('retouche fausse : bloqué avec la raison, aucun outil d\'écriture lancé', async () => {
+    const r = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: [ligneMonteur()] });
+    const vus = [];
+    const executer = async (args, o) => { vus.push(args); return { code: 0, sortie: 'OK\n' }; };
+    const reel = { ...config, publication: { ...config.publication, simulation: false } };
+    const c = await confirmer(r.recap_id, reel, { executer: async (args, o) => {
+      if (args[0] === 'verifier') return { code: 1, sortie: `LEGENDE (x, ${Array.from('Commente MONTEUR et je t\'envoie la méthode.').length} caractères) :\nCommente MONTEUR et je t'envoie la méthode.\nMOT MONTEUR\nBLOQUE ressource le-monteur : message pas validé par Yoan (ligne « Validé par Yoan » vide)\n` };
+      return executer(args, o);
+    }, textes: { 'video-montee': { bouton: 'Un texte de bouton beaucoup trop long' } } });
+    assert.equal(c.resultats[0].statut, 'bloque');
+    assert.match(c.resultats[0].message, /bouton est trop long/);
+    assert.deepEqual(vus, [], 'ni écriture ni envoi');
+  });
+
+  test('pour de vrai : légende et message retouchés enregistrés (et poussés) avant l\'envoi, puis revérifiés', async () => {
+    const r = await recap([{ slug: 'video-montee', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-monteur' }], config, { ressources: [ligneMonteur()] });
+    const nouvelle = 'Commente MONTEUR, je t\'envoie tout.';
+    let ecrite = false; let validee = false;
+    const vus = [];
+    const executer = async (args, o) => {
+      const entree = args.includes('--depuis') ? JSON.parse(fs.readFileSync(args[args.indexOf('--depuis') + 1], 'utf8')) : null;
+      vus.push({ args, o, entree });
+      if (args[0] === 'verifier') {
+        const leg = ecrite ? nouvelle : 'Commente MONTEUR et je t\'envoie la méthode.';
+        return { code: validee ? 0 : 1, sortie: `LEGENDE (x, ${Array.from(leg).length} caractères) :\n${leg}\nMOT MONTEUR\n${validee ? 'OK prêt' : 'BLOQUE ressource le-monteur : message pas validé par Yoan (ligne « Validé par Yoan » vide)'}\n` };
+      }
+      if (args[0] === 'ecrire') { ecrite = true; return { code: 0, sortie: 'OK brief slug=video-montee\n' }; }
+      if (args[0] === 'valider-message') { validee = true; return { code: 0, sortie: 'OK message ressource=le-monteur\n' }; }
+      return { code: 0, sortie: 'POST 6aa000000000000000000001 statut=programmé lien=à venir\nFAIT\n' };
+    };
+    const reel = { ...config, publication: { ...config.publication, simulation: false } };
+    const c = await confirmer(r.recap_id, reel, { executer, textes: { 'video-montee': { legende: nouvelle + '\n', message: 'Salut [son prénom], la méthode est là.' } } });
+    assert.equal(c.resultats[0].statut, 'programmé', c.resultats[0].message);
+    const ordre = vus.map((v) => v.args[0]);
+    assert.deepEqual(ordre, ['verifier', 'ecrire', 'valider-message', 'verifier', 'publier']);
+    const b = vus[1];
+    assert.equal(b.o.script, 'brief.py'); assert.equal(b.o.dans, 'depot'); assert.equal(b.o.ecriture, false);
+    assert.deepEqual(b.entree, { legende: nouvelle });
+    assert.ok(b.args.includes('--pousser') && b.args[b.args.indexOf('--empreinte') + 1].startsWith('sha256:'), b.args.join(' '));
+    const m = vus[2];
+    assert.equal(m.o.dans, 'depot'); assert.equal(m.o.ecriture, false);
+    assert.deepEqual(m.entree, { message: 'Salut [son prénom], la méthode est là.' }, 'zernio.py remet {{first_name}}');
+    assert.ok(m.args.includes('--pousser') && m.args.includes('--empreinte'), m.args.join(' '));
+    assert.ok(vus[4].args.includes('--envoyer') && vus[4].o.ecriture);
   });
 });
 

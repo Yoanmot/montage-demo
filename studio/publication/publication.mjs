@@ -14,6 +14,12 @@
 // sur CE post seulement. Un post dont la légende annonce un mot sans ressource choisie est bloqué.
 // Sans config.ressources (Romain), `ressource` est ignoré et rien ne change.
 //
+// Message pas encore validé (18/11/2026) : la ressource reste dans la liste ; le récapitulatif montre
+// le message exact, et le clic sur Programmer vaut validation (`zernio.py valider-message`, écrit et
+// poussé dans le dépôt du head of content avant l'envoi). Retouches au récapitulatif : la légende d'un
+// reel (`brief.py ecrire`) et le message de la ressource choisie (`valider-message --depuis`) sont
+// enregistrés au même clic, puis revérifiés : ce qui part est ce qui était affiché.
+//
 // Sécurité :
 //   - `--envoyer` n'est passé que par confirmer(), hors simulation, et ZERNIO_ECRITURE=<compte> (plus
 //     ZERNIO_ECRITURE_ROMAIN=oui chez Romain) n'est posé que sur cet appel-là (il est retiré de
@@ -27,6 +33,7 @@
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
@@ -119,12 +126,17 @@ function environnement(depot, ecriture, client) {
 }
 
 // Lance zernio.py dans son propre groupe de processus ; rend { code, sortie }.
-export function lancerZernio(config, args, { ecriture = false, timeoutMs = 120000 } = {}) {
-  const { depotMac: depot, zernio } = chemins(config);
+// dans: 'depot' : un outil du dépôt de travail du studio (écritures du clic, poussées comme les autres
+// écritures du studio), jamais avec les variables d'écriture Zernio.
+export function lancerZernio(config, args, { ecriture = false, timeoutMs = 120000, dans = 'mac', script = 'zernio.py' } = {}) {
+  const c = chemins(config);
+  const depot = dans === 'depot' ? c.depot : c.depotMac;
+  const outil = path.join(depot, 'outils', script);
+  if (dans === 'depot') ecriture = false;
   return new Promise((resolve) => {
     let sortie = '';
     let fini = false;
-    const p = spawn('python3', [zernio, ...args], {
+    const p = spawn('python3', [outil, ...args], {
       cwd: depot, env: environnement(depot, ecriture, config.client || clientActif()), detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     });
     const minuterie = setTimeout(() => {
@@ -249,6 +261,10 @@ function arret(sortie) {
 
 // ------------------------------------------------------------------ ce qu'il y a sur le disque
 
+function empreinteFichier(chemin) {
+  try { return 'sha256:' + crypto.createHash('sha256').update(fs.readFileSync(chemin)).digest('hex'); } catch { return null; }
+}
+
 function lireJson(chemin, defaut) {
   try { return JSON.parse(fs.readFileSync(chemin, 'utf8')); } catch { return defaut; }
 }
@@ -312,7 +328,55 @@ function urlMedia(slug, ...parties) {
 // le studio ou le téléphone). Rien n'est envoyé ni écrit dans le dépôt par verifier.
 function argsVerifier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
-  return ['verifier', el.slug, ...media, ...argsRessource(el), '--pousser'];
+  return ['verifier', el.slug, ...media, ...argsRessource(el), ...argsLegende(el), '--pousser'];
+}
+
+// Simulation avec une légende retouchée : elle n'est pas enregistrée, zernio.py la lit dans un fichier.
+function argsLegende(el) {
+  return el.legende_fichier ? ['--legende-fichier', el.legende_fichier] : [];
+}
+
+const MESSAGE_PAS_VALIDE = /^ressource \S+ : message pas validé/;
+
+// La légende telle que zernio.py la relira dans le fichier (brief.py, fonction propre).
+export function legendePropre(t) {
+  return String(t ?? '').replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/^#+[ \t]+/, '').replace(/\s+$/, ''))
+    .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Le message tel que le client le voit (« [son prénom] ») et tel que la fiche le garde.
+const versFiche = (t) => String(t ?? '').replace(/\[\s*son\s+pr[ée]nom\s*\]/gi, '{{first_name}}');
+const versClient = (t) => String(t ?? '').replace(/\{\{\s*first_name\s*\}\}/g, '[son prénom]');
+function messagePropre(t) {
+  return String(t ?? '').replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/\s+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Les limites de zernio.py (LEGENDE_MAX, MESSAGE_MAX, BOUTON_MAX), pour les champs du récapitulatif.
+export const LIMITES = { legende: 2200, message: 640, bouton: 20 };
+const TIRET_LONG = '\u2014';
+
+// Ce qui empêche une retouche de partir, en phrases (le studio montre la même chose sous le champ).
+export function erreursTextes({ legende, message, bouton } = {}) {
+  const e = {};
+  if (legende !== undefined) {
+    const l = legendePropre(legende);
+    if (!l) e.legende = 'La légende ne peut pas être vide.';
+    else if (l.includes(TIRET_LONG)) e.legende = 'La légende contient un tiret long : remplace-le par une virgule ou deux points.';
+    else if (Array.from(l).length > LIMITES.legende) e.legende = `La légende est trop longue pour Instagram (${Array.from(l).length} caractères, ${LIMITES.legende} au plus).`;
+  }
+  if (message !== undefined) {
+    const m = messagePropre(versFiche(message));
+    if (!m) e.message = 'Le message ne peut pas être vide.';
+    else if (m.includes(TIRET_LONG)) e.message = 'Le message contient un tiret long : remplace-le par une virgule ou deux points.';
+    else if (m.length > LIMITES.message) e.message = `Le message est trop long (${m.length} caractères, ${LIMITES.message} au plus).`;
+  }
+  if (bouton !== undefined) {
+    const b = String(bouton ?? '').split(/\s+/).filter(Boolean).join(' ');
+    if (!b) e.bouton = 'Le bouton a besoin d\'un texte.';
+    else if (b.includes(TIRET_LONG)) e.bouton = 'Le texte du bouton contient un tiret long.';
+    else if (b.length > LIMITES.bouton) e.bouton = `Le texte du bouton est trop long (${b.length} caractères, ${LIMITES.bouton} au plus).`;
+  }
+  return e;
 }
 
 function argsRessource(el) {
@@ -339,7 +403,13 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
   if (config.ressources) {
     const r = demande && typeof demande.ressource === 'string' ? demande.ressource.trim() : '';
     el.ressource = r && slugValide(r) ? r : null;
-    el.ressource_titre = el.ressource ? ((pretes || []).find((x) => x.slug === el.ressource)?.titre || null) : null;
+    const x = el.ressource ? (pretes || []).find((y) => y.slug === el.ressource) : null;
+    el.ressource_titre = x?.titre || null;
+    // Ressource offrable : son message (validé ou non) est montré, et peut être retouché, au récapitulatif.
+    if (x && x.disponible !== false && typeof x.message === 'string') {
+      el.message_dm = { mot: x.mot || null, message: x.message, bouton: x.bouton || '', empreinte: x.empreinte || null, a_valider: Boolean(x.a_valider) };
+    }
+    if (x && x.disponible === false) el.ressource_probleme = x.probleme || null;
   }
 
   if (!slugValide(slug)) {
@@ -349,6 +419,9 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
   }
   el.type = typeDe(slug, depot, media);
   el.titre = titreDe(slug, depot);
+  // Le texte d'où vient la légende d'un reel : son empreinte garde une retouche du récapitulatif d'écraser
+  // un texte changé entre-temps (brief.py ecrire --empreinte).
+  if (el.type === 'reel') el.script_empreinte = empreinteFichier(path.join(depot, 'contenus', slug, 'script.md'));
 
   if (quand !== 'maintenant') {
     const d = dateZurich(quand);
@@ -385,7 +458,13 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     el.bloque = true;
   }
   for (const b of v.bloque) {
+    // Message pas encore validé d'une ressource offrable : le clic sur Programmer le validera.
+    if (el.message_dm && MESSAGE_PAS_VALIDE.test(b)) continue;
     el.messages.push(phrase('BLOQUE', b));
+    el.bloque = true;
+  }
+  if (el.ressource_probleme) {
+    el.messages.push(`La ressource choisie ne peut pas être offerte pour l'instant : ${el.ressource_probleme} Choisis-en une autre, ou aucune.`);
     el.bloque = true;
   }
   // Une légende qui annonce un mot sans ressource choisie ne part pas : personne ne recevrait rien.
@@ -414,6 +493,11 @@ function versApi(el) {
     verdict: el.bloque ? 'BLOQUE' : el.attention ? 'ATTENTION' : 'OK', messages: el.messages,
   };
   if ('ressource' in el) { o.ressource = el.ressource; o.ressource_titre = el.ressource_titre; }
+  if (el.message_dm) {
+    o.message_dm = { mot: el.message_dm.mot, message: versClient(el.message_dm.message), bouton: el.message_dm.bouton, a_valider: el.message_dm.a_valider };
+  }
+  // Seule la légende d'un reel se retouche ici (celle d'un carrousel part avec ses slides mises en page).
+  o.legende_modifiable = el.type === 'reel' && Boolean(el.script_empreinte) && el.legende !== null;
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
   else if (el.video_url) o.video_url = el.video_url;
   return o;
@@ -432,8 +516,17 @@ export async function recap(elements, config, opts = {}) {
   const minutes = opts.minutes || RECAP_MINUTES;
   recaps.set(id, { id, expire: maintenant.getTime() + minutes * 60 * 1000, utilise: false, elements: vus });
   const r = { recap_id: id, elements: vus.map(versApi) };
-  // La liste déroulante du récapitulatif : toutes les ressources en ligne, prêtes à être offertes.
-  if (pretes) r.ressources = pretes.map((x) => ({ slug: x.slug, titre: x.titre, mot: x.mot }));
+  // La liste déroulante du récapitulatif : les ressources du site, offrables ou grisées avec leur raison.
+  if (pretes) {
+    r.ressources = pretes.map((x) => {
+      const o = { slug: x.slug, titre: x.titre, mot: x.mot };
+      for (const k of ['disponible', 'a_valider', 'probleme', 'bouton']) if (x[k] !== undefined) o[k] = x[k];
+      if (x.message !== undefined) o.message = x.message === null ? null : versClient(x.message);
+      return o;
+    });
+    if (opts.ressourcesNote) r.ressources_note = opts.ressourcesNote;
+    r.limites = LIMITES;
+  }
   return r;
 }
 
@@ -442,7 +535,7 @@ export async function recap(elements, config, opts = {}) {
 function argsPublier(el) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
   const quand = el.quand === 'maintenant' ? ['--maintenant'] : ['--quand', el.quand];
-  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el)];
+  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsLegende(el)];
 }
 
 // « Ceux qui commentent MOT reçoivent « titre » », pour les résultats.
@@ -477,7 +570,8 @@ async function encorePareil(el, config, executer) {
   }
   const { sortie } = await executer(argsVerifier(el), { ecriture: false });
   const v = lireVerifier(sortie);
-  if (v.bloque.length) return phrase('BLOQUE', v.bloque[0]);
+  const bloque = v.bloque.filter((b) => !(el.message_dm && MESSAGE_PAS_VALIDE.test(b)));
+  if (bloque.length) return phrase('BLOQUE', bloque[0]);
   if (v.legende !== el.legende) return 'La légende a changé depuis le récapitulatif : refais-le pour relire ce qui partira.';
   if (v.mot !== el.mot) return 'Le mot en commentaire a changé depuis le récapitulatif : refais-le pour revoir ce qui partira.';
   return null;
@@ -498,8 +592,10 @@ export async function confirmer(recapOuId, config, opts = {}) {
 
   const simulation = enSimulation(config);
   const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
+  const textes = opts.textes && typeof opts.textes === 'object' ? opts.textes : {};
   const resultats = [];
   let stop = null;
+  const temporaires = [];
 
   for (const el of r.elements) {
     const res = (statut, message, detail) => resultats.push({ slug: el.slug, statut, message, ...(detail ? { detail } : {}) });
@@ -514,10 +610,17 @@ export async function confirmer(recapOuId, config, opts = {}) {
     const change = await encorePareil(el, config, executer);
     if (change) { res('bloque', 'Pas programmé : ' + change); continue; }
 
+    // Le clic vaut enregistrement de ce qui était affiché : légende retouchée, message retouché ou à valider.
+    const ecrit = await enregistrerTextes(el, textes[el.slug], config, executer, simulation, temporaires);
+    if (ecrit) { res('bloque', 'Pas programmé : ' + ecrit); continue; }
+
     if (simulation) {
       const { sortie } = await executer(argsPublier(el), { ecriture: false });
-      if (/^SIMULATION_OK$/m.test(sortie)) {
-        res('simulation', `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}`);
+      // Message à valider : publier le refuse tant que la fiche n'est pas écrite, ce que la simulation ne fait pas.
+      const seulementValidation = el.message_dm && !arret(sortie) && lireVerifier(sortie).bloque.length > 0
+        && lireVerifier(sortie).bloque.every((b) => MESSAGE_PAS_VALIDE.test(b));
+      if (/^SIMULATION_OK$/m.test(sortie) || seulementValidation) {
+        res('simulation', `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseMot(el, true)}${phraseEcrits(el)}`);
       } else {
         const a = arret(sortie);
         const b = lireVerifier(sortie).bloque[0];
@@ -556,7 +659,103 @@ export async function confirmer(recapOuId, config, opts = {}) {
       (a || sortie.trim().split('\n').slice(-2).join(' / ')).slice(0, 300));
     stop = true;
   }
+  for (const f of temporaires) { try { fs.rmSync(f, { recursive: true, force: true }); } catch { /* rien */ } }
   return { simulation, resultats };
+}
+
+// Ce que le clic a enregistré (pour la phrase de simulation).
+function phraseEcrits(el) {
+  const quoi = [el.legende_retouchee ? 'ta légende retouchée serait enregistrée' : null,
+    el.message_retouche ? 'ton message retouché serait enregistré et validé' : el.message_dm?.a_valider ? 'le message serait validé' : null].filter(Boolean);
+  return quoi.length ? ` Et ${quoi.join(', ')}.` : '';
+}
+
+const PHRASES_ECRITURE = {
+  CHANGE: 'Le texte a changé depuis le récapitulatif (le chat l\'a peut-être retouché) : refais-le pour revoir ce qui partira.',
+  SYNCHRO: 'Je n\'arrive pas à enregistrer tes textes (pas d\'internet ?) : rien n\'est parti, réessaie dans un moment.',
+  CONFLIT: 'Je n\'arrive pas à enregistrer tes textes pour l\'instant : rien n\'est parti, réessaie dans un moment.',
+  PAS_EN_LIGNE: 'La ressource choisie n\'est plus en ligne : choisis-en une autre, ou aucune.',
+  INTROUVABLE: 'Je ne trouve plus la ressource choisie : choisis-en une autre, ou aucune.',
+};
+
+function blocageOutil(sortie) {
+  const m = /^BLOQUE (\S+) ?(.*)$/m.exec(sortie || '');
+  return m ? { code: m[1], texte: m[2] } : null;
+}
+
+// Enregistre, au clic, les retouches du récapitulatif et la validation du message ; rend une phrase si
+// quelque chose bloque (rien n'est alors parti pour ce contenu), sinon null. Simulation : contrôles
+// seuls (--essai), rien d'écrit ; la légende retouchée passe par un fichier temporaire.
+async function enregistrerTextes(el, t, config, executer, simulation, temporaires) {
+  t = t && typeof t === 'object' ? t : {};
+  const retouches = {};
+  if (typeof t.legende === 'string' && legendePropre(t.legende) !== legendePropre(el.legende)) {
+    if (el.type !== 'reel') return 'La légende d\'un carrousel se retouche dans son brief : refais le récapitulatif.';
+    retouches.legende = t.legende;
+  }
+  if (el.message_dm) {
+    if (typeof t.message === 'string' && messagePropre(versFiche(t.message)) !== messagePropre(el.message_dm.message)) retouches.message = t.message;
+    if (typeof t.bouton === 'string' && t.bouton.split(/\s+/).filter(Boolean).join(' ') !== el.message_dm.bouton) retouches.bouton = t.bouton;
+  }
+  const err = erreursTextes(retouches);
+  const premiere = err.legende || err.message || err.bouton;
+  if (premiere) return premiere;
+
+  if (retouches.legende !== undefined) {
+    const legende = legendePropre(retouches.legende);
+    el.legende_retouchee = true;
+    if (simulation) {
+      const f = path.join(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'studio-legende-')), 'legende.txt');
+      fs.writeFileSync(f, legende + '\n');
+      temporaires.push(path.dirname(f));
+      el.legende_fichier = f;
+    } else {
+      const f = fichierEntree(temporaires, { legende });
+      const { sortie } = await executer(['ecrire', el.slug, '--depuis', f, '--empreinte', el.script_empreinte, '--pousser'],
+        { ecriture: false, dans: 'depot', script: 'brief.py', timeoutMs: 2 * 60 * 1000 });
+      if (!/^OK /m.test(sortie)) {
+        const b = blocageOutil(sortie);
+        return (b && PHRASES_ECRITURE[b.code]) || `Je n'ai pas pu enregistrer ta légende : rien n'est parti. Préviens ${contact()} si ça recommence.`;
+      }
+    }
+    el.legende = legende;
+  }
+
+  if (el.message_dm && (el.message_dm.a_valider || retouches.message !== undefined || retouches.bouton !== undefined)) {
+    el.message_retouche = retouches.message !== undefined || retouches.bouton !== undefined;
+    const args = ['valider-message', el.ressource];
+    if (el.message_dm.empreinte) args.push('--empreinte', el.message_dm.empreinte);
+    if (el.message_retouche) {
+      const e = {};
+      if (retouches.message !== undefined) e.message = retouches.message;
+      if (retouches.bouton !== undefined) e.bouton = retouches.bouton;
+      args.push('--depuis', fichierEntree(temporaires, e));
+    }
+    args.push(simulation ? '--essai' : '--pousser');
+    const { sortie } = await executer(args, { ecriture: false, dans: 'depot', script: 'zernio.py', timeoutMs: 2 * 60 * 1000 });
+    if (!/^OK /m.test(sortie)) {
+      const b = blocageOutil(sortie);
+      if (b && b.code === 'MESSAGE') return phrase('BLOQUE', `ressource ${el.ressource} : ${b.texte}`);
+      return (b && PHRASES_ECRITURE[b.code]) || `Je n'ai pas pu enregistrer ton message : rien n'est parti. Préviens ${contact()} si ça recommence.`;
+    }
+  }
+
+  // Après une écriture : la vérification relit le dépôt en ligne ; ce qui part doit être ce qui était affiché.
+  if (!simulation && (el.legende_retouchee || el.message_dm?.a_valider || el.message_retouche)) {
+    const { sortie } = await executer(argsVerifier(el), { ecriture: false });
+    const v = lireVerifier(sortie);
+    if (v.bloque.length) return phrase('BLOQUE', v.bloque[0]);
+    if (legendePropre(v.legende) !== legendePropre(el.legende)) return 'La légende enregistrée n\'est pas celle affichée : refais le récapitulatif.';
+  }
+  return null;
+}
+
+function fichierEntree(temporaires, objet) {
+  const d = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'studio-textes-'));
+  temporaires.push(d);
+  const f = path.join(d, 'entree.json');
+  fs.writeFileSync(f, JSON.stringify(objet));
+  return f;
 }
 
 // ------------------------------------------------------------------ brancher le mot (rattrapage)

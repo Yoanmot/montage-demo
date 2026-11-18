@@ -885,7 +885,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return envoyerJson(res, 200, r);
       }
       if (p[1] === "confirmer") {
-        const r = await publication.confirmer(String(corps.recap_id || ""));
+        const textes = corps.textes && typeof corps.textes === "object" && !Array.isArray(corps.textes) ? corps.textes : {};
+        const r = await publication.confirmer(String(corps.recap_id || ""), textes);
         rafraichir();
         return envoyerJson(res, 200, r);
       }

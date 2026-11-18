@@ -24,6 +24,10 @@ mode = open(os.environ["FAUX_OUTILS_MODE"]).read().strip() if os.path.exists(os.
 if mode == "muet":
     sys.exit(1)
 cmd = sys.argv[1]
+def fiche_monteur():
+    return os.path.join(os.environ["FAUX_DEPOT"], "contenus", "le-monteur", "ressource.md")
+def valide_monteur():
+    return "- Validé par Yoan : \n" not in open(fiche_monteur(), encoding="utf-8").read()
 if outil == "ressource.py" and cmd == "lister":
     print(json.dumps({"version": 1, "site": "https://ressources.yoanmottier.com", "ressources": [
         {"slug": "messages-a-23h", "titre": "Le tableur", "statut": "à vérifier", "fiche": True, "brouillon": True,
@@ -44,7 +48,11 @@ if outil == "ressource.py" and cmd == "lister":
         {"slug": "le-plan", "titre": "Le plan", "statut": "en ligne le 18/11/2026", "fiche": True, "brouillon": False,
          "page_en_ligne": True, "en_ligne": True, "mot": "PLANNING", "lien": "https://ressources.yoanmottier.com/le-plan/",
          "apercu": "/le-plan/", "verification": {"ok": True, "lignes": []},
-         "en_ligne_reel": {"etat": "mise_a_jour", "code": "EN_COURS", "detail": "envoyée", "http": 200}}]}))
+         "en_ligne_reel": {"etat": "mise_a_jour", "code": "EN_COURS", "detail": "envoyée", "http": 200}},
+        {"slug": "le-monteur", "titre": "Le monteur", "statut": "en ligne le 17/11/2026", "fiche": True, "brouillon": False,
+         "page_en_ligne": True, "en_ligne": True, "mot": "MONTEUR", "lien": "https://ressources.yoanmottier.com/le-monteur/",
+         "apercu": "/le-monteur/", "verification": {"ok": True, "lignes": []},
+         "en_ligne_reel": {"etat": "en_ligne", "code": "OK", "detail": "", "http": 200}}]}))
 elif outil == "zernio.py" and cmd == "ressources":
     print(json.dumps({"version": 1, "ressources": [
         {"slug": "messages-a-23h", "titre": "Ressource gratuite : Le tableur", "mot": "TABLEUR", "lien": None, "bouton": None,
@@ -55,7 +63,38 @@ elif outil == "zernio.py" and cmd == "ressources":
          "en_ligne": True, "prete": True, "problemes": []},
         {"slug": "la-grille", "titre": "La grille", "mot": "GRILLE", "lien": "https://ressources.yoanmottier.com/la-grille/",
          "bouton": "Ouvrir", "message": "Voici la grille.", "valide": True, "statut": "en ligne le 18/11/2026",
-         "en_ligne": True, "prete": True, "problemes": []}]}))
+         "en_ligne": True, "prete": True, "problemes": []},
+        {"slug": "le-monteur", "titre": "Le monteur", "mot": "MONTEUR", "lien": "https://ressources.yoanmottier.com/le-monteur/",
+         "bouton": "Ouvrir la méthode", "message": "Salut {{first_name}}, voici les étapes.", "valide": valide_monteur(),
+         "empreinte": "sha256:e000000000000001", "statut": "en ligne le 17/11/2026", "en_ligne": True, "prete": valide_monteur(),
+         "problemes": [] if valide_monteur() else ["message pas validé par Yoan (ligne « Validé par Yoan » vide)"]}]}))
+elif outil == "zernio.py" and cmd in ("verifier", "publier"):
+    slug = sys.argv[2]
+    res = sys.argv[sys.argv.index("--ressource") + 1] if "--ressource" in sys.argv else None
+    leg = "Commente MONTEUR et je t'envoie la méthode."
+    print("CONTENU %s (reel) sur @ia.yoan" % slug)
+    print("LEGENDE (contenus/%s/script.md, %d caractères) :" % (slug, len(leg)))
+    print(leg)
+    print("MOT %s" % ("MONTEUR" if res else "aucun"))
+    if res and not valide_monteur():
+        print("BLOQUE ressource %s : message pas validé par Yoan (ligne « Validé par Yoan » vide)" % res)
+        sys.exit(1)
+    if cmd == "verifier":
+        print("OK prêt")
+    elif "--envoyer" in sys.argv:
+        print("POST 6aa000000000000000000009 statut=programmé lien=à venir")
+        print("FAIT")
+    else:
+        print("SIMULATION_OK")
+elif outil == "zernio.py" and cmd == "valider-message":
+    if "--empreinte" in sys.argv and sys.argv[sys.argv.index("--empreinte") + 1] != "sha256:e000000000000001":
+        print("BLOQUE CHANGE le message a changé depuis que tu l'as vu : rien n'est enregistré")
+        sys.exit(2)
+    if "--essai" not in sys.argv:
+        f = fiche_monteur()
+        t = open(f, encoding="utf-8").read().replace("- Validé par Yoan : \n", "- Validé par Yoan : 18/11/2026 (au clic de programmation dans le studio)\n")
+        open(f, "w", encoding="utf-8").write(t)
+    print("OK message ressource=%s" % sys.argv[2])
 else:
     print("BLOQUE INCONNU")
     sys.exit(2)
@@ -94,7 +133,10 @@ before(async () => {
   m.env.FAUX_OUTILS_MODE = modeFichier;
   process.env.FAUX_OUTILS_LOG = journal;
   process.env.FAUX_OUTILS_MODE = modeFichier;
+  process.env.FAUX_DEPOT = m.depot;
+  m.env.FAUX_DEPOT = m.depot;
   for (const n of ["ressource.py", "zernio.py"]) m.ecrire(`depot/outils/${n}`, FAUX);
+  m.ecrire("copie-mac/outils/zernio.py", FAUX);
   // Un reel avec sa ressource ; une ressource seule (pas de dossier de contenu) ; un post qui offre le carnet.
   m.contenu("messages-a-23h", { titre: "Tes messages de 23 h" });
   m.ecrire("depot/contenus/messages-a-23h/ressource.md", "# Le tableur\n\n- Statut : à vérifier\n");
@@ -103,6 +145,12 @@ before(async () => {
   m.contenu("le-carnet", { titre: "Le carnet de séance" });
   m.ecrire("depot/contenus/le-carnet/ressource.md", "# Le carnet\n\n- Statut : en ligne le 10/11/2026\n");
   m.ecrire("depot/site/le-carnet/index.html", "<!doctype html>\n");
+  // Une ressource en ligne dont le message n'est pas encore validé, et un reel monté qui l'annonce.
+  m.ecrire("depot/contenus/le-monteur/ressource.md", "# Le monteur\n\n- Statut : en ligne le 17/11/2026\n\n## Message automatique\n- Mot : MONTEUR\n- Validé par Yoan : \n");
+  m.ecrire("depot/site/le-monteur/index.html", "<!doctype html>\n");
+  m.contenu("video-montee", { titre: "Cette vidéo a été montée" });
+  m.ecrire("depot/contenus/video-montee/script.md", "# Vidéo\n\n## Légende\nCommente MONTEUR et je t'envoie la méthode.\n");
+  m.ecrire("Contenu/video-montee/face/rush-monte.mp4", "video");
   m.json("depot/publications/registre.json", { version: 1, publications: {
     "le-carnet": { statut: "programmé", prevu_le: "2026-12-01 18:30", ressource: "le-carnet", mot: "CARNET",
       regle_mot: { id: "r1", cible: "postId", valeur: "6aa000000000000000000001", mot: "CARNET" } },
@@ -159,12 +207,12 @@ test("serveur yoan : liste fusionnée, état lu à l'adresse, phrases claires, p
   const lister = appels().filter((a) => a.outil === "ressource.py" && a.argv[0] === "lister");
   assert.ok(lister.length && lister.every((a) => a.argv.includes("--en-ligne")), "la page est lue à son adresse");
   const l = r.json.ressources;
-  assert.deepEqual(l.map((x) => x.slug), ["la-grille", "le-plan", "le-carnet", "messages-a-23h", "exemple-seul"]);
+  assert.deepEqual(l.map((x) => x.slug), ["la-grille", "le-plan", "le-carnet", "le-monteur", "messages-a-23h", "exemple-seul"]);
   const tableur = l.find((x) => x.slug === "messages-a-23h");
   assert.equal(tableur.etat, "en_preparation");
   assert.ok(!("peut_mettre_en_ligne" in tableur), "plus de bouton de mise en ligne");
   assert.equal(tableur.contenu.titre, "Tes messages de 23 h");
-  assert.deepEqual(tableur.problemes, ["Tu n'as pas encore validé le message que reçoivent ceux qui commentent."]);
+  assert.deepEqual(tableur.problemes, ["Le message que reçoivent ceux qui commentent n'est pas encore validé : tu le valides en programmant le post qui l'offre."]);
   const seul = l.find((x) => x.slug === "exemple-seul");
   assert.equal(seul.etat, "en_preparation");
   assert.equal(seul.contenu, null);
@@ -200,5 +248,69 @@ test("serveur yoan : un souci affiché à Yoan ne lui dit pas de se prévenir lu
     assert.match(r.json.message, /souci du studio à corriger/);
   } finally {
     fs.unlinkSync(modeFichier);
+  }
+});
+
+const DANS_3_JOURS = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+
+test("serveur yoan : la liste du récapitulatif garde une ressource en ligne au message pas validé, grise les autres avec leur raison", async () => {
+  const r = await requete("/api/publication/recap", { methode: "POST", corps: { elements: [{ slug: "video-montee", quand: `${DANS_3_JOURS} 18:30` }] } });
+  assert.equal(r.statut, 200, r.texte);
+  const par = Object.fromEntries(r.json.ressources.map((x) => [x.slug, x]));
+  assert.deepEqual(Object.keys(par).sort(), ["la-grille", "le-carnet", "le-monteur", "le-plan"], "seulement les ressources du site");
+  assert.equal(par["le-monteur"].disponible, true);
+  assert.equal(par["le-monteur"].a_valider, true);
+  assert.equal(par["le-monteur"].message, "Salut [son prénom], voici les étapes.");
+  assert.equal(par["le-monteur"].bouton, "Ouvrir la méthode");
+  assert.ok(!("empreinte" in par["le-monteur"]), "l'empreinte reste côté serveur");
+  assert.equal(par["le-carnet"].a_valider, false);
+  assert.equal(par["la-grille"].disponible, false);
+  assert.match(par["la-grille"].probleme, /refusé la dernière version/);
+  assert.equal(par["le-plan"].disponible, true, "une mise à jour en cours : l'ancienne version répond");
+  assert.deepEqual(r.json.limites, { legende: 2200, message: 640, bouton: 20 });
+});
+
+test("serveur yoan : aucune ressource en ligne : une phrase dit pourquoi", async () => {
+  const c = await s.app.ressources.pourUnPost.call({ actif: () => true, lister: async () => ({ ressources: [
+    { slug: "a", titre: "A", en_ligne: false, brouillon: true, bloquants: [] },
+    { slug: "b", titre: "B", en_ligne: false, brouillon: true, bloquants: [] }] }) });
+  assert.deepEqual(c.ressources, []);
+  assert.match(c.note, /Aucune ressource gratuite n'est en ligne pour l'instant \(2 sont en préparation\)/);
+});
+
+test("serveur yoan : message pas validé : le récapitulatif le montre, le clic sur Programmer le valide puis programme", async () => {
+  const fiche = path.join(m.depot, "contenus", "le-monteur", "ressource.md");
+  const r = await requete("/api/publication/recap", { methode: "POST", corps: { elements: [{ slug: "video-montee", quand: `${DANS_3_JOURS} 18:30`, ressource: "le-monteur" }] } });
+  assert.equal(r.statut, 200, r.texte);
+  const e = r.json.elements[0];
+  assert.equal(e.verdict, "OK", e.messages.join(" / "));
+  assert.deepEqual(e.message_dm, { mot: "MONTEUR", message: "Salut [son prénom], voici les étapes.", bouton: "Ouvrir la méthode", a_valider: true });
+  assert.equal(e.legende_modifiable, true);
+  // Une retouche fausse (tiret long) : rien n'est écrit, rien ne part.
+  const avant = appels().length;
+  s.config.simulation = false;
+  try {
+    const faux = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r.json.recap_id, textes: { "video-montee": { message: "Salut [son prénom] \u2014 voici." } } } });
+    assert.equal(faux.statut, 200, faux.texte);
+    assert.equal(faux.json.resultats[0].statut, "bloque");
+    assert.match(faux.json.resultats[0].message, /tiret long/);
+    assert.ok(!appels().slice(avant).some((a) => ["valider-message", "publier"].includes(a.argv[0])), "ni validation ni envoi");
+    assert.match(fs.readFileSync(fiche, "utf8"), /- Validé par Yoan : \n/);
+    // Le clic, pour de vrai (faux Zernio) : validation écrite et poussée, puis programmation.
+    const r2 = await requete("/api/publication/recap", { methode: "POST", corps: { elements: [{ slug: "video-montee", quand: `${DANS_3_JOURS} 18:30`, ressource: "le-monteur" }] } });
+    const n = appels().length;
+    const c = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r2.json.recap_id } });
+    assert.equal(c.statut, 200, c.texte);
+    assert.equal(c.json.resultats[0].statut, "programmé", c.json.resultats[0].message);
+    const suite = appels().slice(n).map((a) => a.argv[0]);
+    assert.ok(suite.indexOf("valider-message") >= 0 && suite.indexOf("valider-message") < suite.indexOf("publier"), suite.join(","));
+    const v = appels().slice(n).find((a) => a.argv[0] === "valider-message");
+    assert.deepEqual(v.argv, ["valider-message", "le-monteur", "--empreinte", "sha256:e000000000000001", "--pousser"]);
+    assert.deepEqual(v.ecriture, [], "la validation ne porte jamais l'autorisation d'écrire chez Zernio");
+    const pub = appels().slice(n).find((a) => a.argv[0] === "publier");
+    assert.ok(pub.argv.includes("--envoyer") && pub.argv.includes("--ressource"), pub.argv.join(" "));
+    assert.match(fs.readFileSync(fiche, "utf8"), /- Validé par Yoan : 18\/11\/2026/);
+  } finally {
+    s.config.simulation = true;
   }
 });

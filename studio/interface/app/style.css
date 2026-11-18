@@ -324,6 +324,20 @@ details.repli > div { padding-top: 8px; }
 .recap-ressource-champ { display: grid; gap: 6px; justify-items: start; }
 .recap-ressource { height: 32px; font-size: 13.5px; max-width: 100%; }
 .recap-mot { font-size: 14px; color: var(--encre); }
+/* retouches en place au récapitulatif (préfixes recap-texte, recap-dm) */
+.recap-texte-bloc { display: grid; gap: 4px; }
+textarea.champ.recap-texte { font-size: 14px; line-height: 1.55; min-height: 0; }
+.recap-texte.faux { border-color: var(--rouge); }
+.recap-champ-erreur { color: var(--rouge); font-size: 13px; font-weight: 600; }
+.recap-ressource-champ .recap-dm { justify-self: stretch; display: grid; gap: 6px; margin-top: 4px; padding: 12px; border-radius: 9px; background: var(--fond-2); }
+.recap-dm-titre { font-size: 13px; font-weight: 700; color: var(--encre-2); }
+.recap-dm-bouton { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--encre-2); font-weight: 600; }
+.recap-dm-bouton .champ { height: 32px; font-size: 14px; max-width: 260px; font-weight: 400; color: var(--encre); }
+.recap-dm-note { font-size: 13px; color: var(--encre-2); }
+.recap-dm-note.a-valider { color: var(--ambre); font-weight: 600; }
+.recap-dm-aide { font-size: 12.5px; }
+.recap-ressource-raisons { margin: 0; padding-left: 18px; font-size: 13px; color: var(--encre-2); }
+.recap-ressource-note { font-size: 13.5px; }
 
 /* ressources gratuites (préfixe res-) */
 .res-ligne .res-pastille { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; background: var(--fond-2); }
