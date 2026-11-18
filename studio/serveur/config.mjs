@@ -94,7 +94,9 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
       heures: Math.max(1, Number(brut.stats?.heures) || 6),
       // Environnement de test de Yoan seulement (lot 11) : vrais chiffres en lecture, même quand la
       // publication est en simulation.
-      instagramEnSimulation: env.STUDIO_STATS_INSTAGRAM === "1",
+      // Aussi réglable dans la config (`stats.instagram_en_simulation`) : la lecture des chiffres ne publie
+      // rien, elle peut rester active pendant que la publication est en simulation (studio de Yoan).
+      instagramEnSimulation: env.STUDIO_STATS_INSTAGRAM === "1" || brut.stats?.instagram_en_simulation === true,
     },
     maison,
   };
