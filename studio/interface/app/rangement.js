@@ -52,16 +52,24 @@ export class Rangement {
         catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
       });
       return el("div", { class: "ranger-liste" },
-        ...fs.map((f) => el("article", { class: "ranger-fichier", "aria-label": f.libelle },
-          el("div", { class: "ranger-media" }, el("div", { class: "ranger-vignette ranger-vignette-vide", html: icone(f.libelle === "ta photo" ? "photo" : "film") })),
-          el("div", { class: "ranger-corps" },
-            el("p", { class: "ranger-nom" }, `${f.libelle.replace(/^./, (x) => x.toUpperCase())}${quand ? `, pour ton tournage du ${quand}` : ""}`),
-            f.en_cours
-              ? el("p", { class: "recap-charge", role: "status" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), `En cours de réception : ${f.taille_lisible} reçus pour l'instant`)
-              : el("p", { class: "ranger-raison" }, `Arrivée en entier (${f.taille_lisible}), pas encore rangée.`)))),
+        ...fs.map((f) => {
+          // Arrivée en entier : elle se range aussi à la main (choisir le contenu, ou la glisser sur un dossier).
+          const ch = f.en_cours ? null : this.choix.get(f.nom);
+          const n = el("article", { class: "ranger-fichier", "aria-label": f.libelle, draggable: f.en_cours ? null : "true" },
+            f.en_cours ? null : el("span", { class: "poignee", "aria-hidden": "true", html: icone("poignee") }),
+            el("div", { class: "ranger-media" }, el("div", { class: "ranger-vignette ranger-vignette-vide", html: icone(f.libelle === "ta photo" ? "photo" : "film") })),
+            el("div", { class: "ranger-corps" },
+              el("p", { class: "ranger-nom" }, `${f.libelle.replace(/^./, (x) => x.toUpperCase())}${quand ? `, pour ton tournage du ${quand}` : ""}`),
+              f.en_cours
+                ? el("p", { class: "recap-charge", role: "status" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), `En cours de réception : ${f.taille_lisible} reçus pour l'instant`)
+                : el("p", { class: "ranger-raison" }, `${String(f.raison || "arrivée en entier, pas encore rangée").replace(/^./, (x) => x.toUpperCase())} (${f.taille_lisible}).`),
+              f.en_cours ? null : ch ? this.confirmation(f, ch) : this.menu(f)));
+          if (!f.en_cours) this.glissable(n, f);
+          return n;
+        }),
         el("div", { class: "bloc-pied" }, go, el("span", { class: "note" }, arrive
           ? "Le bouton s'active quand l'envoi est fini. Laisse ton téléphone près du Mac."
-          : "Je la range dans le dossier de son contenu, comme à la fin d'un tournage.")));
+          : "Je range dans son contenu ce que je reconnais, le reste revient ici. Tu peux aussi choisir toi-même avec « Mettre dans... ».")));
     }));
   }
 
@@ -82,12 +90,17 @@ export class Rangement {
       el("p", { class: "ranger-raison" }, f.raison),
       ch ? this.confirmation(f, ch) : this.menu(f));
     const n = el("article", { class: "ranger-fichier", draggable: "true", "aria-label": nom }, el("span", { class: "poignee", "aria-hidden": "true", html: icone("poignee") }), media, corps);
+    this.glissable(n, f);
+    return n;
+  }
+
+  glissable(n, f) {
+    const nom = this.nomLisible(f);
     n.addEventListener("dragstart", (e) => {
       this.glisse = f; e.dataTransfer.setData(MIME, f.nom); e.dataTransfer.setData("text/plain", nom); e.dataTransfer.effectAllowed = "move";
       document.body.classList.add("glisse-clip");
     });
     n.addEventListener("dragend", () => { this.glisse = null; document.body.classList.remove("glisse-clip"); document.querySelectorAll(".cible-on").forEach((x) => x.classList.remove("cible-on")); });
-    return n;
   }
 
   candidatsDe(f) {
@@ -122,7 +135,7 @@ export class Rangement {
     const non = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Annuler");
     ok.addEventListener("click", async () => {
       ok.disabled = true;
-      try { await this.api.placer(f.nom, ch.slug, ch.type); this.choix.delete(f.nom); annoncer(`Rangé dans « ${carte?.titre || "ton contenu"} ».`); }
+      try { await this.api.placer(f.nom, ch.slug, ch.type, Boolean(f.attente)); this.choix.delete(f.nom); annoncer(`Rangé dans « ${carte?.titre || "ton contenu"} ».`); }
       catch (e) { annoncer(e.message, "erreur"); ok.disabled = false; }
     });
     non.addEventListener("click", () => { this.choix.delete(f.nom); this.dessiner(); });

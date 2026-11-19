@@ -67,7 +67,7 @@ export function creerApiServeur() {
     retirerRush: (slug, id) => appel("POST", `/api/cartes/${enc(slug)}/rushs/retirer`, { id }),
     noteApercu: (slug, note) => appel("POST", `/api/cartes/${enc(slug)}/apercu/notes`, note),
     fabriquer: (slug) => appel("POST", `/api/cartes/${enc(slug)}/apercu/fabriquer`, {}),
-    placer: (fichier, slug, type) => appel("POST", "/api/rangement/placer", { fichier, slug, type }),
+    placer: (fichier, slug, type, arrivee = false) => appel("POST", "/api/rangement/placer", { fichier, slug, type, ...(arrivee ? { arrivee: true } : {}) }),
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),
     confirmer: (recap_id, textes, quands) => appel("POST", "/api/publication/confirmer", { recap_id, ...(textes ? { textes } : {}), ...(quands ? { quands } : {}) }),

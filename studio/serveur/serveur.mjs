@@ -245,20 +245,42 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   }
 
   // « À ranger » : les fichiers mis de côté par le rangement, puis les rushs arrivés sur le Mac pour un plan
-  // validé mais pas fini de ranger (arrivés après la fin du tournage, ou encore en réception). Ceux-là
-  // restent dans le dossier d'arrivée tant que Romain n'a pas cliqué « Ranger maintenant ».
+  // validé de moins de 14 jours, fini de ranger ou non (arrivés après la vérification, pendant le
+  // rangement ou après la fin du tournage, ou encore en réception). Ceux-là restent dans le dossier
+  // d'arrivée tant que Romain n'a pas cliqué « Ranger maintenant ». Studio de Yoan, 19/11 : un
+  // enregistrement d'écran posé dans Téléchargements pendant le rangement du plan n'était plus montré
+  // nulle part une fois le plan fini (seuls les plans « à finir » étaient relus).
   let attentesCache = { le: 0, liste: [] };
+  // Ce que le rangement a déjà déplacé depuis le dossier d'arrivée (journal) : un fichier revenu sous le
+  // même nom avec la même taille, alors que sa copie rangée existe, est un doublon, pas une arrivée.
+  function dejaRanges() {
+    const r = new Map();
+    const j = lireJson(path.join(config.media, "_journal-rangement.json"), null);
+    for (const e of Array.isArray(j?.rangements) ? j.rangements : []) {
+      if (e?.annule) continue;
+      for (const op of Array.isArray(e.ops) ? e.ops : []) {
+        if (op?.op === "deplacement" && op.de && op.vers) r.set(op.de, op.vers);
+      }
+    }
+    return r;
+  }
   function rushsEnAttente() {
     if (Date.now() - attentesCache.le < 3000) return attentesCache.liste;
     const liste = [];
     try {
       const tous = listeTournages(config);   // du plus récent au plus ancien
-      const plans = tous.filter((t) => t.a_finir && Date.now() - (Date.parse(t.cree_le) || 0) < 14 * 86400e3);
+      const plans = tous.filter((t) => (t.a_finir || t.valide) && !rangementsTournage.has(t.id)
+        && Date.now() - (Date.parse(t.cree_le) || 0) < 14 * 86400e3);
+      const ranges = plans.length ? dejaRanges() : new Map();
+      const doublon = (f) => {
+        const vers = ranges.get(f.chemin);
+        try { return Boolean(vers) && fs.statSync(vers).size === f.taille; } catch { return false; }
+      };
       const vus = new Set();
       for (const t of plans) {
         const { fichiers, en_cours: enCours } = arriveesPertinentes(config.arrivees, new Date(Date.parse(t.cree_le) || 0));
         for (const [f, recu] of [...enCours.map((f) => [f, false]), ...fichiers.map((f) => [f, true])]) {
-          if (vus.has(f.nom)) continue;
+          if (vus.has(f.nom) || doublon(f)) continue;
           // Un fichier va au plan le plus récent créé avant son arrivée : celui d'un plan plus récent, pas
           // encore validé, attend la fin de ce plan-là.
           const sien = tous.find((x) => (Date.parse(x.cree_le) || 0) <= f.quand);
@@ -267,7 +289,10 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           liste.push({
             nom: f.nom, attente: true, en_cours: !recu, tournage: t.id, cree_le: t.cree_le,
             libelle: f.type === "photo" ? "ta photo" : "ta vidéo", taille_lisible: tailleLisible(f.taille),
-            raison: recu ? "arrivée sur ton Mac après la fin de ton tournage, pas encore rangée" : "en cours de réception",
+            raison: recu ? "arrivée sur ton Mac après ton tournage, pas encore rangée" : "en cours de réception",
+            // Les contenus du plan d'abord, pour la ranger à la main ; une vidéo arrivée en retard est le plus
+            // souvent un plan de coupe (un enregistrement d'écran, par exemple) : le type se change avant de ranger.
+            candidats: (t.contenus || []).map((slug) => ({ slug, type: f.type === "photo" ? "photo" : "b-roll" })),
           });
         }
       }
@@ -400,7 +425,10 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     // envoi en cours, et toutes les 10 s tant qu'un plan validé n'est pas fini de ranger (ci-dessous).
   }
   const attentes = setInterval(() => {
-    if (tournagesJson && !tournagesJson.includes('"a_finir":true')) return;
+    // Seulement s'il y a un plan dont les arrivées comptent (validé de moins de 14 jours, ou à finir).
+    let plans = null;
+    try { plans = tournagesJson ? JSON.parse(tournagesJson) : null; } catch { /* relu au prochain passage */ }
+    if (plans && !plans.some((t) => t.a_finir || (t.valide && Date.now() - (Date.parse(t.cree_le) || 0) < 14 * 86400e3))) return;
     majARanger({ frais: true });
   }, 10000);
   attentes.unref?.();
@@ -879,13 +907,25 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const fichier = String(corps.fichier || "");
         // Un fichier de _a-ranger/, ou un clip de la bibliothèque (clip_id) à lier à une autre carte.
         const estClip = /^\d{8}-\d{6}-[a-z0-9]{4}$/.test(fichier);
-        if (!fichier || fichier.includes("/") || fichier.startsWith(".")
-          || (!estClip && !existe(path.join(config.media, "_a-ranger", fichier)))) {
+        // Ou une vidéo arrivée sur le Mac après un plan et pas encore rangée (« À ranger », en attente) :
+        // seulement si elle est dans cette liste, relue à l'instant, et arrivée en entier.
+        let arrivee = null;
+        if (corps.arrivee === true && fichier && !fichier.includes("/") && !fichier.startsWith(".")) {
+          attentesCache.le = 0;
+          const a = rushsEnAttente().find((x) => x.nom === fichier);
+          if (a?.en_cours) throw new ErreurStudio("EN_RECEPTION", "Ce fichier est encore en train d'arriver sur ton Mac. Attends la fin de l'envoi, puis range-le.", 409);
+          arrivee = a?.tournage || null;
+          if (!arrivee) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus ce fichier.", 404);
+        }
+        if (!arrivee && (!fichier || fichier.includes("/") || fichier.startsWith(".")
+          || (!estClip && !existe(path.join(config.media, "_a-ranger", fichier))))) {
           throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus ce fichier.", 404);
         }
         const slug = exigerSlug(corps.slug);
         if (!["face", "b-roll", "photo"].includes(corps.type)) throw new ErreurStudio("TYPE", MESSAGE_GENERIQUE, 400);
-        await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier, slug, type: corps.type }));
+        if (arrivee && (rangementsTournage.has(arrivee) || rangementEnCours)) throw new ErreurStudio("OCCUPE", "Je range déjà tes fichiers : attends un instant.", 409);
+        await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier, slug, type: corps.type, arrivee }));
+        if (arrivee) majARanger({ frais: true });
         await copierBibliotheque().catch(() => {});
         rafraichir();
         return envoyerJson(res, 200, {});

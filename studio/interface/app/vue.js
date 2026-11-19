@@ -807,7 +807,7 @@ export class Vue {
     s.rangement.dessiner();
     const deCote = s.a_ranger.some((f) => !f.attente);
     const sous = deCote ? `Je n'ai pas su où mettre ces fichiers. Choisis le dossier de chacun, ou glisse-le sur un dossier ${ouArbre()}.`
-      : s.a_ranger.length ? "Des fichiers de ton tournage sont arrivés sur ton Mac après la fin du tournage : range-les d'ici."
+      : s.a_ranger.length ? "Des fichiers sont arrivés sur ton Mac après ton tournage. Choisis leur contenu, ou clique sur « Ranger maintenant »."
         : "Ce que je n'arrive pas à ranger tout seul arrive ici, et les fichiers envoyés après la fin d'un tournage.";
     return el("article", { class: "vue" }, ...this.entete("À ranger", sous),
       s.a_ranger.length ? s.rangement.racine : el("p", { class: "vide-doux" }, "Tout est rangé."));

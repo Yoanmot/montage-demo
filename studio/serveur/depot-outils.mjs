@@ -96,10 +96,10 @@ export async function lancerRangement(config, { tournage } = {}) {
   return lu;
 }
 
-export async function placerManuel(config, { fichier, slug, type }) {
+export async function placerManuel(config, { fichier, slug, type, arrivee = null }) {
   const script = cheminRanger();
   if (!existe(script)) throw new ErreurStudio("RANGEMENT_ABSENT", ABSENT, 503);
-  const r = await executer(process.execPath, [script, "placer", fichier, slug, type, "--config", config.fichier], {
+  const r = await executer(process.execPath, [script, "placer", fichier, slug, type, ...(arrivee ? ["--arrivee", arrivee] : []), "--config", config.fichier], {
     cwd: CODE, env: { ...process.env, STUDIO_CONFIG: config.fichier }, delaiMs: 10 * 60000,
   });
   const lu = lireSortieRangement(r.sortie);

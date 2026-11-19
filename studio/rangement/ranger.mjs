@@ -3,6 +3,8 @@
 //
 //   node ranger.mjs --config <studio.config.json> [--tournage <id>] [--simulation]
 //   node ranger.mjs placer <nom> <slug> <face|b-roll|photo> [--config ...]     placement à la main (glisser sur une carte)
+//   node ranger.mjs placer <nom> <slug> <type> --arrivee <tournage>          idem, pour une vidéo ou une photo encore dans
+//                                                                             le dossier d'arrivée (arrivée après ce plan)
 //   node ranger.mjs annuler <date|dernier> [--config ...]                      remet en place ce qu'un rangement a fait
 //   node ranger.mjs retirer <slug> <face|b-roll|photo> <nom> [--config ...]    « pas le bon » (lot 9) : le fichier sort du
 //                                                                             contenu et repart dans _a-ranger/
@@ -38,6 +40,7 @@ const RAISONS = {
   vue_desaccord: "l'image ne ressemble pas au plan que j'attendais à ce moment du tournage",
   photo_aucune: 'je ne sais pas pour quel contenu est cette photo',
   biblio_absent: "ce clip n'est plus dans ta bibliothèque, il faudra le refilmer",
+  pendant: "arrivé pendant que je rangeais, il t'attend dans « À ranger »",
 };
 
 const say = (l) => process.stdout.write(l + '\n');
@@ -50,6 +53,7 @@ function args(argv) {
     if (a === '--config') o.config = argv[++i];
     else if (a === '--tournage') o.tournage = argv[++i];
     else if (a === '--simulation') o.simulation = true;
+    else if (a === '--arrivee') o.arrivee = argv[++i];
     else o.pos.push(a);
   }
   return o;
@@ -106,6 +110,7 @@ async function arrivees(config, depuis) {
   for (const nom of partiels) lignes.push(`IGNORE ${nom} ${RAISONS.partiel}`);
   for (const f of enCours) lignes.push(`IGNORE ${f.nom} ${RAISONS.instable}`);
   for (const f of trouves) candidats.push({ nom: f.nom, chemin: f.chemin, type: f.type, taille: f.taille });
+  const noms = new Set([...partiels, ...enCours.map((f) => f.nom), ...trouves.map((f) => f.nom)]);
   // Taille stable : on remesure après l'attente (une seule attente pour tous les fichiers).
   const attente = Number(process.env.RANGEMENT_ATTENTE_S ?? 10);
   if (candidats.length && attente > 0) await new Promise((ok) => setTimeout(ok, attente * 1000));
@@ -123,7 +128,7 @@ async function arrivees(config, depuis) {
     }
   }
   fichiers.sort((a, b) => a.date - b.date || a.nom.localeCompare(b.nom));
-  return { lignes, fichiers };
+  return { lignes, fichiers, noms };
 }
 
 async function enParallele(liste, n, fn) {
@@ -153,6 +158,7 @@ async function ranger(o) {
   note(`tournage ${t.id} (${t.contenus?.length || 0} contenus)`);
   if (!simulation) media.ouvrir('ranger', t.id);
   const travail = fs.mkdtempSync(path.join(os.tmpdir(), 'rangement-'));
+  let vus = null;   // noms des arrivées lues au début du rangement
 
   try {
     // 1. Les prises « déjà en bibliothèque » : le lien est posé, aucun fichier attendu.
@@ -171,7 +177,8 @@ async function ranger(o) {
     }
 
     // 2. Les fichiers arrivés depuis le début du tournage.
-    const { lignes, fichiers } = await arrivees(config, lireDate(t.cree_le));
+    const { lignes, fichiers, noms } = await arrivees(config, lireDate(t.cree_le));
+    vus = noms;
     lignes.forEach(say);
     if (!fichiers.length) return 0;
 
@@ -267,6 +274,15 @@ async function ranger(o) {
   } finally {
     if (!simulation) media.fermer();
     fs.rmSync(travail, { recursive: true, force: true });
+    // Relu à la fin (studio de Yoan, 19/11) : une vidéo posée dans le dossier d'arrivée pendant le rangement
+    // (qui écoute et regarde, donc dure) n'a pas été lue au début. Elle n'est pas rangée en silence : elle est
+    // signalée, le plan reste « à finir » et « À ranger » la montre.
+    if (vus) {
+      try {
+        const r = arriveesPertinentes(config.arrivees, lireDate(t.cree_le));
+        for (const f of [...r.fichiers, ...r.en_cours]) if (!vus.has(f.nom)) say(`IGNORE ${f.nom} ${RAISONS.pendant}`);
+      } catch { /* dossier d'arrivée illisible : rien à signaler */ }
+    }
     say(`FIN places=${places} a_ranger=${aRanger}`);
     liberer();
   }
@@ -347,6 +363,26 @@ async function placerALaMain(o) {
   const liberer = prendreVerrou(config.media);
   if (!liberer) return bloque('OCCUPE', 'un rangement est déjà en cours, réessaie dans un instant');
   try {
+    // Une arrivée pas encore rangée (studio de Yoan, 19/11) : seulement une vidéo ou une photo arrivée en
+    // entier dans le dossier d'arrivée après la création de ce plan, pas venue d'internet (mêmes règles
+    // que le rangement). Aucun autre fichier de ses Téléchargements n'est jamais touché.
+    if (o.arrivee) {
+      const t = lireTournages(config.depot).find((x) => x.id === o.arrivee);
+      if (!t) return bloque('PLAN', 'je ne trouve pas ce plan de tournage');
+      const f = arriveesPertinentes(config.arrivees, lireDate(t.cree_le)).fichiers.find((x) => x.nom === nom);
+      if (!f) return bloque('FICHIER', 'je ne trouve plus ce fichier sur ton Mac');
+      const m = f.type === 'video' ? sonder(f.chemin) : null;
+      if (type !== 'photo' && !m) return bloque('FICHIER', "ce n'est pas une vidéo que je sais lire");
+      const st = fs.statSync(f.chemin);
+      const d = { nom, chemin: f.chemin, type: f.type, date: m?.date || st.mtime,
+        duree: m?.duree || 0, duree_s: m?.duree_s || 0, orientation: m?.orientation || null };
+      media.ouvrir('placer', t.id);
+      placer(media, config, d, type, [slug], { tournage: t.id });
+      media.fermer();
+      say(`PLACE ${nom} -> ${slug}/${type}`);
+      say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
+      return 0;
+    }
     const chemin = path.join(config.media, '_a-ranger', nom);
     // Un clip déjà en bibliothèque (par son clip_id ou son nom d'origine) : on ajoute seulement le lien.
     if (!fs.existsSync(chemin)) {
