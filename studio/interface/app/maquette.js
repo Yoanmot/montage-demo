@@ -518,6 +518,22 @@ export function creerApiMaquette() {
       emettre("carte", { ...c });
       return {};
     },
+    async changerType(slug, id, type) {
+      await attendre(300);
+      const r = montageDe(parSlug(slug)).rushs.find((x) => x.id === id);
+      if (r) { r.type = type; r.changer = { vers: type === "face" ? "b-roll" : "face" }; }
+      emettre("carte", { ...parSlug(slug) });
+      return {};
+    },
+    // Sans serveur : la progression est simulée, rien n'est rangé.
+    envoyerFichier(slug, fichier, type, onProgres = () => {}) {
+      let t = null; let n = 0; let rejeter;
+      const fin = new Promise((ok, ko) => {
+        rejeter = ko;
+        t = setInterval(() => { n += 20; onProgres(Math.min(100, n)); if (n >= 120) { clearInterval(t); ok({ nom: fichier.name }); } }, 200);
+      });
+      return { fin, arreter: () => { clearInterval(t); const e = new ErreurStudio("ARRETE", "Envoi arrêté.", 0); rejeter(e); } };
+    },
     async lancer(type, slugs) {
       await attendre(250);
       const lot = "l-" + Date.now();

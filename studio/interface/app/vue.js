@@ -10,6 +10,7 @@ import { Apercu } from "./apercu.js";
 import { barresSemaines, etapesFormat, nombreFr } from "./graphiques.js";
 import { PERIODES, periode, resumer } from "./tableau.js";
 import { comptesParFormat } from "./etapes.js";
+import { AjoutVideos } from "./ajout.js";
 
 // Réglages de cet écran retenus par ce Mac (la période du tableau de bord) : le navigateur seulement, rien d'écrit
 // ailleurs ; sans stockage possible, la valeur par défaut.
@@ -41,6 +42,7 @@ export class Vue {
   constructor(studio, racine) {
     this.studio = studio; this.api = studio.api; this.racine = racine;
     this.detail = null; this.edition = null; this.aRecharger = false; this._minuteur = null; this.jeton = 0;
+    this.ajouts = new Map();   // slug -> AjoutVideos (un envoi continue quand la vue se recharge)
   }
 
   // ---------- Afficher ce qui est sélectionné ----------
@@ -513,7 +515,7 @@ export class Vue {
       // Rangées à la main (« À ranger ») : ne pas dire « toutes seules ».
       const parToi = m.rushs.some((x) => x.range_par_toi);
       const qui = parToi ? (m.rushs.every((x) => x.range_par_toi) ? "Tu les as rangées ici" : "Elles sont rangées ici") : "Je les ai rangées toutes seules";
-      r.push(this.etape(`<strong>Vérifie tes vidéos.</strong> ${qui} : regarde si chacune est la bonne. Si une n'a rien à faire là, « Pas la bonne ». Puis envoie au montage.`, go, { aToi: true }));
+      r.push(this.etape(`<strong>Vérifie tes vidéos.</strong> ${qui} : regarde si chacune est la bonne. Si une n'a rien à faire là, « Pas la bonne ». Si une face caméra est rangée comme plan en plus (ou l'inverse), un clic la remet à sa place. Puis envoie au montage.`, go, { aToi: true }));
       r.push(this.enLot(d, "montage"));
     } else if (d.stade === "rushs_recus" || (enCours(d) && d.stade !== "planche")) {
       r.push(this.etape(`Le montage est en cours (une demi-heure environ). Tu peux suivre et parler à ton monteur dans le chat ${ouChat()}.`, null, { cours: true }));
@@ -533,8 +535,18 @@ export class Vue {
         d.medias.planche_lignes?.length ? el("ol", { class: "planche-lignes" }, ...d.medias.planche_lignes.map((l) => el("li", {}, el("span", { class: "n" }, String(l.n)), el("span", {}, l.ligne)))) : null)));
     }
     const grille = el("div", { class: "rushs-grille" }, ...m.rushs.map((x) => this.rush(d, x, verifiable)));
-    const blocRushs = this.bloc("Tes vidéos rangées", m.rushs.length ? grille : el("p", { class: "vide-doux" }, "Aucune vidéo rangée pour l'instant."),
-      { aide: pluriel(m.rushs.length, "fichier", "fichiers") });
+    // Ajouter une vidéo du Mac (19/11) : tant que le montage n'a pas commencé, ou pendant un envoi déjà lancé.
+    let ajout = this.ajouts.get(d.slug);
+    if (!ajout && !montageLance && !enCours(d)) {
+      ajout = new AjoutVideos({ slug: d.slug, api: this.api, apres: () => this.afficher() });
+      this.ajouts.set(d.slug, ajout);
+    }
+    const avecAjout = ajout && (ajout.actif || (!montageLance && !enCours(d)));
+    const blocRushs = this.bloc("Tes vidéos rangées", el("div", {},
+      m.rushs.length ? grille : el("p", { class: "vide-doux" }, "Aucune vidéo rangée pour l'instant."),
+      avecAjout ? ajout.racine : null),
+      { aide: pluriel(m.rushs.length, "fichier", "fichiers"), classe: avecAjout ? "bloc-ajout" : "" });
+    if (avecAjout) ajout.brancher(blocRushs);
     if ((d.medias?.planche || d.medias?.apercu) && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
     else r.push(blocRushs);
     if (m.manquants?.length && !montageLance) {
@@ -555,20 +567,38 @@ export class Vue {
       el("div", { class: "rush-media" }, media, el("span", { class: "rush-role" }, role)),
       el("figcaption", {}, el("p", { class: "rush-titre" }, x.titre), x.detail ? el("p", { class: "rush-detail" }, x.detail) : null));
     if (verifiable) {
+      const actions = el("div", { class: "rush-actions" });
+      // Changer le type en un clic (19/11) : face caméra <-> plan filmé en plus.
+      if (x.changer) {
+        const versFace = x.changer.vers === "face";
+        const ch = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", disabled: x.changer.impossible ? true : null,
+          html: `${icone(versFace ? "camera" : "film")}<span>${versFace ? "C'est ma face caméra" : "C'est un plan en plus"}</span>` });
+        ch.addEventListener("click", async () => {
+          ch.disabled = true;
+          try {
+            await this.api.changerType(d.slug, x.id, x.changer.vers);
+            annoncer(versFace ? "C'est noté : rangée comme vidéo face caméra." : "C'est noté : rangée comme plan filmé en plus.");
+            this.afficher();
+          } catch (e) { annoncer(e.message, "erreur"); ch.disabled = false; }
+        });
+        actions.append(ch);
+        if (x.changer.impossible) n.append(el("p", { class: "rush-detail" }, x.changer.impossible));
+      }
       const pas = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("croix")}<span>Pas la bonne</span>` });
       pas.addEventListener("click", () => {
         const oui = el("button", { class: "bouton bouton-petit", type: "button" }, "La retirer");
         const non = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Annuler");
         const z = el("div", { class: "ranger-confirmer" }, el("p", { class: "rush-detail" }, "Elle repart dans « À ranger », où tu choisis son dossier."), el("div", { class: "ranger-actions" }, oui, non));
-        non.addEventListener("click", () => z.replaceWith(pas));
         oui.addEventListener("click", async () => {
           oui.disabled = true;
           try { await this.api.retirerRush(d.slug, x.id); annoncer("Retirée : elle t'attend dans « À ranger »."); this.afficher(); }
           catch (e) { annoncer(e.message, "erreur"); oui.disabled = false; }
         });
-        pas.replaceWith(z);
+        actions.replaceWith(z);
+        non.addEventListener("click", () => z.replaceWith(actions), { once: true });
       });
-      n.append(pas);
+      actions.append(pas);
+      n.append(actions);
     }
     return n;
   }

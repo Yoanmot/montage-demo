@@ -207,6 +207,14 @@ export function prendreVerrou(media) {
   return null;
 }
 
+// Un rangement tient-il le verrou en ce moment (processus vivant) ? Un verrou laissé par un processus mort ne compte pas.
+export function verrouPris(media) {
+  let pid;
+  try { pid = Number(fs.readFileSync(path.join(media, '.rangement.lock'), 'utf8')); } catch { return false; }
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch (k) { return k.code === 'EPERM'; }
+}
+
 export const SLUG = /^[a-z0-9-]{3,60}$/;
 
 // ---------- Ce qui compte comme arrivée d'un tournage (lot 12) ----------

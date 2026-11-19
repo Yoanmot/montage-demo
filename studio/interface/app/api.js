@@ -65,6 +65,8 @@ export function creerApiServeur() {
     receptionPlan: (id) => appel("GET", `/api/tournages/${enc(id)}/reception`),
     brief: (slug, corps) => appel("POST", `/api/cartes/${enc(slug)}/brief`, corps),
     retirerRush: (slug, id) => appel("POST", `/api/cartes/${enc(slug)}/rushs/retirer`, { id }),
+    changerType: (slug, id, type) => appel("POST", `/api/cartes/${enc(slug)}/rushs/type`, { id, type }),
+    envoyerFichier,
     noteApercu: (slug, note) => appel("POST", `/api/cartes/${enc(slug)}/apercu/notes`, note),
     fabriquer: (slug) => appel("POST", `/api/cartes/${enc(slug)}/apercu/fabriquer`, {}),
     placer: (fichier, slug, type, arrivee = false) => appel("POST", "/api/rangement/placer", { fichier, slug, type, ...(arrivee ? { arrivee: true } : {}) }),
@@ -77,6 +79,34 @@ export function creerApiServeur() {
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),
     ecouter: ecouterServeur,
   };
+}
+
+// « Ajouter une vidéo » (vue Montage) : d'abord les contrôles du studio sans rien envoyer (réponse claire avant de
+// lancer plusieurs Go), puis le fichier tel quel, en flux, avec sa progression. Renvoie { fin, arreter }.
+function envoyerFichier(slug, fichier, type, onProgres = () => {}) {
+  let xhr = null; let arrete = false;
+  const route = (q) => `/api/cartes/${enc(slug)}/rushs/envoyer?${new URLSearchParams({ nom: fichier.name, type, ...q })}`;
+  const fin = (async () => {
+    await appel("POST", route({ verifier: "1", taille: String(fichier.size) }));
+    if (arrete) throw new ErreurStudio("ARRETE", "Envoi arrêté.", 0);
+    return new Promise((resolve, reject) => {
+      xhr = new XMLHttpRequest();
+      xhr.open("POST", route({}));
+      xhr.withCredentials = true;
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgres(Math.min(100, Math.floor((e.loaded / e.total) * 100))); };
+      xhr.onabort = () => reject(new ErreurStudio("ARRETE", "Envoi arrêté.", 0));
+      xhr.onerror = () => reject(new ErreurStudio("RESEAU", MESSAGE_RESEAU, 0));
+      xhr.onload = () => {
+        let d = null; try { d = JSON.parse(xhr.responseText); } catch { d = null; }
+        if (xhr.status === 401) window.dispatchEvent(new CustomEvent("studio-deconnecte"));
+        if (xhr.status >= 200 && xhr.status < 300) return resolve(d || {});
+        reject(new ErreurStudio(d?.erreur || "ERREUR", d?.message || `Ça n'a pas marché. Réessaie, et si ça recommence, ${previens()}.`, xhr.status));
+      };
+      xhr.send(fichier);
+    });
+  })();
+  return { fin, arreter: () => { arrete = true; xhr?.abort(); } };
 }
 
 // Flux d'événements : reconnexion automatique avec attente croissante.

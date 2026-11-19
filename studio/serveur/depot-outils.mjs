@@ -96,10 +96,11 @@ export async function lancerRangement(config, { tournage } = {}) {
   return lu;
 }
 
-export async function placerManuel(config, { fichier, slug, type, arrivee = null }) {
+export async function placerManuel(config, { fichier, slug, type, arrivee = null, envoi = null }) {
   const script = cheminRanger();
   if (!existe(script)) throw new ErreurStudio("RANGEMENT_ABSENT", ABSENT, 503);
-  const r = await executer(process.execPath, [script, "placer", fichier, slug, type, ...(arrivee ? ["--arrivee", arrivee] : []), "--config", config.fichier], {
+  const r = await executer(process.execPath, [script, "placer", fichier, slug, type, ...(arrivee ? ["--arrivee", arrivee] : []),
+    ...(envoi ? ["--envoi", envoi] : []), "--config", config.fichier], {
     cwd: CODE, env: { ...process.env, STUDIO_CONFIG: config.fichier }, delaiMs: 10 * 60000,
   });
   const lu = lireSortieRangement(r.sortie);
@@ -122,6 +123,26 @@ export async function retirerRush(config, { slug, type, nom }) {
     const v = lireVerdict(r.sortie);
     throw new ErreurStudio(v?.code || "RETRAIT_ECHEC",
       v?.message ? sansChemins(v.message) : `Je n'ai pas pu le retirer. Réessaie, et si ça recommence, préviens ${contact()}.`, 409);
+  }
+  return true;
+}
+
+// Changer le type d'une vidéo rangée (vue Montage, 19/11) : face caméra <-> plan filmé en plus.
+const PHRASES_RANGEMENT = {
+  OCCUPE: "Un rangement est en cours : réessaie dans un instant.",
+  PARTAGE: "Ce plan sert aussi à un autre contenu : je ne peux pas en faire ta face caméra ici.",
+  MONTAGE: "Le montage a déjà commencé avec cette vidéo : dis dans le chat du montage ce qui ne va pas.",
+};
+export async function changerTypeRush(config, { slug, type, nom, nouveau }) {
+  const script = cheminRanger();
+  if (!existe(script)) throw new ErreurStudio("RANGEMENT_ABSENT", ABSENT, 503);
+  const r = await executer(process.execPath, [script, "changer", slug, type, nom, nouveau, "--config", config.fichier], {
+    cwd: CODE, env: { ...process.env, STUDIO_CONFIG: config.fichier }, delaiMs: 10 * 60000,
+  });
+  if (r.code !== 0 || !/^CHANGE /m.test(r.sortie)) {
+    const v = lireVerdict(r.sortie);
+    throw new ErreurStudio(v?.code || "CHANGEMENT_ECHEC", PHRASES_RANGEMENT[v?.code]
+      || `Je n'ai pas pu changer le type de cette vidéo. Réessaie, et si ça recommence, préviens ${contact()}.`, 409);
   }
   return true;
 }

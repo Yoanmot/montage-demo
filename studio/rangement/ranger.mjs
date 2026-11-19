@@ -5,9 +5,14 @@
 //   node ranger.mjs placer <nom> <slug> <face|b-roll|photo> [--config ...]     placement à la main (glisser sur une carte)
 //   node ranger.mjs placer <nom> <slug> <type> --arrivee <tournage>          idem, pour une vidéo ou une photo encore dans
 //                                                                             le dossier d'arrivée (arrivée après ce plan)
+//   node ranger.mjs placer <nom> <slug> <type> --envoi <chemin>              idem, pour un fichier envoyé depuis le studio
+//                                                                             (« Ajouter une vidéo », vue Montage) : seulement
+//                                                                             un fichier du dossier <home>/envois/
 //   node ranger.mjs annuler <date|dernier> [--config ...]                      remet en place ce qu'un rangement a fait
 //   node ranger.mjs retirer <slug> <face|b-roll|photo> <nom> [--config ...]    « pas le bon » (lot 9) : le fichier sort du
 //                                                                             contenu et repart dans _a-ranger/
+//   node ranger.mjs changer <slug> <face|b-roll> <nom> <b-roll|face>           change le type d'une vidéo rangée (vue
+//                                                                             Montage) : même effet que retirer puis placer
 //
 // Sortie : une ligne par fichier « PLACE <nom> -> <slug>/<type> » (une ligne par contenu servi quand une prise en
 // sert plusieurs), « A_RANGER <nom> <raison> », « IGNORE <nom> <raison> », puis « FIN places=<n> a_ranger=<n> »
@@ -54,6 +59,7 @@ function args(argv) {
     else if (a === '--tournage') o.tournage = argv[++i];
     else if (a === '--simulation') o.simulation = true;
     else if (a === '--arrivee') o.arrivee = argv[++i];
+    else if (a === '--envoi') o.envoi = argv[++i];
     else o.pos.push(a);
   }
   return o;
@@ -383,6 +389,28 @@ async function placerALaMain(o) {
       say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
       return 0;
     }
+    // Un fichier envoyé depuis le studio (« Ajouter une vidéo », 19/11) : copié par le serveur dans <home>/envois/,
+    // jamais ailleurs. Il est rangé comme un placement à la main (journal « placer »), puis son dossier d'envoi part.
+    if (o.envoi) {
+      const envois = path.join(config.home, 'envois');
+      let chemin;
+      try { chemin = fs.realpathSync(o.envoi); } catch { return bloque('FICHIER', 'je ne trouve pas ce fichier'); }
+      const racine = fs.existsSync(envois) ? fs.realpathSync(envois) : envois;
+      if (!chemin.startsWith(racine + path.sep) || path.basename(chemin) !== nom || !fs.statSync(chemin).isFile()) return bloque('FICHIER', 'je ne trouve pas ce fichier');
+      const genre = typeFichier(nom);
+      if (!genre || genre === 'partiel' || (type === 'photo') !== (genre === 'photo')) return bloque('TYPE', type === 'photo' ? "ce n'est pas une photo" : "ce n'est pas une vidéo");
+      const m = genre === 'video' ? sonder(chemin) : null;
+      if (genre === 'video' && !m) return bloque('FICHIER', "ce n'est pas une vidéo que je sais lire");
+      const st = fs.statSync(chemin);
+      const d = { nom, chemin, type: genre, date: m?.date || st.mtime,
+        duree: m?.duree || 0, duree_s: m?.duree_s || 0, orientation: m?.orientation || null };
+      media.ouvrir('placer', null);
+      placer(media, config, d, type, [slug], {});
+      media.fermer();
+      say(`PLACE ${nom} -> ${slug}/${type}`);
+      say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
+      return 0;
+    }
     const chemin = path.join(config.media, '_a-ranger', nom);
     // Un clip déjà en bibliothèque (par son clip_id ou son nom d'origine) : on ajoute seulement le lien.
     if (!fs.existsSync(chemin)) {
@@ -473,6 +501,58 @@ function retirer(o) {
   } finally { liberer(); }
 }
 
+// ---------- Changer le type d'une vidéo rangée (vue Montage, 19/11) ----------
+// Face caméra -> plan filmé en plus : la vidéo quitte face/ pour la bibliothèque, avec un lien dans le contenu.
+// Plan filmé en plus -> face caméra : le clip quitte la bibliothèque pour face/ (sous son nom d'origine), seulement
+// s'il ne sert à aucun autre contenu. Une seule entrée « placer » au journal (annulable, « rangée ici par toi »).
+
+function changer(o) {
+  const [slug, type, nom, nouveau] = o.pos.slice(1);
+  const config = lireConfig(o.config);
+  const media = new Media(config.media);
+  const bloque = (code, phrase) => { say(`BLOQUE ${code} ${phrase}`); return 2; };
+  if (!slug || !type || !nom || !nouveau) return bloque('USAGE', 'changer <slug> <face|b-roll> <nom> <b-roll|face>');
+  if (!['face', 'b-roll'].includes(type) || !['face', 'b-roll'].includes(nouveau) || type === nouveau) return bloque('TYPE', 'on passe de face à b-roll ou de b-roll à face');
+  if (!SLUG.test(slug) || !fs.existsSync(path.join(config.depot, 'contenus', slug))) return bloque('CONTENU', 'je ne trouve pas ce contenu');
+  if (nom !== path.basename(nom) || nom.startsWith('.') || typeFichier(nom) !== 'video') return bloque('FICHIER', 'je ne trouve pas ce fichier');
+  if (/-monte(-\d+)?\.mp4$|-coupe/i.test(nom)) return bloque('FICHIER', 'ce fichier vient du montage, je n\'y touche pas');
+  const liberer = prendreVerrou(config.media);
+  if (!liberer) return bloque('OCCUPE', 'un rangement est déjà en cours, réessaie dans un instant');
+  try {
+    if (type === 'face') {
+      const chemin = path.join(config.media, slug, 'face', nom);
+      if (!fs.existsSync(chemin) || estLien(chemin) || !fs.statSync(chemin).isFile()) return bloque('FICHIER', 'je ne trouve pas ce fichier');
+      if (fs.existsSync(path.join(config.media, slug, 'face', `${path.parse(nom).name}-montage`))) return bloque('MONTAGE', 'le montage a déjà commencé avec cette vidéo');
+      const m = sonder(chemin);
+      if (!m) return bloque('FICHIER', "ce n'est pas une vidéo que je sais lire");
+      media.ouvrir('placer', null);
+      placer(media, config, { nom, chemin, type: 'video', date: m.date || fs.statSync(chemin).mtime,
+        duree: m.duree, duree_s: m.duree_s, orientation: m.orientation }, 'b-roll', [slug], {});
+      media.fermer();
+    } else {
+      const lienP = path.join(config.media, slug, 'b-roll', nom);
+      if (!estLien(lienP)) return bloque('FICHIER', 'je ne trouve pas ce fichier');
+      const id = path.basename(nom, path.extname(nom));
+      const clip = media.index().clips[id];
+      const fichier = clip && path.join(config.media, clip.fichier);
+      if (!clip || !fs.existsSync(fichier)) return bloque('FICHIER', 'je ne trouve pas ce fichier');
+      if ((clip.contenus || []).some((s) => s !== slug)) return bloque('PARTAGE', 'ce plan sert aussi à un autre contenu, je ne peux pas en faire ta face caméra');
+      const dossier = path.join(config.media, slug, 'face');
+      fs.mkdirSync(dossier, { recursive: true });
+      const origine = clip.origine && clip.origine === path.basename(clip.origine) && !clip.origine.startsWith('.') ? clip.origine : nom;
+      media.ouvrir('placer', clip.tournage || null);
+      media.delier(lienP, 'changer');
+      media.retirerContenu(id, slug);
+      media.deplacer(fichier, path.join(dossier, nomLibre(dossier, origine)), 'face');
+      media.retirerClip(id);
+      media.fermer();
+    }
+    say(`CHANGE ${nom} ${slug}/${type} -> ${slug}/${nouveau}`);
+    say('FIN changes=1');
+    return 0;
+  } finally { liberer(); }
+}
+
 // ---------- Annuler ----------
 
 function annuler(o) {
@@ -499,7 +579,8 @@ try {
   if (o.pos[0] === 'placer') code = await placerALaMain(o);
   else if (o.pos[0] === 'annuler') code = annuler(o);
   else if (o.pos[0] === 'retirer') code = retirer(o);
-  else if (o.pos.length) { say('BLOQUE USAGE ranger.mjs --config <fichier> [--tournage <id>] [--simulation] | placer <nom> <slug> <type> | annuler <date|dernier> | retirer <slug> <type> <nom>'); code = 2; }
+  else if (o.pos[0] === 'changer') code = changer(o);
+  else if (o.pos.length) { say('BLOQUE USAGE ranger.mjs --config <fichier> [--tournage <id>] [--simulation] | placer <nom> <slug> <type> | annuler <date|dernier> | retirer <slug> <type> <nom> | changer <slug> <type> <nom> <nouveau>'); code = 2; }
   else code = await ranger(o);
 } catch (e) {
   note(`erreur : ${e.stack || e.message}`);

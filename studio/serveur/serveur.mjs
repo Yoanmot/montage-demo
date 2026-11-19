@@ -4,6 +4,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { CODE } from "./config.mjs";
 import {
   SLUG_RE, existe, dedans, lireJson, ecrireJson, etendre, isoZurich,
@@ -18,13 +20,13 @@ import { attenduPresent } from "./attendus.mjs";
 import { lierSlides } from "../publication/carrousels.mjs";
 import { configBrute } from "./publication.mjs";
 import {
-  ErreurStudio, MESSAGE_GENERIQUE, outilDepot, lancerRangement, placerManuel, retirerRush,
+  ErreurStudio, MESSAGE_GENERIQUE, outilDepot, lancerRangement, placerManuel, retirerRush, changerTypeRush,
 } from "./depot-outils.mjs";
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
 import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible } from "./tournage.mjs";
-import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
+import { arriveesPertinentes, typeFichier, verrouPris } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
@@ -191,6 +193,26 @@ function segmentsSurs(liste) {
     r.push(s);
   }
   return r;
+}
+
+// ---------------------------------------------------------- « Ajouter une vidéo » (vue Montage, 19/11)
+// Le fichier arrive en flux (jamais lu en entier en mémoire) dans STUDIO_HOME/envois/<dossier>/, puis le rangement le
+// place comme un placement à la main. Le fichier d'origine sur le Mac n'est pas touché : le navigateur en envoie une copie.
+export const ENVOI_MAX = 20 * 1024 ** 3;          // 20 Go
+const ENVOI_MARGE = 512 * 1024 ** 2;              // place à laisser libre sur le disque
+const RANGEMENT_OCCUPE = "Un rangement est en cours : réessaie dans un instant.";
+
+// Nom propre : sans dossier, sans caractère de contrôle ni « : », sans point au début, 100 caractères au plus.
+export function nomEnvoi(brut) {
+  let n = String(brut || "").normalize("NFC").split(/[\\/]/).pop() || "";
+  n = n.replace(/[\u0000-\u001f\u007f:]/g, "").replace(/^[.\s]+/, "").trim();
+  const ext = path.extname(n).toLowerCase();
+  const base = path.basename(n, path.extname(n)).replace(/[^\p{L}\p{N} ._()'-]/gu, "_").trim().slice(0, 100).trim();
+  return `${base || "video"}${ext}`;
+}
+
+function placeLibre(dossier) {
+  try { const s = fs.statfsSync(dossier); return Number(s.bavail) * Number(s.bsize); } catch { return Infinity; }
 }
 
 export function creerServeur({ config, jeton, pont, file, synchro, journal = () => {} }) {
@@ -470,6 +492,101 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     return v.slice(0, max);
   }
 
+  // Les vidéos rangées d'un contenu ne bougent plus quand le montage tourne ou a commencé. stadeExact : seulement au
+  // stade « rushs reçus » (retirer, changer le type) ; sinon tout stade avant l'aperçu (ajouter une vidéo).
+  function exigerMontageLibre(slug, { stadeExact = false } = {}) {
+    const inst = instantane(config, slug, lireDepot(config.depot));
+    const st = stadeDe(inst.contenu, inst.fichiers, etatLocal()).stade;
+    const montage = pont.actif(`${slug}:monteur`)
+      || file.liste().some((a) => a.slug === slug && a.type === "montage" && ["en_cours", "en_file"].includes(a.statut));
+    const tard = stadeExact ? st !== "rushs_recus" : ["planche", "monte", "programme", "publie"].includes(st);
+    if (tard || montage) {
+      throw new ErreurStudio("TROP_TARD", "Le montage a déjà commencé avec ces vidéos : dis dans le chat du montage ce qui ne va pas.", 409);
+    }
+  }
+
+  // POST /api/cartes/<slug>/rushs/envoyer?nom=<nom>&type=<face|b-roll|photo>[&verifier=1] , corps = le fichier brut.
+  // verifier=1 (corps vide, taille=<octets>) : les mêmes contrôles sans rien envoyer, pour répondre proprement avant
+  // de lancer plusieurs Go.
+  async function recevoirEnvoi(req, res, slug, url) {
+    const verifier = url.searchParams.get("verifier") === "1";
+    const refuser = (statut, code, message) => {
+      // Corps pas lu : on répond puis on coupe, pour ne pas recevoir des Go pour rien.
+      res.setHeader("Connection", "close");
+      erreur(res, statut, code, message);
+      res.on("finish", () => req.destroy());
+    };
+    if (!existe(path.join(config.depot, "contenus", slug))) return refuser(404, "INTROUVABLE", "Je ne trouve pas ce contenu.");
+    const type = url.searchParams.get("type");
+    if (!["face", "b-roll", "photo"].includes(type)) return refuser(400, "TYPE", MESSAGE_GENERIQUE);
+    const nom = nomEnvoi(url.searchParams.get("nom"));
+    const genre = typeFichier(nom);
+    if (genre !== "video" && genre !== "photo") {
+      return refuser(415, "FORMAT", "Je ne sais ranger que des vidéos (MOV, MP4) et des photos (JPG, HEIC, PNG).");
+    }
+    if ((type === "photo") !== (genre === "photo")) {
+      return refuser(400, "TYPE", genre === "photo" ? "C'est une photo : range-la comme photo." : "C'est une vidéo : choisis face caméra ou plan filmé en plus.");
+    }
+    const taille = Number(verifier ? url.searchParams.get("taille") : req.headers["content-length"]);
+    if (!Number.isSafeInteger(taille) || taille <= 0) return refuser(411, "TAILLE", MESSAGE_GENERIQUE);
+    if (taille > ENVOI_MAX) return refuser(413, "TROP_GROS", "Ce fichier est trop lourd : 20 Go au plus.");
+    try { exigerMontageLibre(slug); } catch (e) { return refuser(e.statut, e.code, e.messageRomain); }
+    if (rangementEnCours || verrouPris(config.media)) return refuser(409, "OCCUPE", RANGEMENT_OCCUPE);
+    const envois = path.join(config.home, "envois");
+    fs.mkdirSync(envois, { recursive: true });
+    fs.mkdirSync(config.media, { recursive: true });
+    const besoin = taille + ENVOI_MARGE;
+    if (placeLibre(envois) < besoin || placeLibre(config.media) < besoin) {
+      return refuser(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
+    }
+    if (verifier) return envoyerJson(res, 200, {});
+
+    // Les envois d'avant un arrêt brutal (plus d'un jour) partent.
+    for (const e of fs.readdirSync(envois)) {
+      const d = path.join(envois, e);
+      try { if (Date.now() - fs.statSync(d).mtimeMs > 86400e3) fs.rmSync(d, { recursive: true, force: true }); } catch { /* rien */ }
+    }
+    const dossier = fs.mkdtempSync(path.join(envois, "e-"));
+    const chemin = path.join(dossier, nom);
+    let recu = 0;
+    const compteur = new Transform({
+      transform(morceau, _enc, suite) {
+        recu += morceau.length;
+        if (recu > taille) return suite(new ErreurStudio("TROP_GROS", MESSAGE_GENERIQUE, 400));
+        suite(null, morceau);
+      },
+    });
+    try {
+      try {
+        await pipeline(req, compteur, fs.createWriteStream(chemin, { flags: "wx" }));
+      } catch (e) {
+        if (e?.code === "ENOSPC") return refuser(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
+        if (e instanceof ErreurStudio) return refuser(e.statut, e.code, e.messageRomain);
+        if (req.destroyed || res.destroyed || e?.code === "ERR_STREAM_PREMATURE_CLOSE" || e?.code === "ECONNRESET") {
+          journal("envoi_annule", { slug, recu });
+          if (!res.headersSent && !res.destroyed) return refuser(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
+          return;
+        }
+        throw e;
+      }
+      if (recu !== taille) return refuser(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
+      if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+      try {
+        await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier: nom, slug, type, envoi: chemin }));
+      } catch (e) {
+        if (e.code === "OCCUPE") throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+        if (e.code === "FICHIER") throw new ErreurStudio("ILLISIBLE", "Je n'arrive pas à lire cette vidéo : rien n'est rangé. Essaie de l'exporter à nouveau.", 400);
+        throw e;
+      }
+      journal("envoi_range", { slug, type, taille });
+      await copierBibliotheque().catch(() => {});
+      rafraichir();
+      return envoyerJson(res, 200, { nom });
+    } finally {
+      fs.rmSync(dossier, { recursive: true, force: true });
+    }
+  }
+
   async function avantAction() {
     try { await synchro.tirer(); } catch { /* hors ligne : on travaille avec ce qu'on a */ }
   }
@@ -511,7 +628,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   async function api(req, res, url) {
     const p = url.pathname.split("/").slice(2); // après /api/
     const m = req.method;
-    const corps = m === "POST" ? await lireCorps(req) : {};
+    // L'envoi d'une vidéo (plusieurs Go) se lit en flux : la limite de 1 Mo des routes JSON ne s'y applique pas.
+    const estEnvoi = m === "POST" && p[0] === "cartes" && p[2] === "rushs" && p[3] === "envoyer" && p.length === 4;
+    const corps = m === "POST" && !estEnvoi ? await lireCorps(req) : {};
 
     if (m === "GET" && p[0] === "etat" && p.length === 1) {
       rafraichir();
@@ -623,6 +742,20 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const r = await outilDepot(config, "brief.py", ["accroche", slug, String(n), ...(empreinte ? ["--empreinte", empreinte] : []), "--pousser"]);
         rafraichir();
         return envoyerJson(res, 200, { empreinte: /empreinte=(sha256:[0-9a-f]+)/.exec(r.sortie)?.[1] || null });
+      }
+      if (estEnvoi) return recevoirEnvoi(req, res, slug, url);
+      if (m === "POST" && p[2] === "rushs" && p[3] === "type" && p.length === 4) {
+        const id = String(corps.id || "");
+        const mm = /^(face|b-roll)\/([^/\\]+)$/.exec(id);
+        if (!mm || mm[2].startsWith(".")) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus ce fichier.", 404);
+        const nouveau = corps.type;
+        if (!["face", "b-roll"].includes(nouveau) || nouveau === mm[1]) throw new ErreurStudio("TYPE", MESSAGE_GENERIQUE, 400);
+        exigerMontageLibre(slug, { stadeExact: true });
+        if (rangementEnCours || verrouPris(config.media)) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+        await file.suivre("rangement", { slug }, () => changerTypeRush(config, { slug, type: mm[1], nom: mm[2], nouveau }));
+        await copierBibliotheque().catch(() => {});
+        rafraichir();
+        return envoyerJson(res, 200, {});
       }
       if (m === "POST" && p[2] === "rushs" && p[3] === "retirer" && p.length === 4) {
         const id = String(corps.id || "");
@@ -1105,6 +1238,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     });
   });
   serveur.keepAliveTimeout = 5000;
+  // Une vidéo de plusieurs Go peut mettre plus que les 5 minutes par défaut à arriver.
+  serveur.requestTimeout = 2 * 3600e3;
 
   function ecouter() {
     brancherVeilleurs();

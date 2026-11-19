@@ -87,3 +87,36 @@ test('annuler remet le dernier retrait en place', () => {
   assert.deepEqual(json(M('_bibliotheque', 'index.json')).clips['20261116-140100-bbbb'].contenus, ['faim-a-16h']);
   assert.ok(!json(M('_a-ranger', 'a-ranger.json')).fichiers.some((f) => f.nom === '20261116-140100-bbbb.mov'));
 });
+
+test('placer --envoi : seulement un fichier du dossier des envois du studio, du bon genre', () => {
+  // Hors du dossier des envois (un fichier quelconque du Mac) : refusé, pas déplacé.
+  const dehors = path.join(R, 'ailleurs', 'IMG_9.MOV');
+  ecrire(dehors, 'video');
+  assert.match(lancer('placer', 'IMG_9.MOV', 'faim-a-16h', 'b-roll', '--envoi', dehors).out, /^BLOQUE FICHIER/);
+  assert.ok(fs.existsSync(dehors));
+  // Dans le dossier des envois, mais une vidéo annoncée comme photo, ou un nom qui ne correspond pas : refusé.
+  const envoi = path.join(R, 'envois', 'e-1', 'IMG_9.MOV');
+  ecrire(envoi, 'video');
+  assert.match(lancer('placer', 'IMG_9.MOV', 'faim-a-16h', 'photo', '--envoi', envoi).out, /^BLOQUE TYPE/);
+  assert.match(lancer('placer', 'AUTRE.MOV', 'faim-a-16h', 'b-roll', '--envoi', envoi).out, /^BLOQUE FICHIER/);
+  // Pas une vidéo lisible : refusé, rien de rangé.
+  assert.match(lancer('placer', 'IMG_9.MOV', 'faim-a-16h', 'b-roll', '--envoi', envoi).out, /^BLOQUE FICHIER/);
+  assert.ok(fs.existsSync(envoi));
+});
+
+test('changer : refus clairs (vidéo du montage, type inconnu, plan partagé)', () => {
+  assert.match(lancer('changer', 'faim-a-16h', 'face', 'IMG_1-monte.mp4', 'b-roll').out, /^BLOQUE FICHIER/);
+  assert.match(lancer('changer', 'faim-a-16h', 'photo', 'IMG_2.JPG', 'face').out, /^BLOQUE TYPE/);
+  assert.match(lancer('changer', 'faim-a-16h', 'face', 'x.MOV', 'face').out, /^BLOQUE TYPE/);
+  assert.match(lancer('changer', 'inconnu', 'face', 'x.MOV', 'b-roll').out, /^BLOQUE CONTENU/);
+  // Un clip lié à deux contenus ne devient pas la face caméra d'un seul.
+  fs.mkdirSync(M('proteines', 'b-roll'), { recursive: true });
+  const id = '20261116-140000-aaaa';
+  const ix = json(M('_bibliotheque', 'index.json'));
+  ix.clips[id] = { fichier: `_bibliotheque/b-roll/${id}.mov`, origine: 'IMG_A.MOV', contenus: ['faim-a-16h', 'proteines'], vignettes: [] };
+  fs.writeFileSync(M('_bibliotheque', 'index.json'), JSON.stringify(ix));
+  ecrire(M('_bibliotheque', 'b-roll', `${id}.mov`), id);
+  for (const s of ['faim-a-16h', 'proteines']) if (!lien(M(s, 'b-roll', `${id}.mov`))) fs.symlinkSync(path.join('..', '..', '_bibliotheque', 'b-roll', `${id}.mov`), M(s, 'b-roll', `${id}.mov`));
+  assert.match(lancer('changer', 'faim-a-16h', 'b-roll', `${id}.mov`, 'face').out, /^BLOQUE PARTAGE/);
+  assert.ok(lien(M('faim-a-16h', 'b-roll', `${id}.mov`)));
+});

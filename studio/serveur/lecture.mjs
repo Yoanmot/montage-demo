@@ -750,6 +750,8 @@ export function montageDe(config, slug, lu, tournage) {
       titre: faces.length > 1 ? `Plan face caméra (prise ${i + 1})` : "Plan face caméra",
       detail: parToi ? "Rangée ici par toi." : "Reconnu à ce que tu dis dans ton texte.",
       ...(parToi ? { range_par_toi: true } : {}),
+      // Changer le type (19/11) : en plan filmé en plus, tant que le montage n'a rien fait de cette vidéo.
+      ...(existe(path.join(faceDir, `${n.replace(/\.[^.]+$/, "")}-montage`)) ? {} : { changer: { vers: "b-roll" } }),
     });
   });
   const index = lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {};
@@ -780,6 +782,13 @@ export function montageDe(config, slug, lu, tournage) {
       titre: sujetPrise(prise) || sujetPrise(clip) || "Ton plan filmé en plus",
       detail: [morceaux.join(" · "), vu && prise ? `Ce que je vois : ${vu}.` : ""].filter(Boolean).join(" "),
     };
+    // En face caméra : seulement un clip qui ne sert qu'à ce contenu (sinon on le dit, le bouton reste grisé).
+    if (clip) {
+      const autres = (clip.contenus || []).filter((s) => s !== slug).length;
+      r.changer = autres ? { vers: "face", impossible: "Ce plan sert aussi à un autre contenu." } : { vers: "face" };
+    }
+    // Rangé à la main (« À ranger », « Ajouter une vidéo », changement de type) : l'étape ne dit pas « toutes seules ».
+    if (clip && origineRangement(config, path.join(config.media, clip.fichier)) === "toi") r.range_par_toi = true;
     const v = (clip?.vignettes || [])[1] || (clip?.vignettes || [])[0];
     if (v && existe(path.join(config.media, v))) r.vignette_url = urlMedia(...v.split("/"));
     rushs.push(r);

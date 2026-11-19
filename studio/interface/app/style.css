@@ -257,6 +257,39 @@ details.repli > div { padding-top: 8px; }
 .rush-titre { font-weight: 750; font-size: 14px; line-height: 1.35; }
 .rush-detail { font-size: 12.5px; color: var(--encre-2); line-height: 1.45; }
 .rush .bouton { justify-self: start; }
+.rush-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* « Ajouter une vidéo » sous les vidéos rangées (19/11) : une ligne par fichier choisi, son type, puis sa progression.
+   Le bloc entier reçoit le glisser-déposer ; au survol, son bord le dit (même encre que les autres cibles de dépôt). */
+.ajout { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--trait); }
+.ajout-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ajout-note { font-size: 13px; color: var(--encre-2); }
+.ajout-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ajout-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+  padding: 6px 6px 6px 10px; border: 1px solid var(--trait); border-radius: var(--rayon-petit); background: var(--surface); min-height: 44px; }
+.ajout-fichier { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ajout-nom { font-weight: 650; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ajout-poids { flex: none; font-size: 12.5px; color: var(--encre-2); font-variant-numeric: tabular-nums; }
+.ajout-type .champ { height: 30px; font-size: 13px; }
+.ajout-etat { font-size: 13px; color: var(--encre-2); display: inline-flex; align-items: center; gap: 4px; }
+.ajout-ok { color: var(--vert); font-weight: 650; }
+.ajout-erreur { color: var(--rouge); max-width: 34ch; }
+.ajout-refus .ajout-nom { color: var(--encre-2); font-weight: 450; }
+.ajout-progres { display: inline-flex; align-items: center; gap: 8px; }
+.ajout-progres progress { width: 140px; height: 8px; appearance: none; border: 0; border-radius: 99px; background: var(--fond-3); overflow: hidden; }
+.ajout-progres progress::-webkit-progress-bar { background: var(--fond-3); border-radius: 99px; }
+.ajout-progres progress::-webkit-progress-value { background: var(--encre); border-radius: 99px; transition: width .2s; }
+.ajout-pct { font-size: 12.5px; color: var(--encre-2); font-variant-numeric: tabular-nums; min-width: 6ch; }
+.ajout-retirer { width: 30px; height: 30px; }
+.ajout-pied { display: flex; flex-wrap: wrap; gap: 6px; }
+.bloc-ajout.ajout-survol { outline: 2px dashed var(--encre-2); outline-offset: 4px; }
+@media (max-width: 560px) {
+  .ajout-ligne { grid-template-columns: minmax(0, 1fr) auto; }
+  .ajout-ligne > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .ajout-progres progress { flex: 1; width: auto; }
+  .ajout-progres, .ajout-type, .ajout-type .champ { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .ajout-progres progress::-webkit-progress-value { transition: none; } }
 .manquants { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .manquants li { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; border: 1px dashed var(--trait-fort); border-radius: var(--rayon-petit); font-size: 14px; }
 .manquants li span { color: var(--encre-3); font-size: 13px; }
