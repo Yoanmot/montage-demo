@@ -45,6 +45,14 @@ export function defautsDuClient(client) {
   };
 }
 
+// La lecture des vrais chiffres d'une installation d'essai : seulement un client à simulation forcée qui la demande.
+export function lectureDuClient(client) {
+  const compte = client?.stats_reelles?.compte;
+  if (client?.simulation_forcee !== true || typeof compte !== "string" || !/^[a-z0-9]{1,32}$/.test(compte)) return null;
+  if (!client.racineAbs) return null;
+  return { compte, cleFichier: path.join(client.racineAbs, "zernio-lecture.env") };
+}
+
 function fusion(base, ajout) {
   if (!ajout || typeof ajout !== "object" || Array.isArray(ajout)) return ajout ?? base;
   const r = { ...(base || {}) };
@@ -109,6 +117,10 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
       // Aussi réglable dans la config (`stats.instagram_en_simulation`) : la lecture des chiffres ne publie
       // rien, elle peut rester active pendant que la publication est en simulation (studio de Yoan).
       instagramEnSimulation: env.STUDIO_STATS_INSTAGRAM === "1" || brut.stats?.instagram_en_simulation === true,
+      // Installation d'essai (simulation_forcee) dont le client porte `stats_reelles` (romain-test) : les vrais chiffres
+      // d'Instagram en LECTURE, avec la clé de <racine>/zernio-lecture.env (cles.sh zernio-lecture), passée au seul
+      // appel `zernio.py --compte <compte> stats` (stats.mjs). Sans cette clé : le fichier de stats, comme avant.
+      lecture: lectureDuClient(client),
       // Lot 11 : compteur des visites des ressources gratuites (null : le client n'en a pas).
       visitesRessources: brut.stats?.visites_ressources?.url ? {
         url: String(brut.stats.visites_ressources.url),

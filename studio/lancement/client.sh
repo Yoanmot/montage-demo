@@ -33,6 +33,10 @@
 #                    studio_poser_polices dans <racine>/studio/polices/ (servies par le studio, repli du thème sinon)
 #   CLIENT_SIMULATION_FORCEE  1 si simulation_forcee est vrai (installation d'essai : rien ne peut partir sur
 #                    Instagram, aucune clé de publication ; voir demarrer.sh, cles.sh, verifier.sh)
+#   CLIENT_STATS_REELLES  le compte de zernio.py (COMPTES) dont une installation d'essai lit les vrais chiffres, ou vide :
+#                    stats_reelles.compte du fichier. Clé de LECTURE seulement, dans <racine>/zernio-lecture.env
+#                    (cles.sh zernio-lecture), passée au seul appel `zernio.py stats` du studio ; la publication reste
+#                    simulée (voir serveur/stats.mjs, verifier.sh)
 #
 # Branche suivie : branche_mise_a_jour du fichier, sauf si <racine>/branche existe (une ligne, le nom d'une
 # branche du dépôt) : une installation d'essai suit une branche pas encore livrée. Retirer le fichier pour
@@ -128,6 +132,7 @@ v = {
     "CLIENT_MONTEUR": g("monteur", defaut="monteur"),
     "CLIENT_PREVENIR": ("Envoie un message à %s." % contact) if contact else "",
     "CLIENT_SIMULATION_FORCEE": "1" if c.get("simulation_forcee") is True else "",
+    "CLIENT_STATS_REELLES": (lambda x: x if isinstance(x, str) and x.isalnum() else "")(g("stats_reelles", "compte", defaut="")),
     "CLIENT_POLICES": "\n".join("%s\t%s" % (n, deplier(src)) for n, src in sorted((c.get("polices_locales") or {}).items())
         if isinstance(src, str) and src and all(ch.isalnum() or ch in "._-" for ch in n) and n[0].isalnum()
         and n.lower().endswith((".woff2", ".woff", ".ttf", ".otf"))),

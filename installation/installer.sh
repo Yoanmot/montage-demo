@@ -422,6 +422,12 @@ PYEOF
   if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then
     if [ -f "$BASE/zernio.env" ]; then echec "zernio : une clé de publication est posée dans une installation d'essai ($BASE/zernio.env), à retirer"
     else ok "zernio aucune clé de publication (installation d'essai, simulation forcée)"; fi
+    # La clé de LECTURE des vrais chiffres (stats_reelles, cles.sh zernio-lecture) n'est pas une clé de publication.
+    if [ -f "$BASE/zernio-lecture.env" ]; then
+      chmod 600 "$BASE/zernio-lecture.env"
+      if [ -n "${CLIENT_STATS_REELLES:-}" ]; then ok "zernio-lecture clé de lecture des chiffres posée (publication simulée)"
+      else echec "zernio-lecture : clé de lecture posée pour un client qui ne lit pas de vrais chiffres ($BASE/zernio-lecture.env), à retirer"; fi
+    fi
   else
     grep -qs '^ZERNIO_API_KEY=..*' "$BASE/zernio.env" || manque="$manque zernio"
   fi

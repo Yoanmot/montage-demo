@@ -42,6 +42,10 @@ export function refusCommuns(client = clientActif()) {
     // La publication ne part que d'un clic sur le récapitulatif du studio (ZERNIO_ECRITURE=<compte>, et
     // l'ancien ZERNIO_ECRITURE_ROMAIN=oui).
     "Bash(*ZERNIO_ECRITURE_ROMAIN*)", "Bash(*ZERNIO_ECRITURE*)", "Bash(*zernio.py publier*--envoyer*)",
+    // Installation d'essai qui lit les vrais chiffres (stats_reelles) : la clé de lecture (<racine>/zernio-lecture.env,
+    // déjà illisible par Read comme tout <racine>/*.env) ne passe pas non plus par une commande, ni par les variables
+    // qui la donneraient à zernio.py.
+    ...(client.stats_reelles ? ["Bash(*zernio-lecture*)", "Bash(*ZERNIO_ENV_FILE*)", "Bash(*ZERNIO_API_KEY*)"] : []),
     "Bash(security *)", "Bash(launchctl *)", "Bash(defaults write*)",
   ];
 }
