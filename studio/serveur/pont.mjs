@@ -236,6 +236,7 @@ export class Pont extends EventEmitter {
     enfant.stderr.on("data", (m) => { p.stderr = (p.stderr + m).slice(-2000); });
     enfant.on("close", (code, signal) => {
       this.journal("session_terminee", { chat_id: chatId, pid: enfant.pid, code, signal, stderr: p.stderr.slice(-300) || undefined });
+      if (p.suite) this.finirSuite(chatId, p, null);
       if (!p.fini) {
         if (p.arret) this.finir(chatId, p, null, "arrete");
         else if (p.enAttente > 0) this.finir(chatId, p, `La conversation s'est coupée d'un coup. Réessaie, et si ça recommence, préviens ${contact()}.`);
@@ -246,6 +247,18 @@ export class Pont extends EventEmitter {
 
   traiter(chatId, p, evt) {
     for (const el of p.normaliseur.traiter(evt)) {
+      // Tour déjà rendu, mais le processus reparle : un travail lancé en arrière-plan (un rendu long)
+      // a fini et l'agent continue. Le chat repasse « en cours », puis reçoit son état de fin à la fin
+      // de cette suite (vu le 2026-11-19 : sans ça, le chat restait « en train de travailler »).
+      if (p.fini && !p.suite && (el.genre === "texte" || el.genre === "activite")) {
+        p.suite = true;
+        this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" });
+        this.journal("suite_apres_fin", { chat_id: chatId });
+      }
+      if (p.suite && el.genre === "fin") {
+        this.finirSuite(chatId, p, el.erreur);
+        continue;
+      }
       if (el.genre === "session") {
         this.noterSession(chatId, { session_id: el.session_id, cwd: p.cwd, agent: p.agent || null, consignes: p.consignes });
       } else if (el.genre === "texte") {
@@ -264,6 +277,17 @@ export class Pont extends EventEmitter {
         }
       }
     }
+  }
+
+  // Fin d'une suite après la fin du tour : pas de file à prévenir (l'action est déjà close), seulement
+  // l'état du chat. Si une nouvelle conversation a pris le relais entre-temps, elle garde la main.
+  finirSuite(chatId, p, erreur) {
+    if (!p.suite) return;
+    p.suite = false;
+    if (this.processus.has(chatId)) return;
+    const m = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: erreur ? "erreur" : "a_toi" };
+    if (erreur) m.texte = erreur;
+    this.noter(chatId, m);
   }
 
   // Termine un tour : écrit l'état final et prévient la file. La décision « fini » ou « à toi »

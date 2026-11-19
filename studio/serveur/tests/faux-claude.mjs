@@ -7,6 +7,7 @@
 //                         et chaque message reçu (une ligne JSON par événement)
 //   FAUX_CLAUDE_SCENARIO  normal (défaut) | lent (attend avant de répondre, lance un sous-processus
 //                         `sleep` du même groupe) | erreur (résultat en erreur) | coupe (sort sans résultat)
+//                         | suite (reparle après la fin du tour, comme après un rendu en arrière-plan)
 //                         | long (réponse longue écrite morceau par morceau, pour regarder le défilement du chat)
 //   FAUX_CLAUDE_DELAI_LONG ms entre deux morceaux du scénario long (défaut 60)
 //   FAUX_CLAUDE_ATTENTE   ms d'attente du scénario lent (défaut 60000)
@@ -120,7 +121,13 @@ rl.on("line", (l) => {
   if (evt.type === "user") chaine = chaine.then(() => repondre(evt.message));
 });
 rl.on("close", () => {
-  chaine.then(() => {
+  chaine.then(async () => {
+    // Scénario suite : un travail lancé en arrière-plan finit après la fin du tour, et l'agent reparle
+    // (texte puis nouveau résultat) avant de se terminer.
+    if (scenario === "suite") {
+      await pause(Number(process.env.FAUX_CLAUDE_ATTENTE || 300));
+      await repondre({ content: "(notification de tâche de fond)" });
+    }
     noter({ evenement: "fin" });
     process.exit(0);
   });
