@@ -682,7 +682,7 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .tb-abonnes { margin: 0; font-size: 14px; color: var(--encre-2); text-align: right; }
 .tb-abonnes strong { font-size: 22px; font-weight: 800; color: var(--encre); letter-spacing: -0.01em; }
 .tb-abonnes .evolution { margin-left: 6px; }
-.tb-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tb-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .tb-carte { display: grid; grid-template-rows: auto auto 1fr auto; align-content: start; gap: 4px; min-width: 0; min-height: 214px; padding: 14px 14px 10px;
   border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); }
 .tb-titre { margin: 0; font-size: 13px; font-weight: 700; color: var(--encre-2); }
@@ -705,7 +705,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .tb-grille { gap: 10px; }
 .tb-carte { padding: 12px 12px 8px; }
 .tb-total strong { font-size: 24px; }
-@container (max-width: 699px) { .tb-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (max-width: 479px) { .tb-grille { grid-template-columns: minmax(0, 1fr); } .tb-carte { min-height: 0; } .tb-abonnes { text-align: left; } }
 @media (max-width: 860px) { .tb-periode { min-height: 44px; } }
 

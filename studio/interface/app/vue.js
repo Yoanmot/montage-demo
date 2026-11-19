@@ -682,13 +682,14 @@ export class Vue {
         : vr.etat === "erreur" ? el("p", { class: "graph-erreur" }, vr.phrase || "Je n'arrive pas à lire les visites de tes ressources pour l'instant.")
           : null;
     const cartes = el("div", { class: "tb-grille" },
-      carte({ cle: "vues", titre: "Vues", un: "vue", plusieurs: "vues" }),
+      // Ordre voulu par Yoan : publications et comptes touchés, puis vues et likes, puis visites du profil et des ressources.
       carte({ cle: "publications", titre: "Publications", un: "publication", plusieurs: "publications", absent: "pas de chiffre" }),
-      carte({ cle: "likes", titre: "Likes", un: "like", plusieurs: "likes" }),
-      carte({ cle: "visites_ressources", titre: "Visites des ressources gratuites", un: "visite", plusieurs: "visites", absent: "pas encore mesuré", etat: etatVisites,
-        depuis: vr.etat === "ok" && vr.depuis ? dateCourte(vr.depuis).replace(/\.$/, "") : null }),
       carte({ cle: "portee", titre: "Comptes touchés", un: "compte", plusieurs: "comptes", cumul: false }),
-      carte({ cle: "visites_profil", titre: "Visites du profil", un: "visite", plusieurs: "visites" }));
+      carte({ cle: "vues", titre: "Vues", un: "vue", plusieurs: "vues" }),
+      carte({ cle: "likes", titre: "Likes", un: "like", plusieurs: "likes" }),
+      carte({ cle: "visites_profil", titre: "Visites du profil", un: "visite", plusieurs: "visites" }),
+      carte({ cle: "visites_ressources", titre: "Visites des ressources gratuites", un: "visite", plusieurs: "visites", absent: "pas encore mesuré", etat: etatVisites,
+        depuis: vr.etat === "ok" && vr.depuis ? dateCourte(vr.depuis).replace(/\.$/, "") : null }));
     return this.bloc(titreBloc, el("div", {},
       el("div", { class: "tb-barre" }, periodes, abonnes), note,
       vr.etat === "ok" && vr.phrase ? el("p", { class: "stats-note" }, vr.phrase) : null,
