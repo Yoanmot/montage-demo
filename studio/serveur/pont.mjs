@@ -7,12 +7,58 @@ import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { isoZurich, lireJson, ecrireJson } from "./outils.mjs";
 import { reglagesChat, environnement, typeDeChat } from "./reglages.mjs";
 import { Normaliseur } from "./normalisation.mjs";
 import { contact } from "./client.mjs";
 
 const DELAI_KILL_MS = 3000;
+
+// Les consignes d'une conversation (fichier de l'agent et consigne du studio) sont figées à son
+// ouverture : une conversation reprise par --resume garde les anciennes, même passées en ligne de
+// commande. Quand elles ont changé depuis, on les joint au message suivant pour qu'elles s'appliquent
+// tout de suite (vu le 2026-11-19 : le monteur refusait encore un réglage que la nouvelle règle permet).
+export function consignesActuelles(r, envBase = process.env) {
+  let nom = r.agent;
+  if (!nom) nom = lireJson(path.join(r.cwd, ".claude", "settings.json"), {})?.agent || null;
+  let agent = "";
+  if (nom) {
+    const config = r.env?.CLAUDE_CONFIG_DIR || envBase.CLAUDE_CONFIG_DIR
+      || path.join(envBase.HOME || "", ".claude");
+    for (const d of [path.join(r.cwd, ".claude", "agents"), path.join(config, "agents")]) {
+      const f = path.join(d, `${nom}.md`);
+      if (fs.existsSync(f)) {
+        agent = fs.readFileSync(f, "utf8").replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+        break;
+      }
+    }
+  }
+  const i = r.args.indexOf("--append-system-prompt");
+  const studio = i >= 0 ? r.args[i + 1] : "";
+  const empreinte = crypto.createHash("sha256").update(agent + "\0" + studio).digest("hex").slice(0, 16);
+  return { empreinte, agent, studio };
+}
+
+function joindreConsignes(ligne, c) {
+  const bloc = [
+    "[Tes consignes ont été mises à jour depuis le début de cette conversation. Voici la version à jour :",
+    "elle remplace entièrement celle que tu avais au départ, y compris pour ce que tu as répondu plus haut",
+    "dans cette conversation. Applique-la dès ce message, sans en parler sauf si on te le demande.]",
+    "",
+    c.agent ? `<consignes>\n${c.agent}\n</consignes>` : "",
+    c.studio ? `<consignes-du-studio>\n${c.studio}\n</consignes-du-studio>` : "",
+    "",
+    "[Le message :]",
+    "",
+  ].filter((x, k, t) => x || t[k - 1] !== "").join("\n");
+  const evt = JSON.parse(ligne);
+  const contenu = evt.message.content;
+  evt.message.content = typeof contenu === "string"
+    ? bloc + contenu
+    : [{ type: "text", text: bloc }, ...(Array.isArray(contenu) ? contenu : [])];
+  return JSON.stringify(evt) + "\n";
+}
 
 export class Pont extends EventEmitter {
   constructor({ config, journal = () => {}, envBase = process.env }) {
@@ -129,8 +175,13 @@ export class Pont extends EventEmitter {
     const r = reglagesChat(chatId, this.config, { besoin });
     const args = [...r.args];
     const session = this.sessions()[chatId];
+    const consignes = consignesActuelles(r, this.envBase);
     if (session?.session_id && path.resolve(session.cwd || "") === path.resolve(r.cwd)) {
       args.push("--resume", session.session_id);
+      if (session.consignes !== consignes.empreinte) {
+        ligne = joindreConsignes(ligne, consignes);
+        this.journal("consignes_jointes", { chat_id: chatId });
+      }
     }
     const etat = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" };
     this.noter(chatId, etat);
@@ -154,6 +205,7 @@ export class Pont extends EventEmitter {
     const p = {
       enfant, enAttente: 1, arret: false, parFile, entreeFermee: false, fini: false,
       normaliseur: new Normaliseur(() => this.prochainN(chatId)), stderr: "", cwd: r.cwd, agent: r.agent,
+      consignes: consignes.empreinte,
     };
     this.processus.set(chatId, p);
     this.journal("session_lancee", { chat_id: chatId, pid: enfant.pid, reprise: args.includes("--resume") });
@@ -195,7 +247,7 @@ export class Pont extends EventEmitter {
   traiter(chatId, p, evt) {
     for (const el of p.normaliseur.traiter(evt)) {
       if (el.genre === "session") {
-        this.noterSession(chatId, { session_id: el.session_id, cwd: p.cwd, agent: p.agent || null });
+        this.noterSession(chatId, { session_id: el.session_id, cwd: p.cwd, agent: p.agent || null, consignes: p.consignes });
       } else if (el.genre === "texte") {
         const m = { n: el.n, le: isoZurich(), role: "studio", type: "texte", texte: el.texte };
         this.noter(chatId, m, { partiel: el.partiel });
