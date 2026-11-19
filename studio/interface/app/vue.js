@@ -177,7 +177,7 @@ export class Vue {
     const z = el("div", { class: "vue-reglages" });
     const cote = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("ecarter")}<span>Mettre de côté</span>` });
     cote.addEventListener("click", () => {
-      const raison = el("input", { class: "champ", type: "text", maxlength: "60", placeholder: "Pourquoi ? (facultatif)", "aria-label": "Pourquoi tu le mets de côté (facultatif)" });
+      const raison = el("input", { class: "champ", type: "text", placeholder: "Pourquoi ? (facultatif)", "aria-label": "Pourquoi tu le mets de côté (facultatif)" });
       const ok = el("button", { class: "bouton bouton-petit", type: "button" }, "Mettre de côté");
       const non = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Annuler");
       const go = async () => { ok.disabled = true; try { await this.api.abandonner(c.slug, raison.value.trim() || null); annoncer("Mis de côté. Tu le retrouves en bas, dans « Mis de côté »."); } catch (e) { annoncer(e.message, "erreur"); ok.disabled = false; } };
@@ -290,7 +290,7 @@ export class Vue {
       } catch (e) { annoncer(e.message, "erreur"); cote.disabled = false; }
     });
     supprimer.addEventListener("click", () => {
-      const raison = el("input", { class: "champ", type: "text", maxlength: "120", placeholder: "Pourquoi ? (facultatif, ça m'aide pour les prochaines)", "aria-label": "Pourquoi tu la supprimes (facultatif)" });
+      const raison = el("input", { class: "champ", type: "text", placeholder: "Pourquoi ? (facultatif, ça m'aide pour les prochaines)", "aria-label": "Pourquoi tu la supprimes (facultatif)" });
       const ok = el("button", { class: "bouton", type: "button" }, "Supprimer");
       const non = el("button", { class: "bouton bouton-discret", type: "button" }, "Annuler");
       const go = async () => {

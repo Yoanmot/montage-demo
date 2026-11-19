@@ -653,7 +653,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return envoyerJson(res, 200, {});
       }
       if (m === "POST" && p[2] === "abandonner") {
-        const raison = texteCourt(corps.raison);
+        const raison = texteCourt(corps.raison, 20000);
         await avantAction();
         await outilDepot(config, "etat.py", ["abandonner", slug, ...(raison ? ["--raison", raison] : []), "--pousser"]);
         rafraichir();
@@ -787,7 +787,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
       // « Supprimer » (lot 12) = le refus existant : l'idée disparaît, sa raison sert au head of content.
       if (p[2] === "refuser" || p[2] === "supprimer") {
-        const raison = texteCourt(corps.raison);
+        const raison = texteCourt(corps.raison, 20000);
         await avantAction();
         await outilDepot(config, "idees.py", ["refuser", id, ...(raison ? ["--raison", raison] : []), "--pousser"]);
         rafraichir();
