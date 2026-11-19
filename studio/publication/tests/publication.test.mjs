@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { dossierSlides, lierSlides, slidesDe } from '../carrousels.mjs';
 import {
-  confirmer, dateZurich, lancerZernio, lireVerifier, oublierRecaps, phrase, recap, semaine,
+  actualiserPublications, confirmer, dateZurich, enRoute, lancerZernio, lireVerifier, oublierRecaps, phrase, recap, semaine,
 } from '../publication.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -238,6 +238,30 @@ describe('confirmer', () => {
     const c = await confirmer(r.recap_id, cfg, { executer });
     assert.match(c.resultats[0].message, /^Ta vidéo est partie : Instagram la prépare, elle apparaît sur ton compte d'ici quelques minutes\./);
     assert.doesNotMatch(c.resultats[0].message, /en ligne|sort à l'heure/);
+  });
+
+  test('publications en route : relues chez Zernio (actualiser, sans écriture), jamais en simulation', async () => {
+    const reg = path.join(config.depot_hoc, 'publications', 'registre.json');
+    const avant = fs.existsSync(reg) ? fs.readFileSync(reg, 'utf8') : null;
+    fs.mkdirSync(path.dirname(reg), { recursive: true });
+    fs.writeFileSync(reg, JSON.stringify({ version: 1, publications: {
+      a: { statut: 'envoyé', zernio_post: '6aa1' }, b: { statut: 'publié', zernio_post: '6aa2' }, c: { statut: 'programmé', zernio_post: '6aa3' } } }));
+    try {
+      assert.deepEqual(enRoute(config), ['a']);
+      const vus = [];
+      const executer = (cfg, args, o) => { vus.push({ args, o }); return { code: 0, sortie: 'FAIT\n' }; };
+      const cfg = { ...config, publication: { ...config.publication, simulation: false } };
+      let t = 1e12;
+      await actualiserPublications(cfg, { executer, maintenant: () => t });
+      await actualiserPublications(cfg, { executer, maintenant: () => t + 1000 });
+      assert.equal(vus.length, 1, 'une fois par minute au plus');
+      assert.deepEqual(vus[0].args, ['actualiser', '--pousser']);
+      assert.ok(!vus[0].o.ecriture, 'lecture seule');
+      const sim = { ...config, publication: { ...config.publication, simulation: true } };
+      assert.equal(await actualiserPublications(sim, { executer, maintenant: () => t + 1e6 }), null);
+    } finally {
+      if (avant === null) fs.unlinkSync(reg); else fs.writeFileSync(reg, avant);
+    }
   });
 
   test('pour de vrai : une erreur d\'envoi arrête la suite, sans relance', async () => {

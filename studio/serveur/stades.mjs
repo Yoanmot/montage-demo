@@ -65,6 +65,9 @@ export function estOriginale(nom) {
 function stadePublication(pub, maintenant) {
   if (!pub) return null;
   if (pub.statut === "publié") return "publie";
+  // Parti tout de suite, Instagram le prépare encore (« envoyé », ou l'état brut de Zernio d'avant le
+  // 2026-11-19 comme « publishing ») : déjà posté, on ne le propose plus à la publication.
+  if (pub.statut === "envoyé" || ["pending", "processing", "uploading", "publishing", "partial", "published"].includes(pub.statut)) return "publie";
   if (pub.statut === "programmé") {
     const d = lireDate(pub.prevu_le);
     if (d && d.getTime() <= maintenant.getTime()) return "publie";

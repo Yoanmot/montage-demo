@@ -13,6 +13,8 @@ import { File } from "./file.mjs";
 import { Synchro } from "./synchro.mjs";
 import { creerServeur } from "./serveur.mjs";
 import { toutTuer } from "./commandes.mjs";
+import { configBrute } from "./publication.mjs";
+import { actualiserPublications } from "../publication/publication.mjs";
 
 // Le jeton est gardé d'un démarrage à l'autre (contrat, section 8) : une fenêtre ouverte reste
 // connectée après une mise à jour. Créé seulement s'il manque ou s'il est illisible.
@@ -48,6 +50,15 @@ export async function demarrer({ env = process.env, silencieux = false } = {}) {
     console.log(`Ouvrir : ${url}`);
   }
   synchro.demarrer(config.synchroMinutes).finally(() => file.tick());
+  // Après chaque synchro : une publication partie tout de suite et encore en préparation chez Instagram
+  // est relue, puis notée publiée (le contenu passe « publié » dans le studio).
+  synchro.on("sync", (e) => {
+    if (e.etat !== "ok") return;
+    actualiserPublications(configBrute(config)).then((r) => {
+      if (r) journal("publications_actualisees", { code: r.code, lignes: (r.sortie.match(/^ACTUALISE .*/gm) || []).length });
+      if (r && /^ACTUALISE /m.test(r.sortie)) synchro.tirer();
+    }).catch(() => {});
+  });
 
   let arret = null;
   const arreter = (raison = "arret") => {

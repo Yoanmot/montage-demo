@@ -62,6 +62,14 @@ test("reel : tous les stades, du moins avancé au plus avancé", () => {
   m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut: "publié" } } });
   assert.equal(stadeDe(m, s).stade, "publie");
 
+  // Parti tout de suite, encore en préparation chez Instagram : déjà posté.
+  for (const statut of ["envoyé", "publishing"]) {
+    m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut, zernio_post: "6aa" } } });
+    assert.equal(stadeDe(m, s).stade, "publie", statut);
+  }
+  m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut: "failed", zernio_post: "6aa" } } });
+  assert.equal(stadeDe(m, s).stade, "monte", "un échec se republie");
+
   m.contenu(s, { valide: m.valider(s, SCRIPT), refuse: { le: isoZurich(), raison: null } });
   assert.equal(stadeDe(m, s).stade, "abandonne");
 });

@@ -75,6 +75,28 @@ export function enSimulation(config) {
   return !!(config && config.publication && config.publication.simulation === true);
 }
 
+// ------------------------------------------------------------------ publications en route
+
+// Une publication partie tout de suite reste quelques minutes en préparation chez Instagram. Le registre
+// la note alors « envoyé » (ou garde l'état brut de Zernio, comme « publishing » avant le 2026-11-19).
+// Le studio la relit chez Zernio (lecture seule, `zernio.py actualiser`) jusqu'à ce qu'elle soit sortie.
+const FINAUX = new Set(['publié', 'programmé', 'failed']);
+let derniereActualisation = 0;
+
+export function enRoute(config) {
+  const reg = lireJson(path.join(chemins(config).depot, 'publications', 'registre.json'), {});
+  return Object.entries(reg?.publications || {})
+    .filter(([, e]) => e && e.zernio_post && !FINAUX.has(e.statut))
+    .map(([slug]) => slug);
+}
+
+export async function actualiserPublications(config, { executer = lancerZernio, maintenant = Date.now, intervalleMs = 60000 } = {}) {
+  if (enSimulation(config) || !enRoute(config).length) return null;
+  if (maintenant() - derniereActualisation < intervalleMs) return null;
+  derniereActualisation = maintenant();
+  return executer(config, ['actualiser', '--pousser'], { timeoutMs: 120000 });
+}
+
 // ------------------------------------------------------------------ heure de Zurich
 
 function decalageZurich(ms) {
