@@ -1120,7 +1120,6 @@ export class Vue {
     const cs = [...s.cartes.values()];
     const prets = cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).sort((a, b) => (a.format === b.format ? 0 : a.format === "reel" ? -1 : 1) || a.titre.localeCompare(b.titre, "fr"));
     const programmes = cs.filter((c) => c.stade === "programme").sort((a, b) => String(a.publication_quand).localeCompare(String(b.publication_quand)));
-    const publies = cs.filter((c) => c.stade === "publie").sort((a, b) => String(b.publication_quand || b.jour_prevu).localeCompare(String(a.publication_quand || a.jour_prevu))).slice(0, 6);
     this.choixPublier ||= new Set();
     for (const k of [...this.choixPublier]) if (!prets.some((c) => c.slug === k)) this.choixPublier.delete(k);
     const zone = el("div", { class: "zone-recap", id: "preparation" });
@@ -1184,8 +1183,7 @@ export class Vue {
       { aide: prets.length ? `${pluriel(prets.length, "contenu", "contenus")}${prets.length > 1 ? ", coche-en plusieurs pour les préparer ensemble" : ""}` : null }),
       zone,
       this.bloc("Déjà programmés", programmes.length ? el("div", { class: "accueil-liste" }, ...programmes.map((c) => ligneSimple(c, c.publication_quand ? `part ${quandLisible(c.publication_quand)}` : c.libelle)))
-        : el("p", { class: "vide-doux" }, "Rien de programmé."), { aide: programmes.length ? pluriel(programmes.length, "contenu", "contenus") : null }),
-      publies.length ? this.bloc("Déjà publiés", el("div", { class: "accueil-liste" }, ...publies.map((c) => ligneSimple(c, c.publication_quand ? `sorti ${quandLisible(c.publication_quand)}` : "publié"))), { aide: "les plus récents" }) : null);
+        : el("p", { class: "vide-doux" }, "Rien de programmé."), { aide: programmes.length ? pluriel(programmes.length, "contenu", "contenus") : null }));
   }
 }
 
