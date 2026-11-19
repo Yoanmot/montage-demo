@@ -677,8 +677,8 @@ export class Vue {
         chiffre === null && sansSemaines ? null : barresSemaines(r.barres, { unite, absent, titre }));
     };
     const vr = st.visites_ressources || { etat: "sans" };
-    const etatVisites = vr.etat === "sans" ? el("p", { class: "tb-vide" }, "Tu n'as pas de ressource gratuite : rien à compter ici.")
-      : vr.etat === "pas_mesure" ? el("p", { class: "tb-vide" }, "Pas encore mesuré : les visites de tes ressources gratuites arrivent ici dès qu'elles sont comptées.")
+    const etatVisites = vr.etat === "sans" ? el("p", { class: "tb-vide" }, "Tu n'as pas de ressource gratuite : rien à compter ici.")
+      : vr.etat === "pas_mesure" ? el("p", { class: "tb-vide" }, "Pas encore mesuré : les visites de tes ressources gratuites arrivent ici dès qu'elles sont comptées.")
         : vr.etat === "erreur" ? el("p", { class: "graph-erreur" }, vr.phrase || "Je n'arrive pas à lire les visites de tes ressources pour l'instant.")
           : null;
     const cartes = el("div", { class: "tb-grille" },
