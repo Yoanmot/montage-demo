@@ -248,9 +248,9 @@ export function instantane(config, slug, depotLu) {
     registre_rendu: depotLu.rendus[slug] || null,
     publication: depotLu.pub[slug] || null,
     face: face.map((e) => e.name),
-    // L'aperçu du montage (lot 8) ou, pour un montage d'avant l'aperçu, sa planche : le montage attend la validation.
-    planche: face.some((e) => e.isDirectory() && e.name.endsWith("-montage")
-      && (existe(path.join(faceDir, e.name, "apercu", "apercu.json")) || existe(path.join(faceDir, e.name, "planche", "planche.png")))),
+    // L'aperçu du montage (lot 8) : le montage attend la validation. La planche (<rush>-montage/planche/) est l'outil
+    // interne du monteur pour regarder ses moments clés : elle ne fait pas avancer le contenu et ne se montre jamais (19/11).
+    planche: face.some((e) => e.isDirectory() && e.name.endsWith("-montage") && existe(path.join(faceDir, e.name, "apercu", "apercu.json"))),
     tournage: depotLu.tournages.some((t) => t.contenus.includes(slug)),
   };
   const contenu = { slug, format: formatDe(etat, idee, fichiers), etat };
@@ -411,22 +411,6 @@ function imagesDe(dossier) {
     .map((e) => e.name).sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
 }
 
-function lignesPlanche(dossierPlanche) {
-  const j = lireJson(path.join(dossierPlanche, "planche.json"), null);
-  const liste = Array.isArray(j) ? j : j?.lignes;
-  if (Array.isArray(liste)) {
-    return liste.filter((l) => l && l.ligne).map((l, i) => ({ n: Number(l.n ?? i + 1), ligne: String(l.ligne) }));
-  }
-  const md = lireTexte(path.join(dossierPlanche, "planche.md"), null);
-  if (!md) return undefined;
-  const r = [];
-  for (const ligne of md.split("\n")) {
-    const m = /^\s*(\d+)[.)]\s+(.+)$/.exec(ligne);
-    if (m) r.push({ n: Number(m[1]), ligne: m[2].trim() });
-  }
-  return r.length ? r : undefined;
-}
-
 function plusRecent(dossier, noms) {
   let meilleur = null;
   let t = -1;
@@ -495,15 +479,6 @@ export function detail(config, slug, etatLocal) {
         prise: Boolean(Date.parse(n.le) < apercu.fait - 1000),
       })),
     };
-  }
-  const dossiersMontage = face.filter((e) => e.isDirectory() && e.name.endsWith("-montage")
-    && existe(path.join(faceDir, e.name, "planche", "planche.png"))).map((e) => e.name);
-  const montage = apercu ? null : plusRecent(faceDir, dossiersMontage.map((n) => path.join(n, "planche", "planche.png")));
-  if (montage) {
-    // ?v= : une nouvelle planche (après une correction) change d'adresse, le navigateur la recharge.
-    medias.planche = urlMedia(slug, "face", montage) + "?v=" + Math.round(stat(path.join(faceDir, montage))?.mtimeMs || 0);
-    const lignes = lignesPlanche(path.join(faceDir, path.dirname(montage)));
-    if (lignes) medias.planche_lignes = lignes;
   }
   // Seules les slide-NN comptent : la mise en page écrit aussi sa planche de contrôle (planche.jpg).
   const slides = imagesDe(path.join(base, "slides")).filter((n) => /^slide-\d+\.(png|jpe?g)$/i.test(n));

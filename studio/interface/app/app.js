@@ -198,9 +198,6 @@ class Studio {
     if (p.monteur && d && d.slug === this.carteSel()?.slug && d.stade === "planche" && d.medias?.apercu) {
       extra.push(el("div", { class: "chat-planche" },
         el("span", {}, el("strong", {}, ETROIT.matches ? "Ton aperçu est plus haut. " : "Ton aperçu est à gauche. "), "Les notes que tu y écris arrivent ici, et ton monteur te répond ici.")));
-    } else if (p.monteur && d && d.slug === this.carteSel()?.slug && d.stade === "planche" && d.medias?.planche) {
-      extra.push(el("div", { class: "chat-planche" }, el("img", { src: d.medias.planche, alt: "" }),
-        el("span", {}, el("strong", {}, ETROIT.matches ? "Ta planche est plus haut. " : "Ta planche est à gauche. "), "Réponds ici : « ok », ou ce que tu changes avec son numéro.")));
     }
     // Le chat ne bouge pas de la page quand seuls les à-côtés changent (une carte qui avance, un
     // message qui part) : le déplacer le renvoyait tout en haut et faisait perdre la saisie en cours.

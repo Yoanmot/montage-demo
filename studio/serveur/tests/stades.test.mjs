@@ -41,7 +41,10 @@ test("reel : tous les stades, du moins avancé au plus avancé", () => {
   m.ecrire(`Contenu/${s}/face/IMG_1-coupe.mp4`, "coupe");
   assert.equal(stadeDe(m, s).stade, "rushs_recus");
 
+  // La planche interne du monteur (ses moments clés) ne fait pas avancer le contenu : seul l'aperçu attend la validation.
   m.ecrire(`Contenu/${s}/face/IMG_1-montage/planche/planche.png`, "png");
+  assert.equal(stadeDe(m, s).stade, "rushs_recus");
+  m.ecrire(`Contenu/${s}/face/IMG_1-montage/apercu/apercu.json`, "{}");
   assert.equal(stadeDe(m, s).stade, "planche");
 
   m.ecrire(`Contenu/${s}/face/IMG_1-monte.mp4`, "final");
@@ -218,8 +221,12 @@ test("détail d'une carte : textes et médias, sans chemin disque", () => {
   const d = detail(m.config, s, {});
   assert.equal(d.textes.script, "Bonjour");
   assert.equal(d.textes.legende, "La légende");
-  assert.match(d.medias.planche, new RegExp(`^/api/media/${s}/face/IMG%201-montage/planche/planche\\.png\\?v=\\d+$`));
-  assert.deepEqual(d.medias.planche_lignes, [{ n: 1, ligne: "le titre" }, { n: 2, ligne: "un zoom" }]);
+  // La planche interne du monteur n'est jamais montrée (19/11) : ni image, ni lignes, ni stade « aperçu à valider ».
+  assert.equal(d.medias.planche, undefined);
+  assert.equal(d.medias.planche_lignes, undefined);
+  assert.equal(d.medias.apercu, undefined);
+  assert.equal(d.stade, "rushs_recus");
+  assert.ok(!JSON.stringify(d).includes("planche"), "aucune adresse de la planche dans la réponse");
   assert.deepEqual(d.medias.rushs.map((r) => r.type).sort(), ["face", "photo"]);
   assert.ok(!JSON.stringify(d).includes(m.racine), "aucun chemin du disque dans la réponse");
 });

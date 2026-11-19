@@ -45,24 +45,6 @@ function vignette(lieu, teinte) {
   <rect x="24" y="96" width="132" height="84" rx="10" fill="#fff" opacity=".18"/>
   <text x="18" y="290" font-family="Helvetica, Arial" font-size="18" font-weight="700" fill="#fff">${lieu}</text></svg>`);
 }
-function planche() {
-  const cases = ["Accroche", "Le bol", "Les flocons", "Le chiffre", "Ta main", "Le mot"];
-  const teintes = ["#2a2522", "#6b4a35", "#8a6a4f", "#2a2522", "#5b5550", "#F15A24"];
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560"><rect width="900" height="560" fill="#141414"/>`;
-  cases.forEach((t, i) => {
-    const x = 24 + (i % 6) * 144, y = 40;
-    s += `<rect x="${x}" y="${y}" width="128" height="228" rx="8" fill="${teintes[i]}"/>`;
-    s += `<rect x="${x + 14}" y="${y + 150}" width="100" height="18" rx="3" fill="#fff" opacity=".9"/>`;
-    s += `<circle cx="${x + 18}" cy="${y + 18}" r="13" fill="#F15A24"/><text x="${x + 18}" y="${y + 23}" text-anchor="middle" font-family="Helvetica, Arial" font-size="14" font-weight="700" fill="#111">${i + 1}</text>`;
-    s += `<text x="${x}" y="${y + 252}" font-family="Helvetica, Arial" font-size="15" fill="#ddd">${t}</text>`;
-  });
-  ["#3a3330", "#F15A24", "#2a2522"].forEach((f, i) => {
-    const x = 24 + i * 144, y = 310;
-    s += `<rect x="${x}" y="${y}" width="128" height="200" rx="8" fill="${f}"/>`;
-    s += `<circle cx="${x + 18}" cy="${y + 18}" r="13" fill="#F15A24" stroke="#111" stroke-width="2"/><text x="${x + 18}" y="${y + 23}" text-anchor="middle" font-family="Helvetica, Arial" font-size="14" font-weight="700" fill="#111">${i + 7}</text>`;
-  });
-  return svgUrl(s + "</svg>");
-}
 function slide(n, titre, fond, encre) {
   return svgUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
   <rect width="400" height="500" fill="${fond}"/>
@@ -181,7 +163,7 @@ function fabriquer() {
       { n: 1, le: maintenant(), role: "studio", type: "activite", texte: "je regarde ta vidéo face caméra" },
       { n: 2, le: maintenant(), role: "studio", type: "activite", texte: "je coupe les silences" },
       { n: 3, le: maintenant(), role: "studio", type: "activite", texte: "je place tes plans de la cuisine" },
-      { n: 4, le: maintenant(), role: "studio", type: "texte", texte: "Ta planche est prête dans « Montage ». Réponds **ok**, ou dis-moi par numéro ce que tu changes." },
+      { n: 4, le: maintenant(), role: "studio", type: "texte", texte: "Ton aperçu se prépare dans « Montage ». Dès qu'il est prêt, regarde-le et écris tes notes dessus." },
       { n: 5, le: maintenant(), role: "studio", type: "etat", etat: "a_toi" },
     ] },
   };
@@ -208,18 +190,6 @@ const SLIDES_ERREURS = [
   { n: 3, titre: "Pas de pause", texte: "Le muscle se construit au repos.", photo: "aucune, fond noir" },
   { n: 4, titre: "Copier un programme d'athlète", texte: "Ton programme part de ta semaine, pas de la sienne.", photo: "ton carnet de séance ouvert sur la table" },
   { n: 5, titre: "Enregistre pour ta reprise", texte: "Et envoie-le à quelqu'un qui reprend.", photo: "aucune, fond noir" },
-];
-
-const LIGNES_PLANCHE = [
-  "Accroche face caméra : « Tu manges des protéines le matin ? »",
-  "Ton plan dans la cuisine : tu sors le skyr",
-  "Même plan : tu verses les flocons",
-  "Le chiffre à l'écran : 20 à 30 g",
-  "Ta main ouverte : une paume de protéines",
-  "Face caméra : les trois exemples",
-  "Ton plan du bol fini, vu de haut",
-  "Face caméra : « Enregistre pour demain matin »",
-  "Le mot en commentaire : PETITDEJ",
 ];
 
 // ---------- L'API fabriquée ----------
@@ -255,7 +225,7 @@ export function creerApiMaquette() {
     const c = slug && parSlug(slug);
     if (c) majCarte(c, { activite: "en_cours", a_toi: false });
     const monteur = id.endsWith(":monteur");
-    const activites = monteur ? ["je relis ta planche", "je raccourcis le moment 4"] : (slug ? ["je relis ton brief", "je mets ton texte à jour"] : ["je regarde ce qui a marché cette semaine"]);
+    const activites = monteur ? ["je regarde les moments clés", "je raccourcis le moment 4"] : (slug ? ["je relis ton brief", "je mets ton texte à jour"] : ["je regarde ce qui a marché cette semaine"]);
     for (const a of activites) { await attendre(700); if (enCours[id] !== jeton) return; pousser(id, { n: n++, le: maintenant(), role: "studio", type: "activite", texte: a }); }
     const reponse = monteur
       ? "C'est noté. Je finis la vidéo, elle arrive dans « Vidéo montée » dans quelques minutes."
@@ -347,7 +317,6 @@ export function creerApiMaquette() {
     const res = { ...c, textes, medias };
     if (c.stade !== "gardee") res.brief = briefDe(c);
     if (c.fichiers.includes("montage")) res.montage = montageDe(c);
-    if (c.stade === "planche") { medias.planche = planche(); medias.planche_lignes = LIGNES_PLANCHE.map((ligne, i) => ({ n: i + 1, ligne })); }
     if (c.fichiers.includes("video")) medias.video_montee = VIDEO;
     if (c.fichiers.includes("slides")) medias.slides = [slide(1, c.titre, "#111111", "#F3F3F3"), slide(2, "Une par semaine", "#F5F3EF", "#151515"), slide(3, "Deux, c'est bien", "#F5F3EF", "#151515"), slide(4, "Trois si tu peux", "#F15A24", "#111111"), slide(5, "Enregistre", "#111111", "#F3F3F3")];
     if (c.stade === "programme") res.publication = { statut: "programmé", quand: c.programme_le, lien: null };

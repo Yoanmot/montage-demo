@@ -293,10 +293,6 @@ details.repli > div { padding-top: 8px; }
 .manquants { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .manquants li { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; border: 1px dashed var(--trait-fort); border-radius: var(--rayon-petit); font-size: 14px; }
 .manquants li span { color: var(--encre-3); font-size: 13px; }
-.planche-img { width: 100%; height: auto; border-radius: var(--rayon-petit); background: #141414; display: block; }
-.planche-lignes { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 2px; max-width: 72ch; }
-.planche-lignes li { display: flex; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--trait); }
-.planche-lignes .n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--encre); color: var(--inverse); font-weight: 750; font-size: 13px; font-variant-numeric: tabular-nums; }
 
 /* vidéo montée, images, programmation */
 .video { width: 100%; max-width: 340px; height: auto; aspect-ratio: 9 / 16; border-radius: var(--rayon); background: #000; display: block; }
@@ -503,7 +499,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .chat-aide { font-size: 12px; color: var(--encre-3); }
 .chat-note { margin: 12px 16px 0; padding: 9px 12px; font-size: 13px; color: var(--encre-2); background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon-petit); }
 .chat-planche { flex: none; display: flex; gap: 10px; align-items: center; margin: 12px 16px 0; padding: 8px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent); border-radius: var(--rayon-petit); font-size: 13px; }
-.chat-planche img { width: 72px; height: 45px; object-fit: cover; border-radius: var(--rayon-mini); background: #141414; flex: none; }
 
 /* ---------- Annonces ---------- */
 .annonces { position: fixed; left: calc(var(--arbre-l) + 20px); bottom: 20px; z-index: 60; display: grid; gap: 8px; max-width: 460px; }
@@ -520,7 +515,7 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 
 /* ---------- Nombres ---------- */
 /* Compteurs, chiffres Instagram, minutage de l'aperçu, numéros : la police des nombres du thème (--chiffres). */
-.tb-total strong, .tb-abonnes strong, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n, .planche-lignes .n,
+.tb-total strong, .tb-abonnes strong, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n,
 .etp-n, .graph-bulle strong, .msg-romain time, .apercu-temps, .apercu-note-t { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
 
 /* ---------- Mouvement ---------- */

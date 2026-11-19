@@ -518,22 +518,17 @@ export class Vue {
       r.push(this.etape(`<strong>Vérifie tes vidéos.</strong> ${qui} : regarde si chacune est la bonne. Si une n'a rien à faire là, « Pas la bonne ». Si une face caméra est rangée comme plan en plus (ou l'inverse), un clic la remet à sa place. Puis envoie au montage.`, go, { aToi: true }));
       r.push(this.enLot(d, "montage"));
     } else if (d.stade === "rushs_recus" || (enCours(d) && d.stade !== "planche")) {
-      r.push(this.etape(`Le montage est en cours (une demi-heure environ). Tu peux suivre et parler à ton monteur dans le chat ${ouChat()}.`, null, { cours: true }));
+      r.push(this.etape(`Ton monteur prépare l'aperçu de ta vidéo (une demi-heure environ). Tu peux le suivre et lui parler dans le chat ${ouChat()}.`, null, { cours: true }));
     } else if (d.stade === "planche" && d.medias?.apercu) {
       r.push(this.etape(enCours(d) ? "Ton monteur travaille sur ta vidéo. L'aperçu se recharge tout seul quand il a fini, à la même image." : `<strong>Ton aperçu est prêt.</strong> Regarde-le en entier. Quelque chose à changer : mets pause, entoure-le si tu veux et écris ta note, elle part à ton monteur. Tout est bon : « Fabrique la vidéo ».`,
         null, { aToi: !enCours(d), cours: enCours(d) }));
     } else if (d.stade === "planche") {
-      r.push(this.etape(enCours(d) ? "Ton monteur reprend la vidéo avec ta réponse." : `<strong>Ta planche est prête.</strong> Regarde chaque moment, puis réponds dans le chat ${ouChat()} : « ok » pour fabriquer la vidéo, ou ce que tu changes avec son numéro.`,
-        null, { aToi: !enCours(d), cours: enCours(d) }));
+      // Pas encore d'aperçu à montrer : on attend (la planche interne du monteur ne se montre jamais, 19/11).
+      r.push(this.etape(`Ton monteur prépare l'aperçu de ta vidéo. Il s'affiche ici dès qu'il est prêt.`, null, { cours: true }));
     } else if ((d.fichiers || []).includes("video")) {
       r.push(this.etape("<strong>Ta vidéo est montée.</strong>", this.aller(d, "video", "Voir la vidéo montée", "video")));
     }
     if (d.medias?.apercu && d.stade === "planche") r.push(this.bloc("L'aperçu de ta vidéo", this.hoteApercu(d)));
-    if (d.medias?.planche) {
-      r.push(this.bloc("La planche", el("div", {},
-        el("img", { class: "planche-img", src: d.medias.planche, alt: "La planche du montage, moment par moment", width: "900", height: "560" }),
-        d.medias.planche_lignes?.length ? el("ol", { class: "planche-lignes" }, ...d.medias.planche_lignes.map((l) => el("li", {}, el("span", { class: "n" }, String(l.n)), el("span", {}, l.ligne)))) : null)));
-    }
     const grille = el("div", { class: "rushs-grille" }, ...m.rushs.map((x) => this.rush(d, x, verifiable)));
     // Ajouter une vidéo du Mac (19/11) : tant que le montage n'a pas commencé, ou pendant un envoi déjà lancé.
     let ajout = this.ajouts.get(d.slug);
@@ -547,7 +542,7 @@ export class Vue {
       avecAjout ? ajout.racine : null),
       { aide: pluriel(m.rushs.length, "fichier", "fichiers"), classe: avecAjout ? "bloc-ajout" : "" });
     if (avecAjout) ajout.brancher(blocRushs);
-    if ((d.medias?.planche || d.medias?.apercu) && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
+    if (d.medias?.apercu && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
     else r.push(blocRushs);
     if (m.manquants?.length && !montageLance) {
       r.push(this.bloc("Pas encore arrivé", el("div", {},
