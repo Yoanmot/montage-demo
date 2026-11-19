@@ -53,6 +53,9 @@ t'ouvre dans le dossier du contenu et affiche ce que tu écris dans son chat « 
 - **Tu lis toi-même son script** avant les coupes : l'intention, l'ordre des idées, les plans à tourner, le CTA, la
   légende. Il improvise : le plan s'écrit toujours sur ce qu'il a **vraiment dit**. Si le message cite un plan de
   tournage groupé, lis-le aussi. La description de ses clips est dans `../_bibliotheque/index.json`.
+- **Les autres fichiers du contenu** (images, icônes, textes qu'il a demandés à son head of content) sont dans le
+  même dossier que son script, sous-dossiers compris (par exemple `icones/`). Regarde ce qu'il y a avant de préparer
+  le montage, et utilise-les quand le script ou Yoan y fait référence (des icônes à poser à l'image, par exemple).
 - **Tu ne lances jamais `open`** : le studio montre l'aperçu et la vidéo.
 - **Pas de storyboard à valider** : tu écris le plan, tu prépares tout, et c'est l'aperçu qu'il valide. Le mot doré, que
   le texte ne dit pas, tu le choisis toi-même (voir le skill du plan) ; il le corrige par une note s'il se trompe.

@@ -26,6 +26,15 @@ const ETATS_RESSOURCE = {
   en_preparation: { texte: "en préparation", groupe: "En préparation" },
   sans_page: { texte: "sans page", groupe: "Sans page" },
 };
+// « 12 Ko », « 3,4 Mo ».
+const tailleLisible = (o) => {
+  const n = Number(o) || 0;
+  if (n < 1000) return `${n} octets`;
+  if (n < 1e6) return `${Math.round(n / 1000)} Ko`;
+  return `${(n / 1e6).toLocaleString("fr-CH", { maximumFractionDigits: 1 })} Mo`;
+};
+// Le nom d'un sous-dossier tel qu'on le lit : « icones » -> « Icones », « mes_photos » -> « Mes photos ».
+const nomDossier = (n) => { const t = String(n).replace(/[-_]+/g, " ").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
 const attente = (texte) => el("p", { class: "recap-charge" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), texte);
 
 export class Vue {
@@ -75,7 +84,7 @@ export class Vue {
     this.detail = d;
     const f = (d.fichiers || []).includes(sel.fichier) ? sel.fichier : fichierParDefaut(d);
     const corps = { idee: () => this.vueIdee(d), brief: () => this.vueBrief(d), montage: () => this.vueMontage(d),
-      video: () => this.vueVideo(d), slides: () => this.vueSlides(d), ressource: () => this.vueFichierRessource(d, jeton) }[f]?.() || this.vueIdee(d);
+      video: () => this.vueVideo(d), slides: () => this.vueSlides(d), ressource: () => this.vueFichierRessource(d, jeton), autres: () => this.vueAutres(d) }[f]?.() || this.vueIdee(d);
     this.poser(this.cadre(d, f, corps));
     if (meme) this.racine.scrollTop = garde;
     if (f === "montage") s.majChat();
@@ -577,6 +586,96 @@ export class Vue {
     const urls = d.medias?.slides || [];
     return el("div", {}, this.etapePublication(d),
       el("div", { class: "slides-grille" }, ...urls.map((u, i) => el("figure", {}, el("img", { src: u, alt: `Image ${i + 1} du carrousel`, width: "300", height: "375", loading: "lazy" }), el("figcaption", {}, `Image ${i + 1}`)))));
+  }
+
+  // ---------- Autres fichiers (19/11) : ce que le head of content a rangé dans le dossier à ta demande ----------
+  // Images en vignettes (en grand au clic), textes lisibles, le reste par son nom et sa taille. Un groupe par sous-dossier.
+  vueAutres(d) {
+    const liste = d.autres || [];
+    if (!liste.length) return el("p", { class: "vide-doux" }, "Il n'y a pas d'autre fichier dans ce dossier.");
+    const groupes = new Map();
+    for (const f of liste) {
+      const k = f.dossier || "";
+      if (!groupes.has(k)) groupes.set(k, []);
+      groupes.get(k).push(f);
+    }
+    const blocs = [...groupes.entries()].sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b, "fr", { numeric: true })))
+      .map(([k, fs]) => {
+        const titre = k ? k.split("/").map(nomDossier).join(", ") : "Dans le dossier";
+        const images = fs.filter((f) => f.genre === "image");
+        const textes = fs.filter((f) => f.genre === "texte");
+        const autres = fs.filter((f) => f.genre === "autre");
+        return this.bloc(titre, el("div", { class: "af-groupe" },
+          images.length ? el("ul", { class: "af-images" }, ...images.map((f, i) => {
+            const b = el("button", { class: "af-vignette", type: "button", "aria-label": `Voir ${f.nom} en grand` },
+              el("span", { class: "af-cadre" }, el("img", { src: f.url, alt: "", width: "160", height: "160", loading: "lazy", decoding: "async" })),
+              el("span", { class: "af-nom" }, f.nom));
+            b.addEventListener("click", () => this.agrandir(images, i, b));
+            return el("li", {}, b);
+          })) : null,
+          ...textes.map((f) => this.texteAutre(f)),
+          autres.length ? el("ul", { class: "af-liste" }, ...autres.map((f) => el("li", {},
+            el("span", { class: "af-liste-nom" }, f.nom), el("span", { class: "af-taille" }, tailleLisible(f.taille))))) : null),
+        { aide: pluriel(fs.length, "fichier", "fichiers") });
+      });
+    return el("div", {}, el("p", { class: "af-intro" }, `Ce que ton head of content a ajouté à ce dossier quand tu le lui as demandé.${d.format === "reel" ? " Ton monteur les retrouve aussi." : ""}`), ...blocs);
+  }
+
+  // Un texte du dossier, lu à l'ouverture (un très long fichier ne s'affiche pas en entier ici).
+  texteAutre(f) {
+    const titre = el("h4", { class: "af-texte-titre" }, f.nom);
+    const corps = el("div", { class: "af-texte" }, attente("J'ouvre le texte"));
+    if (f.taille > 300000) {
+      corps.replaceChildren(el("p", { class: "vide-doux" }, `Ce texte est trop long pour s'afficher ici (${tailleLisible(f.taille)}).`));
+    } else {
+      fetch(f.url, { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+        .then((t) => {
+          if (!/\.md$/i.test(f.url.split("?")[0])) return corps.replaceChildren(el("div", { class: "prose af-brut" }, t));
+          // Le titre du texte (« # ... ») devient celui de la carte, pour ne pas l'écrire deux fois.
+          const h = /^\s*#\s+(.+)\n?/.exec(t);
+          if (h) titre.textContent = h[1].trim();
+          return corps.replaceChildren(el("div", { class: "prose", html: markdown(h ? sansTitre(t.trimStart()) : t) }));
+        })
+        .catch(() => corps.replaceChildren(el("p", { class: "recap-erreur" }, "Je n'arrive pas à ouvrir ce texte. Rouvre le dossier dans un instant.")));
+    }
+    return el("article", { class: "af-texte-carte" }, titre, corps);
+  }
+
+  // Une image en grand, par-dessus la page : Échap ou « Fermer » pour revenir, flèches pour passer à la voisine.
+  agrandir(images, depart, retour) {
+    let i = depart;
+    const img = el("img", { class: "af-grande", alt: "" });
+    const nom = el("p", { class: "af-grand-nom", id: "af-grand-nom" });
+    const prec = el("button", { class: "bouton bouton-petit", type: "button" }, "Précédente");
+    const suiv = el("button", { class: "bouton bouton-petit", type: "button" }, "Suivante");
+    const fermer = el("button", { class: "bouton bouton-petit", type: "button", html: `${icone("fermer")}<span>Fermer</span>` });
+    const montrer = () => {
+      const f = images[i];
+      img.src = f.url; img.alt = f.nom; nom.textContent = f.nom;
+      prec.disabled = i === 0; suiv.disabled = i === images.length - 1;
+    };
+    const boite = el("dialog", { class: "af-boite", "aria-labelledby": "af-grand-nom" },
+      el("div", { class: "af-boite-tete" }, nom, fermer),
+      el("div", { class: "af-boite-image" }, img),
+      images.length > 1 ? el("div", { class: "af-boite-pied" }, prec, el("span", { class: "af-compte", "aria-live": "polite" }), suiv) : null);
+    const compte = boite.querySelector(".af-compte");
+    const aller = (n) => { if (n < 0 || n >= images.length) return; i = n; montrer(); if (compte) compte.textContent = `${i + 1} sur ${images.length}`; };
+    prec.addEventListener("click", () => aller(i - 1));
+    suiv.addEventListener("click", () => aller(i + 1));
+    fermer.addEventListener("click", () => boite.close());
+    boite.addEventListener("click", (e) => { if (e.target === boite) boite.close(); });
+    boite.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); aller(i - 1); }
+      if (e.key === "ArrowRight") { e.preventDefault(); aller(i + 1); }
+      // Échap ferme la boîte seulement : sans ça, le studio reviendrait aussi à l'accueil.
+      if (e.key === "Escape") { e.preventDefault(); boite.close(); }
+    });
+    boite.addEventListener("close", () => { boite.remove(); retour?.focus(); });
+    document.body.append(boite);
+    aller(i);
+    boite.showModal();
+    fermer.focus();
   }
 
   etapePublication(d) {

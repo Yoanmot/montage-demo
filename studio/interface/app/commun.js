@@ -16,8 +16,8 @@ export const NOMS_ACTION = {
   mise_en_page: ["mise en page", "mises en page"], idees: ["recherche d'idées", "recherches d'idées"],
   rangement: ["rangement", "rangements"], publication: ["programmation", "programmations"], archivage: ["archivage", "archivages"],
 };
-export const NOMS_FICHIERS = { idee: "Idée", brief: "Brief", montage: "Montage", video: "Vidéo montée", slides: "Images", ressource: "Ressource gratuite" };
-export const ICONES_FICHIERS = { idee: "idee", brief: "brief", montage: "ciseaux", video: "video", slides: "slides", ressource: "cadeau" };
+export const NOMS_FICHIERS = { idee: "Idée", brief: "Brief", montage: "Montage", video: "Vidéo montée", slides: "Images", ressource: "Ressource gratuite", autres: "Autres fichiers" };
+export const ICONES_FICHIERS = { idee: "idee", brief: "brief", montage: "ciseaux", video: "video", slides: "slides", ressource: "cadeau", autres: "dossier" };
 
 export const cle = (c) => c.slug || `p:${c.proposition_id}`;
 export const libre = (c) => !["en_cours", "en_file"].includes(c.activite);
@@ -30,7 +30,9 @@ export function fichierParDefaut(c) {
     rushs_recus: "montage", planche: "montage", monte: "video", mis_en_page: "slides", programme: c.format === "reel" ? "video" : "slides",
     publie: c.format === "reel" ? "video" : "slides", abandonne: "idee", de_cote: "idee",
   }[c.stade];
-  return f.includes(veut) ? veut : f[f.length - 1];
+  // « Autres fichiers » ne s'ouvre jamais tout seul : c'est un rangement, pas une étape.
+  const etapes = f.filter((x) => x !== "autres");
+  return f.includes(veut) ? veut : etapes[etapes.length - 1] || "idee";
 }
 
 // Où sont le chat et l'arborescence : à droite et à gauche sur un écran large, dessous et au-dessus

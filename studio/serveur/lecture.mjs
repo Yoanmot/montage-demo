@@ -11,6 +11,7 @@ import { stade, libelle, estMonte, estOriginale } from "./stades.mjs";
 import { contact } from "./client.mjs";
 import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
+import { autresFichiers } from "./autres.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -324,6 +325,8 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     carte.fichiers.push("ressource");
     carte.ressource = ressource;
   }
+  // Les autres fichiers (19/11) : ce que le head of content a rangé dans le dossier hors de la liste connue.
+  if (autresFichiers(dossier, { max: 1 }).length) carte.fichiers.push("autres");
   const quand = quandPublication(fichiers.publication);
   if (quand) carte.publication_quand = quand;
   carte.semaine = lundiDe(etat?.jour_prevu || (quand ? quand.slice(0, 10) : null)) || null;
@@ -520,6 +523,12 @@ export function detail(config, slug, etatLocal) {
   });
 
   const r = { ...carte, textes, medias };
+  if (carte.fichiers.includes("autres")) {
+    r.autres = autresFichiers(dossier).map((f) => ({
+      nom: f.nom, dossier: f.dossier, genre: f.genre, taille: f.taille,
+      ...(f.genre === "autre" ? {} : { url: `/api/cartes/${encodeURIComponent(slug)}/fichiers/${f.chemin.split("/").map(encodeURIComponent).join("/")}?v=${f.maj}` }),
+    }));
+  }
   const brief = briefDe(config, slug, carte.format);
   if (brief) r.brief = brief;
   if (carte.fichiers.includes("montage")) r.montage = montageDe(config, slug, lu, tournage);

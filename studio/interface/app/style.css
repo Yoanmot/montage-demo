@@ -774,3 +774,34 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 @container (max-width: 470px) { .res-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
 /* Une vidéo prend le focus du clavier sans :focus-visible dans Chrome : son contour, sinon on ne voit pas où l'on est. */
 video:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Autres fichiers d'un dossier (19/11) : vignettes carrées sur un fond neutre (les icônes ont souvent un fond
+   transparent), textes lisibles, le reste par nom et taille ; l'image en grand dans une boîte par-dessus (préfixe af-). */
+.af-intro { margin-bottom: 18px; font-size: 14px; color: var(--encre-2); max-width: 70ch; }
+.af-groupe { display: grid; gap: 16px; }
+.af-images { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+.af-vignette { display: grid; gap: 6px; width: 100%; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
+.af-cadre { display: grid; place-items: center; aspect-ratio: 1; padding: 10px; border: 1px solid var(--trait); border-radius: var(--rayon-petit); background: var(--fond-2); overflow: hidden; transition: border-color .15s; }
+.af-cadre img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.af-vignette:hover .af-cadre { border-color: var(--encre-3); }
+.af-vignette:active .af-cadre { transform: translateY(1px); }
+.af-nom { font-size: 13px; font-weight: 600; color: var(--encre-2); overflow-wrap: anywhere; }
+.af-texte-carte { padding: 14px 16px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--surface); min-width: 0; }
+.af-texte-titre { margin: 0 0 8px; font-size: 14px; font-weight: 750; overflow-wrap: anywhere; }
+.af-brut { white-space: pre-wrap; overflow-wrap: anywhere; }
+.af-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.af-liste li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--trait); font-size: 14px; }
+.af-liste-nom { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.af-taille { flex: none; font-size: 13px; color: var(--encre-3); font-variant-numeric: tabular-nums; }
+.af-boite { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--trait-fort); border-radius: var(--rayon); background: var(--surface); color: var(--encre); }
+.af-boite::backdrop { background: rgb(0 0 0 / .55); }
+.af-boite[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.af-boite-tete, .af-boite-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 16px; }
+.af-boite-tete { border-bottom: 1px solid var(--trait); }
+.af-boite-pied { border-top: 1px solid var(--trait); padding-left: 12px; }
+.af-grand-nom { font-weight: 750; overflow-wrap: anywhere; min-width: 0; }
+.af-boite-image { display: grid; place-items: center; min-height: 0; padding: 16px; background: var(--fond-2); }
+.af-grande { max-width: 100%; max-height: calc(100dvh - 180px); object-fit: contain; display: block; }
+.af-compte { font-size: 13px; color: var(--encre-3); font-variant-numeric: tabular-nums; }
+@container (max-width: 470px) { .af-images { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } .af-cadre { padding: 6px; } }
+@media (max-width: 860px) { .af-boite .bouton-petit { min-height: 44px; } }

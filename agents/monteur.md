@@ -59,6 +59,9 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
   contenu disent quel mouvement du clip sert quelle phrase). La description de chaque clip de sa bibliothèque est
   dans `../_bibliotheque/index.json` (ce qu'on voit, les mouvements, le lieu) : lis l'entrée de chaque clip donné,
   puis regarde quand même ses vignettes (étape 3).
+- **Les autres fichiers du contenu** (images, icônes, textes qu'il a demandés à son head of content) sont dans le
+  même dossier que son script, sous-dossiers compris (par exemple `icones/`). Regarde ce qu'il y a avant de préparer
+  le montage, et utilise-les quand le script ou Romain y fait référence (des icônes à poser à l'image, par exemple).
 - **Tu ne lances jamais `open`** (ni sur la planche, ni sur une vidéo, ni sur un dossier) : le studio montre
   l'aperçu et la vidéo dans son dossier.
 - **La validation se fait sur l'aperçu, pas sur la planche** (étape 6, « En mode studio »). La planche reste ton outil

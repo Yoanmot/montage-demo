@@ -28,6 +28,7 @@ import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
+import { fichierAutre } from "./autres.mjs";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -153,7 +154,7 @@ function lireCorps(req, max = 1024 * 1024) {
 }
 
 // Fichier statique ou média, avec Range.
-function servirFichier(req, res, chemin, { cache = "no-cache" } = {}) {
+function servirFichier(req, res, chemin, { cache = "no-cache", entetes: enPlus = {} } = {}) {
   let s;
   try {
     s = fs.statSync(chemin);
@@ -162,7 +163,7 @@ function servirFichier(req, res, chemin, { cache = "no-cache" } = {}) {
   }
   if (!s.isFile()) return erreur(res, 404, "INTROUVABLE", "Je ne trouve pas ce fichier.");
   const type = TYPES_MIME[path.extname(chemin).toLowerCase()] || "application/octet-stream";
-  const entetes = { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": cache, "Last-Modified": s.mtime.toUTCString() };
+  const entetes = { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": cache, "Last-Modified": s.mtime.toUTCString(), ...enPlus };
   const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ""));
   if (range && (range[1] || range[2])) {
     let debut = range[1] ? Number(range[1]) : Math.max(0, s.size - Number(range[2]));
@@ -513,6 +514,15 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const f = await vignetteReel(config, slug);
         if (!f) throw new ErreurStudio("INTROUVABLE", "Pas de vignette pour ce contenu.", 404);
         return servirFichier(req, res, f, { cache: "private, max-age=86400" });
+      }
+      // Les autres fichiers du dossier (19/11) : images et textes seulement, en lecture, confinés au dossier du
+      // contenu ; aucun script ne s'exécute (un SVG s'affiche en <img>, et la page servie seule est bac à sable).
+      if (m === "GET" && p[2] === "fichiers" && p.length >= 4) {
+        const seg = segmentsSurs(p.slice(3));
+        const f = seg && fichierAutre(path.join(config.depot, "contenus", slug), seg);
+        if (!f) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce fichier.", 404);
+        return servirFichier(req, res, f, { cache: "private, max-age=86400",
+          entetes: { "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox", "Content-Disposition": "inline" } });
       }
       if (m === "GET" && p.length === 2) {
         const d = detail(config, slug, etatLocal());
