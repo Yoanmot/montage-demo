@@ -27,6 +27,9 @@ des briques ; celles de « Pour le plan » s'appliquent quand le monteur écrit 
 ## Animations
 - 2026-10-23 : jamais d'animation sur lui dans le haut de l'image quand les sous-titres y sont : plutôt à hauteur du torse.
 
+## Style
+(Réglages de style qu'il a choisis comme nouveau défaut : recopiés dans le style-video.json de chaque nouvelle vidéo.)
+
 ## Pour le plan
 (Ce qui relève du plan : quelles animations, où, combien. Relu avant d'écrire chaque plan.)
 - 2026-10-23 : un plein écran ou un demi-écran tient au moins 1,6 s et montre l'objet ou l'idée dont il parle.

@@ -52,8 +52,9 @@ def lire_plan(w):
     return f, tl
 
 
-def largeur(texte, taille=ST["taille"]):
-    return VT.largeur_satoshi(texte.replace(" ", ""), taille) + 2 * ST["espace"] * taille * len(texte.split())
+def largeur(texte, taille=None):
+    taille = taille or ST["taille"]
+    return VT.largeur_sous_titres(texte.replace(" ", ""), taille) + 2 * ST["espace"] * taille * len(texte.split())
 
 
 def _majuscules(t):
@@ -62,6 +63,72 @@ def _majuscules(t):
 
 AF = ST["accentFort"]
 LARGEUR_FORT = AF["largeurMax"] - 2 * AF["plus"]["marge"]["x"]   # 840 px à 104 px (les « + » de chaque côté)
+
+
+# ------------------------------------------------------------------------------------------------ style de la vidéo
+def style_video(w):
+    """Le style de CETTE vidéo (<w>/style-video.json, clé « style ») appliqué au style de Yoan (moteur/executeur/style.py),
+    pour ce processus et les pages qu'il écrit (STYLE_VIDEO). Les réglages de découpe des sous-titres suivent :
+    sousTitres.ligneMax (px d'une ligne, 700), sousTitres.motsMax (mots par groupe, 6), sousTitres.deuxLignes
+    (caractères au-delà desquels le groupe passe sur deux lignes, 14). Rend le dict appliqué, ou None (rien ne change)."""
+    global LIGNE_MAX, MOTS_MAX, DEUX_LIGNES, LARGEUR_FORT
+    import style as _style
+    try:
+        sv = _style.appliquer_style_video(w)
+    except ValueError as e:
+        raise PlanFaux(str(e))
+    if not sv:
+        return None
+    LIGNE_MAX = ST.get("ligneMax", LIGNE_MAX)
+    MOTS_MAX = ST.get("motsMax", MOTS_MAX)
+    DEUX_LIGNES = ST.get("deuxLignes", DEUX_LIGNES)
+    LARGEUR_FORT = AF["largeurMax"] - 2 * AF["plus"]["marge"]["x"]
+    return sv
+
+
+GLYPHES_PY = """
+import json, sys
+from fontTools.ttLib import TTFont
+from fontTools.pens.boundsPen import BoundsPen
+f = TTFont(sys.argv[1]); os2, upm = f["OS/2"], f["head"].unitsPerEm
+gs, cmap, hmtx = f.getGlyphSet(), f.getBestCmap(), f["hmtx"]
+chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆabcdefghijklmnopqrstuvwxyzàâäçéèêëîïôöùûüÿœæ0123456789'’.,;:!?%€$&-+«»()/@#*"
+out = dict(upm=upm, ascent=os2.sTypoAscender, descent=-os2.sTypoDescender, cap=getattr(os2, "sCapHeight", 0) or int(upm * 0.7), chars={})
+for ch in chars:
+    g = cmap.get(ord(ch))
+    if not g: continue
+    p = BoundsPen(gs); gs[g].draw(p); b = p.bounds or (0, 0, 0, 0)
+    out["chars"][ch] = dict(adv=hmtx[g][0], x0=b[0], y0=b[1], x1=b[2], y1=b[3])
+open(sys.argv[2], "w").write(json.dumps(out, ensure_ascii=False))
+"""
+
+
+def glyphes_sous_titres(w):
+    """Police des sous-titres autre que Satoshi (style de la vidéo) : sa table de glyphes (largeurs, encre des crochets),
+    faite une fois dans <w>/animations-yoan/, posée pour le découpage (VT) et les pages (ENCRE_GLYPHES). Rend son chemin,
+    ou None (Satoshi : la table du moteur)."""
+    import hashlib, os, subprocess
+    import style as _style
+    pol = STYLE["polices"].get(ST["police"])
+    if not pol:
+        raise PlanFaux(f"STYLE_VIDEO_POLICE_INCONNUE sousTitres.police = {ST['police']} (pas dans polices)")
+    f = Path(pol["fichier"]) if Path(pol["fichier"]).is_absolute() else _style.fichier(pol["fichier"])
+    if f.name.startswith("Satoshi-Black"):
+        VT.GLYPHES_SOUS_TITRES = None; os.environ.pop("ENCRE_GLYPHES", None)
+        return None
+    if not f.exists():
+        raise PlanFaux(f"STYLE_VIDEO_POLICE_INTROUVABLE {f}")
+    if f.suffix.lower() not in (".ttf", ".otf"):
+        raise PlanFaux(f"STYLE_VIDEO_POLICE_FORMAT {f.name} : une police .ttf ou .otf")
+    cle = hashlib.sha1(f"{f}{f.stat().st_size}{int(f.stat().st_mtime)}".encode()).hexdigest()[:10]
+    out = w / "animations-yoan" / f"glyphes-{cle}.json"; out.parent.mkdir(exist_ok=True)
+    if not out.exists():
+        r = subprocess.run(["/usr/bin/python3", "-c", GLYPHES_PY, str(f), str(out)], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise PlanFaux(f"STYLE_VIDEO_POLICE_ILLISIBLE {f.name} : {r.stderr.strip()[-300:]}")
+    VT.GLYPHES_SOUS_TITRES = json.loads(out.read_text(encoding="utf-8"))
+    os.environ["ENCRE_GLYPHES"] = str(out)
+    return out
 
 
 def _equilibre(mots, bloque, fort=False):

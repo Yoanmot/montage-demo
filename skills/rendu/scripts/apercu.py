@@ -225,7 +225,7 @@ def main():
     if not re.search(rf"fps={FPS}\b", (w / "filtre.txt").read_text(encoding="utf-8-sig").split(";")[0]):
         R.echec(2, "COUCHE_MANQUANTE coupes : filtre.txt n'est pas à 30 images/s ; relance la compilation des coupes.")
     ff, node, biblio = R.trouve_ffmpeg(), R.trouve_node(), R.bibliotheque()
-    C = R.constantes(node, biblio)
+    C = R.constantes(node, biblio, w)
     total = int(R.lit_json(w / "edl.json", 3, "COUPES")["segments"][-1]["outOutF"])
     W0, H0 = int(info["largeur"]), int(info["hauteur"])
     couches = couches_preparees(w, sys.argv[2] if len(sys.argv) > 2 else None)

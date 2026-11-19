@@ -149,13 +149,71 @@ def bibliotheque():
     echec(2, "BIBLIOTHEQUE_INTROUVABLE : le skill animations (et sa bibliothèque du style) doit être installé à côté de rendu.")
 
 
-def constantes(node, biblio):
+def constantes(node, biblio, w=None):
+    """Constantes du style (commun.mjs). w : le dossier de montage ; son style-video.json (réglages de CETTE vidéo,
+    demandés par la personne) remplace ou complète l'étalonnage du style. Sans ce fichier, rien ne change."""
     code = ("import(require('url').pathToFileURL(process.argv[1]).href)"
             ".then(m=>console.log(JSON.stringify({ETALONNAGE:m.ETALONNAGE,SONS:m.SONS,RENDU:m.RENDU,POLICES:m.POLICES,STYLE:m.STYLE||{}})))")
-    r = subprocess.run([node, "-e", code, str(biblio / "commun.mjs")], capture_output=True, text=True)
+    env = {k: v for k, v in os.environ.items() if k != "STYLE_VIDEO"}   # les constantes du rendu : celles du style
+    r = subprocess.run([node, "-e", code, str(biblio / "commun.mjs")], capture_output=True, text=True, env=env)
     if r.returncode != 0:
         echec(7, f"OUTIL_MANQUANT : lecture de commun.mjs impossible : {r.stderr.strip()[:300]}")
-    return json.loads(r.stdout)
+    C = json.loads(r.stdout)
+    if w is not None:
+        etalonnage_video(C, w)
+    return C
+
+
+# ------------------------------------------------------------------------------------------------ style de la vidéo
+# Le style du client est le défaut. Une demande pour UNE vidéo (image plus froide, police des sous-titres...) s'écrit
+# dans <dossier>-montage/style-video.json, jamais dans les fichiers du style :
+#   { "pourquoi": "...", "etalonnage": "<chaîne ffmpeg, remplace celle du style>",
+#     "etalonnage_en_plus": "<filtres ffmpeg ajoutés après celle du style>", "style": { ... } }
+# Le rendu, l'aperçu et la planche lisent l'étalonnage ici (même image partout) ; « style » est lu par les sous-titres
+# et les animations (voir leurs SKILL.md).
+STYLE_VIDEO = "style-video.json"
+
+
+def lit_style_video(w):
+    p = Path(w) / STYLE_VIDEO
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        echec(3, f"STYLE_VIDEO_ILLISIBLE : {p} ({e})")
+    if not isinstance(d, dict):
+        echec(3, f"STYLE_VIDEO_ILLISIBLE : {p} (un objet JSON attendu)")
+    inconnues = [k for k in d if k not in ("pourquoi", "etalonnage", "etalonnage_en_plus", "style") and not k.startswith("_")]
+    if inconnues:
+        echec(3, f"STYLE_VIDEO_CLE_INCONNUE {', '.join(inconnues)} dans {p} (clés : pourquoi, etalonnage, etalonnage_en_plus, style)")
+    return d
+
+
+def etalonnage_video(C, w):
+    d = lit_style_video(w)
+    if not d:
+        return C
+    base = C["ETALONNAGE"]
+    e = str(d.get("etalonnage") or "").strip()
+    plus = str(d.get("etalonnage_en_plus") or "").strip()
+    if e:
+        C["ETALONNAGE"] = e
+    if plus:
+        C["ETALONNAGE"] = f"{C['ETALONNAGE']},{plus}"
+    if C["ETALONNAGE"] != base:
+        essaie_etalonnage(C["ETALONNAGE"], Path(w) / STYLE_VIDEO)
+        C["ETALONNAGE_STYLE"] = base
+    return C
+
+
+def essaie_etalonnage(chaine, source):
+    """Une chaîne fausse est refusée tout de suite (une image de test), pas au milieu d'un rendu de dix minutes."""
+    ff = trouve_ffmpeg()
+    r = subprocess.run([ff, "-v", "error", "-f", "lavfi", "-i", "color=c=gray:s=64x64:d=0.1", "-vf", chaine,
+                        "-frames:v", "1", "-f", "null", "-"], capture_output=True, text=True)
+    if r.returncode != 0:
+        echec(3, f"STYLE_VIDEO_ETALONNAGE_FAUX : ffmpeg refuse l'étalonnage de {source} : {r.stderr.strip()[-300:]}")
 
 
 def fichier_style(C, biblio, sous, nom):
@@ -843,7 +901,7 @@ def main():
     ff = trouve_ffmpeg()
     node = trouve_node()
     biblio = bibliotheque()
-    C = constantes(node, biblio)
+    C = constantes(node, biblio, w)
     total = int(lit_json(w / "edl.json", 3, "COUPES")["segments"][-1]["outOutF"])
     W0, H0 = int(info["largeur"]), int(info["hauteur"])
     OW, OH = BASE_W, BASE_H   # toujours 1080 x 1920 (définition d'Instagram ; une 4K garde sa finesse dans les zooms,
@@ -1007,7 +1065,8 @@ def main():
                                  plan=[p for p in ("flou", "decalage", "detoure") if c[p]]) for c in calques],
                    audio=mesures, poids_mo=round(poids_mo, 1), debit_video_max_kbps=kbps, hdr=sdr,
                    encodage_s=round(t_enc, 1), total_s=round(time.time() - t_debut, 1),
-                   cache_mo=poids, cache_libere_mo=libere)
+                   cache_mo=poids, cache_libere_mo=libere,
+                   **({"etalonnage_video": C["ETALONNAGE"]} if C.get("ETALONNAGE_STYLE") else {}))
     (w / "rendu.json").write_text(json.dumps(rapport, ensure_ascii=False, indent=1), encoding="utf-8")
     dire(f"PRÊT {out} ({poids_mo:.1f} Mo, rendu en {time.time() - t_debut:.0f} s, dont encodage {t_enc:.0f} s)")
 

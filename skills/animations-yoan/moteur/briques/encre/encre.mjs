@@ -12,7 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-const G = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'satoshi-glyphes.json'), 'utf8'));
+// ENCRE_GLYPHES : glyphes d'une autre police (sous-titres d'une vidéo dans une autre police, posé par sous-titres.py)
+const G = JSON.parse(fs.readFileSync(process.env.ENCRE_GLYPHES || path.join(path.dirname(fileURLToPath(import.meta.url)), 'satoshi-glyphes.json'), 'utf8'));
 export const MODES = ['capitales', 'optique', 'releve', 'encre'];
 
 // Boîte d'encre d'un mot, mesurée depuis la boîte d'un span inline-block (font-size taille, line-height lh en multiple

@@ -61,6 +61,8 @@ def brolls(w):
 
 def preparer(w):
     try:
+        sv = P.style_video(w)          # réglages de CETTE vidéo (style-video.json), sinon le style de Yoan tel quel
+        if sv: P.glyphes_sous_titres(w)  # police d'une autre famille : ses mesures (lignes, crochets)
         res, fautes, avert, tl = P.resoudre(w)
     except P.PlanFaux as e:
         echec(2, str(e))
@@ -89,7 +91,7 @@ def preparer(w):
         coup = [r(d0) for d0, _, _ in excl if w0 < d0 < w1 + 1]
         ident = f"st{i:02d}"
         debut, images = img(w0), max(1, img(w1) - img(w0))
-        L.append(dict(dossier=str(w / "calques" / ident), duree=round(images / IPS, 4), polices=["satoshi"], grain=False,
+        L.append(dict(dossier=str(w / "calques" / ident), duree=round(images / IPS, 4), polices=[STS["police"]], grain=False,
                       parts=[dict(k="sousTitres", mots=mots, specs=specs, coupures=coup)]))
         fiches.append(dict(id=ident, source="sous-titres", dossier=f"calques/{ident}", debut=debut, images=images, couche="devant",
                            ordre=100, masques=[], groupes=len(specs), dores=[s[1] for s in specs if s[1]],
@@ -114,6 +116,7 @@ def preparer(w):
     for f in fiches:
         dire(f"   {f['id']} images {f['debut']}-{f['debut'] + f['images'] - 1} : {f['groupes']} groupes"
              + (f", dorés {', '.join(f['dores'])}" if f["dores"] else "") + (f", accent fort {', '.join(f['accents_forts'])}" if f["accents_forts"] else ""))
+    if sv: dire(f"   style de cette vidéo : {', '.join(sorted(sv.get('sousTitres', {}).keys()) or sorted(sv.keys()))}")
     dire(f"PRÊT sous-titres : {len(fiches)} passage(s), {ng} groupes, {nd} doré(s), {na} accent(s) fort(s)")
 
 

@@ -32,6 +32,29 @@ Quelques secondes. Lit le plan (`plan-montage.json`, éléments `sous_titres`) e
 - Pas de sous-titres pendant le titre du hook, un plein écran à mots ou le CTA ; ils restent pendant les demi-écrans,
   les gabarits sur la caméra et les gabarits en plein écran (en haut). Pas de crochets sur un plan filmé en plus.
 
+## Le style de cette vidéo (`style-video.json`)
+Ce style est le défaut. Une demande pour **cette vidéo** s'écrit dans `<nom>-montage/style-video.json`, clé `style`
+(mêmes noms que `animations-yoan/moteur/style/style.json`, seules les valeurs qui changent), puis `preparer` et l'aperçu.
+Sans ce fichier, rien ne change. Exemple (« des captions classiques, plus de mots par ligne, une autre couleur ») :
+```json
+{ "pourquoi": "19/11, ses mots : « fais arriver les mots de manière classique, plus de mots par ligne »",
+  "style": { "sousTitres": { "entree": { "flou": 0, "duree": 0.06 }, "motsMax": 8, "ligneMax": 820 } } }
+```
+Ce qui se règle sous `sousTitres` :
+- **Arrivée des mots** `entree` : `flou` (px, 14 ; 0 = net), `duree` (s, 0,22 ; 0 = d'un coup), `avance` (s avant la
+  voix, 0,04), `courbe` (`power2.out`), `montee` (px de montée, 0), `echelle` (taille de départ, 1 ; 0,9 = grossit en
+  entrant), `mode` (`mot` : chaque mot sur sa voix ; `groupe` : tout le groupe arrive d'un coup sur son premier mot).
+  L'accent fort garde son entrée.
+- **Police** : `police` = une clé de `polices` ; une autre police s'ajoute dans la même clé `style` :
+  `"polices": {"videoPolice": {"fichier": "<chemin complet .ttf ou .otf>", "famille": "<nom>", "poids": 400}}`.
+  Ses mesures (largeur des lignes, crochets sur l'encre) sont faites seules. Polices déjà là : `anton`, `inter`,
+  `jetbrains`, `plex`. Jamais une police téléchargée sans son accord.
+- **Couleurs** : `couleur` (le texte, `#F2EEE6`), `couleurDore` (le mot doré, ses crochets et son halo, `#F2B544`).
+- **Taille et place** : `taille` (px, 70), `top` (px du haut du bloc, 242), `largeur` (880), `interligne` (1,12).
+- **Découpe** : `motsMax` (mots par groupe, 6), `ligneMax` (px d'une ligne, 700 ; 820 au plus), `deuxLignes`
+  (caractères au-delà desquels le groupe passe sur deux lignes, 14).
+Garde-fous qui ne bougent pas : sous-titres jamais sur son visage (regarde les moments touchés), rien hors cadre.
+
 ## Les groupes
 Par défaut le plan les demande en `auto` (format dans `$SK/plan-montage-yoan/references/format.md`) : découpés où la voix
 respire, 1 ou 2 lignes équilibrées, avec les dorés et les accents forts du plan. Pour une coupure précise, le plan peut

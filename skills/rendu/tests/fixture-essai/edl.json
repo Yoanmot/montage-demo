@@ -1,0 +1,97 @@
+{
+  "fps": 30,
+  "segments": [
+    {
+      "i": 0,
+      "srcInF": 0,
+      "srcOutF": 16,
+      "outInF": 0,
+      "outOutF": 16,
+      "srcIn": 0,
+      "srcOut": 0.533333,
+      "outIn": 0,
+      "outOut": 0.533333,
+      "words": [
+        0,
+        0
+      ],
+      "contiguous_prev": false
+    },
+    {
+      "i": 1,
+      "srcInF": 17,
+      "srcOutF": 60,
+      "outInF": 16,
+      "outOutF": 59,
+      "srcIn": 0.566667,
+      "srcOut": 2,
+      "outIn": 0.533333,
+      "outOut": 1.966667,
+      "words": [
+        1,
+        6
+      ],
+      "contiguous_prev": false
+    },
+    {
+      "i": 2,
+      "srcInF": 72,
+      "srcOutF": 160,
+      "outInF": 59,
+      "outOutF": 147,
+      "srcIn": 2.4,
+      "srcOut": 5.333333,
+      "outIn": 1.966667,
+      "outOut": 4.9,
+      "words": [
+        7,
+        15
+      ],
+      "contiguous_prev": false
+    },
+    {
+      "i": 3,
+      "srcInF": 166,
+      "srcOutF": 246,
+      "outInF": 147,
+      "outOutF": 227,
+      "srcIn": 5.533333,
+      "srcOut": 8.2,
+      "outIn": 4.9,
+      "outOut": 7.566667,
+      "words": [
+        16,
+        23
+      ],
+      "contiguous_prev": false
+    }
+  ],
+  "joints_out_s": [
+    0.533333,
+    1.966667,
+    4.9
+  ],
+  "stats": {
+    "segments": 4,
+    "kept_words": 24,
+    "total_words": 24,
+    "out_frames": 227,
+    "out_duration_s": 7.567,
+    "cuts_per_min": 23.8,
+    "cut_ratio": 0,
+    "warnings": [
+      {
+        "code": "mono_word_kept",
+        "msg": "intervalle MONO-MOT gardé [0]«Salut,» (0.38s), vérifier que ce mot seul se justifie (sinon étendre la coupe)",
+        "words": [
+          0
+        ]
+      },
+      {
+        "code": "cuts_per_min_high",
+        "msg": "23.8 coupes/min > 15, rythme potentiellement haché, vérifier le plan de coupe",
+        "words": []
+      }
+    ]
+  }
+}

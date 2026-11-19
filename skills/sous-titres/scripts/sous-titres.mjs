@@ -89,7 +89,8 @@ function calque(bib, html, sortie, ST, police = (f) => path.join(bib, 'fonts', f
   fs.rmSync(sortie, { recursive: true, force: true });
   fs.mkdirSync(path.join(sortie, 'fonts'), { recursive: true });
   fs.mkdirSync(path.join(sortie, 'vendor'), { recursive: true });
-  for (const f of [ST.police.file, ST.police.ofl]) fs.copyFileSync(police(f), path.join(sortie, 'fonts', f));
+  // police d'une vidéo (style-video.json) : un chemin complet, sans licence à côté ; copiée sous son seul nom
+  for (const f of [ST.police.file, ST.police.ofl].filter(Boolean)) fs.copyFileSync(police(f), path.join(sortie, 'fonts', path.basename(f)));
   fs.copyFileSync(path.join(bib, 'vendor', 'gsap.min.js'), path.join(sortie, 'vendor', 'gsap.min.js'));
   ecrire(path.join(sortie, 'index.html'), html);
 }
@@ -175,6 +176,9 @@ async function cmdPreparer(w) {
     citations.push([a, b]);
   }
   const repris = lireRepris(w);
+  // style de CETTE vidéo (style-video.json, clé « style ») : lu par commun.mjs, chargé juste après
+  const sv = path.join(w, 'style-video.json');
+  if (fs.existsSync(sv)) process.env.STYLE_VIDEO = sv; else delete process.env.STYLE_VIDEO;
   const L0 = await outils();
   const B0 = L0.bornesCitations({ citations }, (i) => !masque.has(i) && !repris.has(i) && !!affiche(texte[i]));
   const debutsCit = new Set(citations.map((c) => c[0])), finsCit = new Set(citations.map((c) => c[1]));

@@ -31,6 +31,25 @@ Les constantes du style (étalonnage `ETALONNAGE`, niveaux de la voix, plafond d
 bibliothèque `../animations/bibliotheque/` (`commun.mjs`, `sons/`). Pour un test hors du dépôt installé, la variable
 `RENDU_BIBLIOTHEQUE` peut pointer vers une autre copie de la bibliothèque.
 
+## Le style de cette vidéo (`style-video.json`)
+Le style du client est le défaut. Quand la personne demande une autre image pour **cette vidéo** (moins chaude, plus
+claire, plus contrastée...), le monteur l'écrit dans `<nom>-montage/style-video.json`, jamais dans le style :
+```json
+{ "pourquoi": "19/11, ses mots : « trop sombre et orangé, juste une petite touche chaude »",
+  "etalonnage": "colortemperature=temperature=5800:mix=0.30,eq=contrast=1.02:saturation=0.98" }
+```
+- `etalonnage` remplace celui du style ; `etalonnage_en_plus` s'ajoute après (ex. `"eq=brightness=0.04"` : un peu plus
+  clair). Chaînes de filtres ffmpeg ; une chaîne fausse est refusée tout de suite (`STYLE_VIDEO_ETALONNAGE_FAUX`, code 3).
+- L'étalonnage du style se lit avec `STUDIO_CLIENT=<client> node -e "import('<SK>/animations/bibliotheque/commun.mjs').then(m=>console.log(m.ETALONNAGE))"`.
+  Pour l'adoucir, pars de lui et baisse ses réglages (chez Yoan : `mix` de `colortemperature` vers 0,3, `saturation`
+  de `huesaturation` vers -0,15, retire `vignette` pour moins sombre) ; pour revenir à la couleur d'origine :
+  `"etalonnage": "null"`.
+- Le rendu, l'aperçu et la planche le lisent tous les trois : l'aperçu montre exactement l'image du rendu. Après un
+  changement, relance seulement l'aperçu (l'image de la caméra est refaite seule). `rendu.json` note
+  `etalonnage_video` quand il a servi.
+- Sans fichier (ou sans ces clés) : l'étalonnage du style, rien ne change. La clé `style` du même fichier est pour les
+  sous-titres et les animations (voir leurs SKILL.md).
+
 ## Ce qu'elle fait, dans l'ordre
 0. **Vidéo d'origine** : celle qui est à côté du dossier de montage (`<nom>.<ext>` à côté de `<nom>-montage`), sinon le
    chemin de `info.json`. Une vidéo **HDR** (iPhone : HLG ; ou PQ) est convertie en SDR bt709 à l'entrée du graphe, dans

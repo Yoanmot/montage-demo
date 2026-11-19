@@ -16,5 +16,8 @@ des briques ; celles de « Pour le plan » s'appliquent quand le monteur écrit 
 
 ## Animations
 
+## Style
+(Réglages de style qu'il a choisis comme nouveau défaut : recopiés dans le style-video.json de chaque nouvelle vidéo.)
+
 ## Pour le plan
 (Ce qui relève du plan : quelles animations, où, combien. Relu avant d'écrire chaque plan.)

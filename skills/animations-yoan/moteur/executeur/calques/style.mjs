@@ -11,10 +11,18 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const STYLE_JSON = path.resolve(path.join(HERE, '..', '..', 'style', 'style.json'));
 export const STYLE_DIR = path.dirname(STYLE_JSON);
 export const STYLE = JSON.parse(fs.readFileSync(STYLE_JSON, 'utf8'));
+// Style de CETTE vidéo (style-video.json du dossier de montage, clé « style », désigné par STYLE_VIDEO que posent
+// yoan.py et sous-titres.py) : fusionné par-dessus style.json avant tout calcul. Sans STYLE_VIDEO : rien ne change.
+const fusion = (c, a) => { for (const [k, v] of Object.entries(a)) { if (k.startsWith('_')) continue;
+  if (v && typeof v === 'object' && !Array.isArray(v) && c[k] && typeof c[k] === 'object' && !Array.isArray(c[k])) fusion(c[k], v); else c[k] = v; } };
+if (process.env.STYLE_VIDEO && fs.existsSync(process.env.STYLE_VIDEO)) {
+  const sv = JSON.parse(fs.readFileSync(process.env.STYLE_VIDEO, 'utf8')).style;
+  if (sv && typeof sv === 'object') fusion(STYLE, sv);
+}
 // Satoshi : la copie du style si elle y est, sinon celle posée à l'installation dans la bibliothèque (styles/yoan/fonts).
 const SATOSHI_BIB = path.resolve(HERE, '..', '..', '..', '..', 'animations', 'bibliotheque', 'styles', 'yoan', 'fonts', 'Satoshi-Black.ttf');
 export const fichierStyle = (rel) => {
-  const p = path.join(STYLE_DIR, rel);
+  const p = path.isAbsolute(rel) ? rel : path.join(STYLE_DIR, rel);   // police d'une vidéo : chemin complet
   if (!fs.existsSync(p) && /Satoshi-Black\.(woff2|ttf)$/.test(rel) && fs.existsSync(SATOSHI_BIB)) return SATOSHI_BIB;
   return p;
 };

@@ -139,8 +139,12 @@ l'instant : l'animation n'a pas déclaré ses mots, fais-les déclarer puis rela
 - « plus gros », « plus petit » : `taille` ;
 - « plus haut », « plus bas » : `position`.
 Puis `preparer`, et le monteur refait la vidéo depuis l'originale.
-La police, les couleurs, le pavé et la découpe des groupes sont ceux de son style, fixés avec Yoan : s'il veut les
-changer (« coupe la ligne ici », « une autre police »), note-le pour Yoan au lieu de les modifier.
+La police, les couleurs, le pavé et la découpe des groupes sont ceux de son style : c'est le défaut. Pour **cette
+vidéo**, une autre police, couleur ou arrivée des mots s'écrit dans `<nom>-montage/style-video.json`, clé `style`, avec
+les noms de `../animations/bibliotheque/commun.mjs` (ex. `{"style": {"SOUS_TITRES": {"couleur": "#FFFFFF",
+"entree": {"duree": 0.05, "montee": 0}}}}` ; autre police : `{"POLICES": {"sousTitres": {"family": "<nom>",
+"file": "<chemin complet .ttf>", "poids": 900}}}`), puis `preparer`. Seule cette brique lit cette clé (les lignes de
+sous-titre des gabarits gardent le style). Sans fichier, rien ne change.
 Les sous-titres sont incrustés dans l'image : on ne peut pas les retoucher dans Edits. Pour changer un mot, il le
 demande ici et la vidéo est refaite en quelques minutes.
 

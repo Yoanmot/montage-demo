@@ -619,6 +619,7 @@ def main():
     w = P.dossier_de(sys.argv[2])
     if not (w / "words.cut.json").exists(): echec(2, f"DOSSIER_INCONNU : {w} (couper-silences d'abord)")
     try:
+        P.style_video(w)   # réglages de CETTE vidéo (style-video.json, clé « style ») ; sans fichier, rien ne change
         {"texte": cmd_texte, "valider": cmd_valider, "zooms": cmd_zooms, "calques": cmd_calques, "sons": cmd_sons}[sys.argv[1]](w)
     except P.PlanFaux as e:
         echec(3, str(e))

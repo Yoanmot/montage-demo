@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boiteCrochets, encre } from '../../briques/encre/encre.mjs';
-const GLYPHES = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'briques', 'encre', 'satoshi-glyphes.json'), 'utf8'));
+const GLYPHES = JSON.parse(fs.readFileSync(process.env.ENCRE_GLYPHES || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'briques', 'encre', 'satoshi-glyphes.json'), 'utf8'));
 // largeur d'un mot en Satoshi Black (avance des glyphes + interlettrage après chaque lettre, comme Chrome)
 export const largeurSatoshi = (mot, taille, ls = 0) => [...mot].reduce((a, c) => a + GLYPHES.chars[c].adv * taille / GLYPHES.upm + ls * taille, 0);
 import { STYLE, C, F, f3, rgbs, RGB_D, halo, haloTrait, page, POLICES, GRAIN } from './style.mjs';
@@ -197,17 +197,24 @@ export const ST = { taille: STS.taille, lh: STS.interligne, top: STS.top, marge:
 export const boiteST = (w) => boiteCrochets(w, ST.taille, ST.lh, 0, ST.marge, ST.crochet.trait, ST.mode);
 const resserre = (id, T) => resserreJs(id, T, ST.crochet.D);
 export function sousTitres(gs, p = 's', o = {}) {
-  const E = S.entree, Cr = ST.crochet, avecCrochets = o.crochets ?? true;
+  const Cr = ST.crochet, avecCrochets = o.crochets ?? true;
+  // arrivée des mots : celle du style (entrees.texte), sauf si la vidéo en demande une autre (sousTitres.entree de
+  // style-video.json : duree, flou, avance, courbe, montee en px, echelle de départ, mode « mot » ou « groupe »)
+  const E = { ...S.entree, courbe: E0.texte.courbe, ...(STS.entree || {}) };
+  const deX = (E.montee ? `, y: ${E.montee}` : '') + (E.echelle != null && E.echelle !== 1 ? `, scale: ${E.echelle}` : '');
+  const versX = (E.montee ? ', y: 0' : '') + (E.echelle != null && E.echelle !== 1 ? ', scale: 1' : '');
+  const arrivee = (cible, t0) => `tl.fromTo('${cible}', { opacity: 0, filter: 'blur(${E.flou}px)'${deX} }, { opacity: 1, filter: 'blur(0px)'${versX}, duration: ${E.duree}, ease: '${E.courbe}', immediateRender: false }, ${t0});\n`;
+  const poidsST = POLICES[STS.police].poids || 900;
   let css = `
 .grp{position:absolute;left:${STS.gauche}px;top:${ST.top}px;width:${STS.largeur}px;text-align:center;opacity:0;z-index:${STS.z};
-  font-family:'${POLICES[STS.police].family}';font-weight:900;font-size:${ST.taille}px;line-height:${ST.lh};color:${S.blanc};text-transform:uppercase;
+  font-family:'${POLICES[STS.police].family}';font-weight:${poidsST};font-size:${ST.taille}px;line-height:${ST.lh};color:${STS.couleur ?? S.blanc};text-transform:uppercase;
   text-shadow:${STS.ombre};}
 .m{display:none;opacity:0;margin:0 ${STS.espace}em;}
 .saut{display:none;width:100%;height:0;}
-.k{color:${S.dore};text-shadow:${halo()};}
+.k{color:${STS.couleurDore ?? S.dore};text-shadow:${STS.couleurDore ? halo(rgbs(STS.couleurDore)) : halo()};}
 .kw{position:relative;}
 .stcr{position:absolute;pointer-events:none;}
-.stcr i{position:absolute;display:block;background:${S.dore};}
+.stcr i{position:absolute;display:block;background:${STS.couleurDore ?? S.dore};}
 .stcr .h{width:${Cr.bras}px;height:${Cr.trait}px;} .stcr .v{width:${Cr.trait}px;height:${Cr.bras}px;}
 .stcr .tl{left:0;top:0;} .stcr .tr{right:0;top:0;} .stcr .bl{left:0;bottom:0;} .stcr .bd{right:0;bottom:0;}
 .stcoin{position:absolute;left:0;top:0;right:0;bottom:0;}`;
@@ -248,11 +255,13 @@ export function sousTitres(gs, p = 's', o = {}) {
         + ['tl', 'tr', 'bl', 'bd'].map((c) => `<span class="stcoin" id="${id}cr-${c}"><i class="${c} h"></i><i class="${c} v"></i></span>`).join('') + '</span></span>';
     }).join('') + '</div>\n';
     js += `tl.set('#${id}', { opacity: 1 }, ${f3(g.start)});\n`;
-    g.mots.forEach(([w, t, k0, cr, xi, xn], wi) => {
+    const tGroupe = g.mots[0][1];
+    g.mots.forEach(([w, t1, k0, cr, xi, xn], wi) => {
+      const t = E.mode === 'groupe' ? tGroupe : t1;   // « groupe » : tous les mots du groupe arrivent ensemble
       if (exHtml && xi !== undefined && cr !== false) {   // mot d'une expression : doré, crochets au dernier mot (expression complète)
         const t0 = f3(Math.max(0, t - E.avance));
         js += `tl.set('#${id}m${wi}', { display: 'inline-block' }, ${t0});\n`;
-        js += `tl.fromTo('#${id}m${wi}', { opacity: 0, filter: 'blur(${E.flou}px)' }, { opacity: 1, filter: 'blur(0px)', duration: ${E.duree}, ease: '${E0.texte.courbe}', immediateRender: false }, ${t0});\n`;
+        js += arrivee(`#${id}m${wi}`, t0);
         if (xi === xn - 1) js += resserre(`${id}cr`, +t0);
         return;
       }
@@ -262,7 +271,7 @@ export function sousTitres(gs, p = 's', o = {}) {
       js += `tl.set('#${id}m${wi}', { display: 'inline-block' }, ${t0});\n`;
       const cible = k ? `#${id}m${wi}t` : `#${id}m${wi}`;
       if (k) js += `tl.set('#${id}m${wi}', { opacity: 1 }, ${t0});\n` + resserre(`${id}cr`, +t0);
-      js += `tl.fromTo('${cible}', { opacity: 0, filter: 'blur(${E.flou}px)' }, { opacity: 1, filter: 'blur(0px)', duration: ${E.duree}, ease: '${E0.texte.courbe}', immediateRender: false }, ${t0});\n`;
+      js += arrivee(cible, t0);
     });
     js += `tl.set('#${id}', { opacity: 0 }, ${f3(g.end)});\n`;
   });
@@ -293,7 +302,7 @@ function sousTitresFort(g, id) {
   const M = AF.plus.marge, cx0 = Math.round(ix0 - M.x), cx1 = Math.round(ix1 + M.x), cy0 = Math.round(iy0 - M.y), cy1 = Math.round(iy1 + M.y), h2 = pl.taille / 2;
   const css = `
 #${id}{position:absolute;left:0;top:0;width:${W}px;height:${H}px;opacity:0;z-index:${STS.z};}
-.${id}l{position:absolute;left:0;width:${W}px;text-align:center;white-space:nowrap;font-family:'${POLICES[STS.police].family}';font-weight:900;
+.${id}l{position:absolute;left:0;width:${W}px;text-align:center;white-space:nowrap;font-family:'${POLICES[STS.police].family}';font-weight:${POLICES[STS.police].poids || 900};
   font-size:${T}px;line-height:${lh};letter-spacing:${ls}em;text-transform:uppercase;color:${S.dore};text-shadow:${halo()};}
 .${id}w{display:inline-block;opacity:0;margin:0 ${STS.espace}em;}
 .${id}p{position:absolute;width:${pl.taille}px;height:${pl.taille}px;opacity:0;} .${id}p:before,.${id}p:after{content:'';position:absolute;background:${S.creme};}

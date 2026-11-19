@@ -71,6 +71,7 @@ seconde, image 0 = début de la vidéo coupée. Toute position s'exprime en **im
 | `calques/<id>/` | sous-titres, animations | un projet HyperFrames prêt à rendre (`index.html` + ses fichiers), 1080x1920, 30 i/s |
 | `calques.json` | sous-titres, animations (chacun ses entrées) | la liste des calques (voir plus bas) |
 | `sons.json` | sound-design | les sons posés et leurs niveaux |
+| `style-video.json` | le monteur | facultatif : le style de CETTE vidéo demandé par la personne (`etalonnage`, `etalonnage_en_plus` lus par rendu, aperçu et planche ; `style` lu par les sous-titres et, chez Yoan, `animations-yoan`). Absent : le style du client |
 | `<nom>-monte.mp4` | rendu | la vidéo finale, à côté de l'originale |
 
 ### `calques.json`
@@ -358,3 +359,4 @@ Tous les autres gestes n'ont aucun réglage. Pour relire la liste à jour :
   (musique du pipeline de Yoan : boucle, ducking). Le monteur de Yoan (`agents/monteur-yoan.md`, relié sous le nom
   `monteur` chez lui seulement) écrit ses couches avec les skills `plan-montage-yoan`, `animations-yoan`,
   `sous-titres-yoan` (réservés au client yoan, fichier `CLIENT`) : mêmes fichiers et même contrat que ci-dessus.
+- 2026-11-19 (style de la vidéo) : `style-video.json` dans le dossier de montage, facultatif. Le style du client reste le défaut ; ce fichier porte les demandes de la personne pour cette vidéo seulement. `etalonnage` (chaîne ffmpeg, remplace `ETALONNAGE`) ou `etalonnage_en_plus` (ajoutée après), lus par `rendu.constantes(node, biblio, w)` : même image dans le rendu, l'aperçu et la planche. `style` : valeurs fusionnées par-dessus le style, désignées aux pages par `STYLE_VIDEO` (Romain : constantes de `commun.mjs`, lues par la brique sous-titres ; Yoan : clés de `animations-yoan/moteur/style/style.json`, lues par `yoan.py` et `sous-titres-yoan`). Sans fichier, sortie identique à l'octet.

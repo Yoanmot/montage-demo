@@ -1,5 +1,5 @@
 # Demandes de Romain pour Yoan
 
-Ce qui dépasse le style verrouillé (police, couleurs, taille ou hauteur des sous-titres, étalonnage, dessin d'une
-animation, nouveau geste, nouveau son) et les défauts des briques (lignes qui commencent par « Bug : »). Jamais appliqué
-par le monteur. Une ligne datée par demande, avec les mots de Romain et la vidéo concernée.
+Ce qu'aucun réglage ne permet aujourd'hui (une animation dessinée autrement, un nouveau geste, un nouveau son) et les
+défauts des briques (lignes qui commencent par « Bug : »). Le style d'une vidéo (étalonnage, sous-titres) se règle par le
+monteur lui-même et ne va pas ici. Une ligne datée par demande, avec les mots de Romain et la vidéo concernée.

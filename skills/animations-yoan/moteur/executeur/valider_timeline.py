@@ -147,16 +147,22 @@ def verifier_dore(texte, dore, opt, mots):
         AF = STYLE["sousTitres"]["accentFort"]
         if len(texte.split("|")) > 2: raise Faute(f"sous_titres « {texte} » : accent fort sur deux lignes au plus")
         for l in texte.split("|"):
-            larg = largeur_satoshi(l.strip().replace(" ", ""), AF["taille"], AF["interlettrage"]) + 2 * STYLE["sousTitres"]["espace"] * AF["taille"] * len(l.split())
+            larg = largeur_sous_titres(l.strip().replace(" ", ""), AF["taille"], AF["interlettrage"]) + 2 * STYLE["sousTitres"]["espace"] * AF["taille"] * len(l.split())
             if larg > AF["largeurMax"] - 2 * AF["plus"]["marge"]["x"]:
                 raise Faute(f"sous_titres « {texte} » : ligne « {l} » trop large en accent fort ({larg:.0f} px), couper la ligne")
 
 
 _GLY = None
-def largeur_satoshi(m, taille, ls=0.0):
+GLYPHES_SOUS_TITRES = None   # glyphes de la police des sous-titres d'une vidéo (style-video.json), sinon ceux de Satoshi
+def largeur_satoshi(m, taille, ls=0.0, gly=None):
     global _GLY
     if _GLY is None: _GLY = json.loads((ICI.parent / "briques" / "encre" / "satoshi-glyphes.json").read_text())
-    return sum(_GLY["chars"][c]["adv"] * taille / _GLY["upm"] + ls * taille for c in m if c in _GLY["chars"])
+    G = gly or _GLY
+    return sum(G["chars"][c]["adv"] * taille / G["upm"] + ls * taille for c in m if c in G["chars"])
+
+
+def largeur_sous_titres(m, taille, ls=0.0):
+    return largeur_satoshi(m, taille, ls, GLYPHES_SOUS_TITRES)
 
 
 def resoudre(tl):

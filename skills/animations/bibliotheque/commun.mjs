@@ -448,3 +448,22 @@ if (DOSSIER_STYLE) {
   if (R.POLICES && R.POLICES.sousTitres) SOUS_TITRES.police = POLICES.sousTitres;
   for (const k of Object.keys(CONSTANTES)) if (k !== 'COULEURS' && k !== 'NATIF' && k !== 'TIER') recolorerTout(CONSTANTES[k]);
 }
+
+// 3. Style de CETTE vidéo (2026-11-19) : le style ci-dessus est le défaut ; une demande de la personne pour une vidéo
+// seulement s'écrit dans <dossier>-montage/style-video.json, clé « style » (mêmes noms que les constantes : SOUS_TITRES,
+// APPARITION, POLICES...), fusionnée par-dessus le style du client. La brique qui lit ce fichier le désigne par
+// STYLE_VIDEO (sous-titres preparer) ; le rendu ne le passe jamais ici (il lit lui-même l'étalonnage). Sans STYLE_VIDEO,
+// ou sans clé « style » : rien ne change, valeur pour valeur.
+const SV = (() => {
+  const p = process.env.STYLE_VIDEO;
+  if (!p || !fs.existsSync(p)) return null;
+  const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+  return d && d.style && typeof d.style === 'object' ? d.style : null;
+})();
+export const STYLE_VIDEO = SV ? path.resolve(process.env.STYLE_VIDEO) : null;
+if (SV) {
+  const inconnus = Object.keys(SV).filter((k) => !(k in CONSTANTES) && !k.startsWith('_'));
+  if (inconnus.length) throw new Error(`STYLE_VIDEO_CLE_INCONNUE ${inconnus.join(', ')} dans ${STYLE_VIDEO}`);
+  for (const [k, v] of Object.entries(SV)) if (v && typeof v === 'object') fusion(CONSTANTES[k], v);
+  if (SV.POLICES && SV.POLICES.sousTitres) SOUS_TITRES.police = POLICES.sousTitres;
+}

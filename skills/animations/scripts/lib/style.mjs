@@ -156,7 +156,7 @@ const f2 = (x) => (+x.toFixed(2)).toString();
 export function blocSousTitres(opts = {}, prefixe = '') {
   const ST = S.SOUS_TITRES, g = geoSousTitres(opts), O = ST.ombre;
   const css = `/* SOUS-TITRES:debut (bloc écrit par scripts/lib/style.mjs depuis commun.mjs : ne pas le modifier à la main) */
-@font-face{font-family:'${ST.police.family}';src:url('${prefixe}fonts/${ST.police.file}');font-weight:${ST.police.poids};font-style:normal;}
+@font-face{font-family:'${ST.police.family}';src:url('${prefixe}fonts/${ST.police.file.split('/').pop()}');font-weight:${ST.police.poids};font-style:normal;}
 .st-l{position:absolute;left:0;top:${f2(g.top)}px;width:${W}px;text-align:center;white-space:nowrap;visibility:hidden;}
 .st-in{position:relative;display:inline-block;text-align:center;font:${ST.police.poids} ${g.px}px/${f2(g.lh)} '${ST.police.family}';color:${ST.couleur};
   letter-spacing:0;padding-right:${f2(-g.fsp)}px;text-transform:none;}

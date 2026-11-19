@@ -64,6 +64,14 @@ Toutes les commandes : `STUDIO_CLIENT=yoan`, dossier = `<nom>-montage`, `Y` = `s
 Une retouche : corrige le plan, relance seulement ce qui dépend du changement (`zooms` + brique zooms, `calques`,
 sous-titres, `sons`), puis l'aperçu. Un calque d'un plan précédent qui n'est plus dans le plan est retiré seul.
 
+## Le style de cette vidéo (`style-video.json`)
+Le style (`moteur/style/style.json`) est le défaut. Une demande pour **cette vidéo** (une couleur, une durée ou une
+entrée d'animation, le niveau d'un son) s'écrit dans `<nom>-montage/style-video.json`, clé `style`, avec les mêmes noms
+que `style.json` et seulement ce qui change (ex. `{"style": {"couleurs": {"dore": "#E8C77A"}}}`,
+`{"style": {"entrees": {"texte": {"flou": 6}}}}`). `yoan.py` (toutes ses commandes) et les sous-titres l'appliquent ;
+relance ce qui en dépend (`calques`, sous-titres, `sons`) puis l'aperçu. `format` ne se change pas ; une clé inconnue est
+refusée. L'étalonnage se règle dans le même fichier (skill `rendu`). Sans fichier, rien ne change.
+
 ## Le motion sur mesure
 Quand le catalogue n'a rien qui illustre la phrase (règle du planificateur : le contenu d'une animation illustre la
 phrase), tu l'écris toi-même pour ce montage. Il ne rentre jamais dans la banque.

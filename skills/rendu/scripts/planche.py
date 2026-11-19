@@ -344,7 +344,7 @@ def main():
     if not R.video_de(w, info).exists():
         R.echec(2, f"VIDÉO_INTROUVABLE : {info.get('video')}")
     ff, node, biblio = R.trouve_ffmpeg(), R.trouve_node(), R.bibliotheque()
-    C = R.constantes(node, biblio)
+    C = R.constantes(node, biblio, w)
     total = int(R.lit_json(w / "edl.json", 3, "COUPES")["segments"][-1]["outOutF"])
     W0, H0 = int(info["largeur"]), int(info["hauteur"])
     OW, OH = BW, BH   # comme le rendu : toujours 1080 x 1920
