@@ -27,10 +27,25 @@ claude -p --input-format stream-json --output-format stream-json --verbose --inc
   `Skill`, `Task`/`Agent` (sous-agents du monteur), `WebFetch`/`WebSearch` (le head of content
   vérifie une source), `TodoWrite`, `ToolSearch`, `Monitor`, `TaskOutput`, `TaskStop`, `SendMessage`.
 - **Écritures de fichiers bornées** : `Edit(./**)`, `Write(./**)`, `NotebookEdit(./**)`, c'est-à-dire
-  le seul dossier de la session (le dépôt du head of content, ou `MEDIA/<slug>/` pour le monteur),
+  le dossier de la session (le dépôt du head of content, ou `MEDIA/<slug>/` pour le monteur),
   plus `~/.claude/agent-memory/**` (la mémoire des préférences du monteur). Une écriture ailleurs est
   refusée. Vérifié avec le vrai `claude` 2.1.325 : écriture dans le dossier acceptée, écriture dans
   un dossier voisin refusée « mode don't ask ».
+- **Liberté (2026-11-19, demande de Yoan pour Yoan et Romain)** : l'agent fait ce qu'on lui demande,
+  comme Claude Code dans un terminal, même hors du flux prévu (un plan en plus du brief, des images
+  dans le dossier du contenu, un brief changé, une étape refaite). Donc, en plus :
+  - toutes les sessions écrivent dans tout `MEDIA/**` (`Edit`/`Write`, et `--add-dir MEDIA`) : une
+    vidéo, une image ou un fichier demandé pour un contenu, la bibliothèque des clips ;
+  - le monteur écrit aussi dans `DEPOT/contenus/**` (`--add-dir` aussi) : un brief changé à sa
+    demande, enregistré ensuite comme le fait le head of content (pull, commit, push) ;
+  - variables `STUDIO_MEDIA` et `STUDIO_DEPOT` pour que l'agent sache où ranger.
+  La consigne du studio et la tête de chaque agent posent le principe (« le déroulé dit ce que tu
+  fais quand on ne demande rien, jamais une limite ») et la liste de ce qui reste fermé.
+- **Modèle** (2026-11-19) : `--model` vient de `claude.modele` de `studio.config.json`, sinon de
+  `claude.modele` du fichier du client (`clients/<id>.json`), sinon rien (l'abonnement choisit).
+  `claude.modele_sous_agents` du client pose `CLAUDE_CODE_SUBAGENT_MODEL` (sous-agents intégrés
+  compris) ; `claude.modele_rangement` suit la même règle pour le regard du rangement (sonnet si rien).
+  Yoan : opus partout. Romain : rien de fixé, comme avant (son abonnement n'est pas confirmé).
 - **Mise en page d'un carrousel** (gabarit du lot 5) : en plus, `--add-dir` sur les skills,
   `MEDIA/<slug>/photos` et le dossier des slides (config `carrousels`, `~/Pictures/Carrousels` par défaut), et l'écriture permise dans ce dernier seulement.
 - **Monteur** : `--agent monteur`, dossier `MEDIA/<slug>/`, `--add-dir` sur les skills, variables
@@ -50,6 +65,7 @@ Un refus gagne sur toute permission, y compris celles des réglages de l'utilisa
 |---|---|
 | `Read`/`Edit` de `~/.ssh/**`, `<racine>/*.env` (`~/.montage-yoan/*.env` chez Romain), `~/.config/monteur-romain/**`, `~/.aws/**`, `~/.gnupg/**`, et `<config_claude>/.credentials.json` pour un client à configuration Claude isolée | secrets (clés Zernio, serveur, SSH, connexion Claude) |
 | `Edit` de `settings*.json`, `CLAUDE.md`, `agents/**`, `skills/**`, `hooks/**` dans `~/.claude` et dans le dossier `config_claude` du client, fichiers de démarrage du shell, `~/Library/LaunchAgents/**` | une session ne change pas ses propres règles ni ce qui se lance au démarrage |
+| `Edit`/`Write` de `<racine>/montage-demo/**` (code du studio, agents et skills d'origine), `<racine>/studio/studio.config.json`, `<racine>/client.json` | une session ne modifie pas le studio lui-même ; s'il le demande, l'agent dit en une phrase que ça se fait avec Yoan (ou, chez Yoan, en dehors du studio). Aucun refus `Bash` sur ce dossier : les scripts des skills (reliés depuis `montage-demo/skills`) se lancent toujours |
 | `Bash(rm -rf /*)`, `Bash(rm -rf ~*)`, `Bash(rm -rf ..*)`, `Bash(rm -rf $HOME*)` et les variantes `-fr`, `-r -f`, `-Rf`, `-r` | pas de suppression hors du dossier de la session (chemin absolu, maison, remontée) |
 | `Bash(git push --force*)`, `-f`, `--force-with-lease`, `git reset --hard*`, `git clean *` | jamais de force sur le dépôt du client |
 | `Bash(*/.ssh*)`, `Bash(*~/.ssh*)`, `Bash(*zernio.env*)`, `Bash(*monteur-romain/.env*)` (et, hors Romain, `Bash(*elevenlabs.env*)`, `Bash(*claude.env*)`) | les secrets ne passent pas non plus par une commande |

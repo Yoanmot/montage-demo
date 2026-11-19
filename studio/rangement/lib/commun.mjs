@@ -42,6 +42,12 @@ export function ecrireJson(p, obj) {
   fs.renameSync(tmp, p);
 }
 
+// Un modèle fixé par le fichier du client (null s'il n'en fixe pas).
+function modeleClient(cle) {
+  const v = CLIENT.claude?.[cle];
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
 export function lireConfig(fichier) {
   const p = deplier(fichier || path.join(STUDIO_HOME, 'studio.config.json'));
   const c = lireJson(p);
@@ -53,9 +59,11 @@ export function lireConfig(fichier) {
     arrivees: deplier(c.arrivees || '~/Downloads'),
     disque: c.disque_externe ? deplier(c.disque_externe) : null,
     skills: deplier(c.skills || path.join(CLIENT.dossierClaude, 'skills')),
-    // Le regard sur les vignettes prend claude.modele_rangement (sonnet par défaut, contrat section 11).
-    claude: { binaire: c.claude?.binaire || 'claude', modele: c.claude?.modele || null,
-      modeleRangement: c.claude?.modele_rangement === undefined ? 'sonnet' : (c.claude.modele_rangement || null) },
+    // Le regard sur les vignettes prend claude.modele_rangement (contrat section 11) : celui de la config s'il est
+    // fixé, sinon celui du fichier du client (clients/<id>.json, « claude »), sinon sonnet (absent) ou rien (null).
+    claude: { binaire: c.claude?.binaire || 'claude', modele: c.claude?.modele || modeleClient('modele') || null,
+      modeleRangement: c.claude?.modele_rangement || modeleClient('modele_rangement')
+        || (c.claude?.modele_rangement === undefined ? 'sonnet' : null) },
     simulation: process.env.STUDIO_SIMULATION === '1' || c.publication?.simulation === true,
     brut: c,
   };

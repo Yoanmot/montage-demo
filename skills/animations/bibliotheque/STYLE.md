@@ -463,7 +463,7 @@ seulement :
 - **Sur la caméra** : une chose réelle peut se poser dans l'image, à côté de lui ou derrière sa tête (couche `derriere`,
   trouée par son masque de détourage). Jamais sur son visage ; les sous-titres restent ; tout reste dans la zone sûre.
 - Une scène de la vie (quelqu'un dans sa cuisine, quelqu'un qui marche) n'est pas une animation : c'est un B-roll
-  filmé par Romain (brique b-roll). Jamais de B-roll généré par IA (2026-11-13) : sans clip, le passage reste sur lui.
+  filmé par Romain (brique b-roll). Pas de B-roll généré par IA de soi-même (2026-11-13) : sans clip, le passage reste sur lui.
 
 ## Ce qu'on ne fait jamais (rejets v1 et v2 devenus règles)
 - Jamais plusieurs versions d'un effet qui ne diffèrent que par le fond : une seule, le fond est un paramètre.

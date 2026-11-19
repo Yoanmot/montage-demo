@@ -64,7 +64,9 @@ test("réglages : dontAsk, écritures bornées au dossier, refus des secrets, ag
   assert.equal(g.cwd, m.depot);
   assert.ok(g.args.includes("dontAsk"));
   assert.ok(!g.args.includes("--agent"), "le chat général garde l'agent du dépôt");
-  assert.ok(!g.args.includes("--add-dir"), "pas de dossier en plus pour le chat général");
+  // Liberté (19/11) : le chat général ouvre seulement le dossier des médias en plus (écriture permise).
+  const addDirs = g.args.flatMap((x, i) => (g.args[i - 1] === "--add-dir" ? [x] : []));
+  assert.deepEqual(addDirs, [m.media], "seul le dossier des médias en plus pour le chat général");
   const autorises = g.args[g.args.indexOf("--allowedTools") + 1];
   assert.match(autorises, /Edit\(\.\/\*\*\)/);
   assert.ok(!/(^| )Edit( |$)/.test(autorises), "jamais Edit sans borne");

@@ -16,7 +16,9 @@ vers celle-ci.
   Depuis le 2026-11-13 (Yoan), c'est l'**agent monteur** qui l'écrit lui-même, après le tournage, sur la transcription
   de ce que Romain a vraiment dit et avec les clips réellement fournis (skill `plan-montage`), et le fait valider par
   Romain avant de fabriquer. Il place aussi les sons (skill `sound-design`).
-- **Jamais de B-roll généré par IA** (Yoan, 2026-11-13 : Romain ne les aime pas). Les B-rolls sont ses clips filmés.
+- **Pas de B-roll généré par IA de soi-même** (Yoan, 2026-11-13 : Romain ne les aime pas). Les B-rolls sont ses clips filmés
+  et toute vidéo qu'il donne (enregistrement d'écran, vidéo du dossier), même hors du brief. Sur sa demande expresse,
+  une image ou un clip généré est permis, jamais son visage ni sa voix (2026-11-19).
 - Cible : un Mac comme celui de Yoan (Apple Silicon, macOS 15). Rien n'est vérifié chez Romain : un prompt de
   réinstallation final installera ce qui manque. Chaque brique liste ses dépendances dans une section
   « Dépendances » de son `SKILL.md`.

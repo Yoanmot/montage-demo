@@ -14,7 +14,7 @@ const OUTILS_DE_BASE = [
 // Refus valables pour toutes les sessions (ils gagnent sur toute permission). Secrets et configuration
 // Claude tirés du client : pour Romain (racine ~/.montage-yoan, config Claude dans ~/.claude), la liste
 // d'avant, plus le garde-fou générique de publication.
-export function refusCommuns(client = clientActif()) {
+export function refusCommuns(client = clientActif(), config = null) {
   const maison = client.racine === "~/.montage-yoan" || !client.racine;
   const racine = maison ? "~/.montage-yoan" : absolu(client.racineAbs);
   const secrets = ["~/.ssh/**", `${racine}/*.env`, "~/.config/monteur-romain/**", "~/.aws/**", "~/.gnupg/**", ...(maison ? [] : [`${racine}/monteur/**`])];
@@ -27,6 +27,15 @@ export function refusCommuns(client = clientActif()) {
       `Edit(${c}/settings.json)`, `Edit(${c}/settings.local.json)`, `Edit(${c}/CLAUDE.md)`,
       `Edit(${c}/agents/**)`, `Edit(${c}/skills/**)`, `Edit(${c}/hooks/**)`,
     ]),
+    // Le studio lui-même (son code, ses skills et agents d'origine, ses réglages) : une session ne le modifie pas.
+    // Seules les écritures de fichiers sont refusées : lancer les scripts des skills (Bash) reste permis.
+    ...[`${racine}/montage-demo/**`, `${racine}/studio/studio.config.json`, `${racine}/client.json`]
+      .flatMap((c) => [`Edit(${c})`, `Write(${c})`]),
+    // Les consignes du head of content et les outils dont le studio dépend, dans son dépôt (les références des skills,
+    // comme la calibration du débit, restent écrites par lui).
+    ...(config?.depot ? ["CLAUDE.md", ".claude/settings.json", ".claude/settings.local.json", ".claude/agents/**",
+      ".claude/skills/*/SKILL.md", "outils/**"].map((f) => `${absolu(config.depot)}/${f}`)
+      .flatMap((c) => [`Edit(${c})`, `Write(${c})`]) : []),
     "Edit(~/.zshrc)", "Edit(~/.bash_profile)", "Edit(~/.profile)",
     "Edit(~/Library/LaunchAgents/**)",
     // Suppressions hors du dossier de la session : chemin absolu, maison, ou remontée.
@@ -63,9 +72,15 @@ export function typeDeChat(chatId) {
 // de chat est étroite et tout ce que la session enregistre s'affiche déjà à gauche (arborescence) ou au
 // milieu (fichier ouvert). Hors studio (téléphone, cloud), rien ne l'ajoute : le chat y reste la seule
 // interface et montre le contenu.
-export function consigneStudio(prenom = clientActif().prenom) {
+export function consigneStudio(prenom = clientActif().prenom, contact = clientActif().contact) {
+  // Ce qui reste fermé, dit comme à un client : le studio se change avec la personne qui l'a installé.
+  const studioFerme = contact && contact !== prenom
+    ? `dis-lui en une phrase que ça se voit avec ${contact}`
+    : "dis-lui en une phrase que ça se change en dehors du studio, pas depuis ce chat";
   return [
     `Tu parles à ${prenom} dans son studio, une appli de son Mac. Son chat est une colonne étroite à droite.`,
+    `Tu fais ce que ${prenom} te demande, comme un assistant qui travaille directement sur son Mac, même hors du déroulé prévu : un plan en plus de ceux du brief, un nouveau fichier ou des images dans le dossier du contenu, un brief changé, une étape refaite, une recherche, un petit outil fait pour l'occasion. Le déroulé de tes consignes dit ce que tu fais quand il ne demande rien ; ce n'est jamais une limite. Ne réponds jamais « ce n'est pas prévu » ou « ce n'est pas mon rôle » : fais-le, ou dis en une phrase ce qu'il te manque pour le faire.`,
+    `Ce qui reste fermé, même s'il le demande : rien ne part sur Instagram depuis ce chat (la publication se fait par son clic sur le récapitulatif) ; ses clés restent secrètes ; rien n'est supprimé hors de ses dossiers de travail ; jamais de visage ni de voix de ${prenom} fabriqués (une autre image générée ou un visuel qu'il demande expressément, oui) ; tu ne modifies ni tes propres consignes, ni le studio lui-même (son interface, ses réglages) : s'il le demande, ${studioFerme}.`,
     "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Publier sur Instagram ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
     "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
     "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
@@ -91,6 +106,14 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
     `Edit(${memoire})`, `Write(${memoire})`,
   ];
   const dossiersEnPlus = [];
+  // Liberté (19/11/2026) : toute session écrit aussi dans tout le dossier des médias (une vidéo, une image ou un
+  // fichier demandé pour un contenu, la bibliothèque des clips) ; le monteur écrit aussi dans les contenus du head of
+  // content (un brief changé à la demande). Les refus communs gagnent toujours.
+  const ouvrir = (d) => {
+    if (!d) return;
+    autorises.push(`Edit(${absolu(d)}/**)`, `Write(${absolu(d)}/**)`);
+    dossiersEnPlus.push(d);
+  };
   let cwd = config.depot;
   let agent = null;
   // Toutes les sessions du studio le savent (le head of content aussi : le même dépôt sert le téléphone).
@@ -102,6 +125,8 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
     agent = config.agents?.montage || "monteur";
     if (config.skills) env.MONTEUR_SK = config.skills;
     if (config.skills) dossiersEnPlus.push(config.skills);
+    ouvrir(config.media);
+    if (config.depot) ouvrir(path.join(config.depot, "contenus"));
     // Le monteur lit le script du contenu lui-même (lecture seule : Read est permis partout
     // sauf les secrets, rien d'autre à ouvrir).
   } else if (besoin.miseEnPage) {
@@ -114,6 +139,13 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
     dossiersEnPlus.push(slides);
     autorises.push(`Edit(${absolu(slides)}/**)`, `Write(${absolu(slides)}/**)`);
   }
+  if (t.genre !== "monteur") ouvrir(config.media);
+  // Où sont les médias et le dépôt du head of content, pour qu'un agent y range ce qu'on lui demande.
+  if (config.media) env.STUDIO_MEDIA = config.media;
+  if (config.depot) env.STUDIO_DEPOT = config.depot;
+  // Modèle des sous-agents (fichier du client, « claude.modele_sous_agents ») : sans lui, un sous-agent intégré
+  // peut tourner sur un modèle plus petit que la session.
+  if (config.claude?.modeleSousAgents) env.CLAUDE_CODE_SUBAGENT_MODEL = config.claude.modeleSousAgents;
   // Les scripts du Mac lancés depuis une session du dépôt (a-rendre.py de la mise en page) tournent
   // dans leur propre copie, jamais dans DEPOT (contrat, section 12).
   if (t.genre !== "monteur" && config.depotMac) env.RENDUS_DEPOT = config.depotMac;
@@ -122,7 +154,7 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   // de DEPOT/.claude/settings.json (head of content), on ne le force pas.
   if (t.genre !== "monteur" && config.agents?.idees && config.agents.forcer === true) agent = config.agents.idees;
 
-  const reglages = { permissions: { deny: refusCommuns(client) } };
+  const reglages = { permissions: { deny: refusCommuns(client, config) } };
   const args = [
     "-p",
     "--input-format", "stream-json",
@@ -132,10 +164,10 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
     "--permission-mode", "dontAsk",
     "--allowedTools", autorises.join(" "),
     "--settings", JSON.stringify(reglages),
-    "--append-system-prompt", consigneStudio(client.prenom),
+    "--append-system-prompt", consigneStudio(client.prenom, client.contact),
   ];
   if (agent) args.push("--agent", agent);
-  for (const d of dossiersEnPlus) args.push("--add-dir", d);
+  for (const d of [...new Set(dossiersEnPlus)]) args.push("--add-dir", d);
   if (config.claude?.modele) args.push("--model", config.claude.modele);
   return { cwd, args, env, agent, genre: t.genre, slug: t.slug || null };
 }

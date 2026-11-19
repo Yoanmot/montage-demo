@@ -26,5 +26,10 @@
   "reels_essai": false,
   "branche_mise_a_jour": "main",
   "config_claude": null,
-  "polices_locales": {}
+  "polices_locales": {},
+  "claude": {
+    "modele": null,
+    "modele_rangement": null,
+    "modele_sous_agents": null
+  }
 }

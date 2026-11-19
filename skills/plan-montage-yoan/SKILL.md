@@ -54,8 +54,8 @@ un `grep` ciblé dans `references/exemple-demo.json` pour voir ses paramètres �
    corrige ce qui contredit les règles. `A_ECRIRE sur mesure ...` : écris l'animation (skill animations-yoan) avant
    l'étape « calques ».
 
-## Ce que tu ne fais jamais
-Un mot affiché qui n'est pas dit, une phrase amputée, un chiffre qu'il ne dit pas ; une fausse capture d'interface ; une
+## Ce que tu ne fais pas de toi-même
+Ce que Yoan demande expressément passe devant cette liste (sauf son visage ou sa voix fabriqués). Un mot affiché qui n'est pas dit, une phrase amputée, un chiffre qu'il ne dit pas ; une fausse capture d'interface ; une
 animation générique (champ de chat, panneau à liste) là où le catalogue a le geste dédié ; un demi-écran sans rôle ou
 collé à un mouvement de caméra ; une chaîne demi -> plein -> caméra qui ne tient pas ; une animation en haut de l'image
 pendant les sous-titres ; un CTA sur la tête ; une valeur de style dans le plan (taille, couleur, durée).

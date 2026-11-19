@@ -58,7 +58,8 @@ Pas de clé `sons` : tu les places à l'étape sons (skill sound-design).
 - `zooms` : éclair = part sur le premier mot de l'ancre (le mot qui claque) ; rapprochement = l'ancre
   est le début de la phrase qui monte ; ouverture = le dézoom de l'accroche (120 % vers 100 % depuis
   l'image 0), l'ancre est le mot clé où il s'arrête net.
-- `b_roll` : un clip **filmé par Romain**, et rien d'autre (jamais de B-roll généré par IA).
+- `b_roll` : un clip **filmé par Romain**, ou toute vidéo qu'il donne, même hors du brief (enregistrement d'écran,
+  vidéo du dossier). Pas de B-roll généré par IA, sauf s'il le demande expressément.
   `{ "id": "b01", "clip": "<chemin complet du clip reçu>", "quoi": "<ce que montre le clip, vérifié
   sur sa vignette>", "de": ancre, "a": ancre, "depart": <s> }`. `a` absent = jusqu'au bout de la
   phrase. `depart` (facultatif) : à combien de secondes du clip on commence (temps mort au début,

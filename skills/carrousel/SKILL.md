@@ -8,7 +8,7 @@ description: Met en page un carrousel Instagram (1080 × 1350 ou 1080 × 1440) d
 L'utilisateur est un coach, pas un technicien. Parle-lui simplement, en français, en le tutoyant.
 Ne lui montre ni les commandes ni les fichiers techniques : dis ce qui se passe (« je mets en page », « je vérifie les slides »).
 
-**Son texte est le sien, au caractère près.** Tu ne reformules pas, tu ne raccourcis pas, tu n'ajoutes rien (ni phrase, ni appel à l'action, ni emoji, ni slide). Si tu vois une faute de frappe évidente, signale-la et demande avant de corriger. Tu ne choisis pas les photos à sa place : tu utilises celles qu'il donne, sur la slide qu'il indique.
+**Son texte est le sien, au caractère près.** Tu ne reformules pas, tu ne raccourcis pas, tu n'ajoutes rien (ni phrase, ni appel à l'action, ni emoji, ni slide). Si tu vois une faute de frappe évidente, signale-la et demande avant de corriger. Tu ne choisis pas les photos à sa place : tu utilises celles qu'il donne, sur la slide qu'il indique. Tout cela vaut de toi-même : s'il demande un mot changé, une slide en plus ou une autre photo, tu le fais (le texte se change dans son brouillon, revalidé comme d'habitude, puis tu remets en page).
 
 ## La commande
 

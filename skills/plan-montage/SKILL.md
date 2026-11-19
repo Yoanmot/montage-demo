@@ -152,7 +152,7 @@ une simple trace dans le dossier de montage.
   chose réelle à l'identique, animation sur la caméra en dernier), jamais un mot en grand au-dessus
   de sa tête ; une action ou une scène de la vie ne va jamais en plein écran ; une scène de vie
   sans clip reste sur lui, notée « à filmer la prochaine fois » pour ton compte rendu.
-- [ ] Aucun B-roll généré par IA, aucune image de lui prise ailleurs.
+- [ ] Aucun B-roll généré par IA qu'il n'a pas demandé, aucune image de lui prise ailleurs.
 - [ ] 2 à 4 pleins écrans au plus (message principal et idées abstraites), séparés par lui, fonds
   alternés ; lui à l'écran au moins 55 % (56 % validé par Yoan en v5) du temps.
 - [ ] Chaque animation nomme l'original exact à reproduire (appli Calendrier d'Apple), ou elle est

@@ -30,5 +30,10 @@
   "config_claude": "/Users/Shared/studio-yoan/claude",
   "polices_locales": {
     "Satoshi-Black.woff2": "~/Workspace Claude Code/projets/perso/content/monteur/style/polices/Satoshi-Black.woff2"
+  },
+  "claude": {
+    "modele": "opus",
+    "modele_rangement": "opus",
+    "modele_sous_agents": "opus"
   }
 }

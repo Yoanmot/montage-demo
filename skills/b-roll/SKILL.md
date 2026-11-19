@@ -9,7 +9,7 @@ Tu arrives ici depuis l'agent monteur, une fois les coupes prêtes. Fais les ét
 il fabrique la vidéo avec la brique rendu.
 Parle simplement, en français, en tutoyant. Ne montre ni les commandes ni les fichiers.
 
-Un B-roll, c'est un clip **filmé par Romain** (sa démonstration d'un exercice, un plan de lui à l'entraînement, une scène de sa vie tournée pour le brief de la vidéo) qui couvre l'image pendant qu'il parle. Jamais de B-roll généré par IA : Romain n'en veut pas. Sa voix continue, le son du clip n'est pas gardé. Les sous-titres et les titres restent visibles par-dessus.
+Un B-roll, c'est un clip **filmé par Romain** (sa démonstration d'un exercice, un plan de lui à l'entraînement, une scène de sa vie tournée pour le brief de la vidéo), ou toute vidéo qu'il donne même hors du brief (un enregistrement d'écran, une vidéo déposée dans le dossier), qui couvre l'image pendant qu'il parle. Pas de B-roll généré par IA de toi-même : Romain n'en veut pas ; s'il en demande un expressément, c'est permis (jamais son visage ni sa voix). Sa voix continue, le son du clip n'est pas gardé. Les sous-titres et les titres restent visibles par-dessus.
 
 ## La commande
 Le script est `scripts/b-roll.py` dans le dossier de ce skill. Lance-le toujours ainsi, avec un **timeout de 600000 ms** :

@@ -30,5 +30,10 @@
   "branche_mise_a_jour": "studio-multi-clients",
   "config_claude": "/Users/Shared/studio-romain-test/claude",
   "simulation_forcee": true,
-  "polices_locales": {}
+  "polices_locales": {},
+  "claude": {
+    "modele": null,
+    "modele_rangement": null,
+    "modele_sous_agents": null
+  }
 }

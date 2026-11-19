@@ -38,7 +38,7 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   const y = chargerClient({ id: "yoan" });
   const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).sort();
   assert.deepEqual(cles(y), cles(r));
-  assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "config_claude", "contact", "head_of_content", "id", "label_launchd",
+  assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "claude", "config_claude", "contact", "head_of_content", "id", "label_launchd",
     "monteur", "polices_locales", "port", "prenom", "racine", "reels_essai", "ressources", "skill_carrousel", "theme", "zernio"]);
   // Polices hors dépôt (lot 10) : Satoshi chez Yoan, depuis son fichier à lui ; rien chez Romain.
   assert.deepEqual(r.polices_locales || {}, {});
@@ -95,7 +95,7 @@ test("sessions : consigne au prénom du client, config Claude du client, secrets
   assert.match(autorises, /Edit\(\/\/Users\/Shared\/studio-yoan\/claude\/agent-memory\/\*\*\)/);
   assert.ok(!autorises.includes("~/.claude/agent-memory"), "jamais la mémoire des agents de Yoan");
   const refus = JSON.parse(r.args[r.args.indexOf("--settings") + 1]).permissions.deny;
-  assert.deepEqual(refus, refusCommuns(config.client));
+  assert.deepEqual(refus, refusCommuns(config.client, config));
   for (const x of [
     "Read(//Users/Shared/studio-yoan/*.env)", "Edit(//Users/Shared/studio-yoan/*.env)",
     "Read(//Users/Shared/studio-yoan/claude/.credentials.json)",

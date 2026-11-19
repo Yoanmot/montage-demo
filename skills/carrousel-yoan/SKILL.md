@@ -10,7 +10,7 @@ fichier : dis ce qui se passe (« je mets en page », « je vérifie les slides 
 
 **Son texte est le sien, au caractère près.** Tu ne reformules pas, tu ne raccourcis pas, tu n'ajoutes
 rien (ni phrase, ni appel à l'action, ni emoji, ni slide). Une faute de frappe évidente : signale-la et
-demande avant de corriger.
+demande avant de corriger. Tout cela vaut de toi-même : s'il demande un mot changé, une slide en plus ou une autre photo, tu le fais (le texte se change dans son brouillon, revalidé comme d'habitude, puis tu remets en page).
 
 **La DA ne se discute pas ici.** Couleurs, polices, tailles, marges, grain du fond : tout vient de
 `da/theme.json` (la charte v1 de Yoan, copiée telle quelle). Tu ne changes jamais un fichier de `da/` ni

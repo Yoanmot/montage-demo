@@ -224,8 +224,8 @@ mot en grand au-dessus de sa tête pendant que les sous-titres le redisent : rej
 ## Illustrer une idée
 
 Quand une phrase raconte une idée qu'on peut **voir** (Yoan, 2026-11-11, 2026-11-12 et 2026-11-13),
-on la montre plutôt que d'écrire ses mots en grand. **Jamais de B-roll généré par IA** (Romain ne les
-aime pas du tout, 2026-11-13). Dans cet ordre de préférence :
+on la montre plutôt que d'écrire ses mots en grand. **Pas de B-roll généré par IA de toi-même** (Romain ne
+les aime pas du tout, 2026-11-13 ; s'il en demande un expressément, oui, jamais son visage). Dans cet ordre de préférence :
 
 1. **Un B-roll filmé par Romain** : un de ses clips, tourné pour le brief de cette vidéo ou tiré de
    ceux qu'il a déjà. C'est le plus fort, parce que c'est lui. Exemple : « au début tu dois y
@@ -383,7 +383,7 @@ La fin suit ce qu'il dit dans la vidéo : tu la lis dans la transcription.
 - Des pictos de base, de la fausse 3D, des personnages dessinés (dessin animé, bonshommes bâtons), un
   objet suspendu dans le vide (le vrai à l'identique, ou une animation minimaliste à la place).
 - Un stylo, un feutre ou une main qui dessine une marque à l'écran (la marque se trace seule).
-- Un B-roll généré par IA, quel qu'il soit (Romain n'en veut pas) ; un clip qui ne montre pas ce
+- Un B-roll généré par IA qu'il n'a pas demandé (Romain n'en veut pas) ; un clip qui ne montre pas ce
   qu'il dit.
 - Un chiffre écrit en lettres.
 - Plus de 6 à 8 secondes de sous-titres simples seuls en niveau travaillé.

@@ -42,7 +42,21 @@ export function defautsDuClient(client) {
     // Client à configuration Claude isolée : le dossier média (dossier des sessions du monteur) vit sous
     // la racine, hors de la maison, pour que claude n'y trouve en remontant ni ~/.claude ni un CLAUDE.md.
     ...(client.config_claude ? { media: `${r}/Contenu` } : {}),
+    // Modèles du client (clients/<id>.json, « claude ») : seulement ceux qu'il fixe. Romain n'en fixe aucun :
+    // ses valeurs restent celles de l'exemple (abonnement par défaut, rangement en sonnet).
+    ...(modelesDuClient(client) ? { claude: modelesDuClient(client) } : {}),
   };
+}
+
+// Les modèles fixés par le fichier du client (« claude » : modele, modele_rangement, modele_sous_agents), sans les vides.
+export function modelesDuClient(client) {
+  const c = client?.claude;
+  if (!c || typeof c !== "object") return null;
+  const r = {};
+  for (const k of ["modele", "modele_rangement", "modele_sous_agents"]) {
+    if (typeof c[k] === "string" && c[k].trim()) r[k] = c[k].trim();
+  }
+  return Object.keys(r).length ? r : null;
 }
 
 // La lecture des vrais chiffres d'une installation d'essai : seulement un client à simulation forcée qui la demande.
@@ -99,9 +113,12 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
     parallele: Math.max(1, Number(brut.sessions_en_parallele) || 1),
     synchroMinutes: Math.max(0, Number(brut.synchro_minutes ?? 5)),
     publication: brut.publication || {},
+    // Modèle des sessions : celui de studio.config.json s'il en fixe un, sinon celui du fichier du client,
+    // sinon rien (l'abonnement choisit). Les sous-agents suivent modele_sous_agents (CLAUDE_CODE_SUBAGENT_MODEL).
     claude: {
       binaire: env.STUDIO_CLAUDE || brut.claude?.binaire || "claude",
-      modele: brut.claude?.modele || null,
+      modele: brut.claude?.modele || modelesDuClient(client)?.modele || null,
+      modeleSousAgents: brut.claude?.modele_sous_agents || modelesDuClient(client)?.modele_sous_agents || null,
     },
     // Variable prioritaire (contrat, section 7) : STUDIO_SIMULATION=1 => jamais --envoyer.
     simulation: env.STUDIO_SIMULATION === "1" || brut.publication?.simulation === true,
