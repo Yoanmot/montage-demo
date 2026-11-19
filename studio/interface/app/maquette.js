@@ -476,6 +476,7 @@ export function creerApiMaquette() {
     // L'aperçu n'a pas d'exemple dans la maquette (sans serveur, pas de montage à jouer).
     async noteApercu() { await attendre(200); return {}; },
     async fabriquer() { await attendre(200); return {}; },
+    async telecharger(slug) { await attendre(200); return { nom: `${slug}.mp4` }; },
     async retirerRush(slug, id) {
       await attendre(300);
       const c = parSlug(slug); const m = montageDe(c);

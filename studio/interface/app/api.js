@@ -69,6 +69,7 @@ export function creerApiServeur() {
     envoyerFichier,
     noteApercu: (slug, note) => appel("POST", `/api/cartes/${enc(slug)}/apercu/notes`, note),
     fabriquer: (slug) => appel("POST", `/api/cartes/${enc(slug)}/apercu/fabriquer`, {}),
+    telecharger: (slug) => appel("POST", `/api/cartes/${enc(slug)}/telecharger`, {}),
     placer: (fichier, slug, type, arrivee = false) => appel("POST", "/api/rangement/placer", { fichier, slug, type, ...(arrivee ? { arrivee: true } : {}) }),
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),

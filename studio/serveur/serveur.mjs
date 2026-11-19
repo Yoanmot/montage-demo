@@ -31,6 +31,7 @@ import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
+import { telechargerVideo } from "./telecharger.mjs";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -675,6 +676,12 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const d = detail(config, slug, etatLocal());
         if (!d) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce contenu.", 404);
         return envoyerJson(res, 200, d);
+      }
+      if (m === "POST" && p[2] === "telecharger" && p.length === 3) {
+        const r = await telechargerVideo(config, slug, { montrer: process.env.STUDIO_SANS_FINDER !== "1" });
+        if (!r) throw new ErreurStudio("INTROUVABLE", "Pas encore de vidéo montée pour ce contenu.", 404);
+        journal("video_telechargee", { slug, nom: r.nom });
+        return envoyerJson(res, 200, { nom: r.nom });
       }
       if (m === "POST" && p[2] === "valider") {
         await avantAction();

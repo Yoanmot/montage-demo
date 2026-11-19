@@ -833,3 +833,6 @@ video:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 .af-compte { font-size: 13px; color: var(--encre-3); font-variant-numeric: tabular-nums; }
 @container (max-width: 470px) { .af-images { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } .af-cadre { padding: 6px; } }
 @media (max-width: 860px) { .af-boite .bouton-petit { min-height: 44px; } }
+
+/* Télécharger la vidéo montée (19/11) */
+.telechargement { margin-top: 16px; max-width: 340px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }

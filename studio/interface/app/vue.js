@@ -604,7 +604,27 @@ export class Vue {
   vueVideo(d) {
     const m = d.medias || {};
     return el("div", {}, this.etapePublication(d),
-      m.video_montee ? el("video", { class: "video video-seule", src: m.video_montee, controls: true, preload: "metadata", playsinline: true, width: "340", height: "604" }) : el("p", { class: "vide-doux" }, "Pas encore de vidéo montée."));
+      m.video_montee ? el("video", { class: "video video-seule", src: m.video_montee, controls: true, preload: "metadata", playsinline: true, width: "340", height: "604" }) : el("p", { class: "vide-doux" }, "Pas encore de vidéo montée."),
+      m.video_montee ? this.telechargement(d) : null);
+  }
+
+  // Télécharger la vidéo montée (19/11), pour la poster soi-même depuis l'appli Instagram.
+  telechargement(d) {
+    const b = el("button", { class: "bouton", type: "button", html: `${icone("telecharger")}<span>Télécharger la vidéo</span>` });
+    const info = el("p", { class: "vide-doux", role: "status" }, "Pour la poster toi-même : elle va dans Téléchargements, puis tu l'envoies sur ton iPhone par AirDrop.");
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      info.textContent = "Je la copie dans Téléchargements…";
+      try {
+        const r = await this.api.telecharger(d.slug);
+        info.textContent = `C'est fait : « ${r.nom} » est dans Téléchargements. Le Finder te la montre : clic droit, Partager, AirDrop, pour l'envoyer sur ton iPhone.`;
+      } catch (e) {
+        info.textContent = e?.message || "Je n'arrive pas à la copier. Réessaie dans un moment.";
+      } finally {
+        b.disabled = false;
+      }
+    });
+    return el("div", { class: "telechargement" }, b, info);
   }
 
   vueSlides(d) {

@@ -164,6 +164,7 @@ const P = {
   fermer: '<path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/>',
   plus: '<path d="M10 4.5v11M4.5 10h11"/>',
   fleche: '<path d="M8 5l5 5-5 5"/>',
+  telecharger: '<path d="M10 3v10M6 9l4 4 4-4M4 16h12"/>',
   bas: '<path d="M5 8l5 5 5-5"/>',
   lien: '<path d="M11 4h5v5M16 4l-7 7"/><path d="M14 11.5V15a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 15V7.5A1.5 1.5 0 0 1 5.5 6H9"/>',
   attention: '<path d="M10 3.5l7 12.5H3z"/><path d="M10 8.5v3.5M10 14.2v.1"/>',
