@@ -6,7 +6,10 @@
 //   - sinon, hors simulation : `python3 <depot_mac>/outils/zernio.py stats --jours 30 --format json
 //     --sortie -` (lecture seule, rien d'écrit), au plus toutes les `stats.heures` heures ;
 //   - en simulation sans fichier : rien (les chiffres s'affichent absents), sauf avec
-//     STUDIO_STATS_INSTAGRAM=1 (environnement de test de Yoan, lot 11) : la même lecture seule.
+//     STUDIO_STATS_INSTAGRAM=1 (environnement de test de Yoan, lot 11) : la même lecture seule ;
+//   - installation d'essai dont le client porte `stats_reelles` (romain-test) et dont la clé de lecture est posée
+//     (<racine>/zernio-lecture.env) : `zernio.py --compte <compte> stats ...`, cette clé passée à ce seul appel ;
+//     la publication reste simulée. Sans la clé : le fichier, comme avant.
 // Le tableau de bord (lot 11 du studio de Yoan) : les chiffres semaine par semaine (lundi à dimanche, heure de Zurich),
 // 52 semaines. Instagram ne donne les vues, les visites du profil et les likes qu'en total : un appel par semaine,
 // donc les semaines passées sont gardées dans le cache et figées 3 jours après leur fin (Instagram annonce 48 h de
@@ -24,7 +27,18 @@ const JOUR_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function dossierStats(config) { return path.join(config.home, "stats"); }
 
+// La clé de lecture d'une installation d'essai (config.stats.lecture, client à `stats_reelles`) est-elle posée ? Une
+// ligne ZERNIO_API_KEY=<non vide> dans <racine>/zernio-lecture.env. Rend vrai ou faux, jamais la valeur.
+export function cleLecturePosee(lecture) {
+  if (!lecture?.cleFichier) return false;
+  const t = lireTexte(lecture.cleFichier, null);
+  return Boolean(t && /^ZERNIO_API_KEY=["']?[^\s"']/m.test(t));
+}
+
 export function sourceStats(config) {
+  // Installation d'essai à `stats_reelles` : les vrais chiffres en lecture dès que la clé de lecture est posée (la
+  // publication reste simulée) ; sans elle, le fichier de stats comme avant.
+  if (cleLecturePosee(config.stats?.lecture)) return "instagram";
   if (config.stats?.fichier) return "fichier";
   if (config.simulation && !config.stats?.instagramEnSimulation) return null;
   return "instagram";
@@ -160,12 +174,16 @@ async function lireInstagram(config, semainesDepuis = null) {
   if (!existe(path.join(config.depotMac, "outils", "zernio.py"))) {
     throw Object.assign(new Error("zernio.py absent de la copie du Mac"), { code: "ABSENT" });
   }
-  const base = ["stats", "--jours", "30", "--format", "json", "--sortie", "-"];
+  // Installation d'essai à `stats_reelles` : le compte lu est dit explicitement, et la clé de lecture n'est donnée qu'à
+  // cet appel (lancerZernio la refuse à toute autre commande).
+  const lecture = cleLecturePosee(config.stats?.lecture) ? config.stats.lecture : null;
+  const base = [...(lecture ? ["--compte", lecture.compte] : []), "stats", "--jours", "30", "--format", "json", "--sortie", "-"];
+  const options = (timeoutMs) => ({ timeoutMs, ...(lecture ? { cleLecture: lecture.cleFichier } : {}) });
   // Lot 11 : un appel par semaine à relire (52 la première fois) ; le délai suit.
-  let r = await lancerZernio(configBrute(config), semainesDepuis ? [...base, "--semaines-depuis", semainesDepuis] : base, { timeoutMs: semainesDepuis ? 420000 : 150000 });
+  let r = await lancerZernio(configBrute(config), semainesDepuis ? [...base, "--semaines-depuis", semainesDepuis] : base, options(semainesDepuis ? 420000 : 150000));
   // Une copie du head of content d'avant le lot 11 ne connaît pas l'argument : les chiffres d'avant, sans les semaines.
   if (semainesDepuis && r.code === 2 && /unrecognized arguments|--semaines-depuis/.test(String(r.sortie || ""))) {
-    r = await lancerZernio(configBrute(config), base, { timeoutMs: 150000 });
+    r = await lancerZernio(configBrute(config), base, options(150000));
   }
   const ligne = String(r.sortie || "").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("{")).pop();
   if (r.code !== 0 || !ligne) {
@@ -208,6 +226,8 @@ export class Stats {
   perime(c = this.cache()) {
     if (!sourceStats(this.config)) return false;
     if (!c.maj) return true;
+    // La source a changé (clé de lecture posée ou retirée) : relire tout de suite, pas dans 6 heures.
+    if (c.source && c.source !== sourceStats(this.config)) return true;
     const heures = Math.max(1, Number(this.config.stats?.heures) || 6);
     // Après un échec, on retente au bout d'une heure, pas à chaque ouverture.
     const base = Date.parse(c.essai_le && c.erreur ? c.essai_le : c.maj);

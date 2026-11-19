@@ -137,19 +137,51 @@ function environnement(depot, ecriture, client) {
   return env;
 }
 
+// La seule forme d'appel qui peut recevoir la clé de lecture d'une installation d'essai (stats.mjs) :
+//   [--compte <compte>] stats --jours <n> --format json --sortie - [--semaines-depuis AAAA-MM-JJ]
+// `stats` en json vers la sortie standard ne fait que des GET chez Zernio et n'écrit aucun fichier.
+export function argsLectureSeule(args) {
+  const a = [...(args || [])].map(String);
+  if (a[0] === '--compte') {
+    if (!/^[a-z0-9]{1,32}$/.test(a[1] || '')) return false;
+    a.splice(0, 2);
+  }
+  if (a.shift() !== 'stats') return false;
+  const vu = new Set();
+  const formes = { '--jours': /^\d{1,3}$/, '--format': /^json$/, '--sortie': /^-$/, '--semaines-depuis': /^\d{4}-\d{2}-\d{2}$/ };
+  while (a.length) {
+    const k = a.shift();
+    const v = a.shift();
+    if (!formes[k] || vu.has(k) || v === undefined || !formes[k].test(v)) return false;
+    vu.add(k);
+  }
+  return vu.has('--format') && vu.has('--sortie');
+}
+
 // Lance zernio.py dans son propre groupe de processus ; rend { code, sortie }.
 // dans: 'depot' : un outil du dépôt de travail du studio (écritures du clic, poussées comme les autres
 // écritures du studio), jamais avec les variables d'écriture Zernio.
-export function lancerZernio(config, args, { ecriture = false, timeoutMs = 120000, dans = 'mac', script = 'zernio.py' } = {}) {
+// cleLecture : le fichier de la clé de lecture d'une installation d'essai (<racine>/zernio-lecture.env), donné à
+// zernio.py par ZERNIO_ENV_FILE pour ce seul appel, et seulement pour une lecture des chiffres (argsLectureSeule) ;
+// tout autre appel est refusé sans rien lancer.
+export function lancerZernio(config, args, { ecriture = false, timeoutMs = 120000, dans = 'mac', script = 'zernio.py', cleLecture = null } = {}) {
   const c = chemins(config);
   const depot = dans === 'depot' ? c.depot : c.depotMac;
   const outil = path.join(depot, 'outils', script);
   if (dans === 'depot') ecriture = false;
+  const env = environnement(depot, ecriture, config.client || clientActif());
+  if (cleLecture) {
+    if (ecriture || dans !== 'mac' || script !== 'zernio.py' || !argsLectureSeule(args)) {
+      return Promise.resolve({ code: -1, sortie: 'LECTURE_REFUSEE : la clé de lecture ne sert qu\'à lire les chiffres (zernio.py stats)' });
+    }
+    delete env.ZERNIO_API_KEY;
+    env.ZERNIO_ENV_FILE = path.resolve(cleLecture);
+  }
   return new Promise((resolve) => {
     let sortie = '';
     let fini = false;
     const p = spawn('python3', [outil, ...args], {
-      cwd: depot, env: environnement(depot, ecriture, config.client || clientActif()), detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: depot, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     });
     const minuterie = setTimeout(() => {
       try { process.kill(-p.pid, 'SIGTERM'); } catch { /* déjà fini */ }

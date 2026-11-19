@@ -172,6 +172,40 @@ test("cles.sh : aucune clé Zernio posable dans une installation d'essai", () =>
   assert.ok(!fs.existsSync(path.join(racine, "zernio.env")));
 });
 
+test("stats réelles : romain-test lit le compte romain de zernio.py ; ni yoan ni romain", () => {
+  assert.equal(variables(envDe(tmp(), { STUDIO_CLIENT: "romain-test" })).CLIENT_STATS_REELLES, "romain");
+  assert.equal(variables(envDe(tmp())).CLIENT_STATS_REELLES, "");
+  assert.equal(variables(envDe(tmp(), { STUDIO_CLIENT: "yoan" })).CLIENT_STATS_REELLES, "");
+  // Le compte nommé est bien celui de Romain dans son zernio.py (copie locale du head of content, si présente).
+  const z = path.resolve(DEPOT, "../../agents/head-of-content/depot/outils/zernio.py");
+  if (fs.existsSync(z)) assert.match(fs.readFileSync(z, "utf8"), /"romain": \{"profil": "6ac75dec9a27558cf4810eff", "compte": "6af31ec6f19c6d2112b2cc4a"/);
+});
+
+test("cles.sh zernio-lecture : posée dans son fichier à elle (600), jamais affichée ; refusée sans stats_reelles", () => {
+  const t = tmp();
+  const { racine, fichier } = clientEssai(t, { stats_reelles: { compte: "romain" } });
+  const env = envDe(path.join(t, "maison"), { STUDIO_CLIENT: "essai-test", STUDIO_CLIENT_FICHIER: fichier });
+  const r = spawnSync("/bin/bash", [path.join(DEPOT, "installation/cles.sh"), "--stdin", "zernio-lecture"], { env, input: "sk-LECTURE-TEST\n", encoding: "utf8" });
+  // Pas de copie du head of content ici : la vérification ne part pas sur le réseau.
+  assert.match(r.stdout, /^CLE_NON_VERIFIEE zernio-lecture/m);
+  assert.doesNotMatch(r.stdout + r.stderr, /sk-LECTURE-TEST/);
+  const f = path.join(racine, "zernio-lecture.env");
+  assert.equal(fs.readFileSync(f, "utf8"), "ZERNIO_API_KEY=sk-LECTURE-TEST\n");
+  assert.equal(fs.statSync(f).mode & 0o777, 0o600);
+  assert.ok(!fs.existsSync(path.join(racine, "zernio.env")));
+  // Sans le nom, cles.sh ne la demande jamais (la liste des clés manquantes reste celle d'avant).
+  assert.doesNotMatch(fs.readFileSync(path.join(DEPOT, "installation/cles.sh"), "utf8").split("if [ $# -gt 0 ]")[1], /poser zernio-lecture|DEJA zernio-lecture/);
+  // Client d'essai sans stats_reelles, ou vraie installation : refusée, rien d'écrit.
+  for (const ajout of [{}, { simulation_forcee: false, stats_reelles: { compte: "romain" } }]) {
+    const t2 = tmp();
+    const c2 = clientEssai(t2, ajout);
+    const r2 = spawnSync("/bin/bash", [path.join(DEPOT, "installation/cles.sh"), "--stdin", "zernio-lecture"], {
+      env: envDe(path.join(t2, "maison"), { STUDIO_CLIENT: "essai-test", STUDIO_CLIENT_FICHIER: c2.fichier }), input: "sk-NON\n", encoding: "utf8" });
+    assert.match(r2.stdout, /^CLE_INTERDITE zernio-lecture/m);
+    assert.ok(!fs.existsSync(path.join(c2.racine, "zernio-lecture.env")));
+  }
+});
+
 test("hoc-essai.sh : dépôt nu local, envois vers GitHub impossibles, retouches tirées sans perdre le test", () => {
   const t = tmp();
   const { racine, fichier } = clientEssai(t);

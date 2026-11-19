@@ -49,6 +49,14 @@ pointent `ZERNIO_ENV_FILE` sur `/dev/null` ; l'installation met `publication.sim
 `cles.sh` refuse la clé Zernio (`CLE_INTERDITE`) ; `verifier.sh` échoue si une clé est posée. Son head of
 content est un dépôt nu local (`installation/hoc-essai.sh` : `preparer`, `proteger`, `tirer`, `etat`) :
 aucun envoi possible vers GitHub, retouches de Yoan tirées de sa copie du dépôt.
+**Vrais chiffres en lecture (`stats_reelles`, 2026-11-19).** Un client d'essai qui porte
+`"stats_reelles": { "compte": "<compte de zernio.py>" }` (romain-test : `romain`) lit les vrais chiffres
+d'Instagram dans la vue d'ensemble, comme le vrai studio : clé posée par `cles.sh zernio-lecture` (champ
+masqué) dans `<racine>/zernio-lecture.env` (600), donnée par `ZERNIO_ENV_FILE` au seul appel
+`zernio.py --compte <compte> stats ... --format json --sortie -` (`lancerZernio` refuse cette clé à toute
+autre commande). Tous les autres appels gardent `ZERNIO_ENV_FILE=/dev/null` ; la publication reste simulée.
+Sans la clé : le fichier `stats.fichier`, comme avant. `verifier.sh` : « stats réelles en lecture,
+publication simulée ».
 Pour toute installation : `<racine>/branche` (une ligne) fait suivre une autre branche que
 `branche_mise_a_jour` (tester une branche pas encore livrée) ; le retirer pour revenir à celle du client.
 

@@ -181,6 +181,13 @@ PYEOF
       if [ -n "$cz" ] || [ -f "$BASE/zernio.env" ]; then kov "publier : une clé de publication est posée dans une installation d'essai (à retirer)"
       elif [ "$sim" != "true" ]; then kov "publier : publication.simulation n'est pas à vrai dans la config de l'installation d'essai"
       else okv "publier simulation forcée (aucune clé de publication, rien ne peut partir sur Instagram)"; fi
+      # Clé de lecture des vrais chiffres (stats_reelles) : permise, dans son fichier à elle, jamais ailleurs.
+      if [ -f "$BASE/zernio-lecture.env" ]; then
+        if [ -z "${CLIENT_STATS_REELLES:-}" ]; then kov "stats : une clé de lecture est posée mais le client ne lit pas de vrais chiffres (stats_reelles absent), à retirer"
+        elif [ "$(stat -f '%Lp' "$BASE/zernio-lecture.env" 2>/dev/null)" != "600" ]; then kov "stats : la clé de lecture n'est pas protégée (droits 600 attendus)"
+        elif [ "$sim" != "true" ] || [ -n "$cz" ] || [ -f "$BASE/zernio.env" ]; then kov "stats : clé de lecture posée sans simulation forcée complète"
+        else okv "stats réelles en lecture ($CLIENT_STATS_REELLES), publication simulée"; fi
+      elif [ -n "${CLIENT_STATS_REELLES:-}" ]; then okv "stats chiffres du fichier (clé de lecture pas posée : cles.sh zernio-lecture)"; fi
     elif [ -z "$cz" ]; then afv "publier : clé de publication absente (cles.sh zernio)"
     else
       r="$(ZERNIO_API_KEY="$cz" "$PY" - "$HOC/outils" "$CLIENT_ID" <<'PYEOF' 2>&1

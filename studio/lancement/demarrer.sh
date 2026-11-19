@@ -24,7 +24,8 @@ fi
 
 # Installation d'essai (simulation_forcee) : la publication reste une simulation quoi que dise
 # studio.config.json, et aucune clé Zernio n'est lisible par le serveur, ses sessions ni ses scripts
-# (ZERNIO_ENV_FILE vide : zernio.py ne retombe pas sur ~/.montage-yoan/zernio.env).
+# (ZERNIO_ENV_FILE vide : zernio.py ne retombe pas sur ~/.montage-yoan/zernio.env). Seule exception : un client à
+# stats_reelles, dont le serveur donne la clé de LECTURE (<racine>/zernio-lecture.env) au seul `zernio.py stats`.
 if [ -n "${CLIENT_SIMULATION_FORCEE:-}" ]; then
   unset ZERNIO_API_KEY ZERNIO_ECRITURE ZERNIO_ECRITURE_ROMAIN
   export STUDIO_SIMULATION=1 ZERNIO_ENV_FILE=/dev/null
