@@ -389,11 +389,6 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 /* chiffres Instagram */
 .stats-note { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--encre-3); margin-bottom: 12px; }
 .tag-exemple { color: var(--ambre); background: var(--ambre-pale); }
-.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.tuile { display: grid; align-content: start; gap: 4px; padding: 14px 16px; border-radius: var(--rayon); background: var(--fond); border: 1px solid var(--trait); min-width: 0; }
-.tuile-titre { font-size: 13px; font-weight: 650; color: var(--encre-2); }
-.tuile-valeur { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.tuile-valeur.absente { font-size: 15px; font-weight: 650; color: var(--encre-3); padding: 7px 0 4px; }
 .evolution { font-size: 13px; font-weight: 750; color: var(--encre); }
 .evolution.hausse { color: var(--vert); }
 .evolution .doux { font-weight: 500; }
@@ -492,8 +487,8 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 
 /* ---------- Nombres ---------- */
 /* Compteurs, chiffres Instagram, minutage de l'aperçu, numéros : la police des nombres du thème (--chiffres). */
-.tuile-valeur, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n, .planche-lignes .n,
-.etp-n, .cmp-valeur, .graph-bulle strong, .msg-romain time, .apercu-temps, .apercu-note-t { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
+.tb-total strong, .tb-abonnes strong, .entree-nb, .groupe-tete .compte, .bouton .nb, .slide-n, .planche-lignes .n,
+.etp-n, .graph-bulle strong, .msg-romain time, .apercu-temps, .apercu-note-t { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
 
 /* ---------- Mouvement ---------- */
 @keyframes tourne { to { transform: rotate(360deg); } }
@@ -655,28 +650,15 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .vue { container-type: inline-size; }
 .video-seule { margin-top: 4px; }
 
-/* Vue d'ensemble : graphiques. Une couleur par graphique (l'encre), filets discrets, chiffres dans la police des
-   nombres du thème. La forme dit la tendance, la bulle donne la valeur (survol et clavier). */
-.graph-bloc { margin-top: 24px; min-width: 0; }
-.graph-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 10px; font-size: 14px; font-weight: 750; }
-.graph-sous { font-size: 13px; font-weight: 500; color: var(--encre-3); }
-.graph-paire { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 28px; }
+/* Vue d'ensemble : graphiques. Une couleur par graphique (l'accent du client depuis le lot 11), filets discrets,
+   chiffres dans la police des nombres du thème. La forme dit la tendance, la bulle donne la valeur (survol et clavier). */
 .graph-cadre { position: relative; }
-.graph-zone { width: 100%; min-height: 120px; }
+.graph-zone { width: 100%; min-height: 112px; }
 .graph { display: block; overflow: visible; }
 .graph-grille { stroke: var(--trait); stroke-width: 1; }
 .graph-base { stroke: var(--trait-fort); stroke-width: 1; }
 .graph-axe { fill: var(--encre-3); font-family: var(--chiffres); font-size: 11px; }
-.graph-ligne { fill: none; stroke: var(--encre-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.graph-point { fill: var(--encre); stroke: var(--surface); stroke-width: 2; }
-.graph-fin { fill: var(--encre); font-family: var(--chiffres); font-size: 12px; font-weight: 700; }
-.graph-repere { stroke: var(--encre-3); stroke-width: 1; }
-.graph-colonne { fill: var(--encre-2); transition: fill .12s; }
-.graph-barre.actif .graph-colonne { fill: var(--encre); }
-.graph-normale { stroke: var(--encre-3); stroke-width: 1; }
-.graph-normale-texte { fill: var(--encre-2); font-size: 11.5px; font-weight: 650; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .graph-capte { fill: transparent; outline: none; }
-.graph-capte.cliquable { cursor: pointer; }
 .graph-capte:focus-visible { stroke: var(--focus); stroke-width: 2; }
 .graph-bulle { position: absolute; z-index: 3; pointer-events: none; display: grid; gap: 1px; max-width: 280px; padding: 7px 10px; border-radius: var(--rayon-petit);
   background: var(--encre); color: var(--inverse); box-shadow: var(--ombre-pop); font-size: 12.5px; line-height: 1.35; }
@@ -685,19 +667,47 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .graph-bulle-detail { opacity: .85; }
 .graph-vide { padding: 16px; border: 1px dashed var(--trait-fort); border-radius: var(--rayon); background: var(--fond); color: var(--encre-2); font-size: 14px; }
 .graph-erreur { color: var(--rouge); font-weight: 600; font-size: 14px; }
-@container (max-width: 620px) { .graph-paire { grid-template-columns: minmax(0, 1fr); } }
 
-/* 28 jours contre les 28 d'avant, dans la tuile : deux barres qui se comparent sans lire les chiffres. */
-.tuile { container-type: inline-size; }
-.cmp { display: grid; gap: 5px; margin-top: 8px; }
-.cmp-ligne { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; color: var(--encre-2); }
-.cmp-piste { display: block; height: 8px; min-width: 0; }
-/* Ces 28 jours en encre pleine, les 28 d'avant en encre claire : deux tons qui se distinguent, chacun à plus de 3:1
-   sur la tuile, et le chiffre écrit au bout. */
-.cmp-barre { display: block; height: 8px; border-radius: 0 4px 4px 0; background: var(--encre); }
-.cmp-avant .cmp-barre { background: var(--encre-3); }
-.cmp-valeur { font-size: 12px; color: var(--encre-2); }
-@container (max-width: 220px) { .cmp-ligne { grid-template-columns: minmax(0, 1fr) auto; } .cmp-quoi { grid-column: 1 / -1; } }
+/* Tableau de bord (lot 11 du studio de Yoan) : six cards de même taille, 3 par ligne, puis 2, puis 1. Chacune répond à
+   une question (combien de vues, de publications... par semaine) : le chiffre de la période en premier, la ligne de
+   lecture, puis une barre par semaine à l'accent du client (--orange : orange vif chez Romain, ambre de la charte chez
+   Yoan). Cards à plat sur le fond (pas d'ombre : rien ne flotte), le filet du thème pour les séparer. */
+.tb-barre { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 10px; }
+.tb-periodes { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--trait-fort); border-radius: var(--rayon); background: var(--fond); }
+.tb-periode { min-height: 32px; padding: 4px 12px; border: 0; border-radius: var(--rayon-petit); background: transparent; color: var(--encre-2); font: inherit; font-size: 13px; font-weight: 650; }
+.tb-periode:hover { background: var(--fond-3); color: var(--encre); }
+.tb-periode:active { transform: translateY(1px); }
+.tb-periode[aria-pressed="true"] { background: var(--encre); color: var(--inverse); }
+.tb-periode:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tb-abonnes { margin: 0; font-size: 14px; color: var(--encre-2); text-align: right; }
+.tb-abonnes strong { font-size: 22px; font-weight: 800; color: var(--encre); letter-spacing: -0.01em; }
+.tb-abonnes .evolution { margin-left: 6px; }
+.tb-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tb-carte { display: grid; grid-template-rows: auto auto 1fr auto; align-content: start; gap: 4px; min-width: 0; min-height: 214px; padding: 14px 14px 10px;
+  border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); }
+.tb-titre { margin: 0; font-size: 13px; font-weight: 700; color: var(--encre-2); }
+.tb-total { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; font-size: 13px; color: var(--encre-2); }
+.tb-total strong { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--encre); letter-spacing: -0.01em; }
+.tb-total.absente { font-size: 14px; font-weight: 600; color: var(--encre-3); padding-top: 4px; }
+.tb-lecture { margin: 0; font-size: 12.5px; color: var(--encre-3); }
+.tb-lecture .evolution { font-size: 12.5px; }
+.tb-carte .graph-cadre { align-self: end; margin-top: 6px; }
+.tb-vide { margin: 4px 0 0; font-size: 14px; color: var(--encre-2); line-height: 1.45; }
+.tb-carte .graph-erreur { margin: 4px 0 0; }
+.sem-barre, .sem-zero { fill: var(--orange); }
+/* La semaine en cours n'est pas finie : claire, avec un contour pointillé à l'accent (lisible sans la couleur seule). */
+.sem-barre.sem-en-cours, .sem-zero.sem-en-cours { fill: color-mix(in srgb, var(--orange) 35%, transparent); stroke: var(--orange); stroke-width: 1; stroke-dasharray: 2 2; }
+.sem-absente { fill: var(--encre-3); }
+.sem-barre.actif, .sem-zero.actif { stroke: var(--encre); stroke-width: 1.5; stroke-dasharray: none; }
+.sem-absente.actif { fill: var(--encre); }
+.graph-semaines .graph-capte { cursor: crosshair; }
+/* 3 par ligne dès que la vue a 700 px (la colonne du milieu de l'écran de Yoan en fait environ 770), puis 2, puis 1. */
+.tb-grille { gap: 10px; }
+.tb-carte { padding: 12px 12px 8px; }
+.tb-total strong { font-size: 24px; }
+@container (max-width: 699px) { .tb-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 479px) { .tb-grille { grid-template-columns: minmax(0, 1fr); } .tb-carte { min-height: 0; } .tb-abonnes { text-align: left; } }
+@media (max-width: 860px) { .tb-periode { min-height: 44px; } }
 
 /* Tes contenus : reels puis carrousels. Tous les chiffres sur une ligne, le tiret de chaque étape juste dessous (comme
    la barre de l'arborescence), son nom sous le tiret. Tiret plein : au moins un contenu à cette étape. */

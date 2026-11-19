@@ -7,8 +7,14 @@ import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefa
 import { recapDans } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
 import { Apercu } from "./apercu.js";
-import { courbeAbonnes, colonnesVues, comparaison, etapesFormat, nombreFr } from "./graphiques.js";
+import { barresSemaines, etapesFormat, nombreFr } from "./graphiques.js";
+import { PERIODES, periode, resumer } from "./tableau.js";
 import { comptesParFormat } from "./etapes.js";
+
+// Réglages de cet écran retenus par ce Mac (la période du tableau de bord) : le navigateur seulement, rien d'écrit
+// ailleurs ; sans stockage possible, la valeur par défaut.
+const lireReglage = (k) => { try { return localStorage.getItem(`studio:${k}`); } catch { return null; } };
+const ecrireReglage = (k, v) => { try { localStorage.setItem(`studio:${k}`, v); } catch { /* rien */ } };
 
 const enCours = (c) => ["en_cours", "en_file"].includes(c?.activite);
 const sansTitre = (md) => String(md || "").replace(/^#\s+.+\n+/, "").trim();
@@ -605,6 +611,8 @@ export class Vue {
         { aide: "combien à chaque étape, reels puis carrousels" }));
   }
 
+  // Le tableau de bord (lot 11) : six cards, une barre par semaine, la période choisie en haut à gauche (retenue par ce
+  // Mac), les abonnés en haut à droite. Les stades des contenus restent dessous.
   blocStats() {
     const s = this.studio;
     const st = s.stats;
@@ -617,61 +625,74 @@ export class Vue {
         annoncer(s.stats?.erreur ? s.stats.erreur : "Tes chiffres Instagram sont à jour.", s.stats?.erreur ? "erreur" : undefined);
       } catch (e) { annoncer(e.message, "erreur"); maj.disabled = false; }
     });
+    const titreBloc = "Tes chiffres, semaine par semaine";
     // Pas encore de chiffres : en train de les lire (points qui bougent), ou la raison.
     if (!st || !st.disponible) {
       const lit = !st || st.en_cours || (st.source && !st.erreur);
       const texte = st?.erreur || (lit ? "Je lis tes chiffres Instagram, ils arrivent dans un instant." : "Tes chiffres Instagram arrivent ici dès que je les ai lus.");
-      return this.bloc("Ton Instagram", lit && !st?.erreur ? attente(texte) : el("p", { class: st?.erreur ? "graph-erreur" : "vide-doux" }, texte), { outils: st?.source ? [maj] : null });
+      return this.bloc(titreBloc, lit && !st?.erreur ? attente(texte) : el("p", { class: st?.erreur ? "graph-erreur" : "vide-doux" }, texte), { outils: st?.source ? [maj] : null });
     }
-    const c28 = st.compte_28j || {}; const av = st.compte_28j_avant || {};
-    const v = st.variation_abonnes;
-    // Variation en clair, le signe écrit (jamais la couleur seule).
-    const variation = (avant, apres) => {
-      if (typeof avant !== "number" || typeof apres !== "number" || avant <= 0) return null;
-      const p = Math.round(((apres - avant) / avant) * 100);
-      return el("span", { class: `evolution ${p > 0 ? "hausse" : p < 0 ? "baisse" : ""}` }, `${p > 0 ? "+" : ""}${p} %`, el("span", { class: "doux" }, " par rapport aux 28 jours d'avant"));
+    const idPeriode = periode(s.periodeStats || lireReglage("periode-stats")).id;
+    const choisir = (id) => {
+      s.periodeStats = id; ecrireReglage("periode-stats", id); this.afficher();
+      document.querySelector(".tb-periode[aria-pressed=\"true\"]")?.focus();
     };
-    const tuile = (titre, valeur, sous, extra) => el("div", { class: "tuile" },
-      el("span", { class: "tuile-titre" }, titre),
-      valeur !== null ? el("strong", { class: "tuile-valeur" }, valeur) : el("strong", { class: "tuile-valeur absente" }, "pas de chiffre"),
-      sous || null, extra || null);
-    const abonnesSous = v
-      ? el("span", { class: `evolution ${v.valeur > 0 ? "hausse" : v.valeur < 0 ? "baisse" : ""}` }, `${v.valeur > 0 ? "+" : ""}${nombreFr(v.valeur)}`,
-        el("span", { class: "doux" }, v.partielle ? ` depuis le ${dateCourte(v.depuis)}` : " en 30 jours"))
-      : null;
-    const tuiles = el("div", { class: "tuiles" },
-      tuile("Abonnés", nombreFr(st.abonnes), abonnesSous),
-      tuile("Vues, 28 derniers jours", nombreFr(c28.vues), variation(av.vues, c28.vues), comparaison(av.vues, c28.vues)),
-      tuile("Comptes touchés, 28 jours", nombreFr(c28.portee), variation(av.portee, c28.portee), comparaison(av.portee, c28.portee)),
-      tuile("Visites de ton profil, 28 jours", nombreFr(c28.visites_profil), variation(av.visites_profil, c28.visites_profil), comparaison(av.visites_profil, c28.visites_profil)));
+    const periodes = el("div", { class: "tb-periodes", role: "group", "aria-label": "Période" },
+      ...PERIODES.map((p) => el("button", { type: "button", class: "tb-periode", "aria-pressed": String(p.id === idPeriode), onclick: () => choisir(p.id) }, p.nom)));
+    const v = st.variation_abonnes;
+    const abonnes = el("p", { class: "tb-abonnes" },
+      el("strong", {}, nombreFr(st.abonnes) ?? "pas de chiffre"), typeof st.abonnes === "number" ? (st.abonnes > 1 ? " abonnés" : " abonné") : " pour tes abonnés",
+      v ? el("span", { class: `evolution ${v.valeur > 0 ? "hausse" : v.valeur < 0 ? "baisse" : ""}` }, ` ${v.valeur > 0 ? "+" : ""}${nombreFr(v.valeur)}`,
+        el("span", { class: "doux" }, v.partielle ? ` depuis le ${dateCourte(v.depuis)}` : " en 30 jours")) : null);
     const quand = st.chiffres_du || st.maj;
     const note = el("p", { class: "stats-note" },
       st.exemple ? el("span", { class: "tag tag-exemple" }, "chiffres d'exemple") : null,
-      quand ? `Chiffres d'Instagram du ${jourCourt(dateEnJour(new Date(quand)))} à ${heure(quand).replace(":", " h ")}.` : "",
+      quand ? `Chiffres d'Instagram du ${jourCourt(dateEnJour(new Date(quand)))} à ${heure(quand).replace(":", " h ")}. Une semaine va du lundi au dimanche ; Instagram met jusqu'à deux jours à compter.` : "",
       st.en_cours ? " Je les mets à jour." : "", st.erreur ? ` ${st.erreur}` : "");
-    // Un clic sur une colonne : le dossier du contenu s'il est dans le studio, sinon la publication sur Instagram.
-    const ouvrir = (p) => {
-      const carte = p.slug ? s.cartes.get(p.slug) : null;
-      if (carte) return { libelle: "clic pour ouvrir son dossier", faire: () => s.selectionner({ genre: "dossier", cle: p.slug }) };
-      if (p.lien) return { libelle: "clic pour la voir sur Instagram", faire: () => this.api.ouvrirLien(p.lien).then(() => annoncer("C'est ouvert dans ton navigateur."), (e) => annoncer(e.message, "erreur")) };
-      return null;
+    const semaines = st.semaines || [];
+    const sansSemaines = !semaines.some((x) => ["vues", "portee", "visites_profil", "likes", "publications"].some((k) => typeof x[k] === "number"));
+    const p = periode(idPeriode);
+    const nomPeriode = p.id === "1m" ? "le dernier mois" : `les ${p.nom}`;
+    // Une card : son titre, le chiffre de la période, une ligne de lecture, ses barres. cumul : faux pour les comptes
+    // touchés (une personne touchée deux semaines compte deux fois si on additionne) : on montre la moyenne par semaine.
+    const carte = ({ cle, titre, un, plusieurs, cumul = true, absent, etat = null, depuis = null }) => {
+      const unite = (n) => `${nombreFr(n)} ${n > 1 ? plusieurs : un}`;
+      const tete = el("h4", { class: "tb-titre" }, titre);
+      if (etat) return el("section", { class: "tb-carte", "aria-label": titre }, tete, etat);
+      const r = resumer(semaines, idPeriode, cle);
+      const ecart = r.ecart ? el("span", { class: `evolution ${r.ecart.pourcent > 0 ? "hausse" : r.ecart.pourcent < 0 ? "baisse" : ""}` },
+        `${r.ecart.pourcent > 0 ? "+" : ""}${r.ecart.pourcent} %`, el("span", { class: "doux" }, ` contre ${r.ecart.libelle}`)) : null;
+      const chiffre = cumul ? r.total : r.moyenne;
+      // Une moyenne sous 10 garde une décimale (0,1 publication par semaine, pas 0).
+      const moyen = (n) => (n < 10 && Math.round(n * 10) / 10 !== Math.round(n) ? String(Math.round(n * 10) / 10).replace(".", ",") : nombreFr(n));
+      const total = chiffre === null
+        ? el("p", { class: "tb-total absente" }, sansSemaines ? (st.en_cours ? "Je lis tes semaines." : "Tes semaines arrivent à la prochaine mise à jour.") : "Pas de chiffre sur cette période.")
+        : el("p", { class: "tb-total" }, el("strong", {}, cumul ? nombreFr(chiffre) : moyen(chiffre)), el("span", {}, cumul ? ` ${chiffre > 1 ? plusieurs : un} sur ${nomPeriode}` : ` ${chiffre >= 2 ? plusieurs : un} par semaine en moyenne`));
+      const lecture = [];
+      if (cumul && r.moyenne !== null) lecture.push(`${moyen(r.moyenne)} par semaine en moyenne`);
+      if (!cumul && r.mesurees) lecture.push(`sur ${nomPeriode}`);
+      if (depuis) lecture.push(`${lecture.length ? ", " : ""}comptées depuis le ${depuis}`);
+      return el("section", { class: "tb-carte", "aria-label": titre }, tete, total,
+        (lecture.length || ecart) ? el("p", { class: "tb-lecture" }, lecture.join(""), lecture.length && ecart ? ", " : "", ecart) : null,
+        chiffre === null && sansSemaines ? null : barresSemaines(r.barres, { unite, absent, titre }));
     };
-    const pubs = st.publications || [];
-    const f = st.formats || {};
-    const parFormat = (format, nom, pluriel) => {
-      const ps = pubs.filter((p) => p.type === format);
-      const x = f[format] || {};
-      return el("section", { class: "graph-bloc" },
-        el("h4", { class: "graph-titre" }, el("span", { class: `pastille pastille-${format}`, "aria-hidden": "true" }), `Les vues de chaque ${nom}`,
-          el("span", { class: "graph-sous" }, ps.length ? `${ps.length} ${ps.length > 1 ? pluriel : nom} en 30 jours${typeof x.vues === "number" ? `, ${nombreFr(x.vues)} vues en tout` : ""}` : "30 derniers jours")),
-        colonnesVues(ps, { normale: x.normale ?? st.normale_vues?.[format] ?? null, ouvrir, nom }));
-    };
-    return el("div", {},
-      this.bloc("Ton Instagram", el("div", {}, note, tuiles,
-        el("section", { class: "graph-bloc" },
-          el("h4", { class: "graph-titre" }, "Tes abonnés, jour après jour", el("span", { class: "graph-sous" }, "90 derniers jours")),
-          courbeAbonnes(st.historique)),
-        el("div", { class: "graph-paire" }, parFormat("reel", "reel", "reels"), parFormat("carrousel", "carrousel", "carrousels"))), { outils: [maj] }));
+    const vr = st.visites_ressources || { etat: "sans" };
+    const etatVisites = vr.etat === "sans" ? el("p", { class: "tb-vide" }, "Tu n'as pas de ressource gratuite : rien à compter ici.")
+      : vr.etat === "pas_mesure" ? el("p", { class: "tb-vide" }, "Pas encore mesuré : les visites de tes ressources gratuites arrivent ici dès qu'elles sont comptées.")
+        : vr.etat === "erreur" ? el("p", { class: "graph-erreur" }, vr.phrase || "Je n'arrive pas à lire les visites de tes ressources pour l'instant.")
+          : null;
+    const cartes = el("div", { class: "tb-grille" },
+      carte({ cle: "vues", titre: "Vues", un: "vue", plusieurs: "vues" }),
+      carte({ cle: "publications", titre: "Publications", un: "publication", plusieurs: "publications", absent: "pas de chiffre" }),
+      carte({ cle: "likes", titre: "Likes", un: "like", plusieurs: "likes" }),
+      carte({ cle: "visites_ressources", titre: "Visites des ressources gratuites", un: "visite", plusieurs: "visites", absent: "pas encore mesuré", etat: etatVisites,
+        depuis: vr.etat === "ok" && vr.depuis ? dateCourte(vr.depuis).replace(/\.$/, "") : null }),
+      carte({ cle: "portee", titre: "Comptes touchés", un: "compte", plusieurs: "comptes", cumul: false }),
+      carte({ cle: "visites_profil", titre: "Visites du profil", un: "visite", plusieurs: "visites" }));
+    return this.bloc(titreBloc, el("div", {},
+      el("div", { class: "tb-barre" }, periodes, abonnes), note,
+      vr.etat === "ok" && vr.phrase ? el("p", { class: "stats-note" }, vr.phrase) : null,
+      cartes), { outils: [maj] });
   }
 
   entete(titre, sous) {
