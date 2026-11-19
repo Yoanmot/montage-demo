@@ -228,6 +228,18 @@ describe('confirmer', () => {
     assert.ok(appels().every((a) => !a.argv.includes('--envoyer')), 'aucun processus n\'a reçu --envoyer');
   });
 
+  test('pour de vrai, tout de suite : tant qu\'Instagram prépare la vidéo, on ne dit pas « en ligne »', async () => {
+    const cfg = { ...config, publication: { ...config.publication, simulation: false } };
+    const executer = (args, o) => {
+      if (args[0] === 'verifier') return lancerZernio(cfg, args, o);
+      return { code: 0, sortie: 'OK prêt\nPOST 65aa statut=publishing lien=à venir\nFAIT\n' };
+    };
+    const r = await recap([{ slug: 'faim-a-16h', quand: 'maintenant' }], cfg, { executer });
+    const c = await confirmer(r.recap_id, cfg, { executer });
+    assert.match(c.resultats[0].message, /^Ta vidéo est partie : Instagram la prépare, elle apparaît sur ton compte d'ici quelques minutes\./);
+    assert.doesNotMatch(c.resultats[0].message, /en ligne|sort à l'heure/);
+  });
+
   test('pour de vrai : une erreur d\'envoi arrête la suite, sans relance', async () => {
     const cfg = { ...config, publication: { ...config.publication, simulation: false } };
     let publies = 0;

@@ -753,6 +753,9 @@ export async function confirmer(recapOuId, config, opts = {}) {
       const statut = post ? post[2] : 'programmé';
       const lien = post && post[3] !== 'à' ? post[3] : null;
       if (statut === 'publié') res('publié', `C'est en ligne.${phraseEssai(el, false)}${phraseMot(el, false)}${lien ? ' ' + lien : ''}`);
+      // Publié tout de suite mais pas encore sorti : Instagram traite la vidéo (quelques minutes pour
+      // une vidéo longue, vu le 2026-11-19). Ne pas dire « en ligne » avant que ce soit vrai.
+      else if (el.quand === 'maintenant') res('programmé', `${el.type === 'carrousel' ? 'Ton carrousel est parti' : 'Ta vidéo est partie'} : Instagram ${el.type === 'carrousel' ? 'le' : 'la'} prépare, ${el.type === 'carrousel' ? 'il' : 'elle'} apparaît sur ton compte d'ici quelques minutes.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac.`);
       else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`));
       continue;
     }
