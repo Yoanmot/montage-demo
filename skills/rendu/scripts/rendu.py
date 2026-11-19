@@ -1014,7 +1014,7 @@ def main():
         out = video.with_name(f"{base}-monte-{n}.mp4"); n += 1
     tmp = out.with_name(out.stem + ".partiel.mp4")
     t0 = time.time()
-    # Poids : le style plafonne la vidéo finale (RENDU.fullMaxMo, 20 Mo ; débit vidéo RENDU.fullMaxMbps au plus). Le
+    # Poids : le style plafonne la vidéo finale (RENDU.fullMaxMo, 250 Mo ; débit vidéo RENDU.fullMaxMbps au plus). Le
     # débit vidéo maximal est tiré de la durée (marge de 6 % pour le conteneur et le tampon) : qualité constante (crf)
     # là où l'image est simple, plafonnée là où elle est chargée. Un seul encodage, toujours depuis l'originale.
     plafond_mo = float(C["RENDU"]["fullMaxMo"])

@@ -270,7 +270,7 @@ et relance. Si c'est un vrai défaut de la brique (le même message après corre
 bricole pas ses scripts : arrête-toi, dis à Romain que ce point bloque et note-le pour Yoan (voir « Mémoire »).
 
 ### 8. Vérifier avant de lui donner
-Lis `<nom>-montage/rendu.json` (ce qui a été posé, niveaux des sons, poids du fichier : 20 Mo au plus). Puis extrais des images de la vidéo finale avec
+Lis `<nom>-montage/rendu.json` (ce qui a été posé, niveaux des sons, poids du fichier : 250 Mo au plus). Puis extrais des images de la vidéo finale avec
 ffmpeg et **regarde-les avec Read** : le début de chaque animation, le milieu de chaque zoom, un sous-titre enrichi,
 une image pendant chaque B-roll, la fin. Vérifie : sous-titres lisibles et au-dessus de tout, sauf pendant une animation
 qui porte sa propre ligne ; rien de coupé hors cadre ; contour propre autour de sa tête quand un texte passe derrière lui ;

@@ -219,7 +219,7 @@ export const SONS = {
 };
 
 // ---------------------------------------------------------------- rendus (v1)
-export const RENDU = { fullMaxMbps: 16, fullMaxMo: 20, previewMaxMo: 2, previewTaille: [540, 960], crf: 17, crfPreview: 25 };
+export const RENDU = { fullMaxMbps: 16, fullMaxMo: 250, previewMaxMo: 2, previewTaille: [540, 960], crf: 17, crfPreview: 25 };
 
 // ================================================================ ajouts du tour 20
 // ---------------------------------------------------------------- apparition v2 (ref de Yoan, references/apparition-texte.md)

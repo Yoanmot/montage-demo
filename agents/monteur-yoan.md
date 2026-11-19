@@ -168,7 +168,7 @@ relance. Un vrai défaut d'une brique (même message après correction) : arrêt
 note-le (`Bug :` dans `demandes-pour-yoan.md`). Tu ne modifies jamais les scripts des skills.
 
 ### 8. Vérifier avant de lui donner
-Lis `<nom>-montage/rendu.json` (couches posées, niveaux, poids : 20 Mo au plus). Extrais des images de la vidéo finale
+Lis `<nom>-montage/rendu.json` (couches posées, niveaux, poids : 250 Mo au plus). Extrais des images de la vidéo finale
 avec ffmpeg et **regarde-les avec Read** : le hook, chaque plein et demi-écran, chaque animation, l'accent fort, le CTA,
 la fin. Sous-titres lisibles, rien coupé hors cadre, contour propre de la tête devant le titre, pas d'image noire ni
 figée, mêmes moments que l'aperçu validé. Ne dis jamais « c'est prêt » sans avoir regardé.

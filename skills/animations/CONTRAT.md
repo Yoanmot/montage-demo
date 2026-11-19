@@ -116,7 +116,7 @@ seconde, image 0 = début de la vidéo coupée. Toute position s'exprime en **im
 5. Audio : voix loudnorm -16 LUFS, crête -1,5 dBTP, LRA 11, plus les sons de `sons.json` à leurs niveaux ; crête du
    mix sous -1 dBFS.
 6. Sortie : H.264 yuv420p bt709, faststart, AAC 192 kb/s 48 kHz, toujours en 1080 x 1920, sous `RENDU.fullMaxMo`
-   (20 Mo) de `commun.mjs`.
+   (250 Mo) de `commun.mjs`.
 
 ## Plan de montage (`<nom>-montage/plan-montage.json`)
 Écrit par l'agent monteur avec le skill `plan-montage`, après les coupes, sur `texte-sous-titres.md` et les clips

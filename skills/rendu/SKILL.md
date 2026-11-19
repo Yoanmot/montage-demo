@@ -82,9 +82,11 @@ claire, plus contrastée...), le monteur l'écrit dans `<nom>-montage/style-vide
    (`MIX_SATURÉ`). L'écoute du sound design utilise la même voix et le même limiteur : elle dit ce que le rendu fera.
 6. **Un seul encodage** : H.264 yuv420p bt709, toujours en 1080 x 1920 (définition d'Instagram ; une 4K garde sa
    finesse dans les zooms, faits avant), AAC 192 kb/s 48 kHz, faststart, 30 i/s. **Poids sous le plafond du style**
-   (`RENDU.fullMaxMo`, 20 Mo) : qualité constante (crf `RENDU.crf`, 17) plafonnée par un débit vidéo maximal tiré de la
-   durée (20 Mo x 0,94 / durée, moins le son, et `RENDU.fullMaxMbps` au plus), preset slow. Test v9 (52 s) : 14,4 Mo au
-   lieu de 31 Mo, SSIM 0,988 et PSNR 41,5 dB contre la v8 en crf 17 sans plafond, aucun écart visible.
+   (`RENDU.fullMaxMo`, 250 Mo, sous les 300 Mo d'Instagram) : qualité constante (crf `RENDU.crf`, 17) plafonnée par un débit vidéo maximal tiré de la
+   durée (250 Mo x 0,94 / durée, moins le son, et `RENDU.fullMaxMbps` au plus), preset slow. Test v9 (52 s) : 14,4 Mo au
+   lieu de 31 Mo, SSIM 0,988 et PSNR 41,5 dB contre la v8 en crf 17 sans plafond, aucun écart visible. Mais l'ancien plafond de 20 Mo
+   écrasait les vidéos longues (2026-11-19 : 175 s rendues à 0,38 Mb/s, visage et barbe baveux) ; à 250 Mo, une vidéo de 3 min
+   garde la qualité constante (environ 7 Mb/s pour un face caméra).
 7. **Contrôle final obligatoire** avant `PRÊT` : nombre d'images du mp4 (ffprobe `-count_frames`) = images de la vidéo
    coupée, et durée du son à 0,1 s près ; sinon `RENDU_INCOMPLET` et rien n'est livré.
 
