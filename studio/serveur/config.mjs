@@ -27,6 +27,18 @@ export function defautsDuClient(client) {
     depot_mac: `${r}/head-of-content`,
     skills: client.config_claude ? `${String(client.config_claude).replace(/\/+$/, "")}/skills` : "~/.claude/skills",
     apercu_ressources: client.ressources?.site || null,
+    // Lot 11 : le compteur des visites des ressources gratuites (site du client), lu par stats.mjs. Clé de lecture hors
+    // du dépôt : <racine>/ressources.env (ligne VISITES_RESSOURCES_CLE=...), illisible par les sessions (*.env).
+    ...(client.ressources?.site ? {
+      stats: {
+        visites_ressources: {
+          url: `${String(client.ressources.site).replace(/\/+$/, "")}/api/visites/`,
+          debut: client.ressources.compteur_depuis || null,
+          cle_fichier: `${r}/ressources.env`,
+          cle_variable: "VISITES_RESSOURCES_CLE",
+        },
+      },
+    } : {}),
     // Client à configuration Claude isolée : le dossier média (dossier des sessions du monteur) vit sous
     // la racine, hors de la maison, pour que claude n'y trouve en remontant ni ~/.claude ni un CLAUDE.md.
     ...(client.config_claude ? { media: `${r}/Contenu` } : {}),
@@ -97,6 +109,13 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
       // Aussi réglable dans la config (`stats.instagram_en_simulation`) : la lecture des chiffres ne publie
       // rien, elle peut rester active pendant que la publication est en simulation (studio de Yoan).
       instagramEnSimulation: env.STUDIO_STATS_INSTAGRAM === "1" || brut.stats?.instagram_en_simulation === true,
+      // Lot 11 : compteur des visites des ressources gratuites (null : le client n'en a pas).
+      visitesRessources: brut.stats?.visites_ressources?.url ? {
+        url: String(brut.stats.visites_ressources.url),
+        debut: /^\d{4}-\d{2}-\d{2}$/.test(brut.stats.visites_ressources.debut || "") ? brut.stats.visites_ressources.debut : null,
+        cleFichier: brut.stats.visites_ressources.cle_fichier ? etendre(brut.stats.visites_ressources.cle_fichier, maison) : null,
+        cleVariable: brut.stats.visites_ressources.cle_variable || null,
+      } : null,
     },
     maison,
   };

@@ -20,7 +20,8 @@
     "profil": "6ab94a628e03c511f58e6cff"
   },
   "ressources": {
-    "site": "https://ressources.yoanmottier.com"
+    "site": "https://ressources.yoanmottier.com",
+    "compteur_depuis": "2026-11-19"
   },
   "skill_carrousel": "carrousel-yoan",
   "monteur": "monteur-yoan",

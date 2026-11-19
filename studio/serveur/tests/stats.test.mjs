@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { Stats, ajouterReleve, variationAbonnes, sourceStats, parFormat } from "../stats.mjs";
+import { Stats, ajouterReleve, variationAbonnes, sourceStats, parFormat, fenetreSemaines } from "../stats.mjs";
 import { chargerConfig } from "../config.mjs";
 import { demarrer } from "../studio.mjs";
 import { monde, attendreQue } from "./aide.mjs";
@@ -95,7 +95,8 @@ print(${JSON.stringify(JSON.stringify(EXEMPLE(2000)))})
     const v = await s.actualiser();
     assert.equal(v.abonnes, 2000);
     const appel = JSON.parse(fs.readFileSync(log, "utf8"));
-    assert.deepEqual(appel.argv, ["stats", "--jours", "30", "--format", "json", "--sortie", "-"]);
+    // Lot 11 : cache vide, les 52 semaines (la plus ancienne d'abord).
+    assert.deepEqual(appel.argv, ["stats", "--jours", "30", "--format", "json", "--sortie", "-", "--semaines-depuis", fenetreSemaines()[0]]);
     assert.equal(appel.ecriture, null);
   } finally { m.nettoyer(); }
 });
