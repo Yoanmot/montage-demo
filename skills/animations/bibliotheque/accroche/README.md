@@ -7,21 +7,23 @@ Il n'y a donc **pas de gabarit d'accroche à recopier** : le monteur compose l'a
 gardant la signature. Les anciens gabarits `hook-*` restent des briques (tous animés depuis le 2026-11-20), pas des moules.
 
 ## La signature (ne change jamais, tenue par le script)
-- **Police** : Inter Black seule. Le mot fort et les relances en capitales, la phrase en minuscules.
+- **Police** : Inter Black seule, **tout en capitales** (2026-11-20), des tailles proches : 1,6 fois au plus entre
+  les capitales de deux voisins du même bloc (contrôle `TAILLE`).
 - **Couleurs** : charbon et craie ; **un seul accent orange par image** (un pavé orange sur sa marche braise, ou un
   soulignage orange). Une deuxième relance prend le pavé craie.
 - **Ouverture en dézoom** : la vidéo commence zoomée (112 % conseillé) et revient à 100 % jusqu'au mot fort, où elle
   s'arrête net (zoom `ouverture` de la brique zooms) ; un mot derrière lui dézoome avec la caméra.
 - **Trois temps** sur les 5 premières secondes : quelque chose dès le début (avant 0,6 s), le mot fort sur sa voix vers
-  1,5 s (0,8 à 2,4 s), une relance vers 2,5 s (1,9 à 4 s). Tout reste jusqu'à 4 s au moins (pas de vide après 3 s), puis
-  repart ensemble, 1 s après le dernier mot affiché (7 s au plus), calé sur une coupe proche.
+  1,5 s (0,8 à 2,4 s), une relance vers 2,5 s (1,9 à 4 s). Elle commence sur son premier mot et affiche tout ce qu'il dit jusqu'à son dernier élément ; elle part au plus tard
+  quand il dit un mot qu'elle n'affiche pas (ses sous-titres reprennent là), sinon
+  repart ensemble, 0,6 s après le dernier mot affiché (7 s au plus), calé sur une coupe proche.
 - **Son** : un tick quand le mot fort devient lisible, un clac sous chaque relance. Rien sur les sous-titres.
 - Chaque élément arrive sur **son** mot (son attaque, jamais avant) ; ses mots affichés sortent des sous-titres.
 - Mouvements de la DA seulement : l'apparition (montée, fondu, flou qui se resserre), la montée du bas en saccade
   12 i/s, ou posé d'un coup ; jamais de rebond, d'échelle ni de linéaire.
 
 - **Elle se lit comme une phrase** : de haut en bas, c'est le début de ce qu'il dit (phrase de tête de 3 mots au moins
-  qui pose la tension, mot fort, relance), ses mots exacts, sans trou de plus de 2 mots ; jamais une liste de mots-clés.
+  qui pose la tension, mot fort, relance), ses mots exacts, sans un mot sauté depuis son premier mot ; jamais une liste de mots-clés.
 - **Rien sur ses yeux ni sa bouche**, et **un seul orange sur toute l'image** : pendant l'accroche, le pavé des
   sous-titres passe en craie si l'accroche porte le pavé orange.
 
@@ -56,6 +58,8 @@ qu'une des deux dernières, jamais le même mot mis en avant, jamais la même pl
 avant de composer et note la composition quand il l'écrit. Une demande de Romain passe (`demande_de_romain`).
 
 ## Six exemples commentés (des illustrations, pas des gabarits)
+Écrits avant le 2026-11-20 pour les cinq premiers : aujourd'hui tout s'affiche en capitales, des tailles proches, ses
+phrases en entier depuis son premier mot (petits mots compris), sans trou.
 Les mêmes cinq accroches que la page validée par Yoan. Elles montrent comment l'effet décide de la disposition ; une
 autre vidéo, même avec une accroche proche, se compose à neuf.
 
@@ -80,9 +84,9 @@ autre vidéo, même avec une accroche proche, se compose à neuf.
    que la caméra recule, le chiffre arrive quand elle s'arrête.
 
 6. **« Des pompes en un jour. Un dos musclé en dix jours. »** (deux promesses de pub, même absurdité) Effet :
-   surprise. Type `substitution`. POMPES en grand en haut au centre, « EN 1 JOUR » sur pavé orange en bas au centre ;
-   puis DOS MUSCLÉ remplace POMPES et « EN 10 JOURS » remplace « EN 1 JOUR », mêmes places, sur sa voix. Le mot fort
-   est DOS MUSCLÉ (le dernier mot à l'écran), la relance EN 10 JOURS.
+   surprise. Type `substitution`. « DES POMPES ? » en haut au centre (sa phrase courte en entier, dite comme une
+   question), « EN 1 JOUR » sur pavé orange en bas au centre ; puis « UN DOS MUSCLÉ ? » remplace « DES POMPES ? » et
+   « EN 10 JOURS » remplace « EN 1 JOUR », mêmes places, sur sa voix. Le mot fort est le dernier mot à l'écran.
 
 ## Fabrication
 `node scripts/accroche.mjs <dossier -montage> --video <vidéo coupée>` après le calage et la brique zooms ; il écrit

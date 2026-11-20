@@ -103,8 +103,8 @@ const accrocheEssai = (o = {}) => ({
   id: 'a01', geste: 'accroche', intention: 'Accroche de l\'essai : le monteur, puis les trois exercices.', de: "c'est", a: 'trois exercices',
   composition: { type: o.type || 'libre', effet: 'curiosite', pourquoi: 'Le mot « monteur » en grand en haut, la promesse des exercices relance en bas.' },
   elements: [
-    { role: 'phrase', texte: "c'est un essai de ton", sur: "c'est un essai de ton", place: 'haut' },
-    { role: 'mot', texte: 'monteur', sur: o.mot || 'monteur', place: o.place || 'haut', entree: o.entree || 'apparition' },
+    { role: 'phrase', texte: "salut c'est un essai", sur: "salut c'est un essai", place: 'haut' },
+    { role: 'mot', texte: o.mot || 'de ton monteur', sur: o.mot || 'de ton monteur', place: o.place || 'haut', taille: 'moyen', entree: o.entree || 'apparition' },
     { role: 'relance', texte: '3 exercices', sur: 'trois exercices', place: 'bas' },
   ],
 });
@@ -117,9 +117,9 @@ test('accroche.mjs : compose, écrit les calques, ses sons, ses mots repris et l
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const devant = JSON.parse(fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'calque.json'), 'utf8'));
   assert.equal(devant.debut, 0);
-  assert.ok(devant.images >= 120, `l'accroche reste jusqu'à 4 s au moins (${devant.images} images)`);
+  assert.ok(devant.images >= 80 && devant.images <= 86, `l'accroche part quand il dit « simples », le premier mot qu'elle n'affiche pas (${devant.images} images)`);
   assert.deepEqual(devant.sons_suggeres.map((s) => s.geste).sort(), ['arrivee', 'pose']);
-  assert.deepEqual(devant.mots_repris, [1, 2, 3, 4, 5, 6, 7, 8]);   // « c'est un essai de ton », « monteur », « trois exercices » (3 = trois)
+  assert.deepEqual(devant.mots_repris, [0, 1, 2, 3, 4, 5, 6, 7, 8]);   // tout ce qu'il dit jusqu'à « trois exercices » (3 = trois), sans trou
   const html = fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'index.html'), 'utf8');
   assert.match(html, /Inter Black/);
   const corps = html.slice(html.indexOf('<body>'));
@@ -135,9 +135,9 @@ test('accroche.mjs : compose, écrit les calques, ses sons, ses mots repris et l
   assert.match(r2.stdout, /RÉPÉTITION/);
   // le script du registre dit la même chose, et lit les deux dernières
   assert.equal(lancer('registre-accroches.mjs', ['verifier', w2], env).status, 4);
-  assert.match(lancer('registre-accroches.mjs', ['lire', w2], env).stdout, /DERNIÈRE Essai : libre, mot « MONTEUR » haut/);
+  assert.match(lancer('registre-accroches.mjs', ['lire', w2], env).stdout, /DERNIÈRE Essai : libre, mot « DE TON MONTEUR » haut/);
   // une autre disposition passe
-  fs.writeFileSync(path.join(w2, 'plan-montage.json'), JSON.stringify({ plan: 1, video: 'Essai 2', animations: [accrocheEssai({ place: 'bas', entree: 'saccade', type: 'mot-derriere', mot: 'monteur' })] }));
+  fs.writeFileSync(path.join(w2, 'plan-montage.json'), JSON.stringify({ plan: 1, video: 'Essai 2', animations: [accrocheEssai({ place: 'bas', entree: 'saccade', type: 'mot-derriere' })] }));
   const p2 = JSON.parse(fs.readFileSync(path.join(w2, 'plan-montage.json'), 'utf8'));
   p2.animations[0].elements[0] = { role: 'phrase', texte: "salut c'est un", sur: "salut c'est un", place: 'haut' };
   p2.animations[0].elements[1].texte = 'essai de ton monteur'; p2.animations[0].elements[1].sur = 'essai de ton monteur';
@@ -174,14 +174,19 @@ test('caler.mjs : une accroche mal composée revient au plan', () => {
 });
 
 test('accroche.mjs : elle se lit comme une phrase, pas comme des mots-clés', () => {
-  // « salut / MONTEUR / 3 EXERCICES » : phrase d'un mot, mots dits sautés entre les éléments
+  // « salut / DE TON MONTEUR / 3 EXERCICES » : phrase d'un mot, mots dits sautés entre les éléments
   const d = accrocheEssai(); d.elements[0] = { role: 'phrase', texte: 'salut', sur: 'salut', place: 'haut' };
   const w = dossierEssai([d]);
   assert.equal(lancer('caler.mjs', [w]).status, 0);
   const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
   assert.equal(r.status, 2, r.stdout);
   assert.match(r.stdout, /LECTURE : « salut » n'est pas une phrase/);
-  assert.match(r.stdout, /LECTURE : entre « salut » et « monteur », 5 mots/);
+  assert.match(r.stdout, /LECTURE : entre « salut » et « de ton monteur », 3 mots/);
+  // une accroche qui ne commence pas sur son premier mot laisse un trou : refusée
+  const d4 = accrocheEssai(); d4.elements[0] = { role: 'phrase', texte: "c'est un essai", sur: "c'est un essai", place: 'haut' };
+  const w4 = dossierEssai([d4]);
+  lancer('caler.mjs', [w4]);
+  assert.match(lancer('accroche.mjs', [w4, '--sans-registre', '--sans-visage']).stdout, /LECTURE : elle commence sur « c'est un essai »/);
   // un mot affiché qui n'est pas ce qu'il dit
   const d2 = accrocheEssai(); d2.elements[1].texte = 'coach';
   const w2 = dossierEssai([d2]);
@@ -233,9 +238,9 @@ const substitutionEssai = (o = {}) => ({
   composition: { type: o.type ?? 'substitution', effet: 'surprise', pourquoi: 'Deux exemples qui disent la même chose : le second prend la place du premier, mot pour mot.' },
   elements: [
     { role: 'mot', texte: 'salut', sur: 'salut', place: 'haut', aligne: 'centre', taille: 'moyen' },
-    { role: 'relance', texte: "c'est un essai", sur: "c'est un essai", place: 'bas', aligne: 'centre', pave: 'orange' },
+    { role: 'relance', texte: "c'est un essai de ton", sur: "c'est un essai de ton", place: 'bas', aligne: 'centre', pave: 'orange' },
     { role: 'mot', texte: 'monteur', sur: 'monteur', remplace: o.remplaceMot ?? 'salut' },
-    { role: 'relance', texte: '3 exercices', sur: 'trois exercices', remplace: "c'est un essai" },
+    { role: 'relance', texte: '3 exercices', sur: 'trois exercices', remplace: "c'est un essai de ton" },
   ],
 });
 
@@ -260,7 +265,7 @@ test('substitution : le second exemple prend l\'emplacement du premier, remplace
   const top = (id) => +html.match(new RegExp(`id="${id}" style="left:[\\d.-]+px;top:([\\d.-]+)px`))[1];
   const left = (id) => +html.match(new RegExp(`id="${id}" style="left:([\\d.-]+)px`))[1];
   assert.equal(top('e2'), top('e0'), 'MONTEUR au même endroit que SALUT');
-  assert.equal(top('e3'), top('e1'), '3 EXERCICES dans le même pavé que C\'EST UN ESSAI');
+  assert.equal(top('e3'), top('e1'), '3 EXERCICES dans le même pavé que C\'EST UN ESSAI DE TON');
   assert.notEqual(left('e2'), left('e0'), 'centré : la largeur change, le centre reste');
   // l'ancien part juste avant l'attaque du nouveau, le nouveau monte à sa place
   assert.match(html, /tl\.to\('#e0', \{ opacity: 0, y: -[\d.]+, duration: 0\.1/);
@@ -283,15 +288,29 @@ test('substitution : le second exemple prend l\'emplacement du premier, remplace
   assert.match(r2.stdout, /LECTURE/);
 });
 
-test('substitution : un plan filmé qui suit les exemples arrête l\'accroche à sa coupe (dès 2,8 s)', () => {
+test('substitution : un plan filmé qui suit les exemples : l\'accroche lui laisse la place (elle part au premier mot qu\'elle n\'affiche pas)', () => {
   const filmer = { id: 'a02', geste: 'plan-a-filmer', intention: 'Il cite ses exercices : le plan où il les fait.', de: 'simples', a: 'matins',
     elements: [{ texte: 'toi qui fais les exercices dans ton salon', sur: 'simples' }] };
   const w = dossierEssai([substitutionEssai(), filmer]);
   assert.equal(lancer('caler.mjs', [w]).status, 0);
   const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
   assert.equal(r.status, 0, r.stdout);
-  assert.match(r.stdout, /s'arrête où commence le plan filmé/);
   const cal = JSON.parse(fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'calque.json'), 'utf8'));
   assert.ok(cal.images >= 84 && cal.images <= 88, `fin vers 2,9 s (${cal.images} images), pas à 4 s`);
 });
 
+
+test('écart de taille : deux voisins d\'un même bloc, 1,6 fois au plus ; tout en capitales', () => {
+  const d = accrocheEssai(); d.elements[1].taille = 'grand'; d.elements[0].taille = 'normale'; d.elements[0].texte = d.elements[0].sur = 'salut'; d.elements[1].texte = d.elements[1].sur = "c'est un essai de ton monteur"; d.elements[1].taille = 'grand'; d.composition.titre_reformule = 'essai du contrôle de taille, la phrase de tête courte';
+  const w = dossierEssai([d]);
+  lancer('caler.mjs', [w]);
+  const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
+  assert.equal(r.status, 2, r.stdout);
+  assert.match(r.stdout, /TAILLE : « SALUT » et « C'EST UN ESSAI DE TON MONTEUR »/);
+  const w2 = dossierEssai([accrocheEssai()]);
+  lancer('caler.mjs', [w2]);
+  assert.equal(lancer('accroche.mjs', [w2, '--sans-registre', '--sans-visage']).status, 0);
+  const html = fs.readFileSync(path.join(w2, 'calques', 'a01-devant', 'index.html'), 'utf8');
+  assert.match(html, />SALUT C'EST UN ESSAI</, 'la phrase est en capitales, comme le mot fort');
+  assert.doesNotMatch(html, /class="a tx /);
+});

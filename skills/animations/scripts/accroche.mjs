@@ -79,7 +79,7 @@ for (const e of [...els.filter((x) => !x.remplace_de), ...els.filter((x) => x.re
   if (r) { e.place = r.place; e.aligne ??= r.aligne; e.taille ??= r.taille; e.pave ??= r.pave; }
   if (e.role === 'phrase') {
     e.place ??= motE.place; e.taille ??= 'normale'; e.entree ??= 'apparition'; e.aligne ??= 'gauche'; e.pave = 'aucun';
-    e.texteAffiche = String(e.texte).toLocaleLowerCase('fr');
+    e.texteAffiche = String(e.texte).toLocaleUpperCase('fr');   // un bloc garde la même casse : tout en capitales (Yoan, 2026-11-20)
   } else if (e.role === 'mot') {
     e.taille ??= e.place === 'derriere' ? 'geant' : 'grand'; e.entree ??= 'apparition'; e.aligne ??= 'gauche'; e.pave ??= 'aucun';
     e.texteAffiche = String(e.texte).toLocaleUpperCase('fr');
@@ -89,7 +89,7 @@ for (const e of [...els.filter((x) => !x.remplace_de), ...els.filter((x) => x.re
     if (e.pave === 'orange' && !r) orangePris = true;
     e.texteAffiche = String(e.texte).toLocaleUpperCase('fr');
   }
-  e.kind = e.pave && e.pave !== 'aucun' ? 'pave' : (e.role === 'phrase' ? 'tx' : 'ti');
+  e.kind = e.pave && e.pave !== 'aucun' ? 'pave' : 'ti';
   if (!e.sur) R('MOT_MANQUANT', `« ${e.texte} » : sur quel mot doit-il arriver ?`);
 }
 if (refus.length) fin();
@@ -98,12 +98,22 @@ if (refus.length) fin();
 for (const e of els) {
   if (e.kind === 'pave') {
     e.F = e.role === 'mot' ? A.pave[e.taille === 'moyen' ? 'moyen' : 'grand'] : A.pave[e.taille];
+    { // un pavé trop large pour la zone sûre est ramené à sa largeur (rembourrage compris)
+      const k0 = e.F / S.HOOKS.paves.taille, w0 = mesure('encre', 'titre', e.F, e.texteAffiche).avance + 2 * S.HOOKS.paves.padX * k0;
+      if (w0 > Z.x1 - Z.x0) { e.F *= (Z.x1 - Z.x0 - 2) / w0; avis.push(`« ${e.texteAffiche} » ramené à la largeur de la zone sûre`); }
+    }
     const k = e.F / S.HOOKS.paves.taille;
     e.pad = [S.HOOKS.paves.padY[0] * k, S.HOOKS.paves.padX * k, S.HOOKS.paves.padY[1] * k];
     e.marche = Math.max(S.MARCHE.pave.hauteur, Math.round(S.MARCHE.pave.hauteur * k));
     const m = mesure('encre', 'titre', e.F, e.texteAffiche);
     e.w = m.avance + 2 * e.pad[1];
     e.encre = [0, e.w];
+  } else if (e.kind === 'ti' && e.role === 'phrase') {
+    // la phrase en capitales, à la hauteur de capitales de sa taille, ramenée à la largeur de la zone sûre s'il le faut
+    const F = mesure('taille', 'titre', A.phrase[e.taille]).taille, g = mesure('geant', e.texteAffiche);
+    e.F = Math.min(F, g.taille);
+    if (e.F < F - 0.5) avis.push(`« ${e.texteAffiche} » trop long pour la taille ${e.taille} : ramené à la largeur de la zone sûre (coupe-la en deux éléments si l'écart de taille avec ses voisins devient trop grand)`);
+    e.m = mesure('encre', 'titre', e.F, e.texteAffiche);
   } else if (e.kind === 'ti') {
     if (e.taille === 'geant') {
       const g = mesure('geant', e.texteAffiche);
@@ -127,6 +137,22 @@ for (const e of els.filter((x) => x.remplace_de && x.kind === 'ti' && x.remplace
   const r = e.remplace_de, F = Math.min(e.F, r.F);
   for (const x of [e, r]) if (x.F !== F) { x.F = F; x.geant = false; x.m = mesure('encre', 'titre', F, x.texteAffiche); }
 }
+// Écart de taille (Yoan, 2026-11-20 : « quand il y a de trop grandes différences de taille entre un texte et un autre à
+// côté, ça ne rend pas très bien ») : deux éléments voisins dans le même bloc (même bande, ou le haut et le mot derrière
+// lui, qui se touchent) n'ont jamais des capitales plus de A.ecartTailleMax fois plus hautes l'une que l'autre.
+{
+  const capE = (e) => capDe(e.F), ordreBande = { haut: 0, derriere: 1, bas: 2 };
+  const blocs = ['haut', 'derriere', 'bas'].map((p) => els.filter((e) => !e.remplace_de && e.place === p));
+  const paires = [];
+  for (const b of blocs) for (let k = 1; k < b.length; k++) paires.push([b[k - 1], b[k]]);
+  if (blocs[0].length && blocs[1].length) paires.push([blocs[0].at(-1), blocs[1][0]]);
+  for (const [a, b] of paires) {
+    const r = Math.max(capE(a), capE(b)) / Math.min(capE(a), capE(b));
+    if (r > A.ecartTailleMax + 1e-6) R('TAILLE', `« ${a.texteAffiche} » et « ${b.texteAffiche} » : capitales de ${Math.round(capE(a))} et ${Math.round(capE(b))} px (${r.toFixed(1)} fois), ${A.ecartTailleMax} au plus entre deux voisins : rapproche les tailles (phrase « grande », mot « moyen » ou « grand » au lieu de « geant », relance « grande »), ou coupe l'élément trop long`);
+  }
+  void ordreBande;
+}
+if (refus.length) fin();
 // Haut du crâne (pour le mot derrière lui) : mesuré sur la vidéo coupée, sur toute la fenêtre de l'accroche
 const derriere = els.filter((e) => e.place === 'derriere');
 let tete = opt('--tete') !== null ? +opt('--tete') : null;
@@ -142,6 +168,12 @@ finS = Math.min(A.fin.max, Math.max(A.fin.min, finS));
 let images = img(finS);
 const aimant = coupesV.filter((c) => Math.abs(c - images) <= A.fin.aimant * FPS && c >= img(A.fin.min)).sort((a, b) => Math.abs(a - images) - Math.abs(b - images))[0];
 if (aimant) images = aimant;
+// Continuité (Yoan, 2026-11-20 : « une phrase tout en haut, ensuite il manque une phrase ») : l'accroche part au plus tard
+// quand il dit le premier mot qu'elle n'affiche pas ; les sous-titres reprennent à ce mot, sans trou.
+{
+  const dernierAffiche = Math.max(...els.map((e) => e.sur.dernier));
+  if (mots[dernierAffiche + 1]) images = Math.min(images, img(resoudre(`w${dernierAffiche + 1}`, mots).debut_s));
+}
 images = Math.min(images, Math.max(1, total || images));
 // Un plan filmé (ou son écran « B-ROLL ») qui commence avant la fin prévue : l'accroche s'arrête à sa coupe, pour lui
 // laisser la place (Yoan, 2026-11-20 : la chose concrète citée juste après les exemples se montre). Pas de vide après
@@ -185,6 +217,7 @@ const jetons = (s) => normaliser(s).split(/\s+/).filter(Boolean).map((w) => UNIT
     const n = b.reduce((k, e) => k + jetons(e.texte).length, 0), txt = b.map((e) => e.texte).join(' ');
     if (n < A.lecture.phraseMin) pb.push(`« ${txt} » n'est pas une phrase (${n} mot(s), ${A.lecture.phraseMin} au moins) : prends la phrase qui pose la tension, une suite de ses mots qui mène au mot fort`);
   }
+  if (ordre[0].sur.premier !== 0) pb.push(`elle commence sur « ${ordre[0].sur.texte} » : ses premiers mots (« ${texteSousTitres(M, `w0-w${ordre[0].sur.premier - 1}`, mots)} ») ne sont nulle part à l'écran ; l'accroche commence sur son premier mot`);
   for (const e of els) if (jetons(e.texte).join(' ') !== dits(e)) pb.push(`« ${e.texte} » n'est pas ce qu'il dit sur « ${e.sur.texte} » : reprends ses mots exacts`);
   for (let k = 1; k < ordre.length; k++) {
     const saut = ordre[k].sur.premier - ordre[k - 1].sur.dernier - 1;
@@ -371,8 +404,8 @@ for (const e of els) {
   // soulignage orange sous le mot fort, qui se trace quand le mot est lisible
   if (e.role === 'mot' && e.souligne) {
     const ep = Math.max(A.souligne.min, A.souligne.part * capDe(e.F)), x = e.x + e.m.gauche, w = e.m.largeur;
-    c.html += `  <div class="a" id="${e.id}s" style="left:${x.toFixed(1)}px;top:${(e.g.base + A.souligne.ecart).toFixed(1)}px;width:${w.toFixed(1)}px;height:${ep.toFixed(1)}px;background:${K.orange};border-radius:${(ep / 2).toFixed(1)}px;transform-origin:0 50%;transform:scaleX(0)"></div>\n`;
-    c.js += `tl.to('#${e.id}s', { scaleX: 1, duration: ${A.souligne.d}, ease: '${A.souligne.courbe}' }, ${f4(tImg(lisible))});\n`;
+    c.html += `  <div class="a" id="${e.id}s" style="left:${x.toFixed(1)}px;top:${(e.g.base + A.souligne.ecart).toFixed(1)}px;width:${w.toFixed(1)}px;height:${ep.toFixed(1)}px;background:${K.orange};border-radius:${S.RAYONS.pilule}px;clip-path:inset(0 100% 0 0)"></div>\n`;
+    c.js += `tl.to('#${e.id}s', { clipPath: 'inset(0 0% 0 0)', duration: ${A.souligne.d}, ease: '${A.souligne.courbe}' }, ${f4(tImg(lisible))});\n`;
   }
 }
 // question coupée : sur le mot de la réponse, la question se barre d'un trait craie et s'estompe
@@ -381,8 +414,8 @@ if (comp.barre_sur) {
   els.filter((e) => e.role === 'phrase' && e.barre).forEach((e, k) => {
     const c = NS[couche(e)], x = e.x + e.m.gauche - A.barre.ep, w = e.m.largeur + 2 * A.barre.ep;
     const y = e.g.base - 0.5 * MET.x * e.F - A.barre.ep / 2;
-    c.html += `  <div class="a" id="${e.id}b" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${w.toFixed(1)}px;height:${A.barre.ep}px;background:${K.craie};border-radius:${A.barre.ep / 2}px;transform-origin:0 50%;transform:scaleX(0)"></div>\n`;
-    c.js += `tl.to('#${e.id}b', { scaleX: 1, duration: ${A.barre.d}, ease: '${A.barre.courbe}' }, ${f4(tb + k * A.barre.decalage)});\n`;
+    c.html += `  <div class="a" id="${e.id}b" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${w.toFixed(1)}px;height:${A.barre.ep}px;background:${K.craie};border-radius:${S.RAYONS.pilule}px;clip-path:inset(0 100% 0 0)"></div>\n`;
+    c.js += `tl.to('#${e.id}b', { clipPath: 'inset(0 0% 0 0)', duration: ${A.barre.d}, ease: '${A.barre.courbe}' }, ${f4(tb + k * A.barre.decalage)});\n`;
     c.js += `tl.to('#${e.id}', { opacity: ${A.barre.estompe}, duration: ${A.barre.dEstompe}, ease: '${S.COURBES.entree}' }, ${f4(tb + 0.1)});\n`;
   });
 }

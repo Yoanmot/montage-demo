@@ -71,12 +71,14 @@ Le plan donne sa disposition (`composition` et `elements` avec rôle, place, ali
 node "$SK/scripts/accroche.mjs" "$M" --video "<vidéo coupée>"
 ```
 - La signature est tenue par le script : police, casse, un seul orange, ouverture en dézoom, trois temps, rien avant le
-  mot, tout repart ensemble après 4 s au moins, tick sur le mot fort et clac sous chaque relance (`sons_suggeres`).
+  mot, tout en capitales, des tailles proches (`TAILLE`, 1,6 fois au plus entre deux voisins), aucun mot sauté depuis son
+  premier mot (`LECTURE`), départ dès qu'il dit un mot qu'elle n'affiche pas, tick sur le mot fort et clac sous chaque
+  relance (`sons_suggeres`).
 - Il mesure le haut de sa tête sur la vidéo coupée (mot derrière lui), place chaque élément, vérifie la zone sûre et que
   les éléments ne se chevauchent pas, puis écrit `calques/a01-derriere` (voile, mot derrière lui qui dézoome avec la
   caméra) et `calques/a01-devant`, `M/accroche.json` (la composition retenue) et la ligne du registre.
 - Il contrôle aussi qu'elle se lit comme une phrase (`LECTURE` : phrase de tête de 3 mots au moins, ses mots exacts,
-  2 mots dits sautés au plus d'un élément au suivant, sauf `titre_reformule`) et que rien ne couvre ses yeux ni sa
+  aucun mot dit sauté depuis son premier mot, sauf `titre_reformule`) et que rien ne couvre ses yeux ni sa
   bouche (`VISAGE`, ses yeux mesurés toutes les 10 images, `lib/visage.py`). `--video` est obligatoire.
 - **Pendant l'accroche, pas de sous-titres** (Yoan, 2026-11-20) : ses calques sont marqués `masque_sous_titres`, son
   texte les remplace. Le calque devant qui porte un pavé orange le déclare aussi (`oranges`) ; `verifier.mjs <dossier>
@@ -100,15 +102,21 @@ Comme l'accroche, ils ne s'instancient pas : leur script les compose à partir d
 node "$SK/scripts/plein-ecran-visage.mjs" "$M" <id> --video "<vidéo coupée>"   # la phrase à retenir, qui commence sur lui
 node "$SK/scripts/partout.mjs" "$M" <id>                                       # la multitude
 node "$SK/scripts/plan-a-filmer.mjs" "$M" <id>                                 # l'écran « B-ROLL » d'un plan qui manque
+node "$SK/scripts/texte-sur-lui.mjs" "$M" <id> --video "<vidéo coupée>"        # animation légère sur la caméra
 ```
-- `plein-ecran-visage` : mesure le haut de sa tête (`--video`), pose le titre au-dessus, le fond monte du bas sous le
-  titre resté à sa place (clic suggéré), les points arrivent sur leurs mots avec leur figure. Refus : `TROP_TOT` (le
+- `plein-ecran-visage` : mesure le haut de sa tête (`--video`), pose le titre au-dessus, puis un flash sur tout l'écran
+  sauf le titre (un trou autour de son encre) et le fond uni ; le titre garde place, taille et couleur (craie), les
+  points prennent sa couleur ; sortie par un flash ; un clic à chaque flash. Refus : `TROP_TOT` (le
   titre doit se lire 0,8 s sur lui), `TROP_LONG` (5,5 s au plus sans lui), `POINTS`, `FIGURE_INCONNUE`, `HORS_ZONE`.
 - `partout` : le mot fixe (le sien) sur son surligneur, des captures d'articles sur téléphone en coupes sèches, flash
   d'entrée et clic. Refus : `MOT_NON_DIT`, `PAGES`, `CHIFFRE_NON_DIT`, `TROP_COURT`.
 - `plan-a-filmer` : écran charbon, « B-ROLL » et ce qu'il faut filmer, sur toute la phrase ; ses sous-titres restent.
   Refus : `QUOI_FLOU`, `QUOI_LONG`. Le monteur le liste dans son compte rendu (« à filmer »).
-- Les trois effacent ce qu'il faut des sous-titres d'eux-mêmes (`masque_sous_titres`, sauf `plan-a-filmer`).
+- `texte-sur-lui` : ses mots en capitales au-dessus de sa tête (ou sous son visage), sur sa voix, une ligne barrée pour
+  une opposition ; ses sous-titres restent. Refus : `PLACE`, `VISAGE`, `TAILLE`, `LECTURE`, `OPPOSITION`, `FORME`.
+- Ils effacent ce qu'il faut des sous-titres d'eux-mêmes (`masque_sous_titres`, sauf `plan-a-filmer` et `texte-sur-lui`).
+- Le calage contrôle la densité (`DENSITE`) : 15 s au plus sans temps fort, au moins une animation sur la caméra dans le
+  dernier tiers.
 
 ### 2. Pour chaque demande : gabarit ou sur mesure
 La bibliothèque est une **vitrine du vocabulaire**, pas un catalogue.

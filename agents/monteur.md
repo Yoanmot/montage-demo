@@ -113,7 +113,9 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
   effet, lis la phrase. Ce qu'on voit sort de sa forme (deux exemples parallèles : le second remplace le premier au
   même endroit ; une énumération : chose par chose sur sa voix ; « on voit ça partout » : la multitude ; une chose
   concrète qu'on peut voir : son plan filmé, sinon l'écran « B-ROLL » qui dit quoi filmer ; la phrase à retenir : le
-  mot clé sur lui, puis le fond) et de ce que le spectateur doit comprendre ou ressentir à ce moment-là. Romain reste
+  mot clé sur lui, puis le fond ; une phrase d'enjeu ou de contraste : une animation sur lui, jusqu'à la fin de la
+  vidéo) et de ce que le spectateur doit comprendre ou ressentir à ce moment-là. Le texte se lit en entier, sans trou,
+  tout en capitales, avec des tailles proches ; un élément qui traverse une transition garde son apparence. Romain reste
   à l'image le plus possible : un effet qui couvre l'écran commence sur lui et revient vite sur lui. Le texte à
   l'écran remplace les sous-titres, jamais les deux. Jamais un gabarit posé faute d'idée.
 - **Montage simple** (« coupe et sous-titre », « juste les sous-titres », « monte vite ») : coupes, sous-titres
@@ -229,7 +231,8 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
    - **Les gestes composés du corps** se font chacun par leur script, après le calage (skill animations, « Les gestes
      composés ») : `plein-ecran-visage.mjs "<nom>-montage" <id> --video "<vidéo coupée>"` (la phrase à retenir, qui
      commence sur lui), `partout.mjs "<nom>-montage" <id>` (la multitude), `plan-a-filmer.mjs "<nom>-montage" <id>`
-     (l'écran « B-ROLL » d'un plan filmé qui manque). Un refus se corrige dans le plan.
+     (l'écran « B-ROLL » d'un plan filmé qui manque), `texte-sur-lui.mjs "<nom>-montage" <id> --video "<vidéo coupée>"`
+     (une animation légère sur lui). Un refus (`DENSITE` au calage, `TAILLE`, `PLACE`…) se corrige dans le plan.
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
    couvrent l'écran, et retirent les mots qu'une animation affiche déjà) : un seul style (le sien, groupes découpés

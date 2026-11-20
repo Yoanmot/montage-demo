@@ -316,9 +316,12 @@ export const TITRE_DERRIERE = { phraseTop: 250, ecarts: [16, 34], ecartPave: 22 
 // dézoom, trois temps sur les 5 premières secondes, son sur le mot fort), la disposition se décide pour chaque vidéo
 // (scripts/accroche.mjs, bibliotheque/accroche/README.md). Valeurs en px de la vidéo 1080 x 1920.
 export const ACCROCHE = {
-  phrase: { normale: 56, grande: 70 },               // minuscules (.tx)
-  mot: { grandCap: 170, moyenCap: 110 },             // capitales (.ti) ; géant : encre sur toute la zone sûre (mesure.py geant)
-  pave: { normale: 60, grande: 128, grand: 128, moyen: 72 },   // pavés en capitales ; rembourrage HOOKS.paves à l'échelle de 58 px
+  // Tout en capitales, des tailles proches (Yoan, 2026-11-20) : hauteur des capitales de la phrase (px) ; mot fort (px de
+  // capitales) ; pavés (taille de police). Deux voisins : ecartTailleMax au plus entre leurs capitales.
+  phrase: { normale: 64, grande: 84 },
+  mot: { grandCap: 100, moyenCap: 80 },              // capitales (.ti) ; géant : encre sur toute la zone sûre (mesure.py geant)
+  pave: { normale: 84, grande: 120, grand: 120, moyen: 96 },   // pavés en capitales ; rembourrage HOOKS.paves à l'échelle de 58 px
+  ecartTailleMax: 1.6,
   hautY: 255,            // haut de l'encre du premier élément placé en haut
   basY: 1190,            // bas du dernier élément placé en bas (les sous-titres sont centrés à 0,70 de la hauteur)
   marge: 5,              // encre à 5 px des bords de la zone sûre (x 96 à 985)
@@ -333,8 +336,10 @@ export const ACCROCHE = {
   // trois temps : une ouverture avant 0,6 s, le mot fort entre 0,8 et 2,4 s, la relance entre 1,9 et 4 s
   temps: { ouverture: 0.6, mot: [0.8, 2.4], relance: [1.9, 4.0], ecartMin: 0.45 },
   // tout repart ensemble : 1 s après le dernier mot affiché, jamais avant 4 s (pas de vide après 3 s), au plus 7 s
-  fin: { tenue: 1.0, min: 4.0, max: 7.0, aimant: 0.35, plan: 2.8 },   // plan : un plan filmé qui suit peut l'arrêter dès 2,8 s
-  lecture: { phraseMin: 3, sautMax: 2 },   // une phrase de tête de 3 mots au moins ; 2 mots dits sautés au plus d'un élément au suivant
+  // fin : le temps de sa phrase (tenue après le dernier mot affiché), jamais après le premier mot qu'elle n'affiche pas ;
+  // plus de minimum de 4 s (Yoan, 2026-11-20) ; un plan filmé qui suit l'arrête à sa coupe dès 2,8 s
+  fin: { tenue: 0.6, min: 0, max: 7.0, aimant: 0.35, plan: 2.8 },   // plan : un plan filmé qui suit peut l'arrêter dès 2,8 s
+  lecture: { phraseMin: 3, sautMax: 0 },   // une phrase de tête de 3 mots au moins ; 2 mots dits sautés au plus d'un élément au suivant
   // substitution (deux exemples parallèles au même endroit) : l'ancien part vers le haut en 0,1 s, le nouveau monte à sa
   // place en 0,18 s sur l'attaque de son mot (y en part de sa hauteur) ; jamais les deux lisibles ensemble
   remplace: { sortie: 0.1, entree: 0.18, y: 0.35, courbeSortie: 'power2.in', courbeEntree: 'power3.out' },
@@ -400,7 +405,8 @@ SONS.serieMaxS = 0.2;   // une série (écrans, cases) : sons d'un même geste �
 export const PLEIN_TEMPS = { avanceFond: 0.25 };
 // Plein écran qui commence sur son visage (Yoan, 2026-11-20 ; scripts/plein-ecran-visage.mjs) : le titre en capitales
 // au-dessus de sa tête sur l'image filmée, puis le fond uni monte du bas (0,32 s power2.inOut) sous le titre qui reste à
-// sa place, puis 1 à 3 points (figure + libellé) sur leurs mots. Le titre se lit seul 0,8 s au moins sur son visage ;
+// sa place, puis 1 à 3 points (figure + libellé) sur leurs mots. Depuis le 2026-11-20 (Yoan) : le fond arrive par un flash
+// masqué (tout l'écran sauf le titre), le titre reste craie, les points prennent sa couleur, sortie par un flash et un clic. Le titre se lit seul 0,8 s au moins sur son visage ;
 // 5,5 s au plus sans le voir. Figure : courbe qui monte, 3 cases qui se cochent, barre qui se remplit (geste du schéma).
 // La multitude (« on voit ça partout », scripts/partout.mjs ; effet validé par Yoan sur le test v19 : « l'effet plein de
 // screens, c'était bien ») : captures d'articles sur téléphone (page de capture px CSS de large, agrandie à 1080), le mot
@@ -417,7 +423,11 @@ export const PARTOUT = { durees: [3, 3, 3, 3, 4, 3, 2, 3, 3, 4, 4], dureeMin: 0.
 // Plan filmé qui manque (scripts/plan-a-filmer.mjs, Yoan 2026-11-20) : écran charbon, « B-ROLL » en capitales craie et ce
 // qu'il faut filmer dessous, centrés au-dessus des sous-titres, qui restent.
 export const PLAN_A_FILMER = { titre: 120, texte: 54, opaciteTexte: 0.72, ecart: 34, centreY: 820, marge: 20, lignesMax: 4, quoiMin: 12, aimant: 0.4 };
-export const PLEIN_VISAGE = { ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
+// Animation légère sur la caméra (scripts/texte-sur-lui.mjs, Yoan 2026-11-20) : ses mots en capitales au-dessus de sa
+// tête, sur une phrase d'enjeu ou de contraste ; capitales de 64 ou 84 px, 1 à 3 lignes, une opposition se barre.
+export const TEXTE_SUR_LUI = { formes: ['condition', 'opposition', 'projection', 'adresse'], cap: { normale: 64, grande: 84 }, lignesMax: 3,
+  ecart: 22, margeTete: 24, tenue: 0.5, aimant: 0.5, dureeMax: 6, voile: 0.25 };
+export const PLEIN_VISAGE = { flash: { marge: 22 }, ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
   fond: { d: 0.32, courbe: 'power2.inOut', avance: 0.1, avant: 0.45, couleur: 0.14, voile: 0.25 },
   ecartTitre: 90, ecartFigure: 28, ecartPoints: 70, libelle: 96, pointsMax: 3,
   figures: ['courbe', 'cases', 'barre', 'aucune'],
@@ -490,7 +500,7 @@ function recolorerTout(o) {
 const CONSTANTES = { VIDEO, ZONE_SURE, COULEURS, NATIF, POLICES, RAYONS, OMBRES, MARCHE, ONGLET, CARTE, VOILE, SOUS_TITRES, HOOKS,
   CTA, COURBES, MATIERES, DESSIN, ENTREES, SOUS_TITRES_TEMPS, HOOK_TEMPS, CTA_TEMPS, FAISCEAU, FLASH, FRAPPE, SONS, RENDU,
   ATTAQUE, APPARITION, MONTEE_ACCENT, APPARITION_LIGNE, SOULIGNE, ENRICHI, TITRE_DERRIERE, ACCROCHE, FONDS, PLEIN, DEMI, LISTE, MINUTEUR,
-  CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, PLEIN_VISAGE, PARTOUT, PLAN_A_FILMER, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
+  CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, PLEIN_VISAGE, TEXTE_SUR_LUI, PARTOUT, PLAN_A_FILMER, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
   NUTRITION, CHRONO, BROLL, ANGLE, TAMPON, ANATOMIE, VERT, TIER };
 if (DOSSIER_STYLE) {
   const inconnus = Object.keys(R).filter((k) => !(k in CONSTANTES) && !['nom', 'ETALONNAGE'].includes(k) && !k.startsWith('_'));

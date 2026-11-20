@@ -16,7 +16,7 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
 
 - `accroche` (derrière et caméra) : l'accroche de la vidéo, composée pour elle (`regles.md`, « L'accroche »,
   format dans `format.md`). La signature est tenue par le script ; tu décides la disposition : rôles
-  `phrase` (minuscules), `mot` (le mot fort, en capitales), `relance` (une ou deux, sur pavé), et pour
+  `phrase`, `mot` (le mot fort), `relance` (une ou deux, sur pavé), tout en capitales, des tailles proches, et pour
   chacun sa place (`derriere`, `haut`, `bas`), son alignement, sa taille, son entrée. Une seule accroche
   par vidéo, toujours `a01`. Deux exemples parallèles : `type: substitution`, le second remplace le premier au même
   endroit (`remplace`).
@@ -28,6 +28,9 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
   (`courbe`, `cases`, `barre`, `aucune`). Composé par son script ; format dans `format.md`.
 - `partout` (plein) : la multitude, quand il dit qu'une chose se voit ou se dit partout. Le mot fixe sur son
   surligneur, des captures d'articles sur téléphone qui défilent autour. Composé par son script.
+- `texte-sur-lui` (caméra) : une animation légère sur lui, sur une phrase d'enjeu ou de contraste (condition,
+  opposition, projection, adresse) : ses mots en capitales au-dessus de sa tête (ou sous son visage), sur sa voix ; dans
+  une opposition, la ligne qui tombe se barre. Au moins une dans le dernier tiers. Composé par son script.
 - `plan-a-filmer` (plein, ses sous-titres restent) : l'écran « B-ROLL » à la place d'un plan filmé qui manque, sur
   toute la phrase qui cite une chose concrète ; dit ce qu'il faut filmer. Composé par son script.
 

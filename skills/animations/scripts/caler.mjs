@@ -135,6 +135,36 @@ for (const [k, d] of demandes.entries()) {
   sortie.push(r);
 }
 
+// Densité (Yoan, 2026-11-20 : « classique ne veut pas dire vide », « sur la fin de la vidéo il manque au moins une ou deux
+// animations sur la cam ») : hors accroche, un temps fort toutes les 15 s au plus, fin comprise ; au moins une animation
+// sur la caméra (pas un plein écran) dans le dernier tiers. Une vidéo de moins de 30 s, ou une dérogation écrite dans le
+// plan (« densite_derogation » : une histoire, une émotion où son visage porte tout), passe en avis.
+{
+  const PLEINS = new Set(['plein-ecran-visage', 'plein-ecran-fond', 'plein-ecran-orange', 'partout', 'plan-a-filmer', 'liste', 'schema',
+    'minuteur-chiffres', 'minuteur-barre', 'recherche-google', 'demi-ecran', 'comparaison', 'tier-list']);
+  const duree = mots.length ? mots.at(-1).end : 0;
+  const forts = [];
+  for (const r of sortie) {
+    if (!r.de || ['accroche'].includes(r.geste) || (r.geste || '').startsWith('transition-')) continue;
+    forts.push({ id: r.id, geste: r.geste, de: r.de.debut_s, a: (r.a || r.de).fin_s, camera: !PLEINS.has(r.geste) });
+  }
+  for (const b of (Array.isArray(plan) ? [] : plan.b_roll || [])) {
+    try { const de = resoudre(b.de, mots), a = b.a ? resoudre(b.a, mots) : de; forts.push({ id: b.id, geste: 'b-roll', de: de.debut_s, a: a.fin_s, camera: false }); } catch { /* le calage du b-roll le dira */ }
+  }
+  forts.sort((x, y) => x.de - y.de);
+  const acc = sortie.find((r) => r.geste === 'accroche');
+  const departAcc = acc && acc.a ? acc.a.fin_s : 0;
+  const pb = [];
+  if (duree >= 30) {
+    let t = departAcc;
+    for (const f of forts) { if (f.de - t > 15) pb.push(`de ${t.toFixed(0)} à ${f.de.toFixed(0)} s, rien que ses sous-titres et des zooms (${(f.de - t).toFixed(0)} s, 15 au plus)`); t = Math.max(t, f.a); }
+    if (duree - t > 15) pb.push(`de ${t.toFixed(0)} s à la fin (${duree.toFixed(0)} s), rien que ses sous-titres et des zooms`);
+    if (!forts.some((f) => f.camera && f.de >= (2 * duree) / 3)) pb.push(`aucune animation sur la caméra dans le dernier tiers (après ${((2 * duree) / 3).toFixed(0)} s) : pose-en une sur une phrase d'enjeu ou de contraste (une condition, une opposition, une projection), geste « texte-sur-lui »`);
+  }
+  const derog = !Array.isArray(plan) && plan.densite_derogation && String(plan.densite_derogation).trim().length >= 20;
+  for (const x of pb) { if (derog) A('plan', 'DENSITE', `${x} (dérogation : ${plan.densite_derogation})`); else R('plan', 'DENSITE', x); }
+}
+
 fs.mkdirSync(path.join(dossier, 'animations'), { recursive: true });
 // remarques-plan.md : seule la section « Animations » appartient à ce script ; les autres (notes du monteur) restent.
 {

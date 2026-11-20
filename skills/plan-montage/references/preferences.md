@@ -57,3 +57,9 @@ lignes se contredisent, la plus récente gagne.
 - « on voit ce chiffre partout » sans effet → la multitude (captures qui défilent autour du mot), devenue un geste par défaut ;
 - plein écran qui coupe sa tête d'un coup → il commence sur lui (le mot clé au-dessus de sa tête), puis le fond passe en couleur unie en gardant le mot, puis les points un par un avec leur figure ; « commencer l'effet sur lui et le finir après, c'est vraiment bien » ;
 - 35 s sans rien à l'écran → classique ne veut pas dire vide : un temps fort toutes les 10 à 15 s, chacun tiré d'une phrase.
+[2026-11-20] Yoan, sur l'essai 2 du lot 14 bis :
+- l'accroche réduite aux mots clés (sans les petits mots) → une phrase courte s'affiche en entier, avec son « ? » ;
+- une phrase en haut, un passage dit sans rien à l'écran, puis le mot fort → l'accroche ne saute aucun mot depuis son premier mot, et part dès qu'elle n'affiche plus ce qu'il dit (plus de minimum de 4 s) ;
+- phrase en minuscules petites et mot en capitales géant → tout en capitales, des tailles proches (1,6 fois au plus entre voisins) ;
+- le mot clé du plein écran qui passait en noir → il traverse la transition intact (même place, même taille, même couleur, un flash autour de lui), ce qui suit prend sa couleur ; sortie par un flash et un clic ;
+- rien sur la caméra à la fin → au moins une animation sur lui dans le dernier tiers, sur une phrase d'enjeu ou de contraste.

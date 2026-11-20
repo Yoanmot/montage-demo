@@ -110,7 +110,9 @@ const topT = baseT - baseDe(F);
 const xT = (Z.x0 + Z.x1) / 2 - (mT.gauche + mT.droite) / 2;
 
 // points : la figure centrée, son libellé centré dessous ; les points l'un sous l'autre sous le titre
-const couleurTexte = S.FONDS[fond].texte;
+// Un élément qui traverse une transition garde son apparence (Yoan, 2026-11-20 : le mot clé en blanc doit rester intact,
+// il ne doit pas passer en noir) : le titre reste craie sur le fond uni, et ce qui suit prend sa couleur.
+const couleurTexte = K.craie;
 const TL = PV.libelle;
 const lignes = pts.map((e, k) => {
   const texte = String(e.texte).toLocaleUpperCase('fr'), figure = e.figure || 'aucune';
@@ -138,14 +140,18 @@ if (refus.length) fin();
 const c = new Couche(images);
 const EP = PV.figure.trait;
 c.css = `#voile{inset:0;${voileCss('standard')}}
-#fd{inset:0;background:${K[fond]};clip-path:inset(100% 0 0 0);}
+#fd{inset:0;background:${K[fond]};visibility:hidden;}
+#fl,#fs{inset:0;background:${K.craie};opacity:0;}
 #t{left:${xT.toFixed(2)}px;top:${topT.toFixed(2)}px;font-size:${F.toFixed(2)}px;color:${K.craie};}
 .lb{font-size:${TL}px;color:${couleurTexte};}
 .cs{position:absolute;box-sizing:border-box;border:${EP}px solid ${couleurTexte};border-radius:${S.RAYONS.vignette}px;}
 .cs svg{position:absolute;overflow:visible;}
 `;
 const coche = `M ${PV.figure.case * 0.22} ${PV.figure.case * 0.52} L ${PV.figure.case * 0.42} ${PV.figure.case * 0.72} L ${PV.figure.case * 0.80} ${PV.figure.case * 0.28}`;
-let html = `  <div class="a fd" id="voile"></div>\n  <div class="a fd" id="fd"></div>\n  <div class="a ti douce" id="t">${texteT}</div>\n`;
+// flash d'entrée masqué : il couvre tout l'écran sauf le titre (un trou autour de son encre), qui reste intact
+const tr = { x0: xT + mT.gauche - PV.flash.marge, x1: xT + mT.droite + PV.flash.marge, y0: baseT - Math.max(capDe(F), mT.haut) - PV.flash.marge, y1: baseT + PV.flash.marge };
+const trou = `polygon(evenodd, 0px 0px, 1080px 0px, 1080px 1920px, 0px 1920px, 0px 0px, ${tr.x0.toFixed(1)}px ${tr.y0.toFixed(1)}px, ${tr.x0.toFixed(1)}px ${tr.y1.toFixed(1)}px, ${tr.x1.toFixed(1)}px ${tr.y1.toFixed(1)}px, ${tr.x1.toFixed(1)}px ${tr.y0.toFixed(1)}px, ${tr.x0.toFixed(1)}px ${tr.y0.toFixed(1)}px)`;
+let html = `  <div class="a fd" id="voile"></div>\n  <div class="a fd" id="fd"></div>\n  <div class="a fd" id="fl" style="clip-path:${trou}"></div>\n  <div class="a ti douce" id="t">${texteT}</div>\n`;
 for (const l of lignes) {
   const fx = l.x, fy = l.haut, FW = PV.figure.l, FH = PV.figure.h;
   if (l.figure === 'courbe') {
@@ -161,18 +167,24 @@ for (const l of lignes) {
   const xl = l.xl, top = l.base - baseDe(l.F);
   html += `  <div class="a ti lb" id="l${l.k}" style="left:${xl.toFixed(1)}px;top:${top.toFixed(1)}px;font-size:${l.F.toFixed(2)}px">${l.texte}</div>\n`;
 }
+html += `  <div class="a fd" id="fs"></div>\n`;
 c.html = html;
 // 1. le titre sur son visage, avec le voile du haut
 c.js += `tl.set('#voile', { opacity: 0 }, 0);\ntl.to('#voile', { opacity: 1, duration: ${PV.fond.voile}, ease: '${S.COURBES.entree}' }, ${f4(tc(tT) - AV)});\n`;
 c.app('#t', tc(tT) - AV, capDe(F), texteT); c.attendus.at(-1).mot_image = T.sur.image;
-// 2. le fond monte du bas et couvre l'image ; le titre reste à sa place et prend la couleur de texte du fond
-c.js += `tl.to('#fd', { clipPath: 'inset(0% 0 0 0)', duration: ${PV.fond.d}, ease: '${PV.fond.courbe}' }, ${f4(tc(tFond))});\n`;
-c.js += `tl.to('#t', { color: '${couleurTexte}', textShadow: 'none', duration: ${PV.fond.couleur}, ease: '${S.COURBES.entree}' }, ${f4(tc(tFond) + PV.fond.d - PV.fond.couleur)});\n`;
-c.attendus.push({ nom: 'fond uni', image: img(tc(tFond) + PV.fond.d) });
+// 2. flash masqué (paliers du transition-flash : 50 % puis 100 %, tout l'écran sauf le titre), puis le fond uni ; le
+//    titre ne bouge pas, ne change ni de taille ni de couleur
+const nF = img(tc(tFond));
+c.js += `tl.set('#fl', { opacity: 0.5 }, ${f4(tImg(Math.max(0, nF - 1)))});\ntl.set('#fl', { opacity: 1 }, ${f4(tImg(nF))});\ntl.set('#fl', { opacity: 0 }, ${f4(tImg(nF + 1))});\n`;
+c.js += `tl.set('#fd', { visibility: 'visible' }, ${f4(tImg(nF + 1))});\n`;
+c.attendus.push({ nom: 'fond uni', image: nF + 1 });
+// sortie symétrique : flash plein écran (50 % puis 100 %) sur les deux dernières images, puis retour sur lui
+c.html += '';
+c.js += `tl.set('#fs', { opacity: 0.5 }, ${f4(tImg(images - 2))});\ntl.set('#fs', { opacity: 1 }, ${f4(tImg(images - 1))});\n`;
 // 3. chaque point sur son mot : figure et libellé ensemble, puis la figure se trace
 for (const l of lignes) {
   const t0 = tc(l.e.sur.debut_s) - AV;
-  if (t0 < tc(tFond) + PV.fond.d) avis.push(`« ${l.texte} » arrive pendant que le fond monte : il se lira à la fin de la transition`);
+  if (t0 < tc(tFond) + PV.fond.d) avis.push(`« ${l.texte} » arrive pendant le flash : il se lira juste après`);
   if (l.figure !== 'aucune') { c.app(`#f${l.k}`, Math.max(t0, tc(tFond) + PV.fond.d), PV.figure.h, `figure ${l.texte}`); c.attendus.at(-1).mot_image = l.e.sur.image; }
   c.app(`#l${l.k}`, Math.max(t0, tc(tFond) + PV.fond.d), capDe(l.F), l.texte); c.attendus.at(-1).mot_image = l.e.sur.image;
   const tt = Math.max(t0, tc(tFond) + PV.fond.d) + PV.figure.retard;
@@ -192,8 +204,8 @@ const jetons = (s) => normaliser(s).split(/\s+/).filter(Boolean).map((w) => UNIT
 const repris = [T, ...pts].filter((e) => jetons(e.texte) === jetons(texteSousTitres(M, `w${e.sur.premier}-w${e.sur.dernier}`, mots))).map((e) => [e.sur.premier, e.sur.dernier]);
 ecrireCalque(M, {
   id: ID, demande: ID, debut, images, couche: 'devant', ordre: 20, masque_sous_titres: true,
-  oranges: fond === 'orange' ? [[debut + img(tc(tFond)), debut + images]] : [],
-  sons_suggeres: [son('transition', debut + img(tc(tFond)), 'le fond uni monte et couvre l\'image : un clic')],
+  oranges: fond === 'orange' ? [[debut + nF + 1, debut + images]] : [],
+  sons_suggeres: [son('transition', debut + nF, 'flash d\'entrée (tout sauf le titre) : un clic'), son('transition', debut + images - 1, 'flash de sortie : un clic')],
   attendus: c.attendus.map(({ mi, ...a }) => a), mots_repris: repris,
   origine: { sur_mesure: `plein écran qui commence sur son visage (fond ${fond}) : ${d.intention || ''}`,
     gestes_repris: ['apparition v2', 'plein-ecran-fond (fond uni, couleurs du texte)', 'schema (trait qui se trace)', 'case cochée'] },

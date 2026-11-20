@@ -120,7 +120,6 @@ puis le fond uni qui monte sous le titre resté à sa place, puis les points sur
     { "role": "titre", "texte": "20 minutes", "sur": "vingt minutes" },
     { "role": "point", "texte": "moins de fatigue", "sur": "moins de fatigue", "figure": "barre" },
     { "role": "point", "texte": "plus d'énergie", "sur": "plus d'énergie", "figure": "courbe" } ] },
-{ "id": "a07", "geste": "transition-flash", "intention": "Retour sur lui après le plein écran, avec un clic.", "de": "et ça" }
 ```
 - `titre` : exactement un, ses mots (ou un chiffre qu'il dit), court (il tient au-dessus de sa tête). `point` : 1 à 3,
   dans l'ordre de sa voix, chacun ses mots ; `figure` : `courbe` (ça monte, ça progresse), `cases` (des choses faites,
@@ -128,8 +127,9 @@ puis le fond uni qui monte sous le titre resté à sa place, puis les points sur
 - `composition.fond` : `orange` ou `charbon` (deux pleins écrans qui se suivent changent de fond). `fond_sur`
   (facultatif) : l'ancre où le fond monte ; par défaut, juste avant le premier point. Le titre se lit seul 0,8 s au
   moins sur lui (`TROP_TOT` sinon) ; 5,5 s au plus sans le voir (`TROP_LONG`).
-- Pas de flash d'entrée (le fond qui monte est la transition, avec son clic) ; la sortie, par un `transition-flash` sur
-  la coupe qui suit, comme d'habitude. Les sous-titres s'effacent pendant tout l'effet.
+- Entrée : un flash sur tout l'écran sauf le titre, puis le fond ; sortie : un flash et un clic sur ses deux dernières
+  images. Les deux sont dans l'effet : pas de `transition-flash` autour. Le titre et les points restent en craie. Les
+  sous-titres s'effacent pendant tout l'effet ; il s'arrête avant la phrase suivante.
 - Commande : `node "$SK/animations/scripts/plein-ecran-visage.mjs" "<nom>-montage" a06 --video "<vidéo coupée>"`.
 
 ### La multitude (`partout`)
@@ -144,6 +144,25 @@ reste au même endroit, surligné, pendant que des captures d'articles sur tél�
 ```
 - `pages` : 6 à 12 pages (titre d'article, début et fin de la phrase qui contient le mot fixe), écrites pour la vidéo :
   sites inventés, rien de réel, aucun chiffre sauf celui du mot fixe.
+
+### Animation sur lui (`texte-sur-lui`)
+Composée par `../../animations/scripts/texte-sur-lui.mjs`. Sur une phrase d'enjeu ou de contraste, il reste à l'image.
+```json
+{ "id": "a09", "geste": "texte-sur-lui", "intention": "Opposition : ce qu'on croit, puis ce qui est.",
+  "de": "tu crois que c'est dur", "a": "c'est une habitude",
+  "composition": { "forme": "opposition", "pourquoi": "Le « dur » tombe quand l'habitude arrive : le renversement se voit sur lui.", "place": "haut" },
+  "elements": [ { "texte": "tu crois que c'est dur", "sur": "tu crois que c'est dur", "barre": true },
+                { "texte": "c'est une habitude", "sur": "c'est une habitude", "pave": true } ] }
+```
+- `forme` : `condition`, `opposition`, `projection`, `adresse`. `place` : `haut` (au-dessus de sa tête, par défaut) ou
+  `bas` (sous son visage, au-dessus des sous-titres). 1 à 3 lignes, ses mots exacts (« ? » permis), tout en capitales ;
+  `taille` `normale` ou `grande` ; `pave: true` (pavé craie) ; `barre: true` (opposition : la ligne se barre quand la
+  suivante arrive). Refus : `PLACE` (pas la place au-dessus de sa tête : moins de lignes, ou `bas`), `VISAGE`, `TAILLE`,
+  `LECTURE`, `OPPOSITION`. Ses sous-titres restent ; les mots affichés en sortent.
+
+### Densité (contrôlée au calage)
+Plus de 15 s sans temps fort hors accroche, ou aucune animation sur la caméra dans le dernier tiers : refus `DENSITE`.
+Une histoire ou une émotion où son visage porte tout : `"densite_derogation": "<la raison>"` à la racine du plan.
 
 ### L'écran « B-ROLL » d'un plan filmé qui manque (`plan-a-filmer`)
 Composé par `../../animations/scripts/plan-a-filmer.mjs` : un écran charbon sur toute la phrase, « B-ROLL » et ce qu'il
@@ -194,12 +213,17 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
   `substitution` ou `libre` (la famille, pour le registre). `effet` : `surprise`, `tension`, `curiosite`, `identification`.
   `pourquoi` : une phrase, l'effet visé et pourquoi cette disposition (obligatoire). Facultatifs : `barre_sur`
   (ancre de la réponse : les phrases marquées `"barre": true` se barrent et s'estompent), `jusqua` (ancre :
-  l'accroche repart après ce mot, sinon 1 s après le dernier mot affiché, jamais avant 4 s),
+  l'accroche repart après ce mot, sinon 0,6 s après le dernier mot affiché, et toujours au plus tard quand il dit un
+  mot qu'elle n'affiche pas),
   `demande_de_romain` (ses mots, quand il demande une accroche qui en répète une autre), `derogation` (une
   phrase, quand sa voix ne permet pas les trois temps : ils deviennent un avis), `titre_reformule` (une phrase :
   pourquoi le texte n'est pas ce qu'il dit ; sinon chaque élément reprend ses mots exacts, la phrase de tête a 3 mots
-  au moins, et on ne saute pas plus de 2 mots dits d'un élément au suivant).
-- `role` : `phrase` (minuscules, prend la place du mot fort par défaut), `mot` (exactement un),
+  au moins, et on ne saute aucun mot dit d'un élément au suivant).
+- Tout est en capitales ; la ponctuation de fin (« ? », « ! ») est permise. Le premier élément est sur son premier mot,
+  et du premier au dernier élément, aucun mot dit n'est sauté (`LECTURE`). Deux voisins du même bloc : capitales 1,6 fois
+  au plus l'une de l'autre (`TAILLE`) : phrase `normale` (64 px de capitales) ou `grande` (84), mot `moyen` (80) ou
+  `grand` (100), `geant` seulement seul dans son bloc.
+- `role` : `phrase` (prend la place du mot fort par défaut), `mot` (exactement un),
   `relance` (une ou deux). `place` : `derriere` (derrière sa tête : le mot fort et les phrases au-dessus de
   lui seulement), `haut`, `bas`. `aligne` : `gauche`, `droite`, `centre`. `taille` : `geant`, `grand`,
   `moyen` (mot), `normale`, `grande` (phrase, relance). `entree` : `apparition`, `saccade`, `pose`.
@@ -215,9 +239,9 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
   ```json
   "composition": { "type": "substitution", "effet": "surprise", "pourquoi": "Deux promesses de pub qui disent la même absurdité : la seconde remplace la première au même endroit." },
   "elements": [
-    { "role": "mot", "texte": "pompes", "sur": "pompes", "place": "haut", "aligne": "centre", "taille": "grand" },
+    { "role": "mot", "texte": "des pompes ?", "sur": "des pompes", "place": "haut", "aligne": "centre", "taille": "grand" },
     { "role": "relance", "texte": "en 1 jour", "sur": "en un jour", "place": "bas", "aligne": "centre", "pave": "orange" },
-    { "role": "mot", "texte": "dos musclé", "sur": "dos musclé", "remplace": "pompes" },
+    { "role": "mot", "texte": "un dos musclé ?", "sur": "un dos musclé", "remplace": "des pompes ?" },
     { "role": "relance", "texte": "en 10 jours", "sur": "en dix jours", "remplace": "en 1 jour" } ]
   ```
 - Le dézoom va dans `zooms` : `{ "type": "ouverture", "sur": "<le mot fort>", "echelle": 1.12 }`, seul

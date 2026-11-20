@@ -58,6 +58,12 @@ puis le fond passe en couleur unie en gardant le même texte, puis la suite) et 
 dite. Commencer un effet à l'écran par le texte sur lui et le finir en plein écran, c'est ce que Yoan préfère.
 
 Et toujours :
+- **Des tailles proches, une seule casse** (Yoan, 2026-11-20 : « quand il y a de trop grandes différences de taille entre
+  un texte et un autre à côté, ça ne rend pas très bien ») : dans un même bloc de texte, deux voisins n'ont jamais des
+  capitales plus de 1,6 fois plus hautes l'une que l'autre, et tout le bloc est en capitales. Ce qui doit ressortir
+  ressort par sa ligne, sa place ou son pavé, pas par un écart de taille. Les scripts le contrôlent (`TAILLE`).
+- **Un élément qui traverse une transition garde son apparence** : même place, même taille, même couleur. Ce qui
+  arrive ensuite prend sa couleur. Chaque transition (entrée et sortie) a son flash et son clic.
 - **Le texte à l'écran remplace les sous-titres, jamais les deux.** Pendant l'accroche, pendant un plein écran, pendant
   la multitude : pas de sous-titres dessous (ni pavé orange, ni pavé craie). Les briques le font.
 - **Le manque se voit.** Un plan filmé qui manque n'est jamais remplacé par rien : l'écran « B-ROLL » prend sa place et
@@ -74,6 +80,13 @@ seulement ses sous-titres et des zooms, sauf une histoire ou un moment d'émotio
 fort vient d'une phrase qui le demande (tableau ci-dessus) : s'il n'y en a pas, prends la phrase la plus forte du passage
 et montre sa forme (une figure qui joue ce qu'il dit, un chiffre posé à côté de lui, sa phrase en plein écran qui
 commence sur lui). Jamais deux temps forts de suite sans lui au milieu.
+**Jusqu'à la fin, et pas seulement en plein écran** : en plus des pleins écrans, au moins une animation **sur la caméra**
+(il reste à l'image) dans le dernier tiers, souvent deux. Elles vont sur les phrases d'enjeu ou de contraste : une
+condition (« si tu… », une question qui l'engage), une opposition (maintenant / plus tard, ce qu'on croit / ce qui est), une
+projection dans le temps, une adresse directe qui pousse à agir. Geste `texte-sur-lui` : ses mots en capitales au-dessus
+de sa tête (ou sous son visage), chacun sur sa voix ; dans une opposition, ce qui tombe se barre quand l'autre arrive.
+Le calage contrôle la densité (`DENSITE`) : plus de 15 s sans temps fort, ou rien sur la caméra dans le dernier tiers,
+est refusé, sauf une dérogation écrite (`densite_derogation` : une histoire, une émotion).
 
 ## L'accroche (les 5 premières secondes) : composée, jamais recopiée
 
@@ -81,16 +94,23 @@ C'est elle qui décide si la personne reste. Elle a une **signature fixe** (on r
 **disposition libre** (on ne reconnaît jamais le moule). Geste `accroche`, format dans `format.md`, exemples commentés
 dans `../../animations/bibliotheque/accroche/README.md` (des illustrations, pas des gabarits).
 
-**La signature, la même à chaque vidéo** (le script la tient, tu n'as rien à régler) : Inter Black, le mot fort en
-capitales, la phrase en minuscules ; un seul accent orange par image, le reste charbon et craie ; l'**ouverture en
+**La signature, la même à chaque vidéo** (le script la tient, tu n'as rien à régler) : Inter Black, **tout en capitales**
+(depuis le 2026-11-20 : phrase en minuscules et mot en capitales « rend bizarre »), des tailles proches (1,6 fois au plus
+entre deux voisins) ; un seul accent orange par image, le reste charbon et craie ; l'**ouverture en
 dézoom** ; **trois temps** sur les 5 premières secondes (quelque chose dès le début, le mot fort sur sa voix vers 1,5 s,
-une relance vers 2,5 s) ; rien ne s'arrête avant 4 s (pas de vide après 3 s) ; un son sur le mot fort.
+une relance vers 2,5 s) ; elle dure le temps de ses phrases, puis ses sous-titres reprennent ; un son sur le mot fort.
 
 **Ce que tu décides pour chaque vidéo**, dans cet ordre :
-0. **La forme de ses premières phrases** (« Comment penser chaque moment », point 1). Deux exemples parallèles qui servent
+0. **Ses phrases entières, sans trou** (Yoan, 2026-11-20 : « une phrase tout en haut, ensuite il manque une phrase,
+   ensuite le mot en bas » ; une phrase courte réduite à son mot clé au lieu d'être affichée en entier) : l'accroche **commence sur son premier mot** et affiche
+   **tout ce qu'il dit** jusqu'à son dernier élément, sans un mot sauté (contrôle `LECTURE`). Une phrase courte (quatre
+   mots environ) s'affiche en entier, petits mots compris, avec son « ? » ou son « ! » si elle se dit comme une question
+   ou une exclamation. Une phrase longue se coupe en éléments qui se suivent (une ligne chacun), jamais en mots-clés.
+   L'accroche part dès qu'il dit un mot qu'elle n'affiche pas : ses sous-titres reprennent là (plus de minimum de 4 s).
+0 bis. **La forme de ses premières phrases** (« Comment penser chaque moment », point 1). Deux exemples parallèles qui servent
    le même propos (« X en A. Y en B. ») : l'accroche est une **substitution** (`type: substitution`) : le premier exemple
    en entier (son mot fort, puis son pavé), puis le second qui prend la place du premier, élément par élément, sur sa voix
-   (`remplace`), dézoom gardé. Un remplacement net, pas un empilement : on doit sentir deux cas de la même absurdité. Une
+   (`remplace`), dézoom gardé. Chaque exemple est sa phrase courte en entier. Un remplacement net, pas un empilement : on doit sentir deux cas de la même absurdité. Une
    question puis sa réponse : `question-coupee`. Une opposition : les deux côtés, le second qui l'emporte.
 1. **L'effet voulu chez le spectateur** (`effet`) : `surprise` (une idée reçue qui tombe), `tension` (un problème qu'il
    vit), `curiosite` (une question dont la réponse se fait attendre), `identification` (« c'est moi »). Il se lit dans sa
@@ -117,7 +137,7 @@ plus longtemps.
 **Elle se lit comme une phrase, jamais comme des mots-clés** (Yoan, 2026-11-20 : « les clients / MEILLEURS RÉSULTATS
 / LONG TERME » se lisait comme une liste). Lue de haut en bas, l'accroche est le début de sa phrase : une phrase de tête
 courte (3 mots au moins) qui pose la tension, puis le mot fort qui la termine, puis la relance qui la prolonge, chacun
-avec ses mots exacts, sans sauter plus de 2 mots de ce qu'il dit d'un élément au suivant. Exemple de forme : « tu
+avec ses mots exacts, sans sauter un seul mot de ce qu'il dit d'un élément au suivant. Exemple de forme : « tu
 t'entraînes / CINQ FOIS / par semaine et tu stagnes ? ». Le script le contrôle (`LECTURE`).
 **Un titre reformulé** (qui n'est pas ce qu'il dit, pour se lire sans le son) reste possible quand aucune suite de ses
 mots ne se lit seule : écris sa raison dans `composition.titre_reformule` ; il ne promet rien qu'il ne dit pas dans la
@@ -182,9 +202,10 @@ Plus court (20 à 30 s) : divise par deux, garde l'accroche et la fin.
 
 Par défaut, **on reste sur lui**. Le plein écran sert :
 1. **La phrase la plus importante de la vidéo** (celle qu'on doit retenir, le renversement, « ce n'est pas le sport,
-   c'est ce que tu manges »), **en commençant sur lui** : `plein-ecran-visage` (le mot clé au-dessus de sa tête, puis le
-   fond uni orange ou charbon qui monte en gardant le mot, puis une à trois choses qu'il dit ensuite, chacune sur son
-   mot avec sa figure). Le titre se lit au moins 0,8 s sur lui avant le fond ; 5,5 s au plus sans le voir. Sans mot clé
+   c'est ce que tu manges »), **en commençant sur lui** : `plein-ecran-visage` (le mot clé en craie au-dessus de sa tête,
+   puis un flash sur tout l'écran sauf ce mot, puis le fond uni orange ou charbon ; le mot ne bouge pas et reste craie ;
+   une à trois choses qu'il dit ensuite, chacune sur son mot avec sa figure, en craie elles aussi ; sortie par un flash et
+   un clic, déjà dans l'effet). Le titre se lit au moins 0,8 s sur lui avant le fond ; 5,5 s au plus sans le voir. Sans mot clé
    à poser sur lui : `plein-ecran-fond` en `charbon` ou `orange`, ses mots en grand sur deux lignes, jamais sur sa vidéo
    floutée.
 2. **Ce qui ne se comprend pas sans tout l'écran**, s'il l'énumère : une liste de 3 éléments ou plus (`liste`).

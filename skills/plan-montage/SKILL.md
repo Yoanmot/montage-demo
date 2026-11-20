@@ -87,8 +87,9 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
    3. la multitude (`partout`) s'il dit qu'une chose se voit ou se dit partout ;
    4. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
       sur un mot qui claque ;
-   5. les animations légères là où la densité manque (plus de 15 s sans temps fort), chacune tirée de la
-      forme d'une phrase du passage (une énumération, un chiffre posé à côté de lui, une opposition) ;
+   5. les animations sur la caméra (`texte-sur-lui`) sur les phrases d'enjeu ou de contraste (condition, opposition,
+      projection, adresse), au moins une dans le dernier tiers, et partout où la densité manque (plus de 15 s sans
+      temps fort) ;
    6. la fin.
    À chaque élément, demande-toi : qu'est-ce que le spectateur doit comprendre ou ressentir ici, et est-ce
    que ça le garde avec Romain ? Un effet qui ne répond à aucune phrase se retire.
@@ -154,6 +155,11 @@ une simple trace dans le dossier de montage.
   libre, rien sur son visage.
 - [ ] Le titre d'accroche se comprend sans le son, ne promet rien qu'il ne dit pas, reprend ses mots
   quand c'est possible ; l'`intention` cite la phrase de lui d'où il vient.
+- [ ] L'accroche commence sur son premier mot et n'en saute aucun jusqu'à son dernier élément ; une phrase courte
+  est en entier (petits mots, « ? ») ; tout en capitales, des tailles proches (1,6 fois au plus entre voisins).
+- [ ] Au moins une animation sur la caméra (`texte-sur-lui`) dans le dernier tiers, sur une phrase d'enjeu ou de
+  contraste ; 15 s au plus sans temps fort, fin comprise (le calage le contrôle).
+- [ ] Le plein écran qui commence sur lui n'a pas de `transition-flash` autour (entrée et sortie sont dans l'effet).
 - [ ] La forme de chaque phrase est lue (`remarques-plan.md`, « Lecture des phrases ») et chaque effet en vient :
   exemples parallèles en substitution, énumération chose par chose, multitude en `partout`, chose concrète
   montrée, phrase à retenir en plein écran qui commence sur lui.

@@ -44,14 +44,15 @@ test('plein écran qui commence sur son visage : titre au-dessus de sa tête, pu
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const cal = lire(w, 'a05'), html = lire(w, 'a05', 'index.html');
   assert.equal(cal.masque_sous_titres, true, 'ses mots sont à l\'écran : pas de sous-titres dessous');
-  assert.equal(cal.sons_suggeres.length, 1);
-  assert.equal(cal.sons_suggeres[0].geste, 'transition', 'un clic quand le fond monte');
+  assert.deepEqual(cal.sons_suggeres.map((x) => x.geste), ['transition', 'transition'], 'un clic au flash d\'entrée, un au flash de sortie');
   // le titre arrive d'abord sur l'image filmée (voile), le fond monte ensuite sans bouger le titre
   const tTitre = cal.attendus.find((a) => a.nom === '3 EXERCICES').image, tFond = cal.attendus.find((a) => a.nom === 'fond uni').image;
   assert.ok(tFond - tTitre >= 24, `le titre se lit seul sur lui avant le fond (${tFond - tTitre} images)`);
-  assert.match(html, /#fd\{inset:0;background:#F15A24;clip-path:inset\(100% 0 0 0\);\}/);
-  assert.match(html, /tl\.to\('#fd', \{ clipPath: 'inset\(0% 0 0 0\)'/);
-  assert.match(html, /tl\.to\('#t', \{ color: '#1A1612'/, 'sur l\'orange, le titre passe en charbon');
+  assert.match(html, /#fd\{inset:0;background:#F15A24;visibility:hidden;\}/);
+  assert.match(html, /id="fl" style="clip-path:polygon\(evenodd,/, 'le flash d\'entrée a un trou autour du titre');
+  assert.doesNotMatch(html, /tl\.to\('#t', \{ color/, 'le titre garde sa couleur à travers la transition');
+  assert.match(html, /\.lb\{font-size:[\d.]+px;color:#F6F0E7;\}/, 'les points prennent la couleur du titre (craie)');
+  assert.match(html, /tl\.set\('#fs', \{ opacity: 1 \}/, 'flash de sortie');
   const top = +html.match(/#t\{left:[\d.]+px;top:([\d.-]+)px/)[1];
   assert.ok(top + 100 < 640, 'le titre est au-dessus de sa tête');
   // chaque point arrive après le fond, dans l'ordre de sa voix
@@ -158,4 +159,44 @@ test('plan à filmer : écran « B-ROLL » sur toute la phrase, ses sous-titres 
   const w2 = dossier([{ ...d, elements: [{ texte: 'un plan', sur: 'trois exercices' }] }]);
   lancer('caler.mjs', [w2]);
   assert.match(lancer('plan-a-filmer.mjs', [w2, 'a07']).stdout, /QUOI_FLOU/);
+});
+
+test('texte sur lui : ses mots en capitales au-dessus de sa tête, une opposition se barre, ses sous-titres restent', () => {
+  const d = { id: 'a08', geste: 'texte-sur-lui', intention: 'Opposition : simples, puis pour ton dos.', de: 'simples', a: 'ton dos',
+    composition: { forme: 'opposition', pourquoi: 'Le premier mot tombe quand le second arrive : le contraste se voit.' },
+    elements: [{ texte: 'simples', sur: 'simples', barre: true }, { texte: 'pour ton dos', sur: 'pour ton dos', pave: true }] };
+  const w = dossier([d]);
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
+  const r = lancer('texte-sur-lui.mjs', [w, 'a08', '--tete', '700', '--sans-visage']);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const cal = lire(w, 'a08'), html = lire(w, 'a08', 'index.html');
+  assert.equal(cal.masque_sous_titres, undefined, 'animation sur la caméra : ses sous-titres restent');
+  assert.deepEqual(cal.mots_repris, [9, 10, 11, 12]);
+  assert.match(html, />SIMPLES</); assert.match(html, />POUR TON DOS</);
+  assert.match(html, /tl\.to\('#b0', \{ clipPath: 'inset\(0 0% 0 0\)'/, 'la ligne barrée se barre quand la suivante arrive');
+  assert.doesNotMatch(html.slice(html.indexOf('<body>')), /#F15A24/, 'pas d\'orange : les sous-titres gardent le leur');
+  // tête trop haute pour deux lignes au-dessus : refus, avec la place du bas proposée
+  const r2 = lancer('texte-sur-lui.mjs', [w, 'a08', '--tete', '380', '--sans-visage']);
+  assert.equal(r2.status, 2); assert.match(r2.stdout, /PLACE/);
+  // opposition sans ligne barrée : refus
+  const w3 = dossier([{ ...d, elements: d.elements.map(({ barre, ...e }) => e) }]);
+  lancer('caler.mjs', [w3]);
+  assert.match(lancer('texte-sur-lui.mjs', [w3, 'a08', '--tete', '700', '--sans-visage']).stdout, /OPPOSITION/);
+});
+
+test('densité : au caler, plus de 15 s sans temps fort ou rien sur la caméra à la fin, refusé (vidéo de 30 s et plus)', () => {
+  const w = dossier([{ id: 'a08', geste: 'plan-a-filmer', intention: 'Il cite ses exercices : le plan où il les fait.', de: 'trois exercices', a: 'matins',
+    elements: [{ texte: 'toi qui fais les exercices dans ton salon', sur: 'trois exercices' }] }]);
+  // la fixture dure 7 s : on l'allonge en décalant ses derniers mots
+  const f = path.join(w, 'words.cut.json'), j = JSON.parse(fs.readFileSync(f, 'utf8'));
+  j.words.slice(16).forEach((x) => { x.start += 40; x.end += 40; });
+  fs.writeFileSync(f, JSON.stringify(j));
+  const r = lancer('caler.mjs', [w]);
+  assert.equal(r.status, 2, r.stdout);
+  assert.match(r.stdout, /DENSITE : de \d+ s à la fin/);
+  assert.match(r.stdout, /DENSITE : aucune animation sur la caméra dans le dernier tiers/);
+  const p = JSON.parse(fs.readFileSync(path.join(w, 'plan-montage.json'), 'utf8'));
+  p.densite_derogation = 'une histoire perso, son visage porte tout';
+  fs.writeFileSync(path.join(w, 'plan-montage.json'), JSON.stringify(p));
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
 });
