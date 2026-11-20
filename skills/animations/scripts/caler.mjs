@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chargerMots, resoudre, GESTES, BIB, normaliser, coupeAvant, reglagesGabarit, dureeStyle, FPS } from './lib/style.mjs';
+import { controler as controlerAccroche } from './lib/accroche.mjs';
 
 const [dossier, planArg] = process.argv.slice(2);
 if (!dossier) { console.log('Usage : node caler.mjs <dossier -montage> [plan.json]'); process.exit(3); }
@@ -60,6 +61,14 @@ for (const [k, d] of demandes.entries()) {
   if (['sous-titres', 'zooms'].includes(geste)) R(id, 'PAS_ICI', `« ${geste} » est fait par sa propre brique, pas par les animations`);
 
   const r = { id: d.id, geste, intention: d.intention || null, reglages: d.reglages || {}, photos: d.photos || [], notes: d.notes || null };
+  // Accroche composée (2026-11-20) : la composition du plan (type, effet, pourquoi, disposition de chaque élément) est
+  // contrôlée ici, recopiée dans plan-resolu.json, puis composée par accroche.mjs.
+  if (geste === 'accroche') {
+    const c = controlerAccroche(d);
+    for (const [code, msg] of c.refus) R(id, code, msg);
+    for (const msg of c.avis) A(id, 'ACCROCHE', msg);
+    r.composition = d.composition || null;
+  }
   const anc = (a, quoi) => { try { return resoudre(a, mots); } catch (e) { R(id, e.message.split(' ')[0], `${quoi} : ${e.message}`); return null; } };
   if (!d.de) R(id, 'PASSAGE_MANQUANT', 'le plan doit dire sur quels mots (champ « de », et « a » pour la fin)');
   r.de = d.de ? anc(d.de, 'de') : null;
@@ -67,7 +76,7 @@ for (const [k, d] of demandes.entries()) {
   if (r.de && r.a && r.a.premier < r.de.premier) R(id, 'PASSAGE_INVERSE', '« a » est dit avant « de »');
   // Plan contre style : le style gagne, on applique sa valeur et on le dit.
   r.style_gagne = [];
-  if (geste && geste !== 'sur-mesure' && GESTES[geste]) {
+  if (geste && geste !== 'sur-mesure' && geste !== 'accroche' && GESTES[geste]) {
     const SG = (msg) => { r.style_gagne.push(msg); A(id, 'STYLE_GAGNE', msg); remarques.push(`- ${id} (${geste}) : ${msg}`); };
     const RG = reglagesGabarit(geste), appliques = {};
     for (const [k, v] of Object.entries(d.reglages || {})) {

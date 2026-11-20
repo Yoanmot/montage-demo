@@ -39,7 +39,7 @@ texte (l'orthographe se corrige dans les sous-titres, pas dans l'ancre).
 | `notes` | facultatif | le niveau choisi, ce qui compte le plus. Pas de consigne de style : aucune brique ne l'exécute |
 | `coupes` | `serre` | `{ "rythme": "normal" \| "serre" \| "tres-serre" }` : le rythme utilisé aux coupes |
 | `sous_titres` | ses sous-titres (un seul style) | `{ "masquer", "vocabulaire", "citations" }` (ci-dessous) |
-| `zooms` | quelques zooms avec retenue | `[{ "type": "eclair" \| "rapprochement" \| "ouverture", "sur": ancre, "pourquoi"? }]` ; `[]` = aucun zoom |
+| `zooms` | quelques zooms avec retenue | `[{ "type": "suivi" \| "eclair" \| "rapprochement" \| "ouverture", "sur": ancre, "suivre"?, "echelle"?, "pourquoi"? }]` ; `[]` = aucun zoom |
 | `b_roll` | aucun B-roll | `[{ "id", "clip", "quoi", "de", "a"?, "depart"?, "vitesse"? }]` (ci-dessous) |
 | `animations` | aucune animation | liste de demandes (ci-dessous) |
 
@@ -55,9 +55,11 @@ Pas de clé `sons` : tu les places à l'étape sons (skill sound-design).
   c'est passé vite » : `{ "de": "mince", "a": "passé vite" }`) : facultatif, il fait ses propres groupes de
   sous-titres ; rien ne s'affiche en plus (pas de guillemets). Une animation qui affiche ses mots les retire des sous-titres
   (chaque mot n'est vu qu'une fois) : rien à écrire dans le plan pour ça.
-- `zooms` : éclair = part sur le premier mot de l'ancre (le mot qui claque) ; rapprochement = l'ancre
-  est le début de la phrase qui monte ; ouverture = le dézoom de l'accroche (120 % vers 100 % depuis
-  l'image 0), l'ancre est le mot clé où il s'arrête net.
+- `zooms` : suivi = le zoom qui suit sa tête (l'image se resserre à 110 % puis le cadre suit sa tête
+  jusqu'à la coupe), l'ancre est le début de la phrase ; éclair = part sur le premier mot de l'ancre (le
+  mot qui claque) ; rapprochement = l'ancre est le début de la phrase qui monte ; ouverture = le dézoom
+  de l'accroche (`echelle` 1.12 conseillée, 1.2 au plus, vers 100 % depuis l'image 0), l'ancre est le mot
+  fort où il s'arrête net. `"suivre": true` donne le suivi de sa tête à un éclair ou un rapprochement.
 - `b_roll` : un clip **filmé par Romain**, ou toute vidéo qu'il donne, même hors du brief (enregistrement d'écran,
   vidéo du dossier). Pas de B-roll généré par IA, sauf s'il le demande expressément.
   `{ "id": "b01", "clip": "<chemin complet du clip reçu>", "quoi": "<ce que montre le clip, vérifié
@@ -121,11 +123,42 @@ Le plein écran commence sur un début de phrase précédé d'un `/` (une coupe)
 pose sur le premier mot de la phrase suivante, lui aussi après un `/`. Pas de `/` : le flash fait
 partie de l'animation (écris-le dans son `intention`, pas de geste `transition-flash`).
 
-### Accroche : titre dès l'image 0 et dézoom
-Les éléments du titre portent le **premier mot de la vidéo** comme `sur` ; l'`intention` dit « posé
-d'un coup à l'image 0 », le dézoom (de 120 % à 100 %, le titre suit la caméra) et le mot d'arrêt.
-Le dézoom lui-même est dans `zooms` : `{ "type": "ouverture", "sur": "<mot d'arrêt>" }`, seul zoom
-de l'accroche.
+### Accroche composée (`accroche`, toujours `a01`)
+La signature est fixée par le script (`../../animations/scripts/accroche.mjs`) ; le plan dit la
+disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposition.
+```json
+{ "id": "a01", "geste": "accroche",
+  "intention": "Accroche : « tes courbatures ne prouvent rien, rien du tout » (sa première phrase).",
+  "de": "tes courbatures", "a": "du tout",
+  "composition": {
+    "type": "mot-derriere",
+    "effet": "surprise",
+    "pourquoi": "Surprise : RIEN en géant derrière lui casse l'idée reçue, la relance en bas à droite enfonce le clou."
+  },
+  "elements": [
+    { "role": "phrase", "texte": "tes courbatures ne prouvent", "sur": "tes courbatures ne prouvent" },
+    { "role": "mot", "texte": "rien", "sur": "rien#1", "place": "derriere", "taille": "geant", "entree": "apparition" },
+    { "role": "relance", "texte": "rien du tout", "sur": "rien du tout", "place": "haut", "aligne": "droite", "entree": "saccade" }
+  ] }
+```
+- `composition.type` : `mot-derriere`, `chiffre`, `question-coupee`, `deux-paves`, `titre-depuis-le-dezoom`
+  ou `libre` (la famille, pour le registre). `effet` : `surprise`, `tension`, `curiosite`, `identification`.
+  `pourquoi` : une phrase, l'effet visé et pourquoi cette disposition (obligatoire). Facultatifs : `barre_sur`
+  (ancre de la réponse : les phrases marquées `"barre": true` se barrent et s'estompent), `jusqua` (ancre :
+  l'accroche repart après ce mot, sinon 1 s après le dernier mot affiché, jamais avant 4 s),
+  `demande_de_romain` (ses mots, quand il demande une accroche qui en répète une autre), `derogation` (une
+  phrase, quand sa voix ne permet pas les trois temps : ils deviennent un avis), `titre_reformule` (une phrase :
+  pourquoi le texte n'est pas ce qu'il dit ; sinon chaque élément reprend ses mots exacts, la phrase de tête a 3 mots
+  au moins, et on ne saute pas plus de 2 mots dits d'un élément au suivant).
+- `role` : `phrase` (minuscules, prend la place du mot fort par défaut), `mot` (exactement un),
+  `relance` (une ou deux). `place` : `derriere` (derrière sa tête : le mot fort et les phrases au-dessus de
+  lui seulement), `haut`, `bas`. `aligne` : `gauche`, `droite`, `centre`. `taille` : `geant`, `grand`,
+  `moyen` (mot), `normale`, `grande` (phrase, relance). `entree` : `apparition`, `saccade`, `pose`.
+  `pave` : `orange`, `craie` ou `aucun` (relance : orange par défaut s'il n'y a pas d'autre orange ; mot :
+  `aucun` par défaut). `souligne: true` (mot) : soulignage orange. `compte_de` (mot qui est un nombre dit) :
+  le chiffre compte depuis cette valeur jusqu'au sien.
+- Le dézoom va dans `zooms` : `{ "type": "ouverture", "sur": "<le mot fort>", "echelle": 1.12 }`, seul
+  zoom de l'accroche.
 
 ### Image de réaction (mème)
 Le calage exige un élément avec un texte : mets un élément `role: "image"` dont le texte dit qu'il
@@ -178,22 +211,24 @@ s'il revient).
   "coupes": { "rythme": "serre" },
   "sous_titres": { "vocabulaire": ["3"] },
   "zooms": [
-    { "type": "eclair", "sur": "trois erreurs", "pourquoi": "le chiffre de l'accroche" },
-    { "type": "rapprochement", "sur": "et c'est là", "pourquoi": "il parle directement à la personne" }
+    { "type": "ouverture", "sur": "trois erreurs", "echelle": 1.12, "pourquoi": "le dézoom de l'accroche s'arrête sur le mot fort" },
+    { "type": "suivi", "sur": "et c'est là", "pourquoi": "il parle directement à la personne : le cadre le suit" }
   ],
   "b_roll": [
     { "id": "b01", "clip": "<dossier de ses clips>/IMG_2041.MOV", "quoi": "lui qui prépare son assiette", "de": "ton assiette", "depart": 1.5 }
   ],
   "animations": [
-    { "id": "a01", "geste": "hook-chiffre", "intention": "Accroche : le chiffre et la promesse lisibles en une seconde.",
-      "de": "trois erreurs", "a": "perte de poids",
-      "elements": [ { "texte": "3", "sur": "trois erreurs" },
-                    { "texte": "erreurs", "sur": "trois erreurs" },
-                    { "texte": "qui bloquent ta perte de poids", "sur": "bloquent" } ] },
-    { "id": "a02", "geste": "carte-chapitre", "intention": "Première erreur annoncée.",
-      "de": "la première", "a": "la balance",
-      "elements": [ { "texte": "1", "sur": "la première", "role": "numero", "chiffre_source": "numéro de partie du plan" },
-                    { "texte": "la balance", "sur": "la balance", "role": "titre" } ] },
+    { "id": "a01", "geste": "accroche", "intention": "Accroche : « il y a trois erreurs qui bloquent ta perte de poids ».",
+      "de": "il y a", "a": "perte de poids",
+      "composition": { "type": "chiffre", "effet": "tension", "pourquoi": "Tension : le 3 qui compte en haut à gauche annonce le problème, la relance en bas nomme ce qu'on perd." },
+      "elements": [ { "role": "phrase", "texte": "il y a", "sur": "il y a", "place": "haut" },
+                    { "role": "mot", "texte": "3", "sur": "trois erreurs", "place": "haut", "taille": "grand", "compte_de": 1 },
+                    { "role": "relance", "texte": "ta perte de poids", "sur": "perte de poids", "place": "bas" } ] },
+    { "id": "a02", "geste": "plein-ecran-fond", "reglages": { "fond": "orange" },
+      "intention": "La phrase à retenir, sur fond uni (flashs d'entrée et de sortie : voir plus haut).",
+      "de": "le vrai problème", "a": "ce que tu manges",
+      "elements": [ { "texte": "le vrai problème", "sur": "le vrai problème" },
+                    { "texte": "ce que tu manges", "sur": "ce que tu manges" } ] },
     { "id": "a03", "geste": "cta-champ-instagram", "intention": "Fin : le mot qu'il demande de commenter se tape.",
       "de": "commente", "a": "programme", "sa_ligne": "garder",
       "elements": [ { "texte": "commente PROGRAMME", "sur": "commente", "role": "sous-titre" },

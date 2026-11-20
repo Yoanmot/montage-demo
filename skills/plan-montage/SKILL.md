@@ -3,8 +3,8 @@ name: plan-montage
 description: >-
   Brique du monteur. Écrit le plan de montage d'un reel de Romain (@fitavecromain) après le tournage,
   sur la transcription de ce qu'il a vraiment dit et avec les clips qu'il a fournis : ce qui
-  s'affiche, où et sur quel mot (accroche à l'écran, sous-titres enrichis, pleins écrans, éléments
-  posés sur la caméra, cartes, B-rolls, zooms, rythme, fin), dans son style. Sort le
+  s'affiche, où et sur quel mot (accroche composée, ses plans filmés, zooms dont celui qui suit sa
+  tête, plein écran sur fond uni, animations légères, rythme, fin), dans son style classique. Sort le
   plan-montage.json lu par les autres briques et les lignes de la planche que Romain valide avant
   la fabrication. Utiliser quand l'agent monteur arrive à l'étape « plan », une fois la
   vidéo coupée et ses clips regardés.
@@ -16,8 +16,8 @@ Tu es l'agent monteur, à l'étape du plan. La vidéo est tournée et coupée : 
 vraiment dit** et **les clips qu'il t'a vraiment donnés**. Le plan dit **quoi et où** ; les briques
 (zooms, animations, sous-titres, b-roll) font le **comment** avec la bibliothèque de son style. Tu
 choisis les moments, les mots, les gestes, ce qu'ils affichent, et les choix que les règles te
-confient (le mot surligné, le fond du message principal, les mots en grand et leur étage dans les
-sous-titres enrichis, ce que montre une animation, quel clip va où). Tu ne donnes jamais de valeur
+confient (la disposition de l'accroche et l'effet qu'elle vise, le fond du plein écran, les zooms et
+leur type, quel clip va où). Tu ne donnes jamais de valeur
 technique (pixels, codes couleur, police, courbe, durée d'animation) : le style les fixe.
 
 Le but d'un plan : que quelqu'un qui tombe sur la vidéo reste jusqu'au bout et comprenne mieux grâce
@@ -58,37 +58,41 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 
 1. **Comprends le reel en une phrase** : ce que la personne doit avoir compris ou ressenti à la
    fin. Tout le plan sert cette phrase.
-2. **Choisis le niveau de montage** (`regles.md`, « Deux niveaux ») : simple (organique, comme ce
-   qu'il fait déjà) ou travaillé. Une histoire perso, un coup de gueule, une réponse rapide : simple.
-   Une explication, une liste, une méthode, un chiffre qui surprend : travaillé. Le rythme des
-   coupes a été choisi aux coupes ; s'il ne colle plus au niveau, refais `compiler` avant le calage
-   (tes ancres en citations survivent, les `wNN` non).
-3. **Découpe le texte en temps** : l'accroche (les 3 premières secondes), le corps (ses étapes),
-   le moment le plus fort, la fin. Repère les phrases qui portent l'idée, les chiffres, les
-   contrastes (« pas X, mais Y »), les listes, les moments où il montre quelque chose, les scènes de
-   vie qu'il raconte, et les endroits où l'attention risque de tomber (explication longue,
-   transition entre deux idées).
-4. **Pose les éléments, dans cet ordre** :
-   1. l'accroche : titre derrière lui et dézoom d'ouverture (`regles.md`, « L'accroche ») ;
-   2. le message principal (plein écran sur fond uni ou pas, `regles.md`, « Plein écran, caméra,
-      demi-écran ») ;
-   3. ce qui doit être montré pour être compris (liste, schéma, carte, démo annotée, format connu) ;
-   4. ses clips, chacun sur la phrase qu'il joue ; puis les idées à illustrer sans clip (plein écran
-      minimaliste pour une idée abstraite, une chose qui existe reproduite à l'identique, animation
-      sur la caméra en dernier ; une scène de vie sans clip reste sur lui avec un sous-titre
-      enrichi), les mots clés en sous-titres enrichis, les images de réaction, **jusqu'à la fin de
-      la vidéo** ;
-   5. les relances aux endroits où l'attention tombe, puis les zooms ;
-   6. la fin.
-   À chaque élément, demande-toi : retenir, faire comprendre ou faire agir ? Sinon, retire-le.
-5. **Vérifie le dosage** (`regles.md`, « Dosage ») sur tout le plan : un seul accent à la fois,
-   2 à 4 pleins écrans au plus, lui à l'écran au moins 55 % du temps, des passages où on ne voit
-   que lui.
-6. **Écris le plan** dans `<nom>-montage/plan-montage.json` (`format.md`). Chaque ancre est une
+2. **Le style est classique** (`regles.md`, « Le principe ») : une accroche composée qui claque, puis
+   un montage simple et propre (ses sous-titres, ses plans filmés au bon moment, de bons zooms, un plein
+   écran sur fond uni pour la phrase à retenir, une ou deux animations légères au plus). Ce qu'il a
+   demandé de retenir (ta mémoire, `## Pour le plan`) passe avant. Le rythme des coupes a été choisi aux
+   coupes ; s'il ne colle plus, refais `compiler` avant le calage.
+3. **Découpe le texte en temps** : l'accroche (les 5 premières secondes), le corps, la phrase à
+   retenir, la fin. Repère les phrases qui portent l'idée, les chiffres, les contrastes (« pas X, mais
+   Y »), les listes, les moments où il montre quelque chose, et les passages longs où l'attention risque
+   de tomber (un zoom qui suit sa tête y suffit souvent).
+4. **Compose l'accroche** (`regles.md`, « L'accroche ») :
+   1. lis le registre : `node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les
+      deux dernières accroches, ce qu'il ne faut pas reprendre) ;
+   2. regarde une image de ses premières secondes (où est sa tête, de quel côté il reste de la place) ;
+   3. choisis l'effet voulu, le mot qui porte, sa taille, sa place, son entrée, la relance, et écris
+      en une phrase pourquoi (`composition.pourquoi`) ;
+   4. le dézoom d'ouverture dans `zooms`, sur le mot fort.
+5. **Pose le reste, dans cet ordre** :
+   1. ses plans filmés en plus, chacun sur la phrase qu'il joue, en coupe sèche (un flash avec clic
+      seulement à un changement de lieu ou de partie) ;
+   2. la phrase à retenir en plein écran sur fond uni (charbon ou orange), flash et clic à l'entrée et
+      à la sortie quand il y a une coupe ;
+   3. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
+      sur un mot qui claque ;
+   4. au plus une ou deux animations légères, seulement si elles font comprendre (une liste qu'il
+      énumère, un chiffre posé à côté de lui) ;
+   5. la fin.
+   À chaque élément, demande-toi : retenir, faire comprendre ou faire agir ? Sinon, retire-le. Dans le
+   doute, rien : son visage et ses sous-titres portent la vidéo.
+6. **Vérifie le dosage** (`regles.md`, « Dosage ») : un seul accent à la fois, lui à l'écran au moins
+   70 % du temps, 1 plein écran (2 au plus), 0 à 2 animations dans le corps.
+7. **Écris le plan** dans `<nom>-montage/plan-montage.json` (`format.md`). Chaque ancre est une
    citation courte et distinctive de `texte-sous-titres.md` (ou un `wNN`). Chaque chiffre affiché
    est un chiffre qu'il dit. Rien d'inventé sur lui.
-7. **Relis avec la checklist** (plus bas). La validation par Romain se fait ensuite sur la planche
-   (section suivante), une fois les briques préparées, avant de fabriquer la vidéo.
+8. **Relis avec la checklist** (plus bas). La validation par Romain se fait ensuite sur l'aperçu ou la
+   planche, une fois les briques préparées, avant de fabriquer la vidéo.
 
 ## La validation par Romain : la planche
 
@@ -123,10 +127,8 @@ est tenu par Yoan).
 ## Écrire dans ce que le style permet
 
 Le plan s'écrit directement dans le style de Romain :
-- ne demande que les gestes et les réglages listés dans `gestes.md`, plus les ajouts de Yoan qu'il
-  liste (titre et dézoom d'ouverture, sous-titres enrichis, animations qui illustrent sur la
-  caméra ou en plein écran, images de réaction et leur pop, message principal sur fond uni, clic
-  des flashs) : ceux-là se demandent en `sur-mesure` même si la bibliothèque ne les a pas encore ;
+- ne demande que les gestes et les réglages listés dans `gestes.md` (l'accroche composée, les
+  gestes de la bibliothèque, ou `sur-mesure` pour ce qu'il demande et que rien ne couvre) ;
 - un besoin que rien ne couvre : un geste `sur-mesure` avec une intention précise (ce qu'on doit
   comprendre, le geste repris d'un gabarit, sur quels mots, combien de temps) ;
 - une envie de Romain qui demande de changer le style (nouvelle couleur, nouveau son, nouvelle
@@ -137,54 +139,31 @@ une simple trace dans le dossier de montage.
 
 ## Checklist avant de montrer le plan
 
-- [ ] L'accroche a un élément à l'écran dès la première image, lisible en une seconde.
-- [ ] Niveau travaillé : titre derrière lui dès l'image 1, dézoom d'ouverture qui s'arrête sur le
-  mot clé.
-- [ ] Le message principal a son plein écran sur fond uni, avec flash et clic à l'entrée et à la
-  sortie, et de petites animations sur ses mots (le message principal prend un ou deux pleins
-  écrans ; 2 à 4 pleins écrans au total dans la vidéo).
-- [ ] Jamais plus de 6 à 8 s de sous-titres simples seuls, y compris dans la deuxième moitié.
-- [ ] Aucun mot en double : ce qui s'affiche en grand est retiré des sous-titres ; les sous-titres
-  enrichis restent à la place des sous-titres. Chiffres en chiffres.
+- [ ] L'accroche est composée (geste `accroche`) : un mot fort dit vers 1 à 2 s, une relance vers 2,5 s,
+  quelque chose dès le début ; `effet` et `pourquoi` écrits ; dézoom d'ouverture sur le mot fort.
+- [ ] Le registre a été lu : ni la combinaison (type, place, entrée) ni le mot des deux dernières
+  accroches, ni la place de la dernière (sauf demande de Romain, écrite dans `demande_de_romain`).
+- [ ] La disposition suit l'image : sa tête laisse la place au mot derrière lui, le texte va du côté
+  libre, rien sur son visage.
+- [ ] Le titre d'accroche se comprend sans le son, ne promet rien qu'il ne dit pas, reprend ses mots
+  quand c'est possible ; l'`intention` cite la phrase de lui d'où il vient.
+- [ ] Le corps est simple : ses sous-titres, ses plans filmés sur leurs phrases, 3 à 6 zooms (le zoom
+  qui suit sa tête d'abord), la phrase à retenir sur fond uni, 0 à 2 animations légères.
+- [ ] Aucun effet « sur sa demande » (sous-titres enrichis, mème, carte, demi-écran, format connu,
+  animation qui illustre) qu'il n'a pas demandé, pour cette vidéo ou dans ta mémoire.
 - [ ] Ses clips sont posés sur la phrase qu'ils jouent, chacun vérifié sur sa vignette ; jamais un
-  clip qui montre autre chose que ce qu'il dit.
-- [ ] Les idées racontées sont montrées (son clip, sinon idée abstraite en plein écran minimaliste,
-  chose réelle à l'identique, animation sur la caméra en dernier), jamais un mot en grand au-dessus
-  de sa tête ; une action ou une scène de la vie ne va jamais en plein écran ; une scène de vie
-  sans clip reste sur lui, notée « à filmer la prochaine fois » pour ton compte rendu.
+  clip qui montre autre chose que ce qu'il dit ; une scène de vie sans clip reste sur lui, notée « à
+  filmer la prochaine fois ».
 - [ ] Aucun B-roll généré par IA qu'il n'a pas demandé, aucune image de lui prise ailleurs.
-- [ ] 2 à 4 pleins écrans au plus (message principal et idées abstraites), séparés par lui, fonds
-  alternés ; lui à l'écran au moins 55 % (56 % validé par Yoan en v5) du temps.
-- [ ] Chaque animation nomme l'original exact à reproduire (appli Calendrier d'Apple), ou elle est
-  minimaliste (texte mis en forme comme un titre, une ou deux formes nettes) ; jamais de
-  personnages, de fausse 3D, de stylo qui dessine les marques.
-- [ ] Le titre d'accroche se comprend sans le son ; l'objet du désir est surligné ; il ne promet rien
-  que Romain ne dit pas dans la vidéo, reprend ses mots quand c'est possible, et l'`intention` cite
-  la phrase de lui d'où il vient.
-- [ ] Images de réaction : 1 ou 2, mème nommé précisément avec les mots pour le chercher.
-- [ ] Chaque plein écran a une raison écrite dans son `intention` (`regles.md`).
-- [ ] Demi-écran : zéro, ou un seul avec sa raison.
-- [ ] Chaque flash est posé sur un mot précédé d'un `/` (une coupe) ; sinon le flash fait partie de
-  l'animation.
-- [ ] Rien ne s'affiche avant que Romain dise le mot (sauf le titre d'accroche, qui peut ne pas
-  être une phrase dite, mais ne promet rien qu'il ne dit pas : `regles.md`, « L'accroche ») ; chaque
-  chiffre affiché est dit.
-- [ ] Pas de `style` ni de `mots_forts` dans `sous_titres` (un seul style depuis le 2026-11-13).
-- [ ] Sous-titres enrichis et pleins écrans texte : jamais deux tailles sur une même ligne ; ce qui
-  ressort a sa propre ligne (écrit dans l'`intention`, ligne par ligne).
-- [ ] Chaque mot n'est vu qu'une fois : un effet qui écrit ses mots les prend aux sous-titres (jamais
-  « pendant les 12 » en sous-titres puis « 12 premières semaines » dans l'effet) ; l'`intention` dit où
-  les sous-titres s'arrêtent et reprennent.
-- [ ] Une pensée ou une phrase qu'il cite (« tu vas te dire : ... ») peut aller dans `sous_titres.citations` (ses
-  propres groupes de sous-titres) ; rien ne s'affiche en plus, jamais de guillemets.
-- [ ] Jamais deux accents en même temps (sauf exceptions de `regles.md`) ; jamais trois pleins
-  écrans de suite, deux de suite seulement avec des fonds différents.
-- [ ] Les mots forts sont des mots qui portent le sens (nom, chiffre, verbe fort, contraste), jamais
-  « vraiment », « en fait », « très ».
+- [ ] Plein écran : sur fond uni (charbon ou orange), jamais sur sa vidéo floutée, sa raison écrite
+  dans l'`intention` ; posé sur une coupe (`/`) pour avoir son flash, sinon entrée et sortie sèches.
+- [ ] Chaque flash est posé sur un mot précédé d'un `/` (une coupe).
+- [ ] Aucun mot en double : ce qui s'affiche en grand est retiré des sous-titres. Chiffres en chiffres.
+- [ ] Rien ne s'affiche avant que Romain dise le mot (sauf le titre d'accroche, qui ne promet rien
+  qu'il ne dit pas) ; chaque chiffre affiché est dit.
+- [ ] Jamais deux accents en même temps ; jamais un zoom pendant un plein écran ou un plan filmé.
 - [ ] Chaque ancre est courte, distinctive, présente telle quelle dans `texte-sous-titres.md`, avec
   `#n` si elle revient plusieurs fois.
-- [ ] Un format connu (recherche Google, commentaire Instagram, classement) est demandé à
-  l'identique, jamais aux couleurs de Romain.
 - [ ] La fin suit ce qu'il dit : un geste « mot en commentaire » seulement s'il dit un mot à
   commenter, avec exactement ce mot.
 - [ ] Le JSON suit `format.md` (aucune clé inventée, pas de clé `sons`).

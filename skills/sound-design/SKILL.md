@@ -19,8 +19,9 @@ décore pas. Jamais partout. Dans le doute, pas de son.
 - **Chaque transition** : un clic sur chaque flash, et sur l'entrée et la sortie de chaque plein écran (sur l'image où
   le flash couvre l'écran, la coupe). Un faisceau garde son déclencheur.
 - **Chaque image de réaction** (mème) : toujours le « Vine boom », sur l'image où elle apparaît.
-- **L'accroche** : un son, sur l'image où le titre ou le hook apparaît (celui que le style associe au geste, sinon un
-  son généré, voir plus bas).
+- **L'accroche** (composée, calques `a01-…`, 2026-11-20) : le tick quand le mot fort devient lisible et un clac sous
+  chaque relance, aux images que le calque suggère (`sons_suggeres`, gestes `arrivee` et `pose`). Rien de plus pendant
+  les 5 premières secondes. Une ancienne brique d'accroche : le son que le style associe au geste.
 - **Quelques moments importants** à faire ressortir, pas plus de deux ou trois par vidéo : le message principal qui
   arrive, un chiffre clé. Le reste du plan n'a pas de son.
 - **Gestes retenus par Yoan sur le test v17** (2026-11-14, table ci-dessous) : captures d'écran qui défilent (un clic
@@ -39,17 +40,17 @@ décore pas. Jamais partout. Dans le doute, pas de son.
 | Transition : flash, entrée ou sortie d'un plein écran (`transition`) | `clic.wav` (54 ms) | celle où le flash couvre l'écran (la coupe) | 14 dB RMS |
 | Image de réaction qui pop (`meme`) | `meme-vine-boom.wav` (Vine boom, 0,9 s) | celle où l'image apparaît | 12 LU |
 | Faisceau (transition, sortie faisceau du demi-écran) | `faisceau-obtu.wav` (obturateur, 18 ms) | celle où la bande couvre l'écran = la coupe | 9 LU |
-| Arrivée d'un texte ou d'une carte qui compte : mot géant (hook mot géant, CTA mot derrière lui), chiffre (hook chiffre, carte chrono), tampon verdict, message principal | `arrivee-tick.wav` | celle où l'élément passe 50 % d'opacité (`apparitionMiOpacite`) | 8 LU |
+| Arrivée d'un texte ou d'une carte qui compte : mot fort de l'accroche, mot géant (hook mot géant, titre derrière lui, sujet du hook question, CTA mot derrière lui), chiffre (hook chiffre, carte chrono), tampon verdict, message principal | `arrivee-tick.wav` | celle où l'élément passe 50 % d'opacité (`apparitionMiOpacite`) | 8 LU |
 | Photo qui se pose (tier list, vignettes de la comparaison) | `clic.wav` (appareil photo, 54 ms) | celle où la photo se pose, une par photo | 14 dB RMS |
 | Captures d'écran qui défilent (`ecran`, effet journaux) | `clic-court.wav` (clic de transition raccourci à 28 ms) | une par changement d'écran, pas celle du flash d'entrée (qui a son clic de transition) ; série = un seul geste | 21 dB RMS |
-| Objet qui se pose (`pose`, pièce de puzzle) | `pose-clac.wav` (clac sec de carton) | celle où l'objet est posé, une par objet | 8 dB RMS (niveau du Vine boom) |
+| Objet qui se pose (`pose`, pièce de puzzle), relance de l'accroche qui se pose | `pose-clac.wav` (clac sec de carton) | celle où l'objet est posé, une par objet | 8 dB RMS (niveau du Vine boom) |
 | Cases cochées (`coche`) | `coche-1.wav`, `coche-2.wav`, `coche-3.wav` (de plus en plus aigu ; au-delà de 3 cases, le plus aigu) | celle où chaque case se remplit ; série = un seul geste | 8 dB RMS |
 | Moment fort principal, un seul par vidéo (`montee`) | `montee.wav` (0,55 s) | `fin` = l'image de son son d'entrée (le clic du flash qui l'ouvre) : le script la pose pour qu'elle s'arrête net dessus | 10 dB RMS |
 | Frappe (champ Instagram du CTA, recherche Google) | `frappes/t1` à `t4`, tournantes, jamais deux fois la même de suite, ±1,5 dB | une par lettre, à l'image de la lettre | 23 dB RMS |
 | Touche Entrée (recherche Google) | `entree.wav` | celle de l'Entrée | 17 dB RMS |
 
 - Les sons de la bibliothèque sont générés avec ElevenLabs, sauf le Vine boom, fourni par Yoan (`LICENCE.md`).
-- **Sans son** par défaut : le reste des gestes (hooks pavés, question ; listes, minuteurs, schéma, anatomie, cartes ;
+- **Sans son** par défaut : le reste des gestes (hooks pavés ; listes, minuteurs, schéma, anatomie, cartes ;
   fond vert ; demi-écran sauf sa sortie faisceau). Ne les sonorise pas « pour faire vivre ».
 - **Animation sur mesure** : cherche d'abord le geste de la table qui lui ressemble (un élément qui arrive comme un mot
   géant = arrivée ; une photo qui se pose = photo ; une coupe cachée par une bande = faisceau ; un flash intégré =

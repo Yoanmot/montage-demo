@@ -105,6 +105,18 @@ function lireMasques(w) {
     .map((c) => ({ id: c.id, debut: Number(c.debut), images: Number(c.images) }));
 }
 
+// Fenêtres où une animation montre déjà de l'orange (oranges de calques.json : le pavé orange de l'accroche) : un seul
+// orange par image, sous-titres compris (Yoan, 2026-11-20). Pendant ces fenêtres, le pavé du mot dit passe en craie.
+function lireOranges(w) {
+  const p = path.join(w, 'calques.json');
+  if (!fs.existsSync(p)) return [];
+  let j;
+  try { j = JSON.parse(lire(p)); } catch { fail(13, `CALQUES_ILLISIBLE : ${p} n'est pas un JSON valide.`); }
+  const out = [];
+  for (const c of j.calques || []) if (c.source !== 'sous-titres') for (const [a, b] of c.oranges || []) out.push({ id: c.id, a: +a, b: +b });
+  return out;
+}
+
 // Mots qu'une animation affiche déjà en texte (mots_repris de calques.json, écrit par animations) : chaque mot dit n'est vu
 // qu'une fois (Yoan, 2026-11-14). Renvoie Map numéro de mot -> id du calque.
 function lireRepris(w) {
@@ -280,7 +292,17 @@ async function cmdPreparer(w) {
       raisons.push(`groupe ${gi + 1} « ${court(txt)} » (images ${on} à ${off - 1}) retiré, sous ${m.id}`);
     }
   });
-  const P = { groupes, caches, coupes: coupesNet, images };
+  // Un seul orange par image : un groupe visible pendant le pavé orange d'une animation prend le pavé craie (mot dit en
+  // charbon) ; les autres gardent le pavé orange, et leurs images vont dans « oranges » du calque st.
+  const oranges = G.pave ? lireOranges(w) : [];
+  const craie = [], orangesSt = [], craieDit = [];
+  groupes.forEach((g, gi) => {
+    if (caches.includes(gi)) return;
+    const on = imageDe(g.t0), coupe = coupesNet.find((c) => c.groupe === gi), off = Math.min(images, coupe ? coupe.image : imageDe(g.t1));
+    if (oranges.some((o) => on < o.b && o.a < off)) { craie.push(gi); craieDit.push(`groupe ${gi + 1} « ${court(g.mots.map((m) => m.w).join(' '))} » : pavé craie (l'accroche porte déjà l'orange)`); }
+    else if (G.pave && off > on) orangesSt.push([on, off]);
+  });
+  const P = { groupes, caches, coupes: coupesNet, images, craie: { groupes: craie, fond: L.S.COULEURS.craie, texte: L.S.COULEURS.charbon, base: ST.couleur } };
   const bib = bibliotheque();
   let html = lire(path.join(bib, 'sous-titres', 'devant', 'index.html'));
   const attendu = (ok, quoi) => { if (!ok) fail(9, `GABARIT_INATTENDU : le gabarit des sous-titres a changé (${quoi}). Préviens Yoan.`); };
@@ -296,13 +318,14 @@ async function cmdPreparer(w) {
   if (L.S.STYLE.dossier) html = L.S.recolorer(html);   // couleurs du style d'un autre client (commun.mjs)
   calque(bib, html, dossier, ST, L.S.fichierPolice);
   majCalques(w, { id: 'st', source: 'sous-titres', dossier: 'calques/st', debut: 0, images, couche: 'devant', ordre: 100,
-    masques: masques.map((c) => ({ id: c.id, debut: c.debut, images: c.images })) });
+    masques: masques.map((c) => ({ id: c.id, debut: c.debut, images: c.images })), ...(orangesSt.length ? { oranges: orangesSt } : {}) });
 
   say(`PRÊT calque=${dossier} groupes=${groupes.length} mots=${liste.length} masqués=${masque.size} corrigés=${corrige.size} citations=${citations.length} repris=${retires.length} pave=${G.pave ? 'oui' : 'non'} taille=${taille} position=${G.position} police=${ST.police.family} ${px}px retirés=${caches.length} coupés=${coupesNet.length} images=${images}`);
   const parCalque = new Map();
   for (const [i, id] of retires) { if (!parCalque.has(id)) parCalque.set(id, []); parCalque.get(id).push(`${i} « ${affiche(texte[i])} »`); }
   for (const [id, l] of parCalque) say(`  mots affichés par ${id}, sortis des sous-titres : ${l.join(', ')}`);
   for (const r of raisons) say('  calque qui efface les sous-titres : ' + r);
+  for (const r of craieDit) say('  un seul orange par image : ' + r);
   for (const a of avis) say('  à relire : ' + a);
 }
 

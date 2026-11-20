@@ -171,3 +171,37 @@ print(json.dumps(out))`;
   assert.equal(p.dy, 9);
   assert.deepEqual(p.flou, { debut: 11, fin: 13, rayon: 20, assombrir: 0.6 });
 });
+
+// Zoom qui suit sa tête (lot 14) : l'aperçu décale le cadre exactement comme le rendu. Référence : l'expression que
+// zooms.py écrit dans le graphe (coins + expr_lineaire), évaluée ici image par image ; un point de l'image source doit
+// tomber au même endroit à l'écran dans l'aperçu (ancre décalée, même échelle) et dans le rendu (cadre décalé).
+test("aperçu : le zoom qui suit sa tête se joue comme le rendu", () => {
+  const W = 1080, H = 1920;
+  const z = { type: "suivi", echelle: 1.1, ancre: [0.44, 0.37], t0: 3, duree: 0.8, f0: 90, f1: 160, fixe: 114, courbe: "power2.inOut",
+    suivi: { images: [114, 120, 126, 132, 138, 144, 150, 156, 159], decalage: [[0, 0], [8, -2], [20, -5], [31, -6], [36, -4], [30, 3], [18, 8], [9, 6], [7, 6]] } };
+  const py = `
+import json, sys
+sys.path.insert(0, ${JSON.stringify(path.resolve(import.meta.dirname, "../../../skills/zooms/scripts"))})
+import zooms as Z
+z = json.loads(sys.argv[1]); W, H = ${W}, ${H}
+ax, ay, s = z["ancre"][0] * W, z["ancre"][1] * H, z["echelle"]
+cles = z["suivi"]["images"]
+dx = Z.expr_lineaire("N", cles, [d[0] for d in z["suivi"]["decalage"]])
+dy = Z.expr_lineaire("N", cles, [d[1] for d in z["suivi"]["decalage"]])
+c = Z.coins(ax, ay, W, H, s, dx, dy)
+ev = lambda e, n: eval(e.replace("if(", "si(").replace("lt(", "lt("), {"si": lambda a, b, c: b if a else c, "lt": lambda a, b: a < b, "N": n})
+out = {}
+for n in [114, 117, 125, 140, 151, 159]:
+    out[n] = [ev(c[0], n), ev(c[1], n)]   # coin haut gauche du cadre dans la source
+print(json.dumps(out))`;
+  const ref = JSON.parse(execFileSync("/usr/bin/python3", ["-c", py, JSON.stringify(z)], { encoding: "utf8" }));
+  const point = [700, 900];   // un point de l'image source (px)
+  for (const [n, [x0, y0]] of Object.entries(ref)) {
+    const rendu = [(point[0] - x0) * z.echelle / W, (point[1] - y0) * z.echelle / H];
+    const a = zoomA([{ ...z, suivi: { images: z.suivi.images, decalage: z.suivi.decalage.map(([x, y]) => [x / W, y / H]) } }], Number(n));
+    const apercu = [a.ancre[0] + (point[0] / W - a.ancre[0]) * a.s, a.ancre[1] + (point[1] / H - a.ancre[1]) * a.s];
+    assert.ok(Math.abs(rendu[0] - apercu[0]) < 1e-6 && Math.abs(rendu[1] - apercu[1]) < 1e-6, `image ${n} : rendu ${rendu} contre aperçu ${apercu}`);
+  }
+  // sans suivi, rien ne change
+  assert.deepEqual(zoomA([{ ...z, suivi: undefined }], 140).ancre, z.ancre);
+});

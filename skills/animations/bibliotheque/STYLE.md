@@ -94,7 +94,7 @@ l'élément) en px vidéo. Trois mouvements en même temps, partis au même inst
   0,17 s entre deux éléments (`APPARITION.ecartRef`).
 - Pas de rebond, pas de dépassement, pas d'échelle.
 - Exceptions qui gardent leur logique : les sous-titres (montée et fondus de leur style d'origine, pavé qui glisse),
-  hooks pavés (posés d'un coup), formats natifs recopiés, les sous-titres enrichis (coup de poing par ligne, ci-dessous),
+  formats natifs recopiés, les sous-titres enrichis (coup de poing par ligne, ci-dessous),
   les pleins écrans texte (posés d'un coup à l'attaque de leur mot), et la montée du bas en saccade, réservée à l'accent (ci-dessous).
 
 ### Montée du bas : un accent rare, toujours en saccade 12 i/s : `MONTEE_ACCENT`, `monteeAccentJs`, `Couche.accent` (Yoan, 2026-11-14, retours sur v12)
@@ -235,24 +235,30 @@ taille », police pas aimée). Valeurs : `SOUS_TITRES` de `commun.mjs`.
   `commun.mjs`, puis `node scripts/maj-sous-titres.mjs`.
 - Jamais de son sur les sous-titres.
 
-## Hooks
-- **Pavés** (simple, imite Edits) → `hook-paves/` : une ligne par pavé, capitales 58 px, texte charbon, pavé
-  craie (marche charbon 35 %) ou orange (marche braise), en haut à y 300, écart 10 px ; posés d'un coup, affichés
-  images 0 à 59.
-- **Titre derrière lui** → `hook-titre-derriere/` : phrase minuscules 54 px en haut (y 250), mot géant capitales
-  dont l'encre couvre la zone sûre (x 94 à 987), **16 px** entre la ligne de base de la phrase et le haut des capitales,
-  pavé orange 22 px sous le mot géant ; **toute la composition passe derrière lui** (trouée par son masque), le mot géant
-  au-dessus de sa tête, bas des capitales environ 30 % sous le haut du crâne. Voile standard, ombre douce.
-  Avec le dézoom d'ouverture (caméra de 120 % à 100 %), le titre suit la caméra : il se compose à 100 % (encre du mot
-  géant sur la zone sûre) et dépasse pendant le dézoom, c'est voulu ; la zone sûre se juge à l'image où le dézoom est
-  fini (`suit_ouverture`, contrôlé par `verifier.mjs`).
-- **Mot géant derrière la tête** → `hook-mot-geant/` : petits mots minuscules 52 px devant (en haut à gauche, puis en bas
-  à droite vers y 532), le mot géant derrière sa tête, en trois temps, chacun sur sa voix avec l'apparition ; tick sur
-  le mot géant.
-- **Chiffre** → `hook-chiffre/` : chiffre capitales 330 px, suite minuscules 60 px, puis pavé, l'un après l'autre ;
-  tick sur le chiffre.
-- **Question** → `hook-question/` : le sujet en mot géant sur toute la zone sûre, la question sur pavé orange 62 px,
-  20 px dessous, posés d'un coup, sur sa démo.
+## Accroche (les 5 premières secondes) → `bibliotheque/accroche/` (Yoan, 2026-11-20, direction A)
+Constat de la page validée par Yoan : les hooks d'avant étaient des images posées (trois gabarits sur cinq sans
+animation), d'un seul temps fort puis du vide, toujours à la même place avec la même entrée : l'œil reconnaissait le
+moule avant de reconnaître Romain. Désormais l'accroche se **compose** pour chaque vidéo (`scripts/accroche.mjs`).
+- **Signature, à chaque vidéo** : Inter Black ; mot fort en capitales, phrase en minuscules ; un seul accent orange par
+  image (pavé orange sur sa marche braise, ou soulignage orange), le reste charbon et craie ; ouverture en dézoom (112 %
+  conseillé, jusqu'au mot fort) ; trois temps (quelque chose avant 0,6 s, le mot fort sur sa voix vers 1,5 s, une relance
+  vers 2,5 s), rien ne repart avant 4 s ; tick sur le mot fort, clac sous la relance. Mouvements : l'apparition, la
+  montée du bas en saccade 12 i/s (ici permise pour la relance et le mot fort : c'est l'accent de l'accroche), ou posé
+  d'un coup. Constantes : `ACCROCHE` de `commun.mjs`.
+- **Elle se lit comme une phrase** (2026-11-20) : phrase de tête, mot fort, relance = la suite de ses mots, jamais des
+  mots-clés ; rien sur ses yeux ni sa bouche ; un seul orange sur toute l'image (pavé des sous-titres en craie, mot dit
+  en charbon, pendant une accroche qui porte le pavé orange).
+- **Disposition, libre** : le mot qui porte, sa taille (géant, grand, moyen), sa place (derrière sa tête, en haut, en
+  bas, côté de la place libre), son entrée, la relance, un chiffre qui compte, une question qui se barre. Elle se choisit
+  selon l'effet voulu chez le spectateur (surprise, tension, curiosité, identification).
+- **Jamais deux fois la même** : registre par client (`scripts/registre-accroches.mjs`), jamais la combinaison (type,
+  place, entrée) ni le mot des deux dernières, jamais la place de la dernière.
+- Mot derrière lui : bas des capitales 30 % de leur hauteur sous le haut du crâne (mesuré sur sa tête), 16 px entre la
+  ligne de base de la phrase au-dessus et le haut des capitales ; il dézoome avec la caméra (`suit_ouverture`).
+- Les anciens gabarits restent des briques, tous animés depuis le 2026-11-20 (plus d'image posée sans mouvement) :
+  `hook-paves/` (chaque pavé apparaît sur son mot, retirés à 2 s), `hook-titre-derriere/` (phrase, mot géant, pavé en
+  saccade), `hook-mot-geant/`, `hook-chiffre/`, `hook-question/` (le sujet apparaît, la question monte en saccade). Ils
+  servent sur demande ou pour une vidéo sans parole ; ils ne sont pas des moules d'accroche.
 
 ## CTA (mot en commentaire)
 - Apparition à l'image 43 de l'extrait de CTA, le mot 3 images après « commente » (`CTA_TEMPS`).
@@ -380,6 +386,10 @@ taille », police pas aimée). Valeurs : `SOUS_TITRES` de `commun.mjs`.
 - **Éclair** : 115 % en 0,13 s power2.out avec un léger flou de mouvement, sur le mot fort, tenu jusqu'à la coupe qui
   revient au plan large.
 - **Rapprochement court** : 110 % en 1 s power2.inOut, puis coupe au plan large.
+- **Le zoom qui suit sa tête** (Romain, 2026-11-20 : « rien qu'un zoom et un mouvement de caméra qui fait qu'on suit la
+  tête, c'est un effet en soi ») : 110 % en 0,8 s power2.inOut, puis le cadre suit sa tête jusqu'à la coupe, comme un
+  caméraman : ses yeux mesurés toutes les 3 images, lissés sur 0,4 s environ, sa tête reste à la même place à l'écran
+  et le décor bouge un peu ; jamais hors de l'image. C'est le zoom par défaut du montage classique.
 - Jamais au-delà de 115 % sur une rush 1080p. Avec la 4K d'origine, recadrer depuis la 4K (sans perte jusqu'à 1,8x).
 
 ## Étalonnage
@@ -479,7 +489,8 @@ seulement :
   italique.
 - Texte d'un effet : jamais un mot qui arrive avant que Romain le dise, jamais un mot qui repart seul au milieu de la
   phrase ou à un instant qui n'est pas calé sur la voix.
-- Hooks : pas de pavés craie avec un mot orange, pas de titre derrière lui avec le mot en orange ni en contour, pas d'écart
+- Accroches : jamais une accroche recopiée d'une autre vidéo, jamais une image posée sans mouvement, jamais de vide
+  après 3 s ; pas de pavés craie avec un mot orange, pas de titre derrière lui avec le mot en orange ni en contour, pas d'écart
   moyen (34 px) entre la phrase et le mot géant, pas de texte seul ni mot par mot, pas de titre qui déborde de la zone
   sûre, pas de mot géant en dégradé ni en couleurs inversées.
 - CTA : pas de champ Instagram posé sans frappe, pas de mot derrière lui en simple fondu, pas de carte à onglet

@@ -12,7 +12,15 @@ Où ça se voit : **caméra** = posé sur l'image, il reste visible ; **plein** 
 **demi** = panneau en haut, son visage poussé vers le bas ; **derrière** = passe derrière lui.
 Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués (sa ligne).
 
-## Accroches (le début de la vidéo)
+## L'accroche composée (le défaut, depuis le 2026-11-20)
+
+- `accroche` (derrière et caméra) : l'accroche de la vidéo, composée pour elle (`regles.md`, « L'accroche »,
+  format dans `format.md`). La signature est tenue par le script ; tu décides la disposition : rôles
+  `phrase` (minuscules), `mot` (le mot fort, en capitales), `relance` (une ou deux, sur pavé), et pour
+  chacun sa place (`derriere`, `haut`, `bas`), son alignement, sa taille, son entrée. Une seule accroche
+  par vidéo, toujours `a01`.
+
+## Briques d'accroche (anciens gabarits, animés : sur sa demande ou pour une vidéo sans parole)
 
 - `hook-paves` (caméra) : 1 à 3 lignes sur pavés en haut, posées d'un coup, affichées 2 s.
   Niveau simple. `reglages.couleur` : `craie` | `orange`. Éléments : une ligne chacun.
@@ -24,6 +32,10 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
   accroche qui contient un chiffre qu'il dit. Éléments : le chiffre, la suite, le pavé.
 - `hook-question` (caméra) : le sujet en mot géant, la question sur pavé dessous, sur sa démo.
   Éléments : le sujet, la question.
+
+Le reste de la bibliothèque (cartes, demi-écran, schéma, comparaison, minuteurs, tier list, fond vert,
+formats connus) : sur sa demande. Par défaut, le corps de la vidéo n'a que `plein-ecran-fond` (charbon ou
+orange), `transition-flash`, `liste` s'il énumère, et au plus une animation légère.
 
 ## Fin (mot en commentaire)
 
@@ -101,9 +113,12 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
 ## Sous-titres et zooms (pas des gestes : clés à part du plan)
 
 - Sous-titres : un seul style, le sien (Inter Black, pavé orange qui glisse), aux deux niveaux ; rien à choisir.
-- Zooms `eclair`, `rapprochement` et `ouverture` (le dézoom de l'accroche) (voir `regles.md`).
+- Zooms `suivi` (le zoom qui suit sa tête, le défaut), `eclair`, `rapprochement` et `ouverture` (le dézoom
+  de l'accroche) ; `"suivre": true` donne le suivi de sa tête à un éclair ou un rapprochement (voir `regles.md`).
 
-## Ajouts de Yoan (2026-11-11), en sur mesure tant qu'ils n'ont pas de gabarit
+## Ajouts de Yoan (2026-11-11), en sur mesure : sur la demande de Romain seulement depuis le 2026-11-20
+(sauf le plein écran de la phrase à retenir, qui reste le défaut, et le titre derrière lui, remplacé par
+l'accroche composée)
 
 - **Titre derrière lui + dézoom d'ouverture** : base `hook-titre-derriere`, titre sur 2 ou 3 lignes
   lisible sans le son, surlignage orange sur l'objet du désir, caméra de 120 % à 100 % jusqu'au mot clé (zoom `ouverture`), le titre dézoome avec elle.

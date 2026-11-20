@@ -205,8 +205,13 @@ def zooms_lus(w, W0, H0):
     r = []
     for z in d["zooms"]:
         ax, ay = z["ancre"]
-        r.append(dict(type=z["type"], echelle=z["echelle"], ancre=[round((ax * W0 * k - ox) / BW, 6), round((ay * H0 * k - oy) / BH, 6)],
-                      t0=z["t0"], duree=z["duree"], f0=z["f0"], f1=z["f1"], fixe=z["fixe"], courbe=z["courbe"]))
+        e = dict(type=z["type"], echelle=z["echelle"], ancre=[round((ax * W0 * k - ox) / BW, 6), round((ay * H0 * k - oy) / BH, 6)],
+                 t0=z["t0"], duree=z["duree"], f0=z["f0"], f1=z["f1"], fixe=z["fixe"], courbe=z["courbe"])
+        # zoom qui suit sa tête : décalage du cadre (part de l'original) ramené en part de l'image 9:16 de sortie
+        if z.get("suivi"):
+            e["suivi"] = dict(images=z["suivi"]["images"],
+                              decalage=[[round(dx * W0 * k / BW, 6), round(dy * H0 * k / BH, 6)] for dx, dy in z["suivi"]["decalage"]])
+        r.append(e)
     return r
 
 

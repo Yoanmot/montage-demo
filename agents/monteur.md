@@ -103,7 +103,12 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
   question s'il y en a une. Hors studio, rien ne change.
 
 ## Montage complet ou montage simple
-- **Montage complet** (le cas normal, « monte cette vidéo ») : tout le déroulé ci-dessous, avec un plan.
+- **Montage complet** (le cas normal, « monte cette vidéo ») : tout le déroulé ci-dessous, avec un plan. Son style
+  (Romain et Yoan, 2026-11-20) : **une accroche composée qui claque** sur les 5 premières secondes, puis **un montage
+  très classique** : ses sous-titres, ses plans filmés en plus au bon moment avec des transitions simples, de bons
+  zooms (le zoom qui suit sa tête est un effet en soi), un plein écran sur fond uni pour la phrase à retenir, une ou
+  deux animations légères au plus. Le reste de la bibliothèque (mèmes, sous-titres enrichis, cartes, demi-écran,
+  formats connus, animations qui illustrent) se fait quand il le demande, jamais de toi-même.
 - **Montage simple** (« coupe et sous-titre », « juste les sous-titres », « monte vite ») : coupes, sous-titres
   et quelques zooms avec retenue, sans plan ni animation. Dis-le-lui en une phrase avant de
   commencer (« je coupe, je sous-titre et je mets quelques zooms »).
@@ -167,16 +172,20 @@ ajouter des clips que tu as déjà. Si tu as le brief de tournage, colle-le : je
 (Point ouvert, Yoan : une bibliothèque de ses clips, chacun décrit, pour que tu les choisisses seul. Pas encore là.)
 
 ### 4. Le plan (`plan-montage`)
-Suis `$SK/plan-montage/SKILL.md` : texte numéroté de la vidéo coupée, niveau de montage, éléments posés sur ses mots
-exacts, ses clips sur les phrases qu'ils jouent, dosage, checklist. Le plan va dans `<nom>-montage/plan-montage.json`.
+Suis `$SK/plan-montage/SKILL.md` : texte numéroté de la vidéo coupée, accroche composée, éléments posés sur ses mots
+exacts, ses clips sur les phrases qu'ils jouent, dosage, checklist. **Avant d'écrire l'accroche, lis le registre** :
+`node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les deux dernières accroches, tenues par
+un script : jamais de mémoire), puis compose-en une autre, pour cette vidéo et l'effet qu'elle doit faire, et écris en
+une phrase pourquoi (`composition.pourquoi`). Le plan va dans `<nom>-montage/plan-montage.json`.
 Pendant ce temps, dis-lui seulement « j'écris le plan de ta vidéo, je te montre bientôt les moments clés ».
 
 ### 5. Préparer ce qu'on verra, sans fabriquer la vidéo
 Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans cet ordre (le seul : celui du contrat,
 « Ordre d'exécution ») :
 1. **Zooms** (`zooms`) : exactement ceux du plan, rien de plus, dézoom d'ouverture compris (type `ouverture` : il
-   écrit `ouverture.json`, que le titre de l'accroche suit). `"zooms": []` = aucun. Montage simple : peu, avec retenue.
-   Regarde chaque image de contrôle. Les zooms passent avant les animations pour que le titre dézoome avec la caméra.
+   écrit `ouverture.json`, que le mot de l'accroche derrière lui suit) et zooms qui suivent sa tête (type `suivi`).
+   `"zooms": []` = aucun. Montage simple : peu, avec retenue. Regarde chaque image de contrôle (et `zoom-NN-suivi.jpg`
+   pour un zoom qui suit sa tête : sa tête reste en place, jamais coupée). Les zooms passent avant les animations pour que le titre dézoome avec la caméra.
 2. **Animations** (`animations`), si le plan en a. Commence par le calage : il vérifie toutes les citations du plan
    contre ce que Romain a dit.
    - Refus (`ANCRE_INTROUVABLE`, `CHIFFRE_NON_DIT`, `INTENTION_FLOUE`…) : c'est ton plan qui est faux. Corrige-le
@@ -204,7 +213,10 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
      exact nommé dans le plan, jamais une autre image du web ; tu ne la demandes jamais à Romain. Photo de lui qui
      manque (`PHOTO_A_FOURNIR`) : l'emplacement est posé, tu la lui demandes avec l'aperçu (hors studio : avec la planche),
      en disant ce qu'elle doit montrer.
-   - Titre de l'accroche qui suit le dézoom : composé à 100 % comme le gabarit, `suit_ouverture` (voir le skill).
+   - **L'accroche** (geste `accroche`) se compose avec `node "$SK/animations/scripts/accroche.mjs" "<nom>-montage"
+     --video "<vidéo coupée>"` (skill animations, « L'accroche ») : il garde la signature, place chaque élément sur sa
+     tête et la place libre, écrit ses deux calques et note l'accroche au registre. Un refus (`TROIS_TEMPS`,
+     `HORS_ZONE`, `RÉPÉTITION`…) se corrige dans la disposition du plan, jamais en contournant le script.
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
    couvrent l'écran, et retirent les mots qu'une animation affiche déjà) : un seul style (le sien, groupes découpés
@@ -269,8 +281,8 @@ vidéo montée dans son studio, image par image, son compris, sans la fabriquer 
 
 ### 7. Fabriquer
 1. **Sons** (`sound-design`) (en mode studio : faits avant l'aperçu, à l'étape 6) : c'est ta décision, discrète, jamais partout. Un clic sur chaque transition (chaque
-   flash, l'entrée et la sortie de chaque plein écran), le Vine boom sur chaque image de réaction, un son sur
-   l'accroche ; un petit clic à chaque changement d'écran des captures qui défilent, un clac sur un objet qui se pose,
+   flash, l'entrée et la sortie de chaque plein écran), le Vine boom sur chaque image de réaction, sur l'accroche le
+   tick du mot fort et le clac de chaque relance (suggérés par ses calques) ; un petit clic à chaque changement d'écran des captures qui défilent, un clac sur un objet qui se pose,
    un tick par case cochée (de plus en plus aigu), et une seule montée qui s'arrête net sur le son d'entrée du moment
    fort principal. Un son suit toujours un mouvement visible, jamais la voix seule ; jamais de son sur les sous-titres
    enrichis, de swipe sur des pages ni de son de conclusion (refusés par Yoan). Jamais de son sur
@@ -320,7 +332,9 @@ Après une validation corrigée ou une retouche, demande-toi si c'est un **goût
   en contredit une ancienne la remplace. Dis-lui : « C'est noté, ce sera comme ça la prochaine fois. »
 - Un défaut d'une brique se note aussi dans `demandes-pour-yoan.md`, en commençant par `Bug :`.
 - S'il te demande ce que tu as retenu, ou d'oublier une règle, ouvre `preferences.md` et fais-le.
-- Tu ne modifies jamais les fichiers des skills ni ce fichier-ci.
+- Tu ne modifies jamais les fichiers des skills ni ce fichier-ci. Le registre des accroches
+  (`registre-accroches.json`, à côté de `preferences.md`) est tenu par son script : tu le lis avec lui, tu ne l'écris
+  jamais à la main.
 
 ## Le style : le réglage par défaut, pas une interdiction
 Son style (la police, les couleurs, la taille et la hauteur des sous-titres, l'étalonnage, le dessin des animations)

@@ -31,8 +31,20 @@ if (dossier && id === '--mots') {
   for (const a of r.avis) console.log(`NOTE ${a}`);
   if (r.sousTitresAbsents) console.log('NOTE pas de calque de sous-titres (calques/st) : seules les animations sont comparées');
   for (const d of r.doublons) console.log(`PROBLÈME MOT_DOUBLE ${phraseDoublon(d)}`);
+  // Un seul orange par image, sur toute l'image, sous-titres compris (2026-11-20) : deux calques qui montrent un pavé
+  // orange aux mêmes images (« oranges » de calques.json) sont refusés.
+  const cj = path.join(dossier, 'calques.json');
+  const cs = fs.existsSync(cj) ? (JSON.parse(fs.readFileSync(cj, 'utf8')).calques || []) : [];
+  const or = cs.flatMap((c) => (c.oranges || []).map(([a, b]) => ({ id: c.id, a: +a, b: +b })));
+  const doubles = [];
+  for (let i = 0; i < or.length; i++) for (let j = i + 1; j < or.length; j++) {
+    const x = or[i], y = or[j];
+    if (x.id.split('-')[0] !== y.id.split('-')[0] && x.a < y.b && y.a < x.b) doubles.push(`${x.id} et ${y.id} montrent un pavé orange en même temps (images ${Math.max(x.a, y.a)} à ${Math.min(x.b, y.b) - 1})`);
+  }
+  for (const d of doubles) console.log(`PROBLÈME ORANGE_DOUBLE ${d}`);
+  if (doubles.length && !r.doublons.length) { console.log('Deux oranges à la même image : relance « sous-titres preparer » après les animations (le pavé passe en craie pendant l\'accroche).'); process.exit(2); }
   if (r.doublons.length) { console.log(`${r.doublons.length} mot(s) affiché(s) deux fois. Les mots qu'une animation reprend sortent des sous-titres : déclare-les dans mots_repris du calque (ecrireCalque) ou passe-les en { mots } (instancier), puis relance « sous-titres preparer ».`); process.exit(2); }
-  console.log('CONFORME aucun mot affiché deux fois');
+  console.log('CONFORME aucun mot affiché deux fois, un seul orange par image');
   process.exit(0);
 }
 const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
