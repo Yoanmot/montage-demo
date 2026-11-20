@@ -25,7 +25,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { lireConfig, lireJson, isoZurich, sonder, typeFichier, clipId, nomLibre, prendreVerrou, lireDate, SLUG, estLien, arriveesPertinentes } from './lib/commun.mjs';
+import { lireConfig, lireJson, isoZurich, sonder, typeFichier, clipId, nomLibre, prendreVerrou, lireDate, SLUG, estLien, arriveesPertinentes, deplacer,
+  voixAttendues, sonderAudio, voixEnVideo } from './lib/commun.mjs';
 import { racines, texteDuScript, reconnaitreFace, apparier, validerVue, genreDe, principauxSansParole } from './lib/reconnaitre.mjs';
 import { transcrire, vignettes, imagePhoto, regarder, promptVue } from './lib/sens.mjs';
 import { Media } from './lib/media.mjs';
@@ -46,6 +47,9 @@ const RAISONS = {
   photo_aucune: 'je ne sais pas pour quel contenu est cette photo',
   biblio_absent: "ce clip n'est plus dans ta bibliothèque, il faudra le refilmer",
   pendant: "arrivé pendant que je rangeais, il t'attend dans « À ranger »",
+  audio_illisible: "je n'arrive pas à lire ce mémo vocal, il n'est peut-être pas arrivé en entier",
+  voix_ecoute: "je n'ai pas pu écouter ce mémo vocal, il t'attend dans « À ranger »",
+  voix_aucune: "je n'ai pas reconnu le texte d'un de tes reels dans ce mémo vocal, il t'attend dans « À ranger »",
 };
 
 const say = (l) => process.stdout.write(l + '\n');
@@ -106,13 +110,13 @@ function dateFichier(f, st) {
   return d || st.mtime;
 }
 
-async function arrivees(config, depuis) {
+async function arrivees(config, depuis, { audio = false } = {}) {
   const lignes = [], candidats = [];
   // Seulement les vidéos et photos envoyées depuis le téléphone après la création du plan (lot 12) : les
   // autres fichiers du dossier d'arrivée (ses Téléchargements) ne sont ni lus, ni nommés, ni déplacés.
   // Un fichier encore en réception (AirDrop pas fini : pas encore de quarantaine, taille qui bouge) n'est
   // jamais rangé : il reste où il est, le plan de tournage le montre et propose de ranger plus tard.
-  const { fichiers: trouves, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, depuis);
+  const { fichiers: trouves, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, depuis, { audio });
   for (const nom of partiels) lignes.push(`IGNORE ${nom} ${RAISONS.partiel}`);
   for (const f of enCours) lignes.push(`IGNORE ${f.nom} ${RAISONS.instable}`);
   for (const f of trouves) candidats.push({ nom: f.nom, chemin: f.chemin, type: f.type, taille: f.taille });
@@ -129,6 +133,10 @@ async function arrivees(config, depuis) {
       const m = sonder(c.chemin);
       if (!m) { lignes.push(`IGNORE ${c.nom} ${RAISONS.illisible}`); continue; }
       fichiers.push({ ...c, ...m, date: m.date || st.mtime });
+    } else if (c.type === 'audio') {
+      const duree = sonderAudio(c.chemin);
+      if (!duree) { lignes.push(`IGNORE ${c.nom} ${RAISONS.audio_illisible}`); continue; }
+      fichiers.push({ ...c, date: dateFichier(c.chemin, st), duree, duree_s: Math.round(duree * 10) / 10, orientation: 'portrait' });
     } else {
       fichiers.push({ ...c, date: dateFichier(c.chemin, st), duree: 0, duree_s: 0, orientation: null });
     }
@@ -182,14 +190,16 @@ async function ranger(o) {
       }
     }
 
-    // 2. Les fichiers arrivés depuis le début du tournage.
-    const { lignes, fichiers, noms } = await arrivees(config, lireDate(t.cree_le));
+    // 2. Les fichiers arrivés depuis le début du tournage (les mémos vocaux seulement si un reel attend sa voix).
+    const voix = voixAttendues(config, t);
+    const { lignes, fichiers, noms } = await arrivees(config, lireDate(t.cree_le), { audio: voix.length > 0 });
     vus = noms;
     lignes.forEach(say);
     if (!fichiers.length) return 0;
 
     const videos = fichiers.filter((f) => f.type === 'video');
     const photos = fichiers.filter((f) => f.type === 'photo');
+    const memos = fichiers.filter((f) => f.type === 'audio');
 
     // 3. Face caméra : ce qu'il dit, comparé au texte de chaque script du tournage.
     const scripts = slugsFace(t).map((slug) => {
@@ -215,6 +225,20 @@ async function ranger(o) {
       if (r.decision === 'place') decisions.push({ f: v, type: 'face', slugs: [r.slug], candidats: cand });
       else decisions.push({ f: v, raison: r.decision === 'ambigu' ? 'face_ambigu' : 'face_aucun', candidats: cand });
     });
+
+    // 3 bis. Mémos vocaux : la voix d'un reel en plans filmés avec sa voix. Changé en vidéo (le monteur part d'une
+    // vidéo), écouté, comparé aux seuls textes des reels qui attendent leur voix. Pas reconnu : il reste où il est
+    // (dans ses Téléchargements, montré dans « À ranger ») ; jamais mis de côté ni rangé au hasard.
+    const scriptsVoix = scripts.filter((s) => voix.includes(s.slug));
+    for (const m of memos) {
+      const video = path.join(travail, `${path.parse(m.nom).name}.mp4`);
+      if (!voixEnVideo(m.chemin, video)) { say(`IGNORE ${m.nom} ${RAISONS.audio_illisible}`); continue; }
+      const e = await transcrire(video, config);
+      if (!e.ok) { note(`transcription impossible pour ${m.nom} : ${e.detail}`); say(`IGNORE ${m.nom} ${RAISONS.voix_ecoute}`); continue; }
+      const r = reconnaitreFace(e.texte, scriptsVoix);
+      if (r.decision !== 'place') { say(`IGNORE ${m.nom} ${RAISONS.voix_aucune}`); continue; }
+      decisions.push({ f: { ...m, chemin: video, voix: m.chemin }, type: 'face', slugs: [r.slug] });
+    }
 
     // 4. B-rolls et photos : ordre de tournage et durée, puis confirmation par l'image.
     const aFilmer = (type) => t.prises.filter((p) => p.type === type && !p.deja_en_bibliotheque);
@@ -323,6 +347,14 @@ function placer(media, config, f, type, slugs, { tournage = null, prise = null, 
   if (type === 'face' || type === 'photo') {
     const dossier = path.join(config.media, slugs[0], type === 'face' ? 'face' : 'photos');
     fs.mkdirSync(dossier, { recursive: true });
+    // Un mémo vocal : sa vidéo (fabriquée par le studio) va là où le monteur prend la voix, le mémo d'origine à côté.
+    if (f.voix) {
+      const video = path.join(dossier, nomLibre(dossier, `${path.parse(f.nom).name}.mp4`));
+      deplacer(f.chemin, video);
+      media.creer(video);
+      media.deplacer(f.voix, path.join(dossier, nomLibre(dossier, f.nom)), 'voix');
+      return;
+    }
     media.deplacer(f.chemin, path.join(dossier, nomLibre(dossier, f.nom)), type);
     return;
   }
@@ -379,8 +411,24 @@ async function placerALaMain(o) {
     if (o.arrivee) {
       const t = lireTournages(config.depot).find((x) => x.id === o.arrivee);
       if (!t) return bloque('PLAN', 'je ne trouve pas ce plan de tournage');
-      const f = arriveesPertinentes(config.arrivees, lireDate(t.cree_le)).fichiers.find((x) => x.nom === nom);
+      const voix = voixAttendues(config, t);
+      const f = arriveesPertinentes(config.arrivees, lireDate(t.cree_le), { audio: voix.length > 0 }).fichiers.find((x) => x.nom === nom);
       if (!f) return bloque('FICHIER', 'je ne trouve plus ce fichier sur ton Mac');
+      // Un mémo vocal ne se range que comme la voix d'un reel qui l'attend (plans filmés avec ta voix).
+      if (f.type === 'audio') {
+        if (type !== 'face' || !voix.includes(slug)) return bloque('TYPE', "un mémo vocal ne se range que comme la voix d'un reel en plans filmés avec ta voix");
+        const travail = fs.mkdtempSync(path.join(os.tmpdir(), 'rangement-voix-'));
+        try {
+          const video = path.join(travail, `${path.parse(nom).name}.mp4`);
+          if (!sonderAudio(f.chemin) || !voixEnVideo(f.chemin, video)) return bloque('FICHIER', "je n'arrive pas à lire ce mémo vocal");
+          media.ouvrir('placer', t.id);
+          placer(media, config, { nom, chemin: video, voix: f.chemin, type: 'audio' }, 'face', [slug], { tournage: t.id });
+          media.fermer();
+        } finally { fs.rmSync(travail, { recursive: true, force: true }); }
+        say(`PLACE ${nom} -> ${slug}/face`);
+        say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
+        return 0;
+      }
       const m = f.type === 'video' ? sonder(f.chemin) : null;
       if (type !== 'photo' && !m) return bloque('FICHIER', "ce n'est pas une vidéo que je sais lire");
       const st = fs.statSync(f.chemin);

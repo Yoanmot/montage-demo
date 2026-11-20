@@ -12,6 +12,7 @@ export const PHOTOS = new Set(['.jpg', '.jpeg', '.heic', '.heif', '.png', '.dng'
 export const PARTIELS = new Set(['.download', '.crdownload', '.part', '.partial', '.tmp']);
 
 import { chargerClient } from '../../serveur/client.mjs';
+import { genreDe } from './reconnaitre.mjs';
 
 // Le client du studio (STUDIO_CLIENT, défaut romain) : racine d'installation et dossier de config Claude.
 const CLIENT = chargerClient({ maison: os.homedir() });
@@ -233,6 +234,10 @@ export const SLUG = /^[a-z0-9-]{3,60}$/;
 // la page d'origine de ceux-là ; un AirDrop n'en a pas). Les autres fichiers ne sont jamais touchés.
 export const ARRIVEES_VIDEOS = new Set(['.mov', '.mp4']);
 export const ARRIVEES_PHOTOS = new Set(['.heic', '.heif', '.jpg', '.jpeg']);
+// Un mémo vocal (2026-11-20) : la voix d'un reel en plans filmés avec sa voix, enregistrée avec Dictaphone. Compté
+// seulement quand le plan attend une voix (option audio, voir voixAttendues) : sinon un fichier audio de ses
+// Téléchargements n'est jamais lu, nommé ni déplacé.
+export const ARRIVEES_AUDIOS = new Set(['.m4a', '.mp3', '.wav', '.aac']);
 
 // Les attributs étendus d'un fichier (noms seulement), et la quarantaine que macOS pose à la réception.
 function attributs(chemin) {
@@ -272,10 +277,11 @@ function copieFinderEnCours(chemin) {
 // en train d'arriver.
 export const CALME_S = () => Number(process.env.ARRIVEES_CALME_S ?? 20);
 
-// Les arrivées pertinentes : [{ nom, chemin, type: 'video' | 'photo', taille, quand }], les fichiers encore en
+// Les arrivées pertinentes : [{ nom, chemin, type: 'video' | 'photo' | 'audio', taille, quand }], les fichiers encore en
 // cours de réception (en_cours : même forme, taille du moment) et ceux à extension partielle (partiels : noms),
 // pour pouvoir dire « attends que l'envoi soit fini ». Un fichier en cours n'est jamais compté comme reçu.
-export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now() } = {}) {
+// audio : compter aussi les mémos vocaux (seulement quand le plan attend une voix, voir voixAttendues).
+export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now(), audio = false } = {}) {
   const r = { fichiers: [], partiels: [], en_cours: [] };
   if (!dossier || !fs.existsSync(dossier)) return r;
   const seuil = depuis instanceof Date ? depuis.getTime() : Number(depuis) || 0;
@@ -287,7 +293,8 @@ export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now() }
     try { st = fs.lstatSync(chemin); } catch { continue; }
     if (st.isSymbolicLink() || st.isDirectory() || !st.isFile()) continue;
     const ext = path.extname(nom).toLowerCase();
-    const type = ARRIVEES_VIDEOS.has(ext) ? 'video' : ARRIVEES_PHOTOS.has(ext) ? 'photo' : null;
+    const type = ARRIVEES_VIDEOS.has(ext) ? 'video' : ARRIVEES_PHOTOS.has(ext) ? 'photo'
+      : audio && ARRIVEES_AUDIOS.has(ext) ? 'audio' : null;
     const cree = Math.max(st.birthtimeMs || 0, st.mtimeMs || 0);
     // La date de changement est toujours au moins l'instant d'arrivée : en dessous du seuil, rien de neuf.
     if (Math.max(cree, st.ctimeMs || 0) < seuil) continue;
@@ -309,4 +316,49 @@ export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now() }
   r.fichiers.sort((a, b) => a.quand - b.quand || a.nom.localeCompare(b.nom));
   r.en_cours.sort((a, b) => a.nom.localeCompare(b.nom));
   return r;
+}
+
+// ---------- La voix d'un reel en plans filmés avec sa voix (2026-11-20) ----------
+
+// Les contenus du plan t qui attendent encore leur voix : reel « plans-voix » avec une prise face (sa voix) à filmer,
+// et pas encore de vidéo dans son dossier face/. Vide : aucun mémo vocal n'est attendu, l'audio reste ignoré.
+export function voixAttendues(config, t) {
+  const slugs = new Set();
+  for (const p of t?.prises || []) {
+    if (p.type !== 'face' || p.deja_en_bibliotheque) continue;
+    for (const { slug } of p.contenus || []) {
+      if (!SLUG.test(String(slug || '')) || slugs.has(slug)) continue;
+      const dossier = path.join(config.depot, 'contenus', slug);
+      let md = null;
+      try { md = fs.readFileSync(path.join(dossier, 'script.md'), 'utf8'); } catch { /* pas de script */ }
+      if (genreDe(lireJson(path.join(dossier, 'etat.json'), null), md) !== 'plans-voix') continue;
+      const face = path.join(config.media, slug, 'face');
+      let noms = [];
+      try { noms = fs.readdirSync(face); } catch { /* pas encore de dossier */ }
+      if (!noms.some((n) => !n.startsWith('.') && typeFichier(n) === 'video' && !/-monte(-\d+)?\.mp4$/i.test(n) && !/-coupe/i.test(n))) slugs.add(slug);
+    }
+  }
+  return [...slugs];
+}
+
+// Un mémo vocal lisible : sa durée (secondes), ou null s'il n'a pas de son qu'on sait lire.
+export function sonderAudio(fichier) {
+  const r = spawnSync(outil('ffprobe'), ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', fichier], { encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  let j;
+  try { j = JSON.parse(r.stdout); } catch { return null; }
+  if (!(j.streams || []).some((s) => s.codec_type === 'audio')) return null;
+  const duree = Number(j.format?.duration || 0);
+  return duree > 0 ? duree : null;
+}
+
+// Le monteur part d'une vidéo : le mémo devient une vidéo verticale noire avec sa voix (l'image ne sert pas, ses
+// clips la couvrent). Même date que le mémo, pour que la transcription déjà faite resserve au passage suivant.
+export function voixEnVideo(audio, sortie) {
+  const r = spawnSync(outil('ffmpeg'), ['-nostdin', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:r=30',
+    '-i', audio, '-map', '0:v', '-map', '1:a', '-shortest', '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'stillimage',
+    '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', sortie], { encoding: 'utf8' });
+  if (r.status !== 0 || !fs.existsSync(sortie)) { fs.rmSync(sortie, { force: true }); return false; }
+  try { const st = fs.statSync(audio); fs.utimesSync(sortie, st.atime, st.mtime); } catch { /* date laissée */ }
+  return true;
 }

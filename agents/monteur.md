@@ -142,7 +142,7 @@ Puis planche, sons (transitions seulement), rendu, comme d'habitude.
   première ligne (l'accroche) se pose en haut de l'image dès la première image, la deuxième (le renvoi vers la légende)
   en bas, et les deux restent toute la vidéo, ses mots exacts, rien ajouté (hooks ou cartes de la bibliothèque posés avec `debut` et `images`, comme pour la vidéo sans parole). Le fond est dans la légende :
   rien d'autre à l'écran, pas de sous-titres. Sans « Texte à l'écran » dans le script : la question habituelle.
-- **Plans filmés avec sa voix** (voix off) : la vidéo donnée est sa **voix seule**, enregistrée téléphone posé : son
+- **Plans filmés avec sa voix** (voix off) : la vidéo donnée est sa **voix seule**, enregistrée téléphone posé (ou un mémo vocal, changé en vidéo noire au rangement) : son
   image ne se voit jamais. Coupes et transcription comme d'habitude (sa voix est la piste du montage). Le plan pose ses
   clips de façon à couvrir **toute** la vidéo, du premier mot à la dernière image, l'un après l'autre et sans trou
   (`vitesse: "ajuster"` pour qu'un clip tienne son passage, le même clip repris avec `depart` s'il en manque), le

@@ -28,7 +28,7 @@ import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
 import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible } from "./tournage.mjs";
-import { arriveesPertinentes, typeFichier, verrouPris } from "../rangement/lib/commun.mjs";
+import { arriveesPertinentes, typeFichier, verrouPris, voixAttendues } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
@@ -322,7 +322,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       };
       const vus = new Set();
       for (const t of plans) {
-        const { fichiers, en_cours: enCours } = arriveesPertinentes(config.arrivees, new Date(Date.parse(t.cree_le) || 0));
+        const voix = voixAttendues(config, t);
+        const { fichiers, en_cours: enCours } = arriveesPertinentes(config.arrivees, new Date(Date.parse(t.cree_le) || 0), { audio: voix.length > 0 });
         for (const [f, recu] of [...enCours.map((f) => [f, false]), ...fichiers.map((f) => [f, true])]) {
           if (vus.has(f.nom) || doublon(f)) continue;
           // Un fichier va au plan le plus récent créé avant son arrivée : celui d'un plan plus récent, pas
@@ -332,11 +333,13 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           vus.add(f.nom);
           liste.push({
             nom: f.nom, attente: true, en_cours: !recu, tournage: t.id, cree_le: t.cree_le,
-            libelle: f.type === "photo" ? "ta photo" : "ta vidéo", taille_lisible: tailleLisible(f.taille),
+            libelle: f.type === "photo" ? "ta photo" : f.type === "audio" ? "ton mémo vocal" : "ta vidéo", taille_lisible: tailleLisible(f.taille),
             raison: recu ? "arrivée sur ton Mac après ton tournage, pas encore rangée" : "en cours de réception",
             // Les contenus du plan d'abord, pour la ranger à la main ; une vidéo arrivée en retard est le plus
             // souvent un plan de coupe (un enregistrement d'écran, par exemple) : le type se change avant de ranger.
-            candidats: (t.contenus || []).map((slug) => ({ slug, type: f.type === "photo" ? "photo" : "b-roll" })),
+            // Un mémo vocal ne va que comme voix d'un reel qui l'attend.
+            candidats: f.type === "audio" ? voix.map((slug) => ({ slug, type: "face" }))
+              : (t.contenus || []).map((slug) => ({ slug, type: f.type === "photo" ? "photo" : "b-roll" })),
           });
         }
       }

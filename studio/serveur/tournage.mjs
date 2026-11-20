@@ -11,7 +11,7 @@ import path from "node:path";
 import { lireJson, ecrireJson, lireTexte, lister, isoZurich, lireDate, EXT_IMAGE, existe } from "./outils.mjs";
 import { decouperScript, accrochesDe, accrocheDansTexte, aFinir, genreDuContenu } from "./lecture.mjs";
 import { estOriginale } from "./stades.mjs";
-import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
+import { arriveesPertinentes, voixAttendues } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
 import { contact } from "./client.mjs";
 
@@ -80,7 +80,8 @@ export function tailleLisible(octets) {
 // Ce qui arrive en ce moment dans le dossier d'arrivée pour ce plan : les fichiers reçus en entier et ceux
 // encore en réception, avec leur taille du moment (jamais de chemin : l'interface n'en montre pas).
 export function receptionDuPlan(config, t) {
-  const { fichiers, en_cours: enCours, partiels } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0));
+  const { fichiers, en_cours: enCours, partiels } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0),
+    { audio: voixAttendues(config, t).length > 0 });
   const vu = (f) => ({ nom: f.nom, type: f.type, taille: f.taille, taille_lisible: tailleLisible(f.taille) });
   return { recus: fichiers.map(vu), en_cours: enCours.map(vu), partiels: partiels.length, le: isoZurich() };
 }
@@ -88,13 +89,15 @@ export function receptionDuPlan(config, t) {
 // Vérifie ce qui est arrivé : compare le nombre de vidéos et de photos attendues (prises à filmer, pas
 // encore rangées) à ce que le dossier d'arrivée contient depuis la création du plan (mêmes règles que le
 // rangement : vidéos et photos du téléphone seulement, jamais les autres fichiers ; un fichier encore en
-// réception ne compte pas).
+// réception ne compte pas). Un mémo vocal compte comme la vidéo de sa voix, seulement quand un reel du plan attend
+// sa voix (plans filmés avec sa voix).
 export function verifierArrivees(config, t, suivi) {
   const rangees = dejaRangees(config, t);
   const attendues = aFilmer(t, suivi).filter((p) => !rangees.has(p.n));
   const attendu = { videos: attendues.filter((p) => p.type !== "photo").length, photos: attendues.filter((p) => p.type === "photo").length };
-  const { fichiers, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0));
-  const recu = { videos: fichiers.filter((f) => f.type === "video").length, photos: fichiers.filter((f) => f.type === "photo").length };
+  const { fichiers, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0),
+    { audio: voixAttendues(config, t).length > 0 });
+  const recu = { videos: fichiers.filter((f) => f.type !== "photo").length, photos: fichiers.filter((f) => f.type === "photo").length };
   const manque = { videos: Math.max(0, attendu.videos - recu.videos), photos: Math.max(0, attendu.photos - recu.photos) };
   const en_trop = { videos: Math.max(0, recu.videos - attendu.videos), photos: Math.max(0, recu.photos - attendu.photos) };
   const en_reception = enCours.map((f) => ({ nom: f.nom, type: f.type, taille: f.taille, taille_lisible: tailleLisible(f.taille) }));
@@ -106,7 +109,7 @@ export function verifierArrivees(config, t, suivi) {
   if (!config.arrivees) message = `Je ne sais pas encore où arrivent tes fichiers sur ce Mac. Préviens ${contact()}.`;
   else if (enCours.length) {
     const quoi = enCours.length === 1
-      ? `${enCours[0].type === "photo" ? "Une photo" : "Une vidéo"} est en cours de réception (${tailleLisible(enCours[0].taille)} reçus pour l'instant)`
+      ? `${enCours[0].type === "photo" ? "Une photo" : enCours[0].type === "audio" ? "Ton mémo vocal" : "Une vidéo"} est en cours de réception (${tailleLisible(enCours[0].taille)} reçus pour l'instant)`
       : `${pluriel(enCours.length, "fichier", "fichiers")} sont en cours de réception (${tailleLisible(enCours.reduce((n, f) => n + f.taille, 0))} reçus pour l'instant)`;
     message = `${quoi}. Laisse ton téléphone près du Mac jusqu'à la fin de l'envoi : je regarde tout seul et je te dis quand c'est fini.`;
   } else if (morceaux.length) {

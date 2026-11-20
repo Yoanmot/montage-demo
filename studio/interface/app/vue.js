@@ -971,9 +971,9 @@ export class Vue {
     const lignesReception = reception && (reception.en_cours.length || (suivi.a_finir && reception.recus.length))
       ? el("div", { class: "prises-reception" }, ...reception.en_cours.map((f) => el("p", { class: "recap-charge", role: "status" },
         el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")),
-        `${f.type === "photo" ? "Une photo" : "Une vidéo"} en cours de réception : ${f.taille_lisible} reçus pour l'instant.`)),
+        `${f.type === "photo" ? "Une photo" : f.type === "audio" ? "Ton mémo vocal" : "Une vidéo"} en cours de réception : ${f.taille_lisible} reçus pour l'instant.`)),
         ...(suivi.a_finir ? reception.recus.map((f) => el("p", { class: "verif verif-ok" }, el("span", { html: icone("coche") }),
-          el("span", {}, `${f.type === "photo" ? "Une photo" : "Une vidéo"} arrivée en entier (${f.taille_lisible}), pas encore rangée.`))) : []))
+          el("span", {}, `${f.type === "photo" ? "Une photo arrivée" : f.type === "audio" ? "Ton mémo vocal arrivé" : "Une vidéo arrivée"} en entier (${f.taille_lisible}), pas encore rangé${f.type === "audio" ? "" : "e"}.`))) : []))
       : null;
     const reste = rangement?.reste || null;
     const resteTexte = reste && (reste.videos || reste.photos)
@@ -1006,7 +1006,7 @@ export class Vue {
       const titres = [...new Set((b.contenus || []).map((c) => c.titre))];
       const corps = [];
       if (b.type === "face") {
-        if (b.voix) corps.push(el("p", { class: "prise-geste" }, "Enregistre ton texte en vidéo avec l'appareil photo, téléphone posé : seul le son sert, on ne te voit pas. Au calme. Tu peux le lire."));
+        if (b.voix) corps.push(el("p", { class: "prise-geste" }, "Enregistre ton texte en mémo vocal, ou en vidéo avec l'appareil photo, téléphone posé : seul le son sert, on ne te voit pas. Au calme. Tu peux le lire. Envoie-le sur ton Mac avec le reste."));
         if (b.script) {
           // Lot 14 : un bloc par morceau dit d'une traite (Romain fait une pause entre deux morceaux).
           // Découpage écrit dans le script quand il y est, sinon regroupement de repli (morceaux.js).

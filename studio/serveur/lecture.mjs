@@ -736,7 +736,8 @@ function origineRangement(config, chemin) {
   let origine = null;
   for (const r of Array.isArray(j?.rangements) ? j.rangements : []) {
     if (r?.annule) continue;
-    if ((r.ops || []).some((o) => o?.op === "deplacement" && o.vers === chemin)) origine = r.commande === "placer" ? "toi" : "rangement";
+    // Une voix venue d'un mémo vocal : sa vidéo est fabriquée (création), pas déplacée.
+    if ((r.ops || []).some((o) => (o?.op === "deplacement" && o.vers === chemin) || (o?.op === "creation" && o.chemin === chemin))) origine = r.commande === "placer" ? "toi" : "rangement";
   }
   return origine;
 }
