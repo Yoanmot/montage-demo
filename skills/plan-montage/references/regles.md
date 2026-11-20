@@ -62,8 +62,16 @@ reprends ni la combinaison (type, place, entrée du mot fort) des deux dernière
 dernière. Le script refuse une répétition (`RÉPÉTITION`). À égalité, choisis la disposition qui n'a pas servi depuis le
 plus longtemps.
 
-**Le titre peut ne pas être une phrase dite** (il se lit sans le son), mais il ne promet rien qu'il ne dit pas dans la
-vidéo et reprend ses mots quand c'est possible. Écris dans l'`intention` la phrase de lui d'où il vient.
+**Elle se lit comme une phrase, jamais comme des mots-clés** (Yoan, 2026-11-20 : « les clients / MEILLEURS RÉSULTATS
+/ LONG TERME » se lisait comme une liste). Lue de haut en bas, l'accroche est le début de sa phrase : une phrase de tête
+courte (3 mots au moins) qui pose la tension, puis le mot fort qui la termine, puis la relance qui la prolonge, chacun
+avec ses mots exacts, sans sauter plus de 2 mots de ce qu'il dit d'un élément au suivant. Exemple de forme : « tu
+t'entraînes / CINQ FOIS / par semaine et tu stagnes ? ». Le script le contrôle (`LECTURE`).
+**Un titre reformulé** (qui n'est pas ce qu'il dit, pour se lire sans le son) reste possible quand aucune suite de ses
+mots ne se lit seule : écris sa raison dans `composition.titre_reformule` ; il ne promet rien qu'il ne dit pas dans la
+vidéo. Écris dans l'`intention` la phrase de lui d'où vient l'accroche.
+**Rien sur ses yeux ni sa bouche** : un texte devant lui reste au-dessus de sa tête, ou en bas seulement si son visage
+laisse la place (le script mesure ses yeux et refuse, `VISAGE`).
 
 - Le dézoom d'ouverture va dans `zooms` : `{ "type": "ouverture", "sur": "<le mot fort>", "echelle": 1.12 }` ; il
   s'arrête net sur le mot fort, et le mot derrière lui dézoome avec la caméra. Aucun autre zoom pendant l'accroche.

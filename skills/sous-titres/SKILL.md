@@ -126,6 +126,11 @@ l'autre. Le texte de la ligne du calque est écrit par la brique animations à p
 corrections, même taille, même position, même style) : corrige d'abord ici, puis fais refaire le calque d'animation.
 
 ### Un mot n'est vu qu'une fois (Yoan, 2026-11-14)
+**Un seul orange par image** (2026-11-20) : pendant un calque qui déclare de l'orange (`oranges` dans `calques.json` :
+le pavé orange de l'accroche), le pavé passe en craie et le mot dit en charbon ; partout ailleurs, rien ne change. Le
+calque `st` déclare à son tour ses images à pavé orange, et `verifier.mjs <dossier> --mots` refuse deux oranges à la
+même image (`ORANGE_DOUBLE`) : relance `preparer` après les animations.
+
 Quand une animation affiche des mots qu'il dit (sous-titre enrichi, plein écran texte, ligne d'un gabarit), elle les
 déclare (`mots_repris` dans `calques.json`, écrit par la brique animations). `preparer` les retire des sous-titres : le
 groupe d'avant s'arrête à l'attaque du premier mot repris, les mots d'après repartent en nouveaux groupes. Plus jamais

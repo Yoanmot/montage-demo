@@ -334,6 +334,7 @@ export const ACCROCHE = {
   temps: { ouverture: 0.6, mot: [0.8, 2.4], relance: [1.9, 4.0], ecartMin: 0.45 },
   // tout repart ensemble : 1 s après le dernier mot affiché, jamais avant 4 s (pas de vide après 3 s), au plus 7 s
   fin: { tenue: 1.0, min: 4.0, max: 7.0, aimant: 0.35 },
+  lecture: { phraseMin: 3, sautMax: 2 },   // une phrase de tête de 3 mots au moins ; 2 mots dits sautés au plus d'un élément au suivant
   ouverture: 1.12,       // dézoom d'ouverture conseillé (brique zooms, type ouverture, 1,2 au plus)
 };
 

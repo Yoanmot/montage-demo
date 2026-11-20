@@ -100,10 +100,10 @@ function dossierEssai(animations, { ouverture = true } = {}) {
 }
 const lancer = (script, args, env = {}) => spawnSync('node', [path.join(SCRIPTS, script), ...args], { encoding: 'utf8', env: { ...process.env, ...env } });
 const accrocheEssai = (o = {}) => ({
-  id: 'a01', geste: 'accroche', intention: 'Accroche de l\'essai : le monteur, puis les trois exercices.', de: 'salut', a: 'trois exercices',
+  id: 'a01', geste: 'accroche', intention: 'Accroche de l\'essai : le monteur, puis les trois exercices.', de: "c'est", a: 'trois exercices',
   composition: { type: o.type || 'libre', effet: 'curiosite', pourquoi: 'Le mot « monteur » en grand en haut, la promesse des exercices relance en bas.' },
   elements: [
-    { role: 'phrase', texte: 'salut', sur: 'salut', place: 'haut' },
+    { role: 'phrase', texte: "c'est un essai de ton", sur: "c'est un essai de ton", place: 'haut' },
     { role: 'mot', texte: 'monteur', sur: o.mot || 'monteur', place: o.place || 'haut', entree: o.entree || 'apparition' },
     { role: 'relance', texte: '3 exercices', sur: 'trois exercices', place: 'bas' },
   ],
@@ -113,13 +113,13 @@ test('accroche.mjs : compose, écrit les calques, ses sons, ses mots repris et l
   const w = dossierEssai([accrocheEssai()]);
   const reg = path.join(path.dirname(w), 'registre.json'), env = { MONTEUR_REGISTRE: reg };
   assert.equal(lancer('caler.mjs', [w]).status, 0);
-  const r = lancer('accroche.mjs', [w], env);
+  const r = lancer('accroche.mjs', [w, '--sans-visage'], env);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const devant = JSON.parse(fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'calque.json'), 'utf8'));
   assert.equal(devant.debut, 0);
   assert.ok(devant.images >= 120, `l'accroche reste jusqu'à 4 s au moins (${devant.images} images)`);
   assert.deepEqual(devant.sons_suggeres.map((s) => s.geste).sort(), ['arrivee', 'pose']);
-  assert.deepEqual(devant.mots_repris, [0, 6, 7, 8]);   // « salut », « monteur », « trois exercices » (3 = trois)
+  assert.deepEqual(devant.mots_repris, [1, 2, 3, 4, 5, 6, 7, 8]);   // « c'est un essai de ton », « monteur », « trois exercices » (3 = trois)
   const html = fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'index.html'), 'utf8');
   assert.match(html, /Inter Black/);
   const corps = html.slice(html.indexOf('<body>'));
@@ -130,7 +130,7 @@ test('accroche.mjs : compose, écrit les calques, ses sons, ses mots repris et l
   // la même accroche sur une autre vidéo : refusée par le registre (code 4)
   const w2 = dossierEssai([accrocheEssai()]);
   assert.equal(lancer('caler.mjs', [w2]).status, 0);
-  const r2 = lancer('accroche.mjs', [w2], env);
+  const r2 = lancer('accroche.mjs', [w2, '--sans-visage'], env);
   assert.equal(r2.status, 4, r2.stdout);
   assert.match(r2.stdout, /RÉPÉTITION/);
   // le script du registre dit la même chose, et lit les deux dernières
@@ -139,11 +139,13 @@ test('accroche.mjs : compose, écrit les calques, ses sons, ses mots repris et l
   // une autre disposition passe
   fs.writeFileSync(path.join(w2, 'plan-montage.json'), JSON.stringify({ plan: 1, video: 'Essai 2', animations: [accrocheEssai({ place: 'bas', entree: 'saccade', type: 'mot-derriere', mot: 'monteur' })] }));
   const p2 = JSON.parse(fs.readFileSync(path.join(w2, 'plan-montage.json'), 'utf8'));
-  p2.animations[0].elements[1].texte = 'essai'; p2.animations[0].elements[1].sur = 'essai';
+  p2.animations[0].elements[0] = { role: 'phrase', texte: "salut c'est un", sur: "salut c'est un", place: 'haut' };
+  p2.animations[0].elements[1].texte = 'essai de ton monteur'; p2.animations[0].elements[1].sur = 'essai de ton monteur';
+  p2.animations[0].elements[1].taille = 'moyen';
   p2.animations[0].elements[2].place = 'haut';
   fs.writeFileSync(path.join(w2, 'plan-montage.json'), JSON.stringify(p2));
   assert.equal(lancer('caler.mjs', [w2]).status, 0);
-  const r3 = lancer('accroche.mjs', [w2], env);
+  const r3 = lancer('accroche.mjs', [w2, '--sans-visage'], env);
   assert.equal(r3.status, 0, r3.stdout);
   assert.equal(lireRegistre(reg).accroches.length, 2);
 });
@@ -152,13 +154,13 @@ test('accroche.mjs : la signature tient (trois temps, ouverture en dézoom)', ()
   // mot fort trop tard (« douze » vers 5,1 s) : pas de mot fort vers 1,5 s
   const w = dossierEssai([accrocheEssai({ mot: 'douze semaines' })]);
   assert.equal(lancer('caler.mjs', [w]).status, 0);
-  const r = lancer('accroche.mjs', [w, '--sans-registre']);
+  const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
   assert.equal(r.status, 2, r.stdout);
   assert.match(r.stdout, /TROIS_TEMPS/);
   // sans dézoom d'ouverture préparé : refusé
   const w2 = dossierEssai([accrocheEssai()], { ouverture: false });
   assert.equal(lancer('caler.mjs', [w2]).status, 0);
-  const r2 = lancer('accroche.mjs', [w2, '--sans-registre']);
+  const r2 = lancer('accroche.mjs', [w2, '--sans-registre', '--sans-visage']);
   assert.equal(r2.status, 2);
   assert.match(r2.stdout, /SANS_OUVERTURE/);
 });
@@ -169,4 +171,51 @@ test('caler.mjs : une accroche mal composée revient au plan', () => {
   const r = lancer('caler.mjs', [w]);
   assert.equal(r.status, 2);
   assert.match(r.stdout, /ACCENT_DOUBLE/);
+});
+
+test('accroche.mjs : elle se lit comme une phrase, pas comme des mots-clés', () => {
+  // « salut / MONTEUR / 3 EXERCICES » : phrase d'un mot, mots dits sautés entre les éléments
+  const d = accrocheEssai(); d.elements[0] = { role: 'phrase', texte: 'salut', sur: 'salut', place: 'haut' };
+  const w = dossierEssai([d]);
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
+  const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
+  assert.equal(r.status, 2, r.stdout);
+  assert.match(r.stdout, /LECTURE : « salut » n'est pas une phrase/);
+  assert.match(r.stdout, /LECTURE : entre « salut » et « monteur », 5 mots/);
+  // un mot affiché qui n'est pas ce qu'il dit
+  const d2 = accrocheEssai(); d2.elements[1].texte = 'coach';
+  const w2 = dossierEssai([d2]);
+  lancer('caler.mjs', [w2]);
+  assert.match(lancer('accroche.mjs', [w2, '--sans-registre', '--sans-visage']).stdout, /LECTURE : « coach » n'est pas ce qu'il dit/);
+  // un titre reformulé assumé passe, en avis
+  d.composition.titre_reformule = 'Romain veut un titre lisible sans le son, écrit avec lui';
+  const w3 = dossierEssai([d]);
+  lancer('caler.mjs', [w3]);
+  const r3 = lancer('accroche.mjs', [w3, '--sans-registre', '--sans-visage']);
+  assert.equal(r3.status, 0, r3.stdout);
+  assert.match(r3.stdout, /AVIS LECTURE/);
+});
+
+test('un seul orange par image, sous-titres compris : pavé craie pendant l\'accroche, contrôle sur toute l\'image', () => {
+  const w = dossierEssai([accrocheEssai()]);
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
+  assert.equal(lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']).status, 0);
+  assert.equal(lancer('calques.mjs', [w]).status, 0);
+  const st = spawnSync('node', [path.resolve(SCRIPTS, '..', '..', 'sous-titres', 'scripts', 'sous-titres.mjs'), 'preparer', w], { encoding: 'utf8' });
+  assert.equal(st.status, 0, st.stdout + st.stderr);
+  const lire = () => JSON.parse(fs.readFileSync(path.join(w, 'calques.json'), 'utf8')).calques;
+  const acc = lire().find((c) => c.id === 'a01-devant'), sous = lire().find((c) => c.id === 'st');
+  assert.deepEqual(acc.oranges, [[0, acc.images]]);
+  for (const [a] of sous.oranges || []) assert.ok(a >= acc.images, `pavé orange des sous-titres à l'image ${a}, pendant l'accroche`);
+  const html = fs.readFileSync(path.join(w, 'calques', 'st', 'index.html'), 'utf8');
+  const P = JSON.parse(html.match(/const P = (\{.*\});\n/)[1]);
+  assert.ok(P.craie.groupes.length >= 1, 'des groupes en craie pendant l\'accroche');
+  assert.equal(lancer('verifier.mjs', [w, '--mots']).status, 0);
+  // des sous-titres préparés avant la règle (pavé orange pendant l'accroche) : refusés
+  const j = JSON.parse(fs.readFileSync(path.join(w, 'calques.json'), 'utf8'));
+  j.calques.find((c) => c.id === 'st').oranges = [[10, 40]];
+  fs.writeFileSync(path.join(w, 'calques.json'), JSON.stringify(j));
+  const r = lancer('verifier.mjs', [w, '--mots']);
+  assert.equal(r.status, 2);
+  assert.match(r.stdout, /ORANGE_DOUBLE (st et a01-devant|a01-devant et st)/);
 });

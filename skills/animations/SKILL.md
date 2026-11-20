@@ -75,7 +75,13 @@ node "$SK/scripts/accroche.mjs" "$M" --video "<vidéo coupée>"
 - Il mesure le haut de sa tête sur la vidéo coupée (mot derrière lui), place chaque élément, vérifie la zone sûre et que
   les éléments ne se chevauchent pas, puis écrit `calques/a01-derriere` (voile, mot derrière lui qui dézoome avec la
   caméra) et `calques/a01-devant`, `M/accroche.json` (la composition retenue) et la ligne du registre.
-- Refus (code 2) : `TROIS_TEMPS`, `SANS_OUVERTURE`, `HORS_ZONE`, `CHEVAUCHEMENT`, `TROP_LARGE`, `ACCENT_DOUBLE`… : c'est
+- Il contrôle aussi qu'elle se lit comme une phrase (`LECTURE` : phrase de tête de 3 mots au moins, ses mots exacts,
+  2 mots dits sautés au plus d'un élément au suivant, sauf `titre_reformule`) et que rien ne couvre ses yeux ni sa
+  bouche (`VISAGE`, ses yeux mesurés toutes les 10 images, `lib/visage.py`). `--video` est obligatoire.
+- Le calque devant qui porte un pavé orange le déclare (`oranges`) : les sous-titres préparés ensuite passent en pavé
+  craie pendant l'accroche (un seul orange par image), et `verifier.mjs <dossier> --mots` refuse deux oranges à la même
+  image sur toute la vidéo (`ORANGE_DOUBLE`).
+- Refus (code 2) : `TROIS_TEMPS`, `SANS_OUVERTURE`, `LECTURE`, `VISAGE`, `HORS_ZONE`, `CHEVAUCHEMENT`, `TROP_LARGE`, `ACCENT_DOUBLE`… : c'est
   la disposition du plan qui change (un autre mot, une autre place, une taille plus petite), puis caler et relancer.
   `RÉPÉTITION` (code 4) : la même accroche qu'une des deux dernières vidéos ; change la place, l'entrée ou le mot.
 - Puis `verifier.mjs` sur `a01-derriere` et `a01-devant` (avec `--video`), et regarde leurs planches.

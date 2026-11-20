@@ -245,6 +245,9 @@ moule avant de reconnaître Romain. Désormais l'accroche se **compose** pour ch
   vers 2,5 s), rien ne repart avant 4 s ; tick sur le mot fort, clac sous la relance. Mouvements : l'apparition, la
   montée du bas en saccade 12 i/s (ici permise pour la relance et le mot fort : c'est l'accent de l'accroche), ou posé
   d'un coup. Constantes : `ACCROCHE` de `commun.mjs`.
+- **Elle se lit comme une phrase** (2026-11-20) : phrase de tête, mot fort, relance = la suite de ses mots, jamais des
+  mots-clés ; rien sur ses yeux ni sa bouche ; un seul orange sur toute l'image (pavé des sous-titres en craie, mot dit
+  en charbon, pendant une accroche qui porte le pavé orange).
 - **Disposition, libre** : le mot qui porte, sa taille (géant, grand, moyen), sa place (derrière sa tête, en haut, en
   bas, côté de la place libre), son entrée, la relance, un chiffre qui compte, une question qui se barre. Elle se choisit
   selon l'effet voulu chez le spectateur (surprise, tension, curiosité, identification).

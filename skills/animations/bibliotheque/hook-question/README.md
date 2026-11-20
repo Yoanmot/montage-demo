@@ -28,4 +28,4 @@ cd devant && npx --yes hyperframes@0.7.55 render . --format mov -w 1 -q high -o 
 ```
 
 ## Aperçu
-- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-02i, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit ; antérieur à l'animation du 2026-11-20 (il montre encore la version posée d'un coup).
+- `apercu.mp4` : aperçu muet 540 x 960 de la carte r19-02i, refait le 2026-11-14 sur la rush de test (police unique Inter Black), instants par défaut du gabarit, refait le 2026-11-20 avec l'animation (rush de test, instants par défaut du gabarit).

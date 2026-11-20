@@ -136,9 +136,9 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
     "pourquoi": "Surprise : RIEN en géant derrière lui casse l'idée reçue, la relance en bas à droite enfonce le clou."
   },
   "elements": [
-    { "role": "phrase", "texte": "tes courbatures", "sur": "tes courbatures" },
+    { "role": "phrase", "texte": "tes courbatures ne prouvent", "sur": "tes courbatures ne prouvent" },
     { "role": "mot", "texte": "rien", "sur": "rien#1", "place": "derriere", "taille": "geant", "entree": "apparition" },
-    { "role": "relance", "texte": "du tout", "sur": "du tout", "place": "bas", "aligne": "droite", "entree": "saccade" }
+    { "role": "relance", "texte": "rien du tout", "sur": "rien du tout", "place": "haut", "aligne": "droite", "entree": "saccade" }
   ] }
 ```
 - `composition.type` : `mot-derriere`, `chiffre`, `question-coupee`, `deux-paves`, `titre-depuis-le-dezoom`
@@ -147,7 +147,9 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
   (ancre de la réponse : les phrases marquées `"barre": true` se barrent et s'estompent), `jusqua` (ancre :
   l'accroche repart après ce mot, sinon 1 s après le dernier mot affiché, jamais avant 4 s),
   `demande_de_romain` (ses mots, quand il demande une accroche qui en répète une autre), `derogation` (une
-  phrase, quand sa voix ne permet pas les trois temps : ils deviennent un avis).
+  phrase, quand sa voix ne permet pas les trois temps : ils deviennent un avis), `titre_reformule` (une phrase :
+  pourquoi le texte n'est pas ce qu'il dit ; sinon chaque élément reprend ses mots exacts, la phrase de tête a 3 mots
+  au moins, et on ne saute pas plus de 2 mots dits d'un élément au suivant).
 - `role` : `phrase` (minuscules, prend la place du mot fort par défaut), `mot` (exactement un),
   `relance` (une ou deux). `place` : `derriere` (derrière sa tête : le mot fort et les phrases au-dessus de
   lui seulement), `haut`, `bas`. `aligne` : `gauche`, `droite`, `centre`. `taille` : `geant`, `grand`,

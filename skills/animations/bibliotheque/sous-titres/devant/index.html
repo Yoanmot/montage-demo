@@ -93,7 +93,19 @@ P.groupes.forEach((g, gi) => {
   if (g.monte) SousTitres.monter(tl, el, g.t0);
   if (g.sortie) SousTitres.sortir(tl, el, g.t1);
   SousTitres.poser(tl, L, 0, 0);
-  g.mots.forEach((m, wi) => { if (wi) SousTitres.glisser(tl, L, wi, m.s); });
+  // un seul orange par image (2026-11-20) : pendant le pavé orange de l'accroche, pavé craie et mot dit en charbon ; le
+  // pavé saute d'un mot au suivant au lieu de glisser (en glissant, un bout de mot blanc passait sur la craie)
+  const C = P.craie, enCraie = C && C.groupes.includes(gi) && L.pv.style.display !== 'none';
+  if (enCraie) {
+    L.pv.style.background = C.fond;
+    L.spans[0].style.color = C.texte;
+    g.mots.forEach((m, wi) => {
+      if (!wi) return;
+      SousTitres.poser(tl, L, wi, m.s);
+      tl.set(L.spans[wi - 1], { color: C.base }, m.s);
+      tl.set(L.spans[wi], { color: C.texte }, m.s);
+    });
+  } else g.mots.forEach((m, wi) => { if (wi) SousTitres.glisser(tl, L, wi, m.s); });
 });
 // Calques qui effacent les sous-titres (masque_sous_titres dans calques.json) : groupes retirés, ou coupés net à
 // l'image d'entrée du calque sans revenir à sa sortie.

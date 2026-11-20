@@ -458,6 +458,9 @@ export function ecrireCalque(dossierMontage, entree, html, extra = {}) {
   if (entree.plan) c.plan = entree.plan;
   // le calque porte sa propre ligne de sous-titre : la brique sous-titres retire ses groupes pendant ce calque
   if (entree.masque_sous_titres) c.masque_sous_titres = true;
+  // images (vidéo coupée, [début, fin exclue]) où le calque montre de l'orange (un pavé orange) : « un seul orange par
+  // image » se contrôle sur toute l'image, sous-titres compris (verifier.mjs --mots)
+  if (Array.isArray(entree.oranges) && entree.oranges.length) c.oranges = entree.oranges;
   // mots dits que le calque affiche (numéros de words.cut.json) : la brique sous-titres ne les affiche pas (chaque mot dit
   // n'est vu qu'une fois, Yoan 2026-11-14), verifier.mjs contrôle qu'aucun mot ne s'affiche deux fois
   const repris = motsRepris(entree.mots_repris);

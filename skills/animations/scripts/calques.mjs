@@ -34,6 +34,7 @@ for (const id of fs.existsSync(dc) ? fs.readdirSync(dc).sort() : []) {
   const e = { id: c.id, source: 'animations', dossier: c.dossier, debut: c.debut, images: c.images, couche: c.couche, ordre: c.ordre };
   if (c.plan) e.plan = c.plan;
   if (c.masque_sous_titres) e.masque_sous_titres = true;
+  if (Array.isArray(c.oranges) && c.oranges.length) e.oranges = c.oranges;   // images où le calque montre un pavé orange
   if (Array.isArray(c.mots_repris) && c.mots_repris.length) e.mots_repris = c.mots_repris;   // mots dits affichés par le calque (sortis des sous-titres)
   e.sons_suggeres = c.sons_suggeres || [];
   miens.push(e);

@@ -12,9 +12,9 @@
 // Ce que le plan décide (la disposition, selon l'accroche et l'effet voulu) : quel mot porte, sa taille, sa place
 // (derrière lui, en haut, en bas), son alignement (côté de la place libre), son entrée, la relance, un chiffre qui compte.
 //
-// Usage : node accroche.mjs <dossier -montage> [--video <vidéo coupée>] [--tete <y>] [--sans-registre]
-//   --video : la vidéo coupée de contrôle, pour mesurer le haut de sa tête (obligatoire si un élément est « derriere »,
-//             sauf --tete) ; --sans-registre : ne lit ni n'écrit le registre (essais seulement).
+// Usage : node accroche.mjs <dossier -montage> --video <vidéo coupée> [--tete <y>] [--sans-registre] [--sans-visage]
+//   --video : la vidéo coupée de contrôle, pour mesurer le haut de sa tête et ses yeux (obligatoire) ; --sans-registre,
+//             --sans-visage : ne lit ni n'écrit le registre, ne contrôle pas le visage (tests seulement).
 // Avant : caler.mjs (plan-resolu.json), et la brique zooms si le plan a son dézoom d'ouverture (ouverture.json).
 // Après : verifier.mjs sur chaque calque écrit (a01-derriere, a01-devant), puis calques.mjs.
 // Codes : 0 écrit · 2 refusé (liste complète) · 3 fichier manquant · 4 RÉPÉTITION (registre).
@@ -134,6 +134,38 @@ const aimant = coupesV.filter((c) => Math.abs(c - images) <= A.fin.aimant * FPS 
 if (aimant) images = aimant;
 images = Math.min(images, Math.max(1, total || images));
 
+const UNITES = { un: '1', une: '1', deux: '2', trois: '3', quatre: '4', cinq: '5', six: '6', sept: '7', huit: '8', neuf: '9', dix: '10',
+  onze: '11', douze: '12', treize: '13', quatorze: '14', quinze: '15', seize: '16', vingt: '20', trente: '30', cent: '100' };
+const jetons = (s) => normaliser(s).split(/\s+/).filter(Boolean).map((w) => UNITES[w] || w);
+
+// Une accroche se lit comme une phrase, pas comme des mots-clés (Yoan, 2026-11-20, essai « douze semaines » : « les
+// clients / MEILLEURS RÉSULTATS / LONG TERME » se lisait comme une liste). Lue de haut en bas dans l'ordre de sa voix :
+// - la phrase de tête est une vraie phrase courte (A.lecture.phraseMin mots au moins) qui pose la tension ;
+// - chaque élément reprend ses mots tels qu'il les dit, et d'un élément au suivant on ne saute pas plus de
+//   A.lecture.sautMax mots de ce qu'il dit : phrase, mot fort et relance se lisent comme une suite logique.
+// Un titre reformulé (qui n'est pas ce qu'il dit) passe avec « titre_reformule » (sa raison) : la règle devient un avis.
+{
+  const dits = (e) => jetons(texteSousTitres(M, `w${e.sur.premier}-w${e.sur.dernier}`, mots)).join(' ');
+  const ordre = [...els].sort((x, y) => x.sur.premier - y.sur.premier);
+  const pb = [];
+  const phrases = els.filter((e) => e.role === 'phrase');
+  if (!phrases.length) pb.push('il n\'y a pas de phrase de tête : une phrase courte qui pose la tension, avant le mot fort');
+  // une phrase peut tenir sur plusieurs lignes (éléments « phrase » qui se suivent) : c'est leur ensemble qui compte
+  const blocs = [];
+  for (const e of ordre) { if (e.role !== 'phrase') { blocs.push(null); continue; } if (blocs.length && blocs.at(-1)) blocs.at(-1).push(e); else blocs.push([e]); }
+  for (const b of blocs.filter(Boolean)) {
+    const n = b.reduce((k, e) => k + jetons(e.texte).length, 0), txt = b.map((e) => e.texte).join(' ');
+    if (n < A.lecture.phraseMin) pb.push(`« ${txt} » n'est pas une phrase (${n} mot(s), ${A.lecture.phraseMin} au moins) : prends la phrase qui pose la tension, une suite de ses mots qui mène au mot fort`);
+  }
+  for (const e of els) if (jetons(e.texte).join(' ') !== dits(e)) pb.push(`« ${e.texte} » n'est pas ce qu'il dit sur « ${e.sur.texte} » : reprends ses mots exacts`);
+  for (let k = 1; k < ordre.length; k++) {
+    const saut = ordre[k].sur.premier - ordre[k - 1].sur.dernier - 1;
+    if (saut > A.lecture.sautMax) pb.push(`entre « ${ordre[k - 1].texte} » et « ${ordre[k].texte} », ${saut} mots qu'il dit sont sautés (« ${texteSousTitres(M, `w${ordre[k - 1].sur.dernier + 1}-w${ordre[k].sur.premier - 1}`, mots)} ») : ça se lit comme des mots-clés ; prends-les dans l'élément, ou choisis des mots qui se suivent`);
+  }
+  const reform = comp.titre_reformule && String(comp.titre_reformule).trim().length >= 20;
+  if (pb.length) { if (reform) avis.push(...pb.map((x) => `LECTURE ${x} (titre reformulé : ${comp.titre_reformule})`)); else pb.forEach((x) => R('LECTURE', x)); }
+}
+
 // Trois temps (signature) : une ouverture, le mot fort, une relance, distincts
 const evts = els.map((e) => ({ e, t: t(e) })).sort((a, b) => a.t - b.t);
 const temps = { ouverture: evts[0].t, mot: t(motE), relance: els.filter((e) => e.role === 'relance').map(t) };
@@ -218,14 +250,40 @@ if (!refus.length) {
 }
 if (refus.length) fin();
 
+// Rien ne couvre ses yeux ni sa bouche (2026-11-20, essai « douze semaines » : une relance en bas tombait sur sa bouche).
+// Le haut de la tête ne suffit pas : ses yeux sont mesurés (Apple Vision, comme les zooms) toutes les 10 images de
+// l'accroche, et la zone va des sourcils au menton (lib/visage.py). Un texte posé devant lui (en haut ou en bas) ne la
+// touche jamais, dézoom d'ouverture compris ; derrière lui, il passe sous lui et ne compte pas.
+{
+  const video = opt('--video');
+  if (!args.includes('--sans-visage')) {
+    if (!video || !fs.existsSync(video)) { R('VIDEO_MANQUANTE', 'donne --video <vidéo coupée> : le script vérifie que rien ne couvre ses yeux ni sa bouche'); fin(); }
+    const V = JSON.parse(execFileSync('/usr/bin/python3', [path.join(ICI, 'visage.py'), video, '0', String(images), '10'], { encoding: 'utf8' }).trim().split('\n').at(-1));
+    if (!V.mesurees) avis.push('visage introuvable sur l\'accroche : rien n\'a pu être contrôlé sur ses yeux et sa bouche, regarde la planche');
+    const echelleOuv = (n) => (ouverture && n < ouverture.images ? ouverture.echelle_depart - (ouverture.echelle_depart - 1) * n / ouverture.images : 1);
+    for (const e of els) {
+      if (e.place === 'derriere') continue;
+      const bx = e.kind === 'pave' ? [e.x, e.x + e.w] : [e.x + e.m.gauche, e.x + e.m.droite], by = [e.g.vTop, e.g.bas];
+      const n0 = img(t(e));
+      for (const z of V.zones) {
+        if (z.image + 10 <= n0) continue;
+        const s = echelleOuv(z.image), [ax, ay] = ouverture ? ouverture.ancre_1080x1920 : [540, 960];
+        const X = [ax + (z.x0 - ax) * s, ax + (z.x1 - ax) * s], Y = [ay + (z.y0 - ay) * s, ay + (z.y1 - ay) * s];
+        if (bx[0] < X[1] && X[0] < bx[1] && by[0] < Y[1] && Y[0] < by[1]) {
+          R('VISAGE', `« ${e.texteAffiche} » couvre ses yeux ou sa bouche (vers ${(z.image / FPS).toFixed(1)} s) : place-le ${e.place === 'bas' ? 'plus haut, au-dessus de sa tête, ou de l\'autre côté' : 'au-dessus de sa tête, ou derrière lui'}`);
+          break;
+        }
+      }
+    }
+  }
+}
+if (refus.length) fin();
+
 // ------------------------------------------------------------------ 5. les calques
 const NS = { derriere: new Couche(images), devant: new Couche(images) };
 const reprisPar = { derriere: [], devant: [] };
 const sons = { derriere: [], devant: [] };
 const couche = (e) => (e.place === 'derriere' ? 'derriere' : 'devant');
-const UNITES = { un: '1', une: '1', deux: '2', trois: '3', quatre: '4', cinq: '5', six: '6', sept: '7', huit: '8', neuf: '9', dix: '10',
-  onze: '11', douze: '12', treize: '13', quatorze: '14', quinze: '15', seize: '16', vingt: '20', trente: '30', cent: '100' };
-const jetons = (s) => normaliser(s).split(/\s+/).filter(Boolean).map((w) => UNITES[w] || w);
 for (const e of els) {
   const c = NS[couche(e)], sel = `#${e.id}`, te = t(e);
   const style = `left:${e.x.toFixed(2)}px;top:${e.g.top.toFixed(2)}px;font-size:${e.F.toFixed(2)}px`;
@@ -308,6 +366,7 @@ for (const nom of ['derriere', 'devant']) {
     id, demande: d.id, debut: 0, images, couche: nom, ordre: nom === 'derriere' ? 10 : 30,
     sons_suggeres: sons[nom], attendus: c.attendus.map(({ mi, ...a }) => a), mots_repris: reprisPar[nom],
     suit_ouverture: nom === 'derriere' && suit,
+    oranges: els.some((e) => couche(e) === nom && (e.pave === 'orange' || (e.role === 'mot' && e.souligne))) ? [[0, images]] : [],
     origine: { sur_mesure: `accroche composée (${comp.type}, effet ${comp.effet}) : ${comp.pourquoi}`,
       gestes_repris: ['apparition v2', 'montée du bas en saccade 12 i/s', 'pavés des hooks', 'mot géant derrière la tête', 'dézoom d\'ouverture'] },
     params: { composition: comp, elements: els.map((e) => ({ role: e.role, texte: e.texteAffiche, place: e.place, aligne: e.aligne, taille: e.taille, entree: e.entree, pave: e.pave })) },

@@ -20,6 +20,11 @@ gardant la signature. Les anciens gabarits `hook-*` restent des briques (tous an
 - Mouvements de la DA seulement : l'apparition (montée, fondu, flou qui se resserre), la montée du bas en saccade
   12 i/s, ou posé d'un coup ; jamais de rebond, d'échelle ni de linéaire.
 
+- **Elle se lit comme une phrase** : de haut en bas, c'est le début de ce qu'il dit (phrase de tête de 3 mots au moins
+  qui pose la tension, mot fort, relance), ses mots exacts, sans trou de plus de 2 mots ; jamais une liste de mots-clés.
+- **Rien sur ses yeux ni sa bouche**, et **un seul orange sur toute l'image** : pendant l'accroche, le pavé des
+  sous-titres passe en craie si l'accroche porte le pavé orange.
+
 ## Ce qui se décide pour chaque vidéo
 D'abord **l'effet voulu chez le spectateur** (`effet`) : `surprise` (une idée reçue qui tombe), `tension` (un problème
 qu'il vit), `curiosite` (une question, une réponse qui ne vient pas tout de suite), `identification` (« c'est moi »).
@@ -47,9 +52,9 @@ Les mêmes cinq accroches que la page validée par Yoan. Elles montrent comment 
 autre vidéo, même avec une accroche proche, se compose à neuf.
 
 1. **« Tes courbatures ne prouvent rien. Rien du tout. »** Effet : surprise (une idée reçue qui tombe). Type
-   `mot-derriere`. « tes courbatures » en minuscules en haut dès le premier mot (ouverture), RIEN en géant derrière sa
-   tête sur sa voix (mot fort, apparition, tick), « DU TOUT. » sur pavé orange en bas à droite en saccade (relance,
-   clac). Pourquoi : le mot qui casse l'idée reçue doit être le plus gros, derrière lui, comme s'il était dans la pièce.
+   `mot-derriere`. « tes courbatures ne prouvent » en minuscules en haut dès le premier mot (ouverture), RIEN en géant
+   derrière sa tête sur sa voix (mot fort, apparition, tick), « RIEN DU TOUT » sur pavé orange en saccade (relance,
+   clac), là où son visage laisse la place. Pourquoi : le mot qui casse l'idée reçue doit être le plus gros, derrière lui, comme s'il était dans la pièce.
 2. **« Tu t'entraînes cinq fois par semaine et tu stagnes ? Regarde tes jours sans salle. »** Effet : tension. Type
    `chiffre`. Le 5 en grand en haut à gauche qui compte de 1 à 5 sur « cinq » (`compte_de: 1`), « fois par semaine » en
    minuscules dessous, puis « JOURS SANS SALLE » sur pavé craie en bas (deux relances en saccade si les deux mots sont

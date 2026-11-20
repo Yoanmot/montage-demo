@@ -13,7 +13,7 @@ export function zoomA(zooms, n) {
       continue;
     }
     if (n < z.f0 || n >= z.f1) continue;
-    if (n >= z.fixe) return { s: z.echelle, ancre: z.ancre };
+    if (n >= z.fixe) return { s: z.echelle, ancre: suivre(z, n) };
     let somme = 0;
     for (let j = 0; j < 10; j++) {
       const t = (n + j / 10) / FPS;
@@ -23,6 +23,22 @@ export function zoomA(zooms, n) {
     return { s: somme / 10, ancre: z.ancre };
   }
   return { s: 1, ancre: [0.5, 0.5] };
+}
+
+// Zoom qui suit sa tête (zooms.py, « suivi ») : le cadre se décale de d (part de l'image) à l'image n, interpolé entre
+// les images clés comme dans le rendu. Décaler le cadre de d à l'échelle s revient à poser l'ancre en a + d s / (s - 1).
+export function decalageSuivi(suivi, n) {
+  const I = suivi.images, D = suivi.decalage;
+  if (n <= I[0]) return D[0];
+  for (let k = 0; k < I.length - 1; k++) {
+    if (n < I[k + 1]) { const u = (n - I[k]) / (I[k + 1] - I[k]); return [D[k][0] + (D[k + 1][0] - D[k][0]) * u, D[k][1] + (D[k + 1][1] - D[k][1]) * u]; }
+  }
+  return D[D.length - 1];
+}
+function suivre(z, n) {
+  if (!z.suivi || !(z.echelle > 1)) return z.ancre;
+  const [dx, dy] = decalageSuivi(z.suivi, n), f = z.echelle / (z.echelle - 1);
+  return [z.ancre[0] + dx * f, z.ancre[1] + dy * f];
 }
 
 // Le plan caméra à l'image n : zoom, décalage (px sur 1920), flou (rayon en px sur 1080, assombrissement).
