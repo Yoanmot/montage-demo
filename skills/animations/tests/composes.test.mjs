@@ -66,6 +66,25 @@ test('plein écran qui commence sur son visage : titre au-dessus de sa tête, pu
   assert.equal(lire(w2, 'a05').oranges, undefined);
 });
 
+test('plein écran qui commence sur son visage : titre jamais plus large que la zone sûre, fin avant la phrase suivante, barre', () => {
+  // tête très haute : le titre est réduit mais tient en largeur ; la barre se remplit sans transform en CSS
+  const d = pleinVisage(); d.elements[1].figure = 'barre';
+  const w = dossier([d]);
+  lancer('caler.mjs', [w]);
+  const r = lancer('plein-ecran-visage.mjs', [w, 'a05', '--tete', '300']);
+  assert.equal(r.status, 0, r.stdout);
+  const html = lire(w, 'a05', 'index.html');
+  const F = +html.match(/#t\{left:([\d.-]+)px;top:[\d.-]+px;font-size:([\d.]+)px/)[2];
+  const g = JSON.parse(spawnSync('python3', [path.join(SCRIPTS, 'lib', 'mesure.py'), 'geant', '3 EXERCICES'], { encoding: 'utf8' }).stdout);
+  assert.ok(F <= g.taille + 0.01, `titre ${F} px, la largeur permet ${g.taille} px au plus`);
+  assert.doesNotMatch(html, /scaleX\(0\)/);
+  assert.match(html, /tl\.to\('#f0b', \{ width: '100%'/);
+  // fin : jamais après l'attaque du mot qui suit le dernier point (« Tiens »)
+  const cal = lire(w, 'a05');
+  const mots = JSON.parse(fs.readFileSync(path.join(w, 'words.cut.json'), 'utf8')).words;
+  assert.ok(cal.debut + cal.images <= Math.round(mots[16].start * 30), `fin à l'image ${cal.debut + cal.images}, « Tiens » à ${Math.round(mots[16].start * 30)}`);
+});
+
 test('plein écran qui commence sur son visage : refus quand le titre n\'a pas le temps de se lire sur lui', () => {
   const w = dossier([pleinVisage({ point1: 'simples' })]);
   lancer('caler.mjs', [w]);

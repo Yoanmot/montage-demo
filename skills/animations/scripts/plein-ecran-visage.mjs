@@ -68,9 +68,14 @@ const tFond = comp.fond_sur ? resoudre(comp.fond_sur, mots).debut_s - PV.fond.av
 const tFondMin = tT + PV.titreSeul;                         // le titre se lit seul sur son visage avant le fond
 if (tFond < tFondMin - 0.01) R('TROP_TOT', `le fond arrive ${(tFondMin - tFond).toFixed(2)} s trop tôt : le titre doit se lire ${PV.titreSeul} s sur son visage (mets « fond_sur » plus loin, ou un titre dit plus tôt)`);
 const dernier = pts.at(-1).sur;
+// fin : la coupe qui suit son dernier mot (sinon le temps de la tenue), jamais après l'attaque du mot suivant : les
+// sous-titres de la phrase d'après reprennent dès qu'il la commence (essai du 2026-11-20 : « Au début » non écrit)
+const suivant = mots[dernier.dernier + 1];
+const plafond = suivant ? img(resoudre(`w${dernier.dernier + 1}`, mots).debut_s) : Infinity;
 let finImg = img(dernier.fin_s + PV.tenue);
-const aimant = cs.filter((c) => c >= img(dernier.fin_s + 0.3) && c <= img(dernier.fin_s + PV.tenue + PV.aimant)).sort((a, b) => a - b)[0];
+const aimant = cs.filter((c) => c >= img(dernier.fin_s) && c <= img(dernier.fin_s + PV.tenue + PV.aimant)).sort((a, b) => a - b)[0];
 if (aimant) finImg = aimant;
+finImg = Math.min(finImg, plafond);
 const sansLui = finImg / FPS - tFond;
 if (sansLui > PV.sansLuiMax) R('TROP_LONG', `${sansLui.toFixed(1)} s sans le voir (le fond couvre son visage), ${PV.sansLuiMax} s au plus : moins de points, ou un fond qui arrive plus tard`);
 if (refus.length) fin();
@@ -94,9 +99,11 @@ const texteT = String(T.texte).toLocaleUpperCase('fr');
 const g = mesure('geant', texteT);
 // le titre tient entre le haut de la zone sûre et le haut de sa tête (PV.ecartTete au-dessus du crâne)
 const place = tete - PV.ecartTete - Z.y0;
-let F = Math.min(g.taille, place / MET.cap / 1.0);
-const Fmin = mesure('taille', 'titre', PV.titreCapMin).taille;
-if (F < Fmin) { avis.push(`sa tête est haute (${Math.round(tete)} px) : titre à la taille la plus petite permise, posé en haut de la zone sûre`); F = Fmin; }
+// la largeur de la zone sûre est une limite dure (g.taille) ; la hauteur au-dessus de sa tête en est une autre : si sa tête
+// est trop haute pour le titre, il prend la taille minimale (jamais plus large que la zone sûre) et monte en haut de la zone
+const Fh = place / MET.cap, Fmin = mesure('taille', 'titre', PV.titreCapMin).taille;
+let F = Math.min(g.taille, Fh);
+if (Fh < Fmin) { avis.push(`sa tête est haute (${Math.round(tete)} px) : titre réduit, posé en haut de la zone sûre ; regarde la planche`); F = Math.min(g.taille, Fmin); }
 const mT = mesure('encre', 'titre', F, texteT);
 const baseT = Math.min(tete - PV.ecartTete, Z.y0 + capDe(F) + Math.max(0, mT.haut - capDe(F)));
 const topT = baseT - baseDe(F);
@@ -149,7 +156,7 @@ for (const l of lignes) {
     html += `  <div class="a" id="f${l.k}" style="left:${fx.toFixed(1)}px;top:${fy.toFixed(1)}px;width:${l.fw}px;height:${FH}px">${[0, 1, 2].map((j) => `<div class="cs" style="left:${j * (C + PV.figure.ecartCases)}px;top:${(FH - C) / 2}px;width:${C}px;height:${C}px"><svg width="${C}" height="${C}" style="left:-${EP}px;top:-${EP}px"><path id="f${l.k}k${j}" d="${coche}" transform="translate(${EP} ${EP})" fill="none" stroke="${couleurTexte}" stroke-width="${EP + 1}" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg></div>`).join('')}</div>\n`;
   } else if (l.figure === 'barre') {
     const BW = PV.figure.l, BH = PV.figure.barre;
-    html += `  <div class="a" id="f${l.k}" style="left:${fx.toFixed(1)}px;top:${(fy + (FH - BH) / 2).toFixed(1)}px;width:${BW}px;height:${BH}px;box-sizing:border-box;border:${EP}px solid ${couleurTexte};border-radius:${S.RAYONS.pave}px;overflow:hidden"><div id="f${l.k}b" style="position:absolute;inset:0;background:${couleurTexte};transform-origin:0 50%;transform:scaleX(0)"></div></div>\n`;
+    html += `  <div class="a" id="f${l.k}" style="left:${fx.toFixed(1)}px;top:${(fy + (FH - BH) / 2).toFixed(1)}px;width:${BW}px;height:${BH}px;box-sizing:border-box;border:${EP}px solid ${couleurTexte};border-radius:${S.RAYONS.pave}px;overflow:hidden"><div id="f${l.k}b" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:${couleurTexte}"></div></div>\n`;
   }
   const xl = l.xl, top = l.base - baseDe(l.F);
   html += `  <div class="a ti lb" id="l${l.k}" style="left:${xl.toFixed(1)}px;top:${top.toFixed(1)}px;font-size:${l.F.toFixed(2)}px">${l.texte}</div>\n`;
@@ -175,7 +182,7 @@ for (const l of lignes) {
   } else if (l.figure === 'cases') {
     for (let j = 0; j < 3; j++) c.js += `tl.to('#f${l.k}k${j}', { attr: { 'stroke-dashoffset': 0 }, duration: ${S.CASE_COCHEE.tracer}, ease: '${S.COURBES.entree}' }, ${f4(tt + S.CASE_COCHEE.ecart * j)});\n`;
   } else if (l.figure === 'barre') {
-    c.js += `tl.to('#f${l.k}b', { scaleX: 1, duration: ${PV.figure.trace}, ease: '${S.SCHEMA.trait.courbe}' }, ${f4(tt)});\n`;
+    c.js += `tl.to('#f${l.k}b', { width: '100%', duration: ${PV.figure.trace}, ease: '${S.SCHEMA.trait.courbe}' }, ${f4(tt)});\n`;
   }
 }
 
