@@ -136,6 +136,22 @@ chacune de ses phrases devient un hook ou une carte de la bibliothèque posé au
 avec `debut` et `images` en images de la vidéo, puisqu'il n'y a pas de mot à citer), ses mots exacts, rien ajouté.
 Puis planche, sons (transitions seulement), rendu, comme d'habitude.
 
+**Un reel sans face caméra** (le premier message du studio le dit, ou la ligne « Format » de son script) :
+- **Plans filmés sans parler** (texte à l'écran, le fond dans la légende) : la vidéo donnée est son plan filmé, sans
+  voix. C'est la « Vidéo sans parole », **sans la question** : tu lis la section « Texte à l'écran » de son script. Sa
+  première ligne (l'accroche) se pose en haut de l'image dès la première image, la deuxième (le renvoi vers la légende)
+  en bas, et les deux restent toute la vidéo, ses mots exacts, rien ajouté (hooks ou cartes de la bibliothèque posés avec `debut` et `images`, comme pour la vidéo sans parole). Le fond est dans la légende :
+  rien d'autre à l'écran, pas de sous-titres. Sans « Texte à l'écran » dans le script : la question habituelle.
+- **Plans filmés avec sa voix** (voix off) : la vidéo donnée est sa **voix seule**, enregistrée téléphone posé : son
+  image ne se voit jamais. Coupes et transcription comme d'habitude (sa voix est la piste du montage). Le plan pose ses
+  clips de façon à couvrir **toute** la vidéo, du premier mot à la dernière image, l'un après l'autre et sans trou
+  (`vitesse: "ajuster"` pour qu'un clip tienne son passage, le même clip repris avec `depart` s'il en manque), le
+  premier clip dès l'accroche (ici, « jamais ouvrir sur un B-roll sans lui » ne vaut pas). Ni zoom, ni geste qui passe derrière Romain ou suit sa tête : il n'est
+  pas à l'image. Sous-titres, titres et pleins écrans comme d'habitude. Avant l'aperçu, regarde sur ta planche le début,
+  chaque passage d'un clip au suivant et la fin : une seule image de sa voix (plafond, table, image noire) est un trou à
+  combler. Pas assez de clips pour tout couvrir : un plein écran texte sur le passage qui manque, et dis-lui en une
+  phrase ce qu'il faudrait filmer la prochaine fois.
+
 ### 3. Ses plans filmés en plus (`b-roll`, étape « vignettes »)
 Une question : « Tu as filmé des plans en plus pour cette vidéo ? Glisse-les ici ou dis-moi où ils sont. Tu peux aussi
 ajouter des clips que tu as déjà. Si tu as le brief de tournage, colle-le : je saurai où va chaque plan. »

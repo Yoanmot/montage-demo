@@ -111,6 +111,22 @@ moins de coupes = moins de gestes forcés. Si `filtre.txt` existe déjà, les co
 Vidéo sans parole : `couper.mjs sans-parole`, puis une seule question (ce qu'on doit lire à l'écran, et quand), et un
 montage simple avec ses mots exacts.
 
+**Un reel sans face caméra** (le premier message du studio le dit, ou la ligne « Format » de son script) :
+- **Plans filmés sans parler** (texte à l'écran, le fond dans la légende) : la vidéo donnée est son plan filmé, sans
+  voix. C'est la « Vidéo sans parole », **sans la question** : tu lis la section « Texte à l'écran » de son script. Sa
+  première ligne (l'accroche) se pose en haut de l'image dès la première image, la deuxième (le renvoi vers la légende)
+  en bas, et les deux restent toute la vidéo, ses mots exacts, rien ajouté (le hook de son style en haut, une ligne de texte de son style en bas, posés en images de la vidéo). Le fond est dans la légende :
+  rien d'autre à l'écran, pas de sous-titres. Sans « Texte à l'écran » dans le script : la question habituelle.
+- **Plans filmés avec sa voix** (voix off) : la vidéo donnée est sa **voix seule**, enregistrée téléphone posé : son
+  image ne se voit jamais. Coupes et transcription comme d'habitude (sa voix est la piste du montage). Le plan pose ses
+  clips de façon à couvrir **toute** la vidéo, du premier mot à la dernière image, l'un après l'autre et sans trou
+  (`vitesse: "ajuster"` pour qu'un clip tienne son passage, le même clip repris avec `depart` s'il en manque), le
+  premier clip dès l'accroche (ici, la vidéo ne s'ouvre pas sur lui : la règle de l'ouverture sur sa tête ne vaut pas). Ni zoom, ni geste qui passe derrière Yoan ou suit sa tête : il n'est
+  pas à l'image. Sous-titres, titres et pleins écrans comme d'habitude. Avant l'aperçu, regarde sur ta planche le début,
+  chaque passage d'un clip au suivant et la fin : une seule image de sa voix (plafond, table, image noire) est un trou à
+  combler. Pas assez de clips pour tout couvrir : un plein écran texte sur le passage qui manque, et dis-lui en une
+  phrase ce qu'il faudrait filmer la prochaine fois.
+
 ### 3. Ses plans filmés en plus (`b-roll`, étape « vignettes »)
 Fais les vignettes de ses clips et **regarde chaque image**. Avec le script, chaque plan filmé a sa phrase. Pas de clip :
 on avance sans. Une vidéo qu'il ajoute hors du brief (un enregistrement d'écran, une vidéo du dossier, un clip de sa

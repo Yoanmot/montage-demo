@@ -48,6 +48,39 @@ export function texteDuScript(md) {
   return [prendre('texte complet'), prendre('en points')].join('\n').trim();
 }
 
+// Le genre d'un reel (2026-11-20) : `genre` de etat.json, sinon un brief qui n'a qu'un « Texte à l'écran » (reel muet
+// d'avant ce champ) est en plans filmés avec texte, sinon face caméra. Même règle que genreDe (serveur/lecture.mjs) et
+// commun.genre_de (outils du head of content).
+export function genreDe(etat, md = null) {
+  if (['face-camera', 'plans-texte', 'plans-voix'].includes(etat?.genre)) return etat.genre;
+  const titres = [...String(md || '').matchAll(/^##\s+(.+?)\s*$/gm)]
+    .map((m) => m[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'"));
+  if (titres.some((x) => /^texte a l.ecran/.test(x)) && !titres.some((x) => x.startsWith('texte complet'))) return 'plans-texte';
+  return 'face-camera';
+}
+
+// Le plan principal d'un reel sans parole (genre plans-texte) est la vidéo du reel : il se range comme une face caméra
+// (dans le dossier du contenu, pas en bibliothèque), pour que le montage parte de lui. Une seule par contenu : le clip
+// de la prise à filmer de plus petit numéro qui ne sert que ce contenu, s'il n'a pas déjà sa vidéo.
+// decisions : [{ type, slugs, prise }] triées par date de prise ; genre(slug) ; aDeja(slug). Modifie et renvoie decisions.
+export function principauxSansParole(decisions, prises, genre, aDeja) {
+  const principale = new Map();   // slug -> n de sa prise principale
+  for (const p of prises || []) {
+    if (p.type !== 'b-roll' || p.deja_en_bibliotheque || (p.contenus || []).length !== 1) continue;
+    const s = p.contenus[0].slug;
+    if (!principale.has(s) || p.n < principale.get(s)) principale.set(s, p.n);
+  }
+  const faits = new Set();
+  for (const d of decisions) {
+    if (d.type !== 'b-roll' || !d.prise || (d.slugs || []).length !== 1) continue;
+    const s = d.slugs[0];
+    if (faits.has(s) || principale.get(s) !== d.prise.n || genre(s) !== 'plans-texte' || aDeja(s)) continue;
+    d.type = 'face';
+    faits.add(s);
+  }
+  return decisions;
+}
+
 // Part des mots dits qu'on retrouve dans chaque script ; décision avec seuil et marge sur le deuxième.
 // scripts : [{ slug, texte }]. Renvoie { decision: 'place'|'aucun'|'ambigu'|'sans_parole', slug?, scores: [...] }.
 export function reconnaitreFace(transcription, scripts, reglages = FACE) {

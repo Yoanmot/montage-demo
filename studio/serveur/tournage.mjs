@@ -9,7 +9,7 @@
 // compté comme reçu, et la fin du tournage ne se valide pas tant qu'il arrive.
 import path from "node:path";
 import { lireJson, ecrireJson, lireTexte, lister, isoZurich, lireDate, EXT_IMAGE, existe } from "./outils.mjs";
-import { decouperScript, accrochesDe, accrocheDansTexte, aFinir } from "./lecture.mjs";
+import { decouperScript, accrochesDe, accrocheDansTexte, aFinir, genreDuContenu } from "./lecture.mjs";
 import { estOriginale } from "./stades.mjs";
 import { arriveesPertinentes } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
@@ -170,6 +170,8 @@ export function bulles(config, t, titres = new Map()) {
       duree_s: Number(p.duree_s) || null, deja: Boolean(p.deja_en_bibliotheque), contenus: contenusDe(p) };
     if (p.type === "face") {
       b.titre = "Face caméra";
+      // Un reel en plans filmés avec sa voix : la prise face caméra est sa voix seule (2026-11-20).
+      if (b.contenus[0] && genreDuContenu(config, b.contenus[0].slug) === "plans-voix") { b.titre = "Ta voix"; b.voix = true; }
       const x = b.contenus[0] ? texteDe(b.contenus[0].slug) : { script: null, accroche: null, decoupage: null };
       b.script = x.script;
       b.accroche = x.accroche;

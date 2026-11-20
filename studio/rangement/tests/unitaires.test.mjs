@@ -76,3 +76,19 @@ test('lireConfig : le regard sur les vignettes prend claude.modele_rangement, so
     fs.rmSync(d, { recursive: true, force: true });
   }
 });
+
+test('principauxSansParole : le plan principal d\'un reel sans parole devient sa vidéo du reel, une seule fois', async () => {
+  const { principauxSansParole } = await import('../lib/reconnaitre.mjs');
+  const prises = [
+    { n: 1, type: 'face', contenus: [{ slug: 'parle' }] },
+    { n: 2, type: 'b-roll', contenus: [{ slug: 'muet' }, { slug: 'parle' }] },   // partagée : jamais la vidéo du reel
+    { n: 3, type: 'b-roll', contenus: [{ slug: 'muet' }] },                       // le plan principal
+    { n: 4, type: 'b-roll', contenus: [{ slug: 'muet' }] },
+    { n: 5, type: 'b-roll', contenus: [{ slug: 'deja' }] },
+  ];
+  const genres = { muet: 'plans-texte', parle: 'face-camera', deja: 'plans-texte' };
+  const d = (n, slugs) => ({ type: 'b-roll', slugs, prise: prises.find((p) => p.n === n) });
+  const decisions = [d(2, ['muet', 'parle']), d(3, ['muet']), d(3, ['muet']), d(4, ['muet']), d(5, ['deja']), { type: 'face', slugs: ['parle'] }];
+  principauxSansParole(decisions, prises, (s) => genres[s], (s) => s === 'deja');
+  assert.deepEqual(decisions.map((x) => x.type), ['b-roll', 'face', 'b-roll', 'b-roll', 'b-roll', 'face']);
+});
