@@ -176,6 +176,8 @@ function empiler(liste) {
       else if (prev.kind === 'tx') vTop = prev.g.base + (e.kind === 'pave' ? A.ecartPave : A.ecartPhraseMot) + (e.kind === 'pave' ? MET.desc * prev.F * 0.85 : 0);
       else if (prev.kind === 'ti') vTop = prev.g.base + (e.kind === 'pave' ? A.ecartPave : A.ecartBlocs);
       else vTop = prev.g.bas + (e.kind === 'pave' ? A.ecartPaves : A.ecartBlocs);
+      // un accent qui dépasse des capitales (É, À) ne touche jamais la ligne du dessus : l'écart se compte depuis son encre
+      if (e.m) vTop += Math.max(0, e.m.haut - capDe(e.F));
     }
     e.g = geo(e, topPour(e, vTop));
     prev = e;
