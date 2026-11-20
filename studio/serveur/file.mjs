@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lireJson, ecrireJson, isoZurich, horodatage, lireTexte, existe, lister } from "./outils.mjs";
 import { attenduPresent, formatDuContenu } from "./attendus.mjs";
-import { lireDepot, videoFace, videosFace, brolls } from "./lecture.mjs";
+import { lireDepot, videoFace, videosFace, brolls, genreDuContenu } from "./lecture.mjs";
 import { contact, clientActif } from "./client.mjs";
 
 const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page"]);
@@ -78,6 +78,7 @@ export function messageAction(a, config) {
       clips: clips.length ? clips.map((c) => `- ${c}`).join("\n") : "- aucun",
       script: path.join(config.depot, "contenus", a.slug, "script.md"),
       tournage: tournages.map((t) => `Plan de tournage groupé : ${path.join(config.depot, "tournages", t.fichier)}`).join("\n"),
+      genre: GENRE_MONTAGE[genreDuContenu(config, a.slug)] ? `\n${GENRE_MONTAGE[genreDuContenu(config, a.slug)]}` : "",
     });
   }
   if (a.type === "mise_en_page") {
@@ -94,6 +95,13 @@ export function messageAction(a, config) {
   }
   return "";
 }
+
+// La ligne du premier message du monteur qui dit comment le reel a été tourné (2026-11-20, agents/monteur*.md,
+// « Un reel sans face caméra »). Vide pour une face caméra.
+const GENRE_MONTAGE = {
+  "plans-texte": "Ce reel se tourne en plans filmés sans parler : la vidéo ci-dessus est son plan filmé (sans voix), et ce qu'on lit à l'écran est la section « Texte à l'écran » de son script. Suis « Un reel sans face caméra » de tes consignes.",
+  "plans-voix": "Ce reel se tourne en plans filmés avec sa voix : la vidéo ci-dessus est sa voix seule (on ne le voit pas, l'image ne sert pas), et ses clips doivent couvrir toute la vidéo. Suis « Un reel sans face caméra » de tes consignes.",
+};
 
 const REPRISE = "Le studio a redémarré pendant que tu travaillais sur ce contenu : reprends où tu en étais.";
 

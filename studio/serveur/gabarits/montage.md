@@ -16,6 +16,8 @@ Variables :
   {{clips}}     une ligne « - <chemin absolu> » par fichier de MEDIA/<slug>/b-roll/ (liens de la
                 bibliothèque, chemin du lien lui-même), dans l'ordre alphabétique ; « - aucun » s'il n'y en a pas.
   {{script}}    chemin absolu de DEPOT/contenus/<slug>/script.md.
+  {{genre}}     un saut de ligne puis comment le reel a été tourné (plans filmés sans parler, ou avec sa voix) ;
+                vide pour une face caméra.
   {{tournage}}  « Plan de tournage groupé : <chemin absolu> » pour chaque DEPOT/tournages/*.json dont
                 `contenus` contient le slug (une ligne chacun, le plus récent d'abord) ; vide s'il n'y en a pas.
 
@@ -24,7 +26,7 @@ de Romain tel quel avec --resume.
 -->
 Monte la vidéo du contenu {{slug}} : « {{titre}} » (mode studio).
 
-Vidéo face caméra : {{video}}
+Vidéo face caméra : {{video}}{{genre}}
 
 Ses clips filmés en plus pour ce contenu (liens vers sa bibliothèque) :
 {{clips}}

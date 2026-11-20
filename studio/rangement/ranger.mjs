@@ -26,7 +26,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { lireConfig, lireJson, isoZurich, sonder, typeFichier, clipId, nomLibre, prendreVerrou, lireDate, SLUG, estLien, arriveesPertinentes } from './lib/commun.mjs';
-import { racines, texteDuScript, reconnaitreFace, apparier, validerVue } from './lib/reconnaitre.mjs';
+import { racines, texteDuScript, reconnaitreFace, apparier, validerVue, genreDe, principauxSansParole } from './lib/reconnaitre.mjs';
 import { transcrire, vignettes, imagePhoto, regarder, promptVue } from './lib/sens.mjs';
 import { Media } from './lib/media.mjs';
 
@@ -255,6 +255,10 @@ async function ranger(o) {
 
     // 5. Appliquer, dans l'ordre de prise.
     decisions.sort((a, b) => a.f.date - b.f.date || a.f.nom.localeCompare(b.f.nom));
+    // Reel sans parole : son plan principal devient sa vidéo du reel (2026-11-20).
+    const genre = (s) => genreDe(lireJson(path.join(config.depot, 'contenus', s, 'etat.json'), null),
+      fs.existsSync(path.join(config.depot, 'contenus', s, 'script.md')) ? fs.readFileSync(path.join(config.depot, 'contenus', s, 'script.md'), 'utf8') : null);
+    principauxSansParole(decisions, t.prises, genre, (s) => aSaFace(config.media, s));
     for (const d of decisions) {
       const slugsValides = (d.slugs || []).filter((s) => SLUG.test(s));
       if (d.type && slugsValides.length) {

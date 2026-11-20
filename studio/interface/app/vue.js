@@ -6,6 +6,7 @@ import { el, icone, annoncer, markdown, texteBrut, copier, quandLisible, jourCou
 import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefaut, ouChat, ouArbre, titreTournage } from "./commun.js";
 import { recapDans } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
+import { nomFormat, nomRole } from "./genres.js";
 import { Apercu } from "./apercu.js";
 import { barresSemaines, etapesFormat, nombreFr } from "./graphiques.js";
 import { PERIODES, periode, resumer } from "./tableau.js";
@@ -170,7 +171,7 @@ export class Vue {
       el("span", { html: icone("fleche") }),
       el("span", { class: "courant" }, NOMS_FICHIERS[fichier] || "Idée"));
     const tags = el("div", { class: "vue-etiquettes" },
-      el("span", { class: `tag tag-format f-${c.format}` }, el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), c.format === "reel" ? "Reel" : "Carrousel"),
+      el("span", { class: `tag tag-format f-${c.format}` }, el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), nomFormat(c)),
       el("span", { class: "tag" }, c.stade === "proposee" ? "idée proposée" : c.stade === "de_cote" ? "mise de côté" : c.libelle),
       c.a_toi ? el("span", { class: "tag tag-a-toi" }, el("span", { class: "rond", "aria-hidden": "true" }), "attend ta réponse") : null,
       c.activite === "en_cours" ? el("span", { class: "tag tag-cours" }, "en cours") : null,
@@ -554,7 +555,7 @@ export class Vue {
   }
 
   rush(d, x, verifiable) {
-    const role = { face: "Face caméra", "b-roll": "Plan en plus", photo: "Photo" }[x.type] || "";
+    const role = nomRole(x.type, d.genre);
     const media = x.type === "photo"
       ? el("img", { src: x.url, alt: x.titre, loading: "lazy" })
       : el("video", { src: x.url, controls: true, preload: "metadata", playsinline: true, poster: x.vignette_url || null });
@@ -998,6 +999,7 @@ export class Vue {
       const titres = [...new Set((b.contenus || []).map((c) => c.titre))];
       const corps = [];
       if (b.type === "face") {
+        if (b.voix) corps.push(el("p", { class: "prise-geste" }, "Enregistre ton texte en vidéo avec l'appareil photo, téléphone posé : seul le son sert, on ne te voit pas. Au calme. Tu peux le lire."));
         if (b.script) {
           // Lot 14 : un bloc par morceau dit d'une traite (Romain fait une pause entre deux morceaux).
           // Découpage écrit dans le script quand il y est, sinon regroupement de repli (morceaux.js).
@@ -1033,8 +1035,9 @@ export class Vue {
         corps.length ? el("div", { class: "prise-corps" }, ...corps) : null);
     };
     const toutes = t.bulles || [];
-    const sections = [["face", "Face caméra"], ["b-roll", "B-roll"], ["photo", "Photo"]]
-      .map(([type, nom]) => [nom, toutes.filter((b) => b.type === type)])
+    // La voix d'un reel en plans filmés avec sa voix est une prise face caméra : section à part (2026-11-20).
+    const sections = [["face", "Face caméra"], ["voix", "Ta voix"], ["b-roll", "B-roll"], ["photo", "Photo"]]
+      .map(([type, nom]) => [nom, toutes.filter((b) => (b.type === "face" && b.voix ? "voix" : b.type) === type)])
       .filter(([, liste]) => liste.length)
       .map(([nom, liste]) => el("section", { class: "prises-section" }, el("h2", { class: "prises-titre" }, nom), el("div", { class: "prises" }, ...liste.map(cartePrise))));
 

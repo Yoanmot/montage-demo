@@ -18,6 +18,25 @@ export function urlMedia(...segments) {
     .map(encodeURIComponent).join("/");
 }
 
+// ---------------------------------------------------------------- le genre d'un reel
+
+// Comment un reel se tourne (2026-11-20, champ `genre` de etat.json et des propositions, écrit par les outils du
+// head of content : commun.GENRES). Sans genre : face caméra ; un brief qui n'a qu'un « Texte à l'écran » (reel muet
+// d'avant ce champ) se tourne en plans filmés avec texte. Même règle que commun.genre_de.
+export const GENRES = ["face-camera", "plans-texte", "plans-voix"];
+export function genreDe(etat, scriptMd = null) {
+  if (GENRES.includes(etat?.genre)) return etat.genre;
+  const titres = [...String(scriptMd || "").matchAll(/^##\s+(.+?)\s*$/gm)].map((m) => normaliser(m[1]));
+  if (titres.some((x) => x.startsWith("texte a l'ecran") || x.startsWith("texte a l ecran")) && !titres.some((x) => x.startsWith("texte complet"))) {
+    return "plans-texte";
+  }
+  return "face-camera";
+}
+export function genreDuContenu(config, slug) {
+  const dossier = path.join(config.depot, "contenus", slug);
+  return genreDe(lireJson(path.join(dossier, "etat.json"), null), lireTexte(path.join(dossier, "script.md"), null));
+}
+
 // ---------------------------------------------------------------- script.md
 
 // Titres de sections de script.md (modèle du lot 9, contrat section 4) et des anciens scripts. Même
@@ -314,6 +333,10 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     ]),
   };
   carte.fichiers = fichiersDuDossier(config, slug, contenu.format, fichiers);
+  if (contenu.format === "reel") {
+    const genre = genreDe(etat, lireTexte(path.join(dossier, "script.md"), null));
+    if (genre !== "face-camera") carte.genre = genre;
+  }
   // L'image de la carte (lot 10, « Publier sur Instagram ») : la vignette du hook tirée de la vidéo montée (fabriquée à
   // la demande, l'adresse change avec la vidéo), ou la première slide d'un carrousel mis en page.
   const vignette = vignetteDe(config, slug, contenu.format);
@@ -366,6 +389,7 @@ function carteProposition(p) {
     source: p.source || null,
     pourquoi_maintenant: p.pourquoi_maintenant || "",
     republication: p.republication === true,
+    ...(p.format !== "carrousel" && GENRES.includes(p.genre) && p.genre !== "face-camera" ? { genre: p.genre } : {}),
     fichiers: ["idee"],
   };
 }
@@ -717,13 +741,18 @@ export function montageDe(config, slug, lu, tournage) {
   const faceDir = path.join(base, "face");
   const rushs = [];
   const faces = lister(faceDir).filter((e) => !e.isDirectory() && estOriginale(e.name)).map((e) => e.name).sort();
+  // Reel sans face caméra (2026-11-20) : sa voix seule (plans-voix) ou son plan principal sans parole (plans-texte),
+  // rangés là où irait la face caméra.
+  const genre = genreDuContenu(config, slug);
+  const nomFace = genre === "plans-voix" ? "Ta voix" : genre === "plans-texte" ? "Ta vidéo du reel" : "Plan face caméra";
   faces.forEach((n, i) => {
     // Une vidéo rangée à la main n'a pas été « reconnue » : le dire serait faux (rush mis de côté puis placé).
     const parToi = origineRangement(config, path.join(faceDir, n)) === "toi";
     rushs.push({
       id: `face/${n}`, url: urlMedia(slug, "face", n), type: "face",
-      titre: faces.length > 1 ? `Plan face caméra (prise ${i + 1})` : "Plan face caméra",
-      detail: parToi ? "Rangée ici par toi." : "Reconnu à ce que tu dis dans ton texte.",
+      titre: faces.length > 1 ? `${nomFace} (prise ${i + 1})` : nomFace,
+      detail: parToi ? "Rangée ici par toi." : genre === "plans-texte" ? "Ton plan principal, filmé sans parler."
+        : genre === "plans-voix" ? "Reconnue à ce que tu dis dans ton texte." : "Reconnu à ce que tu dis dans ton texte.",
       ...(parToi ? { range_par_toi: true } : {}),
       // Changer le type (19/11) : en plan filmé en plus, tant que le montage n'a rien fait de cette vidéo.
       ...(existe(path.join(faceDir, `${n.replace(/\.[^.]+$/, "")}-montage`)) ? {} : { changer: { vers: "b-roll" } }),
@@ -735,6 +764,12 @@ export function montageDe(config, slug, lu, tournage) {
   const sautees = new Set(idPlan && config.home ? lireJson(path.join(config.home, "tournages", `${idPlan}.json`), null)?.sautees || [] : []);
   const prises = (tournage?.prises || []).filter((p) => (p.contenus || []).some((c) => c.slug === slug) && !sautees.has(p.n));
   const servies = new Set();
+  // Le plan principal d'un reel sans parole est arrivé quand sa vidéo du reel est là (rangement, principauxSansParole).
+  if (genre === "plans-texte" && faces.length) {
+    const principale = prises.filter((p) => p.type === "b-roll" && !p.deja_en_bibliotheque && (p.contenus || []).length === 1)
+      .sort((a, b) => a.n - b.n)[0];
+    if (principale) servies.add(principale.n);
+  }
   for (const e of clipsBroll(path.join(base, "b-roll"))) {
     const id = e.name.replace(/\.[^.]+$/, "");
     const clip = index[id] || null;
@@ -777,7 +812,7 @@ export function montageDe(config, slug, lu, tournage) {
   }));
   prisesPhotos.slice(0, photos.length).forEach((p) => servies.add(p.n));
   const manquants = [];
-  if (!faces.length && prises.some((p) => p.type === "face")) manquants.push({ titre: "Plan face caméra", detail: "Pas encore arrivé." });
+  if (!faces.length && prises.some((p) => p.type === "face")) manquants.push({ titre: nomFace, detail: "Pas encore arrivé." });
   for (const p of prises) {
     if (p.type === "face" || servies.has(p.n)) continue;
     const phrases = phrasesPour(p, slug);
