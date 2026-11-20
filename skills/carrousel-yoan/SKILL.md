@@ -16,6 +16,8 @@ demande avant de corriger. Tout cela vaut de toi-même : s'il demande un mot cha
 `da/theme.json` (la charte v1 de Yoan, copiée telle quelle). Tu ne changes jamais un fichier de `da/` ni
 de `scripts/`. Si une demande sort de la DA (une autre police, une autre couleur, un nouvel élément),
 dis-le franchement et note-la dans `demandes-pour-yoan.md` (dossier de ce skill, une ligne datée).
+Il n'y a donc **ni style ni format à choisir** (une seule mise en page, 1080 × 1350) : ne pose pas de
+question de style avant la mise en page.
 
 ## Le dossier du carrousel
 

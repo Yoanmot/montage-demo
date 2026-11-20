@@ -142,6 +142,15 @@ test("gabarits : montage et mise en page donnent au modèle ce qu'il lui faut", 
   assert.match(mp, /- aucune/);
   assert.ok(mp.includes(`${m.config.skills}/carrousels-en-attente/SKILL.md`));
   assert.ok(!/\{\{\w+\}\}/.test(mp) && !mp.includes("<!--"));
+  // Le style se choisit à la mise en page (2026-11-20) : une seule question courte avant les photos, le texte
+  // jamais changé sans son accord, une version raccourcie revalidée par le circuit habituel.
+  assert.match(mp, /« Je pars sur <style proposé> en\s+<format>, ou tu en veux un autre \? »/);
+  assert.ok(mp.indexOf("Le style, avant tout le reste") < mp.indexOf("Les photos :"), "le style avant les photos");
+  assert.match(mp, /n'a qu'une seule mise en page/);
+  assert.match(mp, /déjà dit son style/);
+  assert.match(mp, /sans son\s+accord, son texte ne change pas/);
+  assert.ok(mp.includes("python3 outils/etat.py valider car-a --pousser"));
+  assert.ok(!/style et\s+format sont déjà choisis/.test(mp));
   assert.match(messageAction({ type: "script", slug: "car-a" }, m.config), /contenus\/car-a\/carrousel\.md/);
   for (const g of fs.readdirSync(path.join(ICI, "..", "gabarits"))) {
     assert.ok(!fs.readFileSync(path.join(ICI, "..", "gabarits", g), "utf8").includes(String.fromCharCode(0x2014)), g);

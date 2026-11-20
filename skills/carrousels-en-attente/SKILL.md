@@ -77,8 +77,19 @@ Lance `attente`. Puis dis à Romain, en quelques lignes :
    sous-dossier : tu peux y relire l'ancien `carrousel.json` pour reprendre les photos que Romain
    avait choisies, et lui proposer de les garder.
 2. Lis le texte validé (le fichier `texte="…"` donné par `attente`) et `carrousel.json` dans le
-   dossier : le texte, le style et le format sont **déjà choisis** par Romain. Tu ne les redemandes
-   pas, tu ne changes pas un mot (règle du skill carrousel : son texte au caractère près).
+   dossier. Le texte est **le sien** : tu n'en changes pas un mot sans son accord (règle du skill
+   carrousel : son texte au caractère près). Le style et le format, eux, sont seulement **proposés**
+   par son head of content (même si une ligne du texte dit qu'ils sont déjà choisis) : avant les
+   photos, demande-lui en un seul message court « Je pars sur <style proposé> en <format>, ou tu en
+   veux un autre ? », avec les autres styles du skill carrousel (une demi-ligne chacun) et l'autre
+   format. Pas de question s'il les a déjà dits dans la conversation, ou si le skill carrousel n'a
+   qu'une seule mise en page.
+   - Son choix va dans `carrousel.json` du dossier (`"style"` et `"format"` en tête ; un seul style
+     pour tout le carrousel retire le `style` des slides).
+   - Si son texte ne tient pas dans le style choisi (trop de mots pour ce style) : dis-le-lui en une
+     phrase, et propose-lui une version raccourcie (seulement les slides qui changent) ou de garder
+     le style d'origine. Une version raccourcie qu'il accepte se fait comme toute correction faite
+     ici (plus bas, « Si Romain change un mot ici ») : son head of content la reçoit à `termine`.
 3. Demande-lui ses photos en un seul message, slide par slide, avec ce qu'il faut prévoir
    (`PHOTO slide=N`), par exemple : « Slide 1 : toi au rayon riz du supermarché, en pied. » Les
    slides « aucune, fond noir » n'ont besoin de rien.
