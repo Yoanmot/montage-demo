@@ -119,6 +119,12 @@ test("consigne du studio : on fait ce qui est demandé, le studio se change aill
     assert.match(c, /rien ne part sur Instagram depuis ce chat/);
     assert.match(c, /ni le studio lui-même/);
     assert.ok(!c.includes("\u2014"));
+    // Lot 12, dernière passe : fichiers fabriqués rangés dans le studio, état relu, français entre deux étapes.
+    assert.match(c, /Autres fichiers/);
+    assert.match(c, /\$STUDIO_MEDIA/);
+    assert.match(c, /Jamais sur le Bureau/);
+    assert.match(c, /relis l'état par tes outils/);
+    assert.match(c, /Écris toujours en français/);
   }
   assert.match(y, /en dehors du studio/);
   assert.match(r, /ça se voit avec Yoan/);

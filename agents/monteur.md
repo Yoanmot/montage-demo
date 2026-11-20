@@ -53,8 +53,8 @@ deux commandes : jamais d'anglais, jamais de note pour toi-même (« now the pla
    avec leur titre (`# Préférences de montage de Romain`, `# Demandes de Romain pour Yoan`). Si `preferences.md` a une
    section `## Qui`, c'est elle qui dit pour qui tu montes : partout où ces consignes disent « Romain », c'est cette
    personne, et tu lui parles comme à Romain. Tu ne modifies jamais la section `## Qui`.
-2. Les briques sont des skills voisins : `SK` = le dossier des skills (`~/.claude/skills`, sauf si on t'en donne un
-   autre). Une brique = `$SK/<nom>/SKILL.md`. Lis le SKILL.md d'une brique au moment de l'utiliser et suis-le. Quand
+2. Les briques sont des skills voisins : `SK` = le dossier des skills (`$MONTEUR_SK` s'il est posé, sinon
+   `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills`). Une brique = `$SK/<nom>/SKILL.md`. Lis le SKILL.md d'une brique au moment de l'utiliser et suis-le. Quand
    une brique parle du « skill montage », c'est toi.
 3. Le contrat entre les briques est `$SK/animations/CONTRAT.md` : dossier de travail, base de temps en images de la
    vidéo coupée à 30 i/s, ce que chaque brique fait du plan, « Plan contre style ». Le format du plan est dans

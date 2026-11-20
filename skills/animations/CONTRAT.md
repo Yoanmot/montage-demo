@@ -4,7 +4,7 @@
 d'un champ qui n'y est pas, elle l'ajoute ici (section « Extensions ») au lieu d'inventer un format à part.
 
 **Où est ce fichier, et pourquoi.** Source unique : `skills/animations/CONTRAT.md` du dépôt des skills de Romain,
-installé avec le skill `animations` dans `~/.claude/skills/animations/CONTRAT.md`. Le skill `animations` est déjà le
+installé avec le skill `animations` dans `<config Claude>/skills/animations/CONTRAT.md` (`<config Claude>` = `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`). Le skill `animations` est déjà le
 socle commun que les autres briques lisent à côté d'elles (`../animations/bibliotheque/`) : le contrat voyage avec lui,
 à chaque installation, sans étape de plus. Lecture : l'agent monteur par `$SK/animations/CONTRAT.md`, une brique par
 `../animations/CONTRAT.md`. Toute autre copie (côté Yoan : `agents/monteur/CONTRAT.md` du projet) n'est qu'un renvoi
@@ -36,11 +36,11 @@ vers celle-ci.
   comportement de sous-titres ; les captions (sa phrase au fil de sa voix) ont une taille et une police par ligne
   (STYLE.md). Lignes datées plus bas.
 - **Format du plan de montage** : source unique dans `skills/plan-montage/references/format.md` (installé dans
-  `~/.claude/skills/plan-montage/`). Ce contrat dit seulement ce que chaque brique en fait.
+  `<config Claude>/skills/plan-montage/`). Ce contrat dit seulement ce que chaque brique en fait.
 
 ## Où vit quoi
 - Dépôt des skills de Romain (git Yoanmot/montage-demo ; côté Yoan : `projets/clients/Romain/skills-montage/depot/`) :
-  `agents/monteur.md` (installé dans `~/.claude/agents/`), `skills/<brique>/` (installés dans `~/.claude/skills/`).
+  `agents/monteur.md` (installé dans `<config Claude>/agents/`), `skills/<brique>/` (installés dans `<config Claude>/skills/`).
   **Aucun commit ni push par une brique** : Yoan valide d'abord.
 - Briques : `couper-silences` (Node), `plan-montage`, `zooms` (Python), `animations` (Node), `sous-titres` (Node),
   `b-roll` (Python), `sound-design` (Node et Python), `rendu` (Python). Plus aucun PowerShell dans le monteur depuis le

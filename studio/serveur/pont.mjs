@@ -412,6 +412,10 @@ export class Pont extends EventEmitter {
     enfant.stderr.on("data", (m) => { p.stderr = (p.stderr + m).slice(-2000); });
     enfant.on("close", (code, signal) => {
       p.ferme = true;
+      // Sorti sans résultat de fin : le dernier texte reçu n'est jamais perdu.
+      for (const el of p.normaliseur.vider()) {
+        try { this.noter(chatId, { n: el.n, le: isoZurich(), role: "studio", type: "texte", texte: el.texte }); } catch { /* rien */ }
+      }
       if (p.minuterieKill) clearTimeout(p.minuterieKill);
       if (this.vivants.get(chatId) === p) this.vivants.delete(chatId);
       this.noterProcessus(chatId, null);
@@ -493,7 +497,8 @@ export class Pont extends EventEmitter {
         const m = { n: el.n, le: isoZurich(), role: "studio", type: "texte", texte: el.texte };
         this.noter(chatId, m, { partiel: el.partiel });
       } else if (el.genre === "activite") {
-        this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "activite", texte: el.texte });
+        // Un texte intermédiaire (déjà affiché en partiel) devient une ligne d'activité sous le même numéro.
+        this.noter(chatId, { n: el.remplace ? el.n : this.prochainN(chatId), le: isoZurich(), role: "studio", type: "activite", texte: el.texte });
       } else if (el.genre === "fin") {
         p.enAttente = Math.max(0, p.enAttente - 1);
         if (el.erreur) this.journal("tour_en_erreur", { chat_id: chatId, motif: el.motif, limite: el.limite });

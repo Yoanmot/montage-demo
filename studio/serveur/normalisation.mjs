@@ -155,6 +155,39 @@ export function phraseErreur({ motif, reprise = null } = {}, { parFile = false, 
   return PHRASE_AUTRE;
 }
 
+// Lot 12 : un texte écrit entre deux appels d'outil (« Let me check a few. », « Je regarde tes posts. ») n'est
+// pas une réponse. Seul le dernier texte du tour reste un message ; un texte intermédiaire devient une ligne
+// d'activité : sa première phrase s'il est en français et court, sinon la phrase de l'outil qui suit. Une
+// question posée au client (texte en français avec un « ? ») reste un message, même au milieu du tour.
+const MOTS_FR = new Set("je tu il on nous vous le la les un une des de du et est sont pas ne que qui quoi pour avec dans sur ton ta tes mon ma mes ce cette ces ça c'est j'ai je vais puis aussi déjà encore voici voilà".split(" "));
+const MOTS_EN = new Set("i i'll i'm let let's me the a an and is are was it this that these to of for with now will check look looking first then next see here there my your".split(" "));
+
+export function enFrancais(texte) {
+  const t = String(texte || "").toLowerCase();
+  const mots = t.match(/[a-zàâäçéèêëîïôöùûüœ']+/g) || [];
+  if (mots.length < 2) return false;
+  let fr = 0, en = 0;
+  for (const m of mots) {
+    if (MOTS_FR.has(m)) fr++;
+    if (MOTS_EN.has(m)) en++;
+  }
+  if (/[àâçéèêëîïôùûœ]/.test(t)) fr += 2;
+  return fr > 0 && fr >= en;
+}
+
+// La ligne d'activité tirée d'un texte intermédiaire en français (première phrase, sans « : » final), ou null.
+export function activiteDeTexte(texte) {
+  const t = String(texte || "").replace(/\s+/g, " ").trim();
+  if (!enFrancais(t)) return null;
+  const phrase = (/^.*?[.!…](?=\s|$)/.exec(t)?.[0] || t).replace(/[\s:.…]+$/, "").trim();
+  if (phrase.length < 8 || phrase.length > 140 || /[`/\\]|\.(?:md|json|py|mjs)\b/i.test(phrase)) return null;
+  return phrase.charAt(0).toLowerCase() + phrase.slice(1);
+}
+
+export function questionAuClient(texte) {
+  return enFrancais(texte) && /\?\s*(?:\*\*)?\s*$|\?\s/.test(String(texte || ""));
+}
+
 // Un normaliseur par processus `claude`. `allouer()` donne le numéro du prochain message du chat.
 export class Normaliseur {
   constructor(allouer) {
@@ -162,12 +195,47 @@ export class Normaliseur {
     this.blocs = new Map();       // "<message>:<index>" -> { n, texte }
     this.avecPartiels = new Set(); // messages dont le texte est arrivé par morceaux
     this.derniereActivite = null;
+    this.attente = null;          // dernier texte fini du tour : message si le tour s'arrête là, activité si un outil suit
+  }
+
+  // Le texte en attente devient un message (fin du tour, nouveau texte sans outil entre les deux, processus fini).
+  libererTexte(sortie) {
+    const a = this.attente;
+    this.attente = null;
+    if (a) sortie.push({ genre: "texte", n: a.n, texte: a.texte, partiel: false });
+  }
+
+  // Un outil suit le texte en attente : c'était un texte intermédiaire.
+  texteIntermediaire(sortie, phraseOutil) {
+    const a = this.attente;
+    this.attente = null;
+    if (!a) return false;
+    if (questionAuClient(a.texte)) {
+      sortie.push({ genre: "texte", n: a.n, texte: a.texte, partiel: false });
+      return false;
+    }
+    const ligne = activiteDeTexte(a.texte) || phraseOutil || "je travaille";
+    this.derniereActivite = phraseOutil || ligne;
+    sortie.push({ genre: "activite", n: a.n, texte: ligne, remplace: true });
+    return true;
+  }
+
+  // Processus sorti sans résultat de fin : ce qui reste en attente est rendu tel quel.
+  vider() {
+    const sortie = [];
+    for (const b of this.blocs.values()) {
+      if (b.texte.trim()) sortie.push({ genre: "texte", n: b.n, texte: b.texte, partiel: false });
+    }
+    this.blocs.clear();
+    this.libererTexte(sortie);
+    return sortie;
   }
 
   // Renvoie une liste d'éléments :
   //   { genre: "session", session_id }
   //   { genre: "texte", n, texte, partiel: bool }
-  //   { genre: "activite", texte }
+  //   { genre: "activite", texte, n?, remplace? }  (n + remplace : un texte intermédiaire déjà montré en partiel,
+  //                                                  qui devient une ligne d'activité sous le même numéro)
   //   { genre: "fin", erreur: string | null, limite: bool, motif?, reprise? }  (motif : voir classerErreur)
   traiter(evt) {
     const sortie = [];
@@ -180,6 +248,7 @@ export class Normaliseur {
       const id = evt.api_message_id || e.message?.id || "m";
       const cle = `${id}:${e.index}`;
       if (e.type === "content_block_start" && e.content_block?.type === "text") {
+        this.libererTexte(sortie);
         this.blocs.set(cle, { n: this.allouer(), texte: e.content_block.text || "" });
         this.avecPartiels.add(id);
       } else if (e.type === "content_block_delta" && e.delta?.type === "text_delta") {
@@ -192,7 +261,7 @@ export class Normaliseur {
         const b = this.blocs.get(cle);
         if (b) {
           this.blocs.delete(cle);
-          if (b.texte.trim()) sortie.push({ genre: "texte", n: b.n, texte: b.texte, partiel: false });
+          if (b.texte.trim()) this.attente = { n: b.n, texte: b.texte };
         }
       }
     }
@@ -210,10 +279,12 @@ export class Normaliseur {
           continue;
         }
         if (bloc.type === "text" && !evt.parent_tool_use_id && !this.avecPartiels.has(id) && bloc.text?.trim()) {
-          sortie.push({ genre: "texte", n: this.allouer(), texte: bloc.text, partiel: false });
+          this.libererTexte(sortie);
+          this.attente = { n: this.allouer(), texte: bloc.text };
         }
         if (bloc.type === "tool_use") {
           const phrase = phraseActivite(bloc.name, bloc.input || {});
+          if (!evt.parent_tool_use_id && this.texteIntermediaire(sortie, phrase)) continue;
           if (phrase && phrase !== this.derniereActivite) {
             this.derniereActivite = phrase;
             sortie.push({ genre: "activite", texte: phrase });
@@ -223,10 +294,7 @@ export class Normaliseur {
     }
     if (evt.type === "result") {
       // Les blocs encore ouverts (flux coupé) sont fermés avec ce qu'on a reçu.
-      for (const b of this.blocs.values()) {
-        if (b.texte.trim()) sortie.push({ genre: "texte", n: b.n, texte: b.texte, partiel: false });
-      }
-      this.blocs.clear();
+      sortie.push(...this.vider());
       this.derniereActivite = null;
       const enErreur = Boolean(evt.is_error || (evt.subtype && evt.subtype !== "success"));
       const synth = this.synthetiques || "";

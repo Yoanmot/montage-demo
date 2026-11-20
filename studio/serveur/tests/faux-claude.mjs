@@ -12,6 +12,7 @@
 //                         | limite (abonnement au maximum : rate_limit_event refusé, texte <synthetic>, résultat en erreur)
 //                         | surcharge (« API Error: 529 ... overloaded », texte <synthetic> et résultat en erreur)
 //                         | perdue (--resume d'une conversation effacée : « No conversation found » puis sortie 1)
+//                         | intermediaire (textes entre deux outils, dont un en anglais, puis une question finale)
 //   FAUX_CLAUDE_ECHECS    fichier : nombre d'échecs restants pour limite et surcharge (décompté ; à 0, réponse normale)
 //   FAUX_CLAUDE_REPRISE   secondes epoch de reprise annoncées par le scénario limite (défaut : dans 2 h)
 //   FAUX_CLAUDE_DELAI_LONG ms entre deux morceaux du scénario long (défaut 60)
@@ -96,6 +97,33 @@ async function repondre(message) {
     if (limite) ecrire({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: reprise, rateLimitType: "five_hour" }, session_id: session });
     ecrire({ type: "assistant", message: { id: `msg_${crypto.randomUUID()}`, model: "<synthetic>", role: "assistant", type: "message", content: [{ type: "text", text: texteErreur }] }, parent_tool_use_id: null, session_id: session });
     ecrire({ type: "result", subtype: "success", is_error: true, api_error_status: limite ? 429 : 529, result: texteErreur, session_id: session });
+    return;
+  }
+  if (scenario === "intermediaire") {
+    if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
+    premier = false;
+    const base = { session_id: session, parent_tool_use_id: null };
+    // Un texte écrit au fil de l'eau (stream_event), puis le message complet, comme le vrai claude.
+    const texteEnFlux = async (id, texte) => {
+      ecrire({ type: "stream_event", event: { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }, api_message_id: id, ...base });
+      for (const m of texte.match(/[^ ]+ ?/g)) {
+        ecrire({ type: "stream_event", event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: m } }, api_message_id: id, ...base });
+        await pause(delai);
+      }
+      ecrire({ type: "stream_event", event: { type: "content_block_stop", index: 0 }, api_message_id: id, ...base });
+      ecrire({ type: "assistant", message: { id, model: "claude-opus-5-5", role: "assistant", type: "message", content: [{ type: "text", text: texte }] }, ...base });
+    };
+    const outil = (id, name, input) => {
+      ecrire({ type: "assistant", message: { id, model: "claude-opus-5-5", role: "assistant", type: "message", content: [{ type: "tool_use", id: `toolu_${id}`, name, input }] }, ...base });
+      ecrire({ type: "user", message: { role: "user", content: [{ tool_use_id: `toolu_${id}`, type: "tool_result", content: "ok" }] }, ...base });
+    };
+    await texteEnFlux("msg_i1", "Let me check a few.");
+    outil("msg_i1", "Read", { file_path: `${process.cwd()}/veille/outliers.md` });
+    await texteEnFlux("msg_i2", "Je regarde tes trois derniers posts.");
+    outil("msg_i2", "Bash", { command: "python3 outils/zernio.py stats" });
+    const fin = "Ton meilleur post de la semaine est celui des courbatures. Tu veux que j'en tire une idée ?";
+    await texteEnFlux("msg_i3", fin);
+    ecrire({ type: "result", subtype: "success", is_error: false, result: fin, ...base });
     return;
   }
   if (scenario === "lent") {

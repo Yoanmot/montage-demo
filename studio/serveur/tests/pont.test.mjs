@@ -233,3 +233,74 @@ test("claude pas connecté : rien en anglais dans le chat, une phrase claire pou
   const f2 = no2.traiter({ type: "result", subtype: "success", is_error: true, result: "Something else" });
   assert.match(f2.find((e) => e.genre === "fin").erreur, /Quelque chose a coincé/);
 });
+
+// Lot 12, dernière passe : « Let me check a few. » était relayé tel quel dans le chat.
+test("normalisation : un texte entre deux outils devient une ligne d'activité, le dernier texte reste un message", () => {
+  let n = 0;
+  const no = new Normaliseur(() => ++n);
+  const flux = (id, texte) => [
+    { type: "stream_event", api_message_id: id, event: { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } } },
+    { type: "stream_event", api_message_id: id, event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: texte } } },
+    { type: "stream_event", api_message_id: id, event: { type: "content_block_stop", index: 0 } },
+    { type: "assistant", message: { id, content: [{ type: "text", text: texte }] } },
+  ];
+  const outil = (id, name, input) => ({ type: "assistant", message: { id, content: [{ type: "tool_use", name, input }] } });
+  const sortie = [
+    ...flux("a", "Let me check a few."), outil("a", "Read", { file_path: "/x/veille/outliers.md" }),
+    ...flux("b", "Je regarde tes trois derniers posts."), outil("b", "Bash", { command: "python3 outils/zernio.py stats" }),
+    ...flux("c", "OK."), outil("c", "Read", { file_path: "/x/contenus/a/script.md" }),
+    ...flux("d", "Tu préfères la version courte ou la longue ?"), outil("d", "Read", { file_path: "/x/a.md" }),
+    ...flux("e", "Voilà ton meilleur post."),
+    { type: "result", subtype: "success", is_error: false, result: "" },
+  ].flatMap((e) => no.traiter(e));
+  const stockes = sortie.filter((e) => e.genre !== "session" && !(e.genre === "texte" && e.partiel));
+  assert.deepEqual(stockes.map((e) => [e.genre, e.texte, e.n ?? null]), [
+    ["activite", "je regarde ce qui marche en ce moment", 1], // anglais : la phrase de l'outil, sous le numéro du texte
+    ["activite", "je regarde tes trois derniers posts", 2],     // français court : sa propre phrase
+    ["activite", "je lis ton script", 3],                      // vide de sens : la phrase de l'outil
+    ["texte", "Tu préfères la version courte ou la longue ?", 4], // une question au client n'est jamais perdue
+    ["activite", "je relis ce qu'on a déjà", null],
+    ["texte", "Voilà ton meilleur post.", 5],                   // le dernier texte du tour
+    ["fin", undefined, null],
+  ]);
+  assert.ok(stockes.filter((e) => e.genre === "activite" && e.n).every((e) => e.remplace));
+  assert.ok(!sortie.some((e) => e.genre === "activite" && /zernio|bash|read/i.test(e.texte)));
+});
+
+test("normalisation : texte sans flux (message complet) puis outil dans le même message", () => {
+  let n = 0;
+  const no = new Normaliseur(() => ++n);
+  const s = [
+    { type: "assistant", message: { id: "z", content: [{ type: "text", text: "Now let me look at the file." }, { type: "tool_use", name: "Glob", input: {} }] } },
+    { type: "assistant", message: { id: "y", content: [{ type: "text", text: "C'est fait." }] } },
+    { type: "result", subtype: "success", is_error: false },
+  ].flatMap((e) => no.traiter(e));
+  assert.deepEqual(s.map((e) => [e.genre, e.texte]), [["activite", "je cherche dans tes notes"], ["texte", "C'est fait."], ["fin", undefined]]);
+  // Processus sorti sans résultat : le dernier texte est rendu par vider().
+  const no2 = new Normaliseur(() => 1);
+  no2.traiter({ type: "assistant", message: { id: "w", content: [{ type: "text", text: "Je n'ai pas fini." }] } });
+  assert.deepEqual(no2.vider().map((e) => e.texte), ["Je n'ai pas fini."]);
+});
+
+test("pont : texte intermédiaire anglais jamais gardé dans le chat, la question finale toujours", async () => {
+  const m = monde();
+  mondes.push(m);
+  const pont = pontDe(m, { FAUX_CLAUDE_SCENARIO: "intermediaire" });
+  const vus = [];
+  pont.on("chat", (e) => vus.push(e));
+  const fin = finDeTour(pont, "general");
+  pont.envoyer("general", { texte: "mes stats ?" });
+  await fin;
+  const h = pont.historique("general");
+  assert.deepEqual(h.filter((x) => x.role === "studio" && x.type !== "etat").map((x) => [x.type, x.texte]), [
+    ["activite", "je regarde ce qui marche en ce moment"],
+    ["activite", "je regarde tes trois derniers posts"],
+    ["texte", "Ton meilleur post de la semaine est celui des courbatures. Tu veux que j'en tire une idée ?"],
+  ]);
+  assert.ok(!JSON.stringify(h).includes("Let me"), "rien d'anglais dans l'historique");
+  // À l'écran, le texte anglais montré en partiel est remplacé sous le même numéro par la ligne d'activité.
+  const nAnglais = vus.find((e) => e.partiel && /Let me/.test(e.message.texte)).message.n;
+  const dernier = vus.filter((e) => e.message.n === nAnglais).at(-1);
+  assert.equal(dernier.message.type, "activite");
+  assert.ok(!dernier.partiel);
+});

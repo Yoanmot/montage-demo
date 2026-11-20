@@ -7,7 +7,7 @@ description: Met en page, un par un, les carrousels que Romain a validés avec s
 
 Romain valide le texte de ses carrousels avec son head of content, souvent depuis son téléphone. La
 mise en page, elle, se fait ici, sur son Mac, avec ses photos et le skill **carrousel** (déjà installé
-dans `~/.claude/skills/carrousel/`). Ce skill fait le lien entre les deux.
+dans le dossier des skills de Claude, à côté de celui-ci). Ce skill fait le lien entre les deux.
 
 Romain est coach, pas technicien. Parle-lui simplement, en français, en le tutoyant. Ne lui montre
 jamais une commande, un chemin, un nom de fichier ni un code comme `NOUVEAU` : dis ce qui se passe
@@ -19,15 +19,16 @@ Tu ne décides jamais toi-même qu'un carrousel est à faire ou déjà fait, et 
 d'une conversation à l'autre. Le script `scripts/a-rendre.py` (dans le dossier de ce skill) tient la
 liste et le registre de ce qui est rendu, et il vérifie sur le disque ce qui a déjà été mis en page.
 - Tu ne mets en page **que** ce qu'`attente` vient de lister comme `NOUVEAU` ou `MIS_A_JOUR`.
-- Tu ne touches jamais à la copie du travail de Romain (`~/.montage-yoan/head-of-content/`) : ni
+- Tu ne touches jamais à la copie du travail de Romain (la copie des scripts du Mac, que ce script tient lui-même) : ni
   fichier modifié à la main, ni commande git. Seul le script y écrit.
 - Si tu oublies `termine`, ce n'est pas grave : au prochain `attente`, le script trouve les slides
   dans le dossier du carrousel et le range tout seul. Mais appelle-le quand même, au bon moment.
 
-Le script se lance toujours ainsi (timeout de 120000 ms) :
+Le script se lance toujours ainsi (timeout de 120000 ms), depuis le dossier de ce skill (celui que Claude
+t'annonce en le chargeant, dans la configuration Claude de la session : jamais `~/.claude` écrit en dur) :
 
 ```
-python3 ~/.claude/skills/carrousels-en-attente/scripts/a-rendre.py <commande>
+python3 "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/carrousels-en-attente/scripts/a-rendre.py" <commande>
 ```
 
 | Commande | Ce qu'elle fait |
