@@ -50,3 +50,10 @@ lignes se contredisent, la plus récente gagne.
 - « les clients / MEILLEURS RÉSULTATS / LONG TERME » se lit comme des mots-clés → l'accroche se lit comme une phrase : une phrase de tête courte qui pose la tension, le mot fort qui la termine, la relance qui la prolonge (contrôlé : `LECTURE`) ;
 - deux oranges pendant l'accroche (pavé de la relance et pavé des sous-titres) → un seul orange sur toute l'image : pendant l'accroche, le pavé des sous-titres passe en craie ;
 - une relance en bas tombait sur sa bouche → rien ne couvre ses yeux ni sa bouche (contrôlé : `VISAGE`).
+[2026-11-20] Yoan, sur les deux montages du lot 14 (accroche composée et montage classique), à prendre comme une façon de penser (`regles.md`, « Comment penser chaque moment », « Densité ») :
+- deux exemples parallèles dans l'accroche, empilés → la structure de la phrase se voit : le second exemple remplace le premier au même endroit, proprement, dézoom gardé (substitution) ;
+- sous-titres en pavé craie sous l'accroche (« c'est nul ») → pendant l'accroche, son texte remplace les sous-titres ;
+- une chose concrète citée (un exercice) sans image → la montrer, au mieux son plan filmé, prévu dès le brief ; en attendant, un écran noir « B-ROLL » qui dit quoi filmer ;
+- « on voit ce chiffre partout » sans effet → la multitude (captures qui défilent autour du mot), devenue un geste par défaut ;
+- plein écran qui coupe sa tête d'un coup → il commence sur lui (le mot clé au-dessus de sa tête), puis le fond passe en couleur unie en gardant le mot, puis les points un par un avec leur figure ; « commencer l'effet sur lui et le finir après, c'est vraiment bien » ;
+- 35 s sans rien à l'écran → classique ne veut pas dire vide : un temps fort toutes les 10 à 15 s, chacun tiré d'une phrase.

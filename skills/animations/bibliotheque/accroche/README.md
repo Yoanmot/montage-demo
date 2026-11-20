@@ -40,6 +40,14 @@ Puis, pour aller avec cet effet et avec ce qu'il dit :
 - **une question coupée** ou non (`barre_sur` : sur le mot de la réponse, la question se barre et s'estompe).
 Le monteur écrit en une phrase (`pourquoi`) l'effet visé et pourquoi cette disposition.
 
+## La forme de la phrase d'abord (Yoan, 2026-11-20)
+Le texte de l'accroche montre la **structure** de ce qu'il dit, pas seulement ses mots. Deux exemples parallèles qui
+servent le même propos (« X en A. Y en B. ») se montrent comme une **substitution** (`type: substitution`) : le premier
+exemple s'affiche (son mot fort, son pavé), puis le second prend sa place, élément par élément, au même endroit
+(`remplace` : le texte de l'élément remplacé), sur sa voix, dézoom gardé. L'ancien part vers le haut, le nouveau monte à
+sa place : un remplacement net, jamais un empilement. On sent que ce sont deux cas de la même chose.
+Pendant l'accroche, **aucun sous-titre** : son texte les remplace.
+
 ## Le registre : jamais la même accroche deux vidéos de suite
 `scripts/registre-accroches.mjs` tient un fichier par client dans la mémoire du monteur
 (`agent-memory/monteur/registre-accroches.json`). Avant d'écrire l'accroche : `lire` (les deux dernières). La règle,
@@ -47,7 +55,7 @@ vérifiée par le script (code 4 `RÉPÉTITION`) : jamais la même combinaison (
 qu'une des deux dernières, jamais le même mot mis en avant, jamais la même place que la dernière. `accroche.mjs` vérifie
 avant de composer et note la composition quand il l'écrit. Une demande de Romain passe (`demande_de_romain`).
 
-## Cinq exemples commentés (des illustrations, pas des gabarits)
+## Six exemples commentés (des illustrations, pas des gabarits)
 Les mêmes cinq accroches que la page validée par Yoan. Elles montrent comment l'effet décide de la disposition ; une
 autre vidéo, même avec une accroche proche, se compose à neuf.
 
@@ -70,6 +78,11 @@ autre vidéo, même avec une accroche proche, se compose à neuf.
    `titre-depuis-le-dezoom`. Dézoom plus long (jusqu'au mot fort), « avec la tête » puis « d'il y a » en minuscules au-dessus
    de sa tête, DIX ANS en géant derrière lui, « ÇA CASSE » en relance en bas. Pourquoi : la phrase longue se lit pendant
    que la caméra recule, le chiffre arrive quand elle s'arrête.
+
+6. **« Des pompes en un jour. Un dos musclé en dix jours. »** (deux promesses de pub, même absurdité) Effet :
+   surprise. Type `substitution`. POMPES en grand en haut au centre, « EN 1 JOUR » sur pavé orange en bas au centre ;
+   puis DOS MUSCLÉ remplace POMPES et « EN 10 JOURS » remplace « EN 1 JOUR », mêmes places, sur sa voix. Le mot fort
+   est DOS MUSCLÉ (le dernier mot à l'écran), la relance EN 10 JOURS.
 
 ## Fabrication
 `node scripts/accroche.mjs <dossier -montage> --video <vidéo coupée>` après le calage et la brique zooms ; il écrit

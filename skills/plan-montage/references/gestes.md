@@ -18,7 +18,18 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
   format dans `format.md`). La signature est tenue par le script ; tu décides la disposition : rôles
   `phrase` (minuscules), `mot` (le mot fort, en capitales), `relance` (une ou deux, sur pavé), et pour
   chacun sa place (`derriere`, `haut`, `bas`), son alignement, sa taille, son entrée. Une seule accroche
-  par vidéo, toujours `a01`.
+  par vidéo, toujours `a01`. Deux exemples parallèles : `type: substitution`, le second remplace le premier au même
+  endroit (`remplace`).
+
+## Le corps de la vidéo (par défaut, chacun quand une phrase le demande, `regles.md`, « Comment penser chaque moment »)
+
+- `plein-ecran-visage` (caméra puis plein) : la phrase à retenir. Le mot clé au-dessus de sa tête sur son image, puis le
+  fond uni (orange ou charbon) qui monte en gardant le mot, puis 1 à 3 points sur leurs mots, chacun avec sa figure
+  (`courbe`, `cases`, `barre`, `aucune`). Composé par son script ; format dans `format.md`.
+- `partout` (plein) : la multitude, quand il dit qu'une chose se voit ou se dit partout. Le mot fixe sur son
+  surligneur, des captures d'articles sur téléphone qui défilent autour. Composé par son script.
+- `plan-a-filmer` (plein, ses sous-titres restent) : l'écran « B-ROLL » à la place d'un plan filmé qui manque, sur
+  toute la phrase qui cite une chose concrète ; dit ce qu'il faut filmer. Composé par son script.
 
 ## Briques d'accroche (anciens gabarits, animés : sur sa demande ou pour une vidéo sans parole)
 
@@ -34,8 +45,9 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
   Éléments : le sujet, la question.
 
 Le reste de la bibliothèque (cartes, demi-écran, schéma, comparaison, minuteurs, tier list, fond vert,
-formats connus) : sur sa demande. Par défaut, le corps de la vidéo n'a que `plein-ecran-fond` (charbon ou
-orange), `transition-flash`, `liste` s'il énumère, et au plus une animation légère.
+formats connus) : sur sa demande. Par défaut, le corps de la vidéo a ses plans filmés (ou `plan-a-filmer`),
+`plein-ecran-visage` (ou `plein-ecran-fond`), `partout` s'il le dit, `transition-flash`, `liste` s'il énumère plus de
+trois choses, et des animations légères au rythme de la densité (`regles.md`, « Densité »).
 
 ## Fin (mot en commentaire)
 

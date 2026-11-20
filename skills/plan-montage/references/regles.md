@@ -27,6 +27,53 @@ Donc :
 - **S'il demande autre chose, on le fait** : tout ce que la bibliothèque sait faire (mèmes, sous-titres enrichis,
   cartes, demi-écran, formats connus, animations sur mesure) reste possible sur sa demande, pour une vidéo, ou par
   défaut s'il te demande de t'en souvenir. Ce n'est simplement plus ce que tu proposes de toi-même.
+- **Classique ne veut pas dire vide** (Yoan, 2026-11-20 : « il manque une ou deux animations à l'écran sur tout le reste
+  de la vidéo quand même ») : voir « Comment penser chaque moment » et « Densité ».
+
+## Comment penser chaque moment (la manière de Yoan)
+
+Retours de Yoan sur deux montages (2026-11-20), dont on tire une façon de penser, pas des recettes. Le bon effet n'est
+pas celui d'un gabarit : il sort **de ce que dit la phrase** et de **ce que le spectateur doit comprendre ou ressentir à
+ce moment-là**. Avant de choisir quoi que ce soit, lis chaque phrase et demande-toi trois choses.
+
+**1. Quelle est la forme de la phrase ?** Le texte à l'écran montre la structure de ce qu'il dit, pas seulement ses mots.
+
+| Ce qu'il dit | Ce qu'on voit |
+|---|---|
+| Deux exemples (ou trois) qui servent le même propos, dits de la même façon (« X en A. Y en B. ») | une **substitution** : le premier exemple s'affiche, puis le second **prend sa place**, élément par élément, au même endroit (le mot fort remplace le mot fort, le pavé remplace le pavé). On sent que ce sont deux cas de la même chose. Dans l'accroche : `type: substitution` |
+| Une opposition (« pas X, mais Y », « tout le monde fait X, toi fais Y ») | les deux côtés se voient, l'un après l'autre ou l'un contre l'autre ; le second l'emporte (il arrive plus fort, ou le premier se barre) |
+| Une énumération (deux à quatre éléments) | chaque élément apparaît **sur son mot**, l'un sous l'autre, avec sa petite figure (courbe qui monte, cases qui se cochent, barre qui se remplit) |
+| Une multitude (« on voit ça partout », « tout le monde dit », « tu l'as lu cent fois ») | **la multitude** : plein de pages, de captures, qui défilent autour du mot fixe (geste `partout`) |
+| Une chose concrète qu'on peut voir (un exercice, un geste, un aliment, un objet, un écran, une scène de la vie) | **la chose**, filmée par lui ; s'il ne l'a pas filmée, l'écran « B-ROLL » qui dit quoi filmer (geste `plan-a-filmer`), jamais escamoté |
+| La phrase à retenir (le renversement, la promesse, le chiffre qui compte) | le **plein écran qui commence sur lui** (geste `plein-ecran-visage`) |
+| Une confidence, une émotion, une adresse directe au spectateur | lui, de près : le zoom qui suit sa tête |
+
+**2. Qu'est-ce que le spectateur doit en retenir ou ressentir ?** L'absurdité d'une promesse, la surprise d'un chiffre,
+le soulagement d'une solution, le « c'est moi » d'une scène vécue. L'effet sert ça, et rien d'autre ; s'il ne sert rien,
+on reste sur lui. Écris-le dans le `pourquoi` ou l'`intention` de chaque effet, en partant de sa phrase à lui.
+
+**3. Comment garder Romain à l'image ?** C'est lui qu'on vient voir, et il trouve pénible de rester longtemps sans voir
+sa tête. Un effet qui couvre l'écran **commence sur lui** (le mot clé d'abord au-dessus de sa tête, sur l'image filmée,
+puis le fond passe en couleur unie en gardant le même texte, puis la suite) et **revient sur lui** dès que la phrase est
+dite. Commencer un effet à l'écran par le texte sur lui et le finir en plein écran, c'est ce que Yoan préfère.
+
+Et toujours :
+- **Le texte à l'écran remplace les sous-titres, jamais les deux.** Pendant l'accroche, pendant un plein écran, pendant
+  la multitude : pas de sous-titres dessous (ni pavé orange, ni pavé craie). Les briques le font.
+- **Le manque se voit.** Un plan filmé qui manque n'est jamais remplacé par rien : l'écran « B-ROLL » prend sa place et
+  dit ce qu'il faut filmer ; Romain le filme, le clip prend la place.
+- **Pas de recette.** Ces formes sont des réponses à des phrases ; une vidéo sans exemples parallèles n'a pas de
+  substitution, une vidéo sans liste n'a pas de figures. Ce qui ne colle à aucune phrase ne se pose pas.
+
+## Densité
+
+Un montage classique, ce n'est pas un montage vide. Hors accroche, **un temps fort à l'écran toutes les 10 à 15
+secondes** environ : une animation légère, un plein écran qui commence sur lui, la multitude, un plan filmé (ou son écran
+« B-ROLL »). Les zooms et les sous-titres ne comptent pas : ils accompagnent. Aucun passage de plus de 15 s avec
+seulement ses sous-titres et des zooms, sauf une histoire ou un moment d'émotion où son visage porte tout. Chaque temps
+fort vient d'une phrase qui le demande (tableau ci-dessus) : s'il n'y en a pas, prends la phrase la plus forte du passage
+et montre sa forme (une figure qui joue ce qu'il dit, un chiffre posé à côté de lui, sa phrase en plein écran qui
+commence sur lui). Jamais deux temps forts de suite sans lui au milieu.
 
 ## L'accroche (les 5 premières secondes) : composée, jamais recopiée
 
@@ -40,6 +87,11 @@ dézoom** ; **trois temps** sur les 5 premières secondes (quelque chose dès le
 une relance vers 2,5 s) ; rien ne s'arrête avant 4 s (pas de vide après 3 s) ; un son sur le mot fort.
 
 **Ce que tu décides pour chaque vidéo**, dans cet ordre :
+0. **La forme de ses premières phrases** (« Comment penser chaque moment », point 1). Deux exemples parallèles qui servent
+   le même propos (« X en A. Y en B. ») : l'accroche est une **substitution** (`type: substitution`) : le premier exemple
+   en entier (son mot fort, puis son pavé), puis le second qui prend la place du premier, élément par élément, sur sa voix
+   (`remplace`), dézoom gardé. Un remplacement net, pas un empilement : on doit sentir deux cas de la même absurdité. Une
+   question puis sa réponse : `question-coupee`. Une opposition : les deux côtés, le second qui l'emporte.
 1. **L'effet voulu chez le spectateur** (`effet`) : `surprise` (une idée reçue qui tombe), `tension` (un problème qu'il
    vit), `curiosite` (une question dont la réponse se fait attendre), `identification` (« c'est moi »). Il se lit dans sa
    première phrase.
@@ -75,7 +127,12 @@ laisse la place (le script mesure ses yeux et refuse, `VISAGE`).
 
 - Le dézoom d'ouverture va dans `zooms` : `{ "type": "ouverture", "sur": "<le mot fort>", "echelle": 1.12 }` ; il
   s'arrête net sur le mot fort, et le mot derrière lui dézoome avec la caméra. Aucun autre zoom pendant l'accroche.
-- Ce qui reste dessous : ses sous-titres, sans les mots que l'accroche affiche (chaque mot n'est vu qu'une fois).
+- Dessous : **rien**. Tant que l'accroche est à l'écran, son texte remplace les sous-titres (Yoan, 2026-11-20 : « le
+  côté caption avec le surlignage blanc sur le hook, il faut vraiment l'enlever »). Le script le marque ; les
+  sous-titres reprennent quand elle part.
+- Si l'accroche cite une chose concrète qu'on peut voir (un exercice, un geste, un aliment), son plan filmé (ou l'écran
+  « B-ROLL ») vient **juste après** elle, sur la phrase qui la cite : l'accroche reste sur lui, et le script l'arrête à
+  la coupe où ce plan commence (dès 2,8 s ; le plan prend le relais, il n'y a pas de vide).
 - **Jamais** : ouvrir sur un plan filmé en plus sans lui, ouvrir sur un plein écran, une accroche qui annonce autre
   chose que la vidéo, une accroche recopiée d'une autre vidéo.
 
@@ -84,17 +141,24 @@ laisse la place (le script mesure ses yeux et refuse, `VISAGE`).
 - **Ses sous-titres** tout le long, propres (orthographe, chiffres en chiffres, ses mots exacts). Rien à styliser de
   plus : c'est la base.
 - **Ses plans filmés en plus au bon moment** : chacun sur la phrase qu'il montre (de son premier à son dernier mot),
-  jamais un plan qui montre autre chose que ce qu'il dit. Transition simple : la coupe sèche, ou un flash avec son clic
+  jamais un plan qui montre autre chose que ce qu'il dit. **Chaque chose concrète qu'il cite et qu'on peut voir**
+  (exercice, geste, aliment, objet, écran, scène de la vie), même pour s'en moquer (« cet exercice miracle qu'on voit
+  partout »), se montre : son clip ; sans clip, l'écran « B-ROLL » (`plan-a-filmer`) sur toute la phrase, avec ce qu'il
+  faut filmer en une phrase (ce qu'on voit, ce qu'il fait). Ses sous-titres restent dessus. Transition simple : la coupe sèche, ou un flash avec son clic
   quand on change de lieu ou de partie (au plus un par changement de partie). Pas de faisceau, de demi-écran ni d'effet
   autour d'un plan filmé.
 - **De bons zooms**, voir « Les zooms » : le **zoom qui suit sa tête** est l'effet par défaut d'une phrase qui compte.
-- **Un plein écran sur fond uni** (charbon ou orange, sa phrase en grand sur deux lignes, entrée et sortie par un flash
-  avec son clic) pour **la phrase qu'on doit retenir**. Une fois par vidéo, deux au plus. C'est simple et c'est un effet
-  en soi : pas d'animation en plus dessus.
-- **Une ou deux animations légères au plus**, seulement si elles font comprendre : une liste qu'il énumère (chaque
-  élément sur son mot), un chiffre ou un temps qu'il donne posé à côté de lui. Pas d'animation pour faire joli.
-- **Laisser respirer** : son visage avec ses seuls sous-titres porte la vidéo. Lui à l'écran au moins 70 % du temps.
-- **Un changement toutes les 5 à 8 secondes** suffit, et un zoom est un changement. Pas besoin d'un effet par phrase.
+- **Un plein écran qui commence sur lui** (`plein-ecran-visage`) pour **la phrase qu'on doit retenir** : le mot clé en
+  grand au-dessus de sa tête sur son image, puis le fond uni (orange ou charbon) qui monte en gardant le mot, puis ce qu'il
+  dit ensuite (une à trois choses : ce qu'on gagne, les étapes) qui apparaît chose par chose sur sa voix, chacune avec sa
+  petite figure et son mot. Une fois par vidéo, deux au plus. `plein-ecran-fond` (sa phrase sur fond uni, entrée par un
+  flash) reste pour une phrase sans mot clé à poser sur lui.
+- **Des animations légères, au rythme de la densité** (une toutes les 10 à 15 s, voir « Densité »), chacune tirée d'une
+  phrase : une liste qu'il énumère (chaque élément sur son mot), un chiffre ou un temps posé à côté de lui, la
+  multitude, une substitution. Pas d'animation pour faire joli, pas de gabarit posé faute d'idée.
+- **Laisser respirer** : son visage avec ses seuls sous-titres porte une bonne partie de la vidéo. Lui à l'écran au moins
+  60 % du temps (les écrans « B-ROLL » comptent comme des plans filmés).
+- **Un changement toutes les 5 à 8 secondes**, et un zoom est un changement ; un temps fort toutes les 10 à 15 s.
 - **Un seul accent à la fois** : jamais un zoom pendant un plein écran, jamais deux animations en même temps.
 
 ## Dosage (pour un reel de 45 à 60 s)
@@ -104,9 +168,11 @@ laisse la place (le script mesure ses yeux et refuse, `VISAGE`).
 | Accroche composée + dézoom d'ouverture | 1 |
 | Zooms (le zoom qui suit sa tête d'abord, quelques éclairs) | 3 à 6, sur les passages caméra |
 | Ses plans filmés en plus | tous ceux qu'il a donnés, chacun sur sa phrase |
-| Plein écran sur fond uni (la phrase à retenir) | 1, 2 au plus |
-| Flash avec clic | à l'entrée et à la sortie d'un plein écran, à un changement de lieu |
-| Animations légères (liste, chiffre posé à côté de lui) | 0 à 2 |
+| Plein écran qui commence sur lui (la phrase à retenir) | 1, 2 au plus |
+| Écran « B-ROLL » (chose concrète citée, sans clip) | un par chose concrète citée et non filmée |
+| Multitude (« partout ») | 1 s'il le dit |
+| Flash avec clic | à la sortie d'un plein écran, à un changement de lieu |
+| Temps forts hors accroche (animations légères, plein écran, multitude, plans filmés) | un toutes les 10 à 15 s : 3 à 5 pour 50 s |
 | Sous-titres enrichis, images de réaction, cartes, demi-écran, formats connus | 0 (sur sa demande) |
 | Fin (mot en commentaire) | 1 s'il en dit un |
 
@@ -116,12 +182,15 @@ Plus court (20 à 30 s) : divise par deux, garde l'accroche et la fin.
 
 Par défaut, **on reste sur lui**. Le plein écran sert :
 1. **La phrase la plus importante de la vidéo** (celle qu'on doit retenir, le renversement, « ce n'est pas le sport,
-   c'est ce que tu manges »), **sur fond uni** : `plein-ecran-fond` en `charbon` ou `orange`, jamais sur sa vidéo
-   floutée. Ses mots en grand sur deux lignes, chaque ligne sur sa voix ; le stylé est celui de la DA (capitales, même
-   largeur pour les deux lignes) : pas d'animation en plus.
+   c'est ce que tu manges »), **en commençant sur lui** : `plein-ecran-visage` (le mot clé au-dessus de sa tête, puis le
+   fond uni orange ou charbon qui monte en gardant le mot, puis une à trois choses qu'il dit ensuite, chacune sur son
+   mot avec sa figure). Le titre se lit au moins 0,8 s sur lui avant le fond ; 5,5 s au plus sans le voir. Sans mot clé
+   à poser sur lui : `plein-ecran-fond` en `charbon` ou `orange`, ses mots en grand sur deux lignes, jamais sur sa vidéo
+   floutée.
 2. **Ce qui ne se comprend pas sans tout l'écran**, s'il l'énumère : une liste de 3 éléments ou plus (`liste`).
-- **Entrée et sortie par un flash** avec son clic, posé sur une coupe (un mot précédé d'un `/` dans le texte). Là où il
-  n'y a pas de coupe, le plein écran entre et sort sec, sans flash.
+- **Entrée** : le plein écran qui commence sur lui n'a pas besoin de flash (le fond qui monte est la transition, avec
+  son clic). `plein-ecran-fond` entre par un flash avec son clic, posé sur une coupe (un mot précédé d'un `/` dans le
+  texte). **Sortie** : un flash avec son clic sur la coupe qui suit ; là où il n'y a pas de coupe, sèche.
 - **Durée** : le temps de sa phrase, 6 s au plus. Deux pleins écrans qui s'enchaînent changent de fond ; jamais trois.
 - **Jamais** : un plein écran sur un moment d'émotion ou d'histoire perso (c'est son visage qui porte), pour une action
   ou une scène de la vie (son plan filmé, sinon on reste sur lui), ou pour une idée qui tient en un mot.
@@ -174,9 +243,9 @@ mot en grand au-dessus de sa tête pendant que les sous-titres le redisent : rej
 
 ### Animations qui illustrent une idée (sur sa demande)
 
-Par défaut, une idée racontée se montre par **son plan filmé** s'il en a un ; sans plan, **on reste sur lui** (ses
-sous-titres, un zoom qui suit sa tête) et tu la notes « à filmer la prochaine fois ». Ce qui suit vaut quand il
-demande une animation.
+Par défaut, une chose concrète se montre par **son plan filmé** s'il en a un ; sans plan, par l'écran « B-ROLL » (voir
+« Le corps de la vidéo ») ; une idée abstraite par les formes de « Comment penser chaque moment ». Ce qui suit vaut quand
+il demande une animation de plus.
 
 Quand une phrase raconte une idée qu'on peut **voir** (Yoan, 2026-11-11, 2026-11-12 et 2026-11-13),
 on la montre plutôt que d'écrire ses mots en grand. **Pas de B-roll généré par IA de toi-même** (Romain ne
@@ -212,14 +281,13 @@ les aime pas du tout, 2026-11-13 ; s'il en demande un expressément, oui, jamais
 4. **Une animation d'objets sur la caméra** : en dernier, quand rien au-dessus ne marche.
 
 **Une scène de vie qu'il n'a pas filmée** (quelqu'un qui hésite dans sa cuisine, qui marche, qui se
-lève) : ni animation, ni plein écran, ni B-roll généré. Le passage **reste sur lui**, avec un
-sous-titre enrichi sur le mot clé, et tu le notes dans ton compte rendu comme « à filmer la
-prochaine fois » (ce que le plan aurait montré, sur quelle phrase).
+lève) : ni animation, ni B-roll généré. L'écran « B-ROLL » prend la phrase (ce qu'il faut filmer), et tu le notes dans
+ton compte rendu comme « à filmer » (ce que le plan montrera, sur quelle phrase).
 
 Les effets qui ont marché :
-- « on voit ce chiffre partout » → l'effet « journaux » (text match cut) : le mot ou le chiffre
-  reste fixe au centre, surligné, pendant que les pages autour (unes de journaux, articles, pages
-  web) changent en coupes sèches toutes les 2 à 3 images, environ 2 s, puis flash de sortie.
+- « on voit ce chiffre partout » → la multitude, devenue un geste de la bibliothèque (`partout`, par défaut dès qu'il
+  dit qu'une chose se voit ou se dit partout) : le mot ou le chiffre reste fixe, surligné, pendant que des captures
+  d'articles sur téléphone changent autour en coupes sèches, environ 1 à 2 s, puis flash de sortie.
   Référence : https://www.youtube.com/shorts/STHOVgEWqf8 (les 2 premières secondes).
 - « ce lundi, tu as un objectif ? » → un calendrier, la date qui ressort, « un objectif ? »
   dessous, puis le mot qui pousse à agir (« vas-y ») surligné en orange.
@@ -283,9 +351,10 @@ avant de le refaire, c'est le travail de l'étape animations ; le plan, lui, nom
 ## Montrer plutôt que dire
 
 - Quand il raconte une scène de sa vie ou de celle du spectateur (hésiter, cuisiner, s'entraîner,
-  se lever) : **son clip qui la joue** ; sans clip, on reste sur lui (ses sous-titres, un zoom qui suit sa tête) et tu le notes « à filmer la prochaine fois ».
-- Quand il parle d'un exercice : **sa démo** (un de ses clips), annotée si un muscle ou un angle
-  compte (annotation sur sa demande). Pas d'animation qui dessine un exercice.
+  se lever) : **son clip qui la joue** ; sans clip, l'écran « B-ROLL » sur la phrase, et tu le notes « à filmer ».
+- Quand il parle d'un exercice, même pour le critiquer : **sa démo** (un de ses clips), annotée si un muscle ou un angle
+  compte (annotation sur sa demande) ; sans clip, l'écran « B-ROLL » (« toi qui fais <l'exercice>, <comment> »). Pas
+  d'animation qui dessine un exercice.
 - Quand il parle d'un repas : ses plats en photo s'il en a donné (carte nutrition sur sa demande), jamais des plats génériques.
 - Quand il énumère (3 éléments ou plus) : la liste, chaque élément sur son mot.
 - Schéma, comparaison, cartes : sur sa demande.
@@ -331,8 +400,12 @@ La fin suit ce qu'il dit dans la vidéo : tu la lis dans la transcription.
 - Des effets « pour faire joli » : pop, rebond, texte qui tourne, emojis animés, fond qui bouge.
 - Un plein écran de mots sur sa vidéo floutée pour le message principal (fond uni à la place).
 - Un mot affiché en grand et redit dans les sous-titres (doublon).
-- Un mot posé en grand au-dessus de sa tête pour illustrer une phrase (son clip ou une animation à la place).
-- Un plein écran pour une action ou une scène de la vie (son clip, sinon on reste sur lui).
+- Un mot posé en grand au-dessus de sa tête pour illustrer une phrase (son clip ou une animation à la place). Seule
+  exception : le mot clé qui ouvre le plein écran qui commence sur lui, puisque le fond arrive dessous.
+- Un plein écran pour une action ou une scène de la vie (son clip, sinon l'écran « B-ROLL »).
+- Escamoter un plan filmé qui manque (rester sur lui alors qu'il cite une chose qu'on peut voir) : l'écran « B-ROLL »
+  à la place, pour que le manque se voie.
+- Des sous-titres sous un texte qui dit déjà ses mots (accroche, plein écran, multitude).
 - Des pictos de base, de la fausse 3D, des personnages dessinés (dessin animé, bonshommes bâtons), un
   objet suspendu dans le vide (le vrai à l'identique, ou une animation minimaliste à la place).
 - Un stylo, un feutre ou une main qui dessine une marque à l'écran (la marque se trace seule).

@@ -196,7 +196,7 @@ test('accroche.mjs : elle se lit comme une phrase, pas comme des mots-clés', ()
   assert.match(r3.stdout, /AVIS LECTURE/);
 });
 
-test('un seul orange par image, sous-titres compris : pavé craie pendant l\'accroche, contrôle sur toute l\'image', () => {
+test('pendant l\'accroche, son texte remplace les sous-titres ; un seul orange par image sur toute la vidéo', () => {
   const w = dossierEssai([accrocheEssai()]);
   assert.equal(lancer('caler.mjs', [w]).status, 0);
   assert.equal(lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']).status, 0);
@@ -205,11 +205,18 @@ test('un seul orange par image, sous-titres compris : pavé craie pendant l\'acc
   assert.equal(st.status, 0, st.stdout + st.stderr);
   const lire = () => JSON.parse(fs.readFileSync(path.join(w, 'calques.json'), 'utf8')).calques;
   const acc = lire().find((c) => c.id === 'a01-devant'), sous = lire().find((c) => c.id === 'st');
+  assert.equal(acc.masque_sous_titres, true, 'l\'accroche efface les sous-titres');
   assert.deepEqual(acc.oranges, [[0, acc.images]]);
   for (const [a] of sous.oranges || []) assert.ok(a >= acc.images, `pavé orange des sous-titres à l'image ${a}, pendant l'accroche`);
+  // aucun groupe de sous-titres visible pendant l'accroche (ni craie, ni orange)
   const html = fs.readFileSync(path.join(w, 'calques', 'st', 'index.html'), 'utf8');
   const P = JSON.parse(html.match(/const P = (\{.*\});\n/)[1]);
-  assert.ok(P.craie.groupes.length >= 1, 'des groupes en craie pendant l\'accroche');
+  assert.deepEqual(P.craie.groupes, [], 'plus de pavé craie : plus de sous-titres sous l\'accroche');
+  const visibles = P.groupes.filter((g, gi) => !P.caches.includes(gi)).filter((g) => Math.round(g.t0 * 30) < acc.images);
+  for (const g of visibles) {
+    const coupe = P.coupes.find((c) => P.groupes.indexOf(g) === c.groupe);
+    assert.ok(coupe && coupe.image <= 0, `groupe visible pendant l'accroche : ${JSON.stringify(g).slice(0, 120)}`);
+  }
   assert.equal(lancer('verifier.mjs', [w, '--mots']).status, 0);
   // des sous-titres préparés avant la règle (pavé orange pendant l'accroche) : refusés
   const j = JSON.parse(fs.readFileSync(path.join(w, 'calques.json'), 'utf8'));
@@ -219,3 +226,72 @@ test('un seul orange par image, sous-titres compris : pavé craie pendant l\'acc
   assert.equal(r.status, 2);
   assert.match(r.stdout, /ORANGE_DOUBLE (st et a01-devant|a01-devant et st)/);
 });
+
+// ------------------------------------------------------------------ substitution : deux exemples au même endroit
+const substitutionEssai = (o = {}) => ({
+  id: 'a01', geste: 'accroche', intention: 'Accroche de l\'essai : deux exemples parallèles, le second remplace le premier.', de: 'salut', a: 'trois exercices',
+  composition: { type: o.type ?? 'substitution', effet: 'surprise', pourquoi: 'Deux exemples qui disent la même chose : le second prend la place du premier, mot pour mot.' },
+  elements: [
+    { role: 'mot', texte: 'salut', sur: 'salut', place: 'haut', aligne: 'centre', taille: 'moyen' },
+    { role: 'relance', texte: "c'est un essai", sur: "c'est un essai", place: 'bas', aligne: 'centre', pave: 'orange' },
+    { role: 'mot', texte: 'monteur', sur: 'monteur', remplace: o.remplaceMot ?? 'salut' },
+    { role: 'relance', texte: '3 exercices', sur: 'trois exercices', remplace: "c'est un essai" },
+  ],
+});
+
+test('substitution : contrôle (un seul mot fort, un seul orange par emplacement, remplacement nommé)', () => {
+  assert.deepEqual(controler(substitutionEssai()).refus, []);
+  assert.equal(signature(substitutionEssai()).mot, 'MONTEUR', 'le mot fort est celui qui reste à l\'écran');
+  assert.ok(controler(substitutionEssai({ remplaceMot: 'bonjour' })).refus.some(([k]) => k === 'REMPLACE'));
+  assert.ok(controler(substitutionEssai({ type: 'libre' })).refus.some(([k]) => k === 'TYPE_INCONNU'));
+  const derriere = substitutionEssai(); derriere.elements[0].place = 'derriere';
+  assert.ok(controler(derriere).refus.some(([k]) => k === 'REMPLACE'));
+  const croise = substitutionEssai(); croise.elements[3].remplace = 'salut';
+  assert.ok(controler(croise).refus.some(([k]) => k === 'REMPLACE'), 'une relance ne remplace pas un mot');
+});
+
+test('substitution : le second exemple prend l\'emplacement du premier, remplacement net, sans sous-titres', () => {
+  const w = dossierEssai([substitutionEssai()]);
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
+  const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /remplacement de « SALUT »/);
+  const html = fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'index.html'), 'utf8');
+  const top = (id) => +html.match(new RegExp(`id="${id}" style="left:[\\d.-]+px;top:([\\d.-]+)px`))[1];
+  const left = (id) => +html.match(new RegExp(`id="${id}" style="left:([\\d.-]+)px`))[1];
+  assert.equal(top('e2'), top('e0'), 'MONTEUR au même endroit que SALUT');
+  assert.equal(top('e3'), top('e1'), '3 EXERCICES dans le même pavé que C\'EST UN ESSAI');
+  assert.notEqual(left('e2'), left('e0'), 'centré : la largeur change, le centre reste');
+  // l'ancien part juste avant l'attaque du nouveau, le nouveau monte à sa place
+  assert.match(html, /tl\.to\('#e0', \{ opacity: 0, y: -[\d.]+, duration: 0\.1/);
+  assert.match(html, /tl\.fromTo\('#e2', \{ opacity: 0, y: [\d.]+ \}, \{ opacity: 1, y: 0, duration: 0\.18/);
+  const corps = html.slice(html.indexOf('<body>'));
+  assert.equal((corps.match(/background:#F15A24/g) || []).length, 2, 'deux pavés orange, jamais ensemble à l\'écran');
+  const fiche = JSON.parse(fs.readFileSync(path.join(w, 'accroche.json'), 'utf8'));
+  assert.equal(fiche.elements[2].remplace, 'SALUT');
+  assert.equal(fiche.elements[3].place, 'bas');
+  const cal = JSON.parse(fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'calque.json'), 'utf8'));
+  assert.equal(cal.masque_sous_titres, true);
+  assert.deepEqual(cal.sons_suggeres.map((x) => x.geste).sort(), ['arrivee', 'pose', 'pose'], 'tick sur le mot fort, clac sous chaque relance');
+  // premier exemple trop court pour se lire : refusé (LECTURE)
+  const court = substitutionEssai(); court.elements[1] = { ...court.elements[1], texte: "c'est", sur: "c'est" };
+  court.elements[3].remplace = "c'est";
+  const w2 = dossierEssai([court]);
+  lancer('caler.mjs', [w2]);
+  const r2 = lancer('accroche.mjs', [w2, '--sans-registre', '--sans-visage']);
+  assert.equal(r2.status, 2, r2.stdout);
+  assert.match(r2.stdout, /LECTURE/);
+});
+
+test('substitution : un plan filmé qui suit les exemples arrête l\'accroche à sa coupe (dès 2,8 s)', () => {
+  const filmer = { id: 'a02', geste: 'plan-a-filmer', intention: 'Il cite ses exercices : le plan où il les fait.', de: 'simples', a: 'matins',
+    elements: [{ texte: 'toi qui fais les exercices dans ton salon', sur: 'simples' }] };
+  const w = dossierEssai([substitutionEssai(), filmer]);
+  assert.equal(lancer('caler.mjs', [w]).status, 0);
+  const r = lancer('accroche.mjs', [w, '--sans-registre', '--sans-visage']);
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /s'arrête où commence le plan filmé/);
+  const cal = JSON.parse(fs.readFileSync(path.join(w, 'calques', 'a01-devant', 'calque.json'), 'utf8'));
+  assert.ok(cal.images >= 84 && cal.images <= 88, `fin vers 2,9 s (${cal.images} images), pas à 4 s`);
+});
+

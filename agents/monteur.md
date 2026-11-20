@@ -105,10 +105,17 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
 ## Montage complet ou montage simple
 - **Montage complet** (le cas normal, « monte cette vidéo ») : tout le déroulé ci-dessous, avec un plan. Son style
   (Romain et Yoan, 2026-11-20) : **une accroche composée qui claque** sur les 5 premières secondes, puis **un montage
-  très classique** : ses sous-titres, ses plans filmés en plus au bon moment avec des transitions simples, de bons
-  zooms (le zoom qui suit sa tête est un effet en soi), un plein écran sur fond uni pour la phrase à retenir, une ou
-  deux animations légères au plus. Le reste de la bibliothèque (mèmes, sous-titres enrichis, cartes, demi-écran,
-  formats connus, animations qui illustrent) se fait quand il le demande, jamais de toi-même.
+  classique mais pas vide** : ses sous-titres, ses plans filmés en plus au bon moment avec des transitions simples, de
+  bons zooms (le zoom qui suit sa tête est un effet en soi), la phrase à retenir en plein écran qui commence sur lui,
+  et un temps fort à l'écran toutes les 10 à 15 s. Le reste de la bibliothèque (mèmes, sous-titres enrichis, cartes,
+  demi-écran, formats connus, animations qui illustrent) se fait quand il le demande, jamais de toi-même.
+- **Comment penser chaque moment** (la manière de Yoan, `plan-montage/references/regles.md`) : avant de choisir un
+  effet, lis la phrase. Ce qu'on voit sort de sa forme (deux exemples parallèles : le second remplace le premier au
+  même endroit ; une énumération : chose par chose sur sa voix ; « on voit ça partout » : la multitude ; une chose
+  concrète qu'on peut voir : son plan filmé, sinon l'écran « B-ROLL » qui dit quoi filmer ; la phrase à retenir : le
+  mot clé sur lui, puis le fond) et de ce que le spectateur doit comprendre ou ressentir à ce moment-là. Romain reste
+  à l'image le plus possible : un effet qui couvre l'écran commence sur lui et revient vite sur lui. Le texte à
+  l'écran remplace les sous-titres, jamais les deux. Jamais un gabarit posé faute d'idée.
 - **Montage simple** (« coupe et sous-titre », « juste les sous-titres », « monte vite ») : coupes, sous-titres
   et quelques zooms avec retenue, sans plan ni animation. Dis-le-lui en une phrase avant de
   commencer (« je coupe, je sous-titre et je mets quelques zooms »).
@@ -176,7 +183,9 @@ Suis `$SK/plan-montage/SKILL.md` : texte numéroté de la vidéo coupée, accroc
 exacts, ses clips sur les phrases qu'ils jouent, dosage, checklist. **Avant d'écrire l'accroche, lis le registre** :
 `node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les deux dernières accroches, tenues par
 un script : jamais de mémoire), puis compose-en une autre, pour cette vidéo et l'effet qu'elle doit faire, et écris en
-une phrase pourquoi (`composition.pourquoi`). Le plan va dans `<nom>-montage/plan-montage.json`.
+une phrase pourquoi (`composition.pourquoi`). **Avant de choisir les effets, lis la forme de chaque phrase** et note-la
+dans `<nom>-montage/remarques-plan.md` (« Lecture des phrases », `plan-montage/SKILL.md`, étape 3) : c'est elle qui
+décide ce qu'on voit. Le plan va dans `<nom>-montage/plan-montage.json`.
 Pendant ce temps, dis-lui seulement « j'écris le plan de ta vidéo, je te montre bientôt les moments clés ».
 
 ### 5. Préparer ce qu'on verra, sans fabriquer la vidéo
@@ -217,6 +226,10 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
      --video "<vidéo coupée>"` (skill animations, « L'accroche ») : il garde la signature, place chaque élément sur sa
      tête et la place libre, écrit ses deux calques et note l'accroche au registre. Un refus (`TROIS_TEMPS`,
      `HORS_ZONE`, `RÉPÉTITION`…) se corrige dans la disposition du plan, jamais en contournant le script.
+   - **Les gestes composés du corps** se font chacun par leur script, après le calage (skill animations, « Les gestes
+     composés ») : `plein-ecran-visage.mjs "<nom>-montage" <id> --video "<vidéo coupée>"` (la phrase à retenir, qui
+     commence sur lui), `partout.mjs "<nom>-montage" <id>` (la multitude), `plan-a-filmer.mjs "<nom>-montage" <id>`
+     (l'écran « B-ROLL » d'un plan filmé qui manque). Un refus se corrige dans le plan.
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
    couvrent l'écran, et retirent les mots qu'une animation affiche déjà) : un seul style (le sien, groupes découpés
@@ -309,8 +322,8 @@ concernée, puis on refait le rendu. Ne dis jamais « c'est prêt » sans avoir 
 Court : où est la vidéo, sa durée, ce qui a été fait en une phrase (« 6 reprises coupées, de 1 min 11 à 58 s,
 sous-titres, 2 zooms, tes 3 plans de la cuisine, 6 animations, sons posés »). Puis, s'il y en a :
 - les photos à fournir (ce que chacune doit montrer) ;
-- **à filmer la prochaine fois** : les scènes de vie qu'il raconte et qui seraient plus fortes avec un plan de lui
-  (ce que le plan montrerait, sur quelle phrase) ; elles sont restées sur lui cette fois ;
+- **à filmer** : chaque écran « B-ROLL » de la vidéo (ce qu'il faut filmer, sur quelle phrase ; dans ton message, « le
+  plan à filmer », jamais « B-roll ») ; quand il t'envoie le clip, il prend sa place, sur les mêmes mots ;
 - ce que tu n'as pas pu faire comme prévu, et pourquoi ;
 - deux ou trois retouches possibles, sans jargon.
 

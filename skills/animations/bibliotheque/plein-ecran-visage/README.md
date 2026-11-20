@@ -1,0 +1,41 @@
+# Plein écran qui commence sur son visage
+
+Geste composé (pas de gabarit HTML) : `../../scripts/plein-ecran-visage.mjs`. Décision de Yoan (2026-11-20) : un plein
+écran ne commence plus d'un coup sur un fond uni, il commence sur lui. Romain trouve pénible de rester longtemps sans
+voir sa tête ; Yoan aime qu'un effet commence à l'écran par le texte sur lui et se finisse en plein écran.
+
+## Ce qu'il montre
+1. Le **titre** (le mot clé, ses mots, en capitales, aussi grand que la place au-dessus de sa tête le permet) apparaît
+   sur son image filmée, au-dessus de sa tête (haut du crâne mesuré sur la vidéo), avec le voile du haut.
+2. Le **fond uni** (orange ou charbon) monte du bas en 0,32 s et couvre l'image ; le titre ne bouge pas et prend la
+   couleur de texte du fond (charbon sur orange, craie sur charbon). Un clic.
+3. Les **points** (1 à 3 : ce qu'on y gagne, les étapes) apparaissent l'un sous l'autre, chacun sur son mot : sa petite
+   figure centrée qui se trace (`courbe` qui monte, trois `cases` qui se cochent, `barre` qui se remplit, ou `aucune`),
+   son libellé en capitales dessous. Une seule taille pour tous les libellés.
+
+## Quand l'utiliser
+La phrase qu'on doit retenir de la vidéo, quand elle a un mot clé (un chiffre, une durée, le mot qui renverse) suivi
+de ce qu'il apporte. Une fois par vidéo, deux au plus. Sans mot clé à poser sur lui : `plein-ecran-fond`.
+
+## La demande du plan
+Format et exemple : `../../../plan-montage/references/format.md`, « Plein écran qui commence sur lui ».
+`composition.fond` (`orange` | `charbon`), `composition.fond_sur` (facultatif : l'ancre où le fond monte ; par défaut
+0,45 s avant le premier point), un `titre`, 1 à 3 `point` avec `figure`.
+
+## Contrôles
+`TITRE`, `POINTS`, `FIGURE_INCONNUE`, `ORDRE` (le titre ouvre), `TROP_TOT` (le titre se lit 0,8 s au moins sur lui
+avant le fond), `TROP_LONG` (5,5 s au plus sans le voir), `HORS_ZONE`. Avis quand un libellé est réduit pour tenir.
+
+## Constantes de `commun.mjs`
+`PLEIN_VISAGE` (écart au-dessus du crâne, taille minimale du titre, temps du titre seul, temps sans lui, fond : durée,
+courbe, avance ; tailles et écarts des points ; figures), `FONDS` (couleur du texte selon le fond), `VOILE.standard`,
+`APPARITION`, `SCHEMA.trait` (courbe qui se trace), `CASE_COCHEE` (coches).
+
+## Son
+Un clic (`transition`) quand le fond monte (`sons_suggeres`). Rien sur les points.
+
+## Composition
+- Calque `devant`, `masque_sous_titres` : le titre et les points portent ses mots, les sous-titres s'effacent pendant
+  tout l'effet. `mots_repris` : le titre et les libellés qui sont ses mots exacts.
+- Sortie : un `transition-flash` sur la coupe qui suit (plan), ou sèche.
+- Test : `../../tests/composes.test.mjs`.

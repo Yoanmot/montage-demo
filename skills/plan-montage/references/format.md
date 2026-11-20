@@ -108,6 +108,55 @@ Pas de clé `sons` : tu les places à l'étape sons (skill sound-design).
   défaut : la ligne du geste reste, les sous-titres s'effacent) ou `"retirer"` (ligne vidée, les
   sous-titres de la vidéo restent).
 
+### Plein écran qui commence sur lui (`plein-ecran-visage`)
+Composé par `../../animations/scripts/plein-ecran-visage.mjs` : le titre en capitales au-dessus de sa tête sur son image,
+puis le fond uni qui monte sous le titre resté à sa place, puis les points sur leurs mots, chacun avec sa figure.
+```json
+{ "id": "a06", "geste": "plein-ecran-visage",
+  "intention": "La phrase à retenir : une séance courte bien faite vaut mieux qu'une longue bâclée ; le mot clé sur lui, puis ce qu'on y gagne.",
+  "de": "vingt minutes", "a": "plus d'énergie",
+  "composition": { "fond": "orange" },
+  "elements": [
+    { "role": "titre", "texte": "20 minutes", "sur": "vingt minutes" },
+    { "role": "point", "texte": "moins de fatigue", "sur": "moins de fatigue", "figure": "barre" },
+    { "role": "point", "texte": "plus d'énergie", "sur": "plus d'énergie", "figure": "courbe" } ] },
+{ "id": "a07", "geste": "transition-flash", "intention": "Retour sur lui après le plein écran, avec un clic.", "de": "et ça" }
+```
+- `titre` : exactement un, ses mots (ou un chiffre qu'il dit), court (il tient au-dessus de sa tête). `point` : 1 à 3,
+  dans l'ordre de sa voix, chacun ses mots ; `figure` : `courbe` (ça monte, ça progresse), `cases` (des choses faites,
+  des habitudes), `barre` (ça se remplit, ça dure), `aucune`. Choisis la figure qui joue ce que dit le point.
+- `composition.fond` : `orange` ou `charbon` (deux pleins écrans qui se suivent changent de fond). `fond_sur`
+  (facultatif) : l'ancre où le fond monte ; par défaut, juste avant le premier point. Le titre se lit seul 0,8 s au
+  moins sur lui (`TROP_TOT` sinon) ; 5,5 s au plus sans le voir (`TROP_LONG`).
+- Pas de flash d'entrée (le fond qui monte est la transition, avec son clic) ; la sortie, par un `transition-flash` sur
+  la coupe qui suit, comme d'habitude. Les sous-titres s'effacent pendant tout l'effet.
+- Commande : `node "$SK/animations/scripts/plein-ecran-visage.mjs" "<nom>-montage" a06 --video "<vidéo coupée>"`.
+
+### La multitude (`partout`)
+Composée par `../../animations/scripts/partout.mjs` (format exact et exemple : `../../animations/bibliotheque/partout/README.md`).
+Quand il dit qu'une chose se voit, se dit, se lit partout : le mot fixe (le sien, dit dans le passage ou juste avant)
+reste au même endroit, surligné, pendant que des captures d'articles sur téléphone défilent autour.
+```json
+{ "id": "a03", "geste": "partout", "intention": "Il dit qu'on lit ce conseil partout : la multitude.",
+  "de": "on le lit partout", "a": "partout",
+  "elements": [ { "texte": "à jeun", "sur": "on le lit partout" } ],
+  "composition": { "pages": [ { "titre": "Courir le matin : le conseil qui revient", "avant": "Beaucoup de coachs conseillent de courir", "apres": "pour brûler plus de graisses." } ] } }
+```
+- `pages` : 6 à 12 pages (titre d'article, début et fin de la phrase qui contient le mot fixe), écrites pour la vidéo :
+  sites inventés, rien de réel, aucun chiffre sauf celui du mot fixe.
+
+### L'écran « B-ROLL » d'un plan filmé qui manque (`plan-a-filmer`)
+Composé par `../../animations/scripts/plan-a-filmer.mjs` : un écran charbon sur toute la phrase, « B-ROLL » et ce qu'il
+faut filmer ; ses sous-titres restent. Il prend la place d'un plan qu'il n'a pas filmé ; le jour où le clip arrive, la
+brique `b-roll` le pose sur les mêmes mots.
+```json
+{ "id": "a04", "geste": "plan-a-filmer", "intention": "Il cite le squat sur la pointe des pieds qu'on voit partout : on doit le voir.",
+  "de": "ce squat sur la pointe", "a": "des pieds",
+  "elements": [ { "texte": "toi qui fais le squat sur la pointe des pieds, exprès un peu exagéré, puis qui t'arrêtes, sceptique", "sur": "ce squat sur la pointe" } ] }
+```
+- `texte` : ce qu'on verra, en une phrase à lui (ce qu'il fait, comment, où) : c'est sa consigne de tournage.
+- `de` et `a` : toute la phrase qui cite la chose (de son premier à son dernier mot).
+
 ### Plein écran avec flash d'entrée et de sortie
 
 ```json
@@ -141,8 +190,8 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
     { "role": "relance", "texte": "rien du tout", "sur": "rien du tout", "place": "haut", "aligne": "droite", "entree": "saccade" }
   ] }
 ```
-- `composition.type` : `mot-derriere`, `chiffre`, `question-coupee`, `deux-paves`, `titre-depuis-le-dezoom`
-  ou `libre` (la famille, pour le registre). `effet` : `surprise`, `tension`, `curiosite`, `identification`.
+- `composition.type` : `mot-derriere`, `chiffre`, `question-coupee`, `deux-paves`, `titre-depuis-le-dezoom`,
+  `substitution` ou `libre` (la famille, pour le registre). `effet` : `surprise`, `tension`, `curiosite`, `identification`.
   `pourquoi` : une phrase, l'effet visé et pourquoi cette disposition (obligatoire). Facultatifs : `barre_sur`
   (ancre de la réponse : les phrases marquées `"barre": true` se barrent et s'estompent), `jusqua` (ancre :
   l'accroche repart après ce mot, sinon 1 s après le dernier mot affiché, jamais avant 4 s),
@@ -157,8 +206,22 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
   `pave` : `orange`, `craie` ou `aucun` (relance : orange par défaut s'il n'y a pas d'autre orange ; mot :
   `aucun` par défaut). `souligne: true` (mot) : soulignage orange. `compte_de` (mot qui est un nombre dit) :
   le chiffre compte depuis cette valeur jusqu'au sien.
+- **Substitution** (`type: substitution`) : deux exemples parallèles du même propos. Le premier exemple en
+  entier (par exemple son `mot` en haut, puis une `relance` sur pavé en bas), puis le second dont chaque élément porte
+  `"remplace": "<texte exact de l'élément remplacé>"` : il prend sa place, son alignement, sa taille et son pavé
+  (ne les réécris pas), et arrive sur sa voix pendant que l'ancien part vers le haut. Même rôle des deux côtés ; pas
+  derrière lui. Le mot fort (pour les trois temps et le registre) est le dernier `mot` à l'écran ; le premier exemple
+  (tout ce qui arrive avant le premier remplacement) compte comme la phrase de tête (3 mots au moins). Forme :
+  ```json
+  "composition": { "type": "substitution", "effet": "surprise", "pourquoi": "Deux promesses de pub qui disent la même absurdité : la seconde remplace la première au même endroit." },
+  "elements": [
+    { "role": "mot", "texte": "pompes", "sur": "pompes", "place": "haut", "aligne": "centre", "taille": "grand" },
+    { "role": "relance", "texte": "en 1 jour", "sur": "en un jour", "place": "bas", "aligne": "centre", "pave": "orange" },
+    { "role": "mot", "texte": "dos musclé", "sur": "dos musclé", "remplace": "pompes" },
+    { "role": "relance", "texte": "en 10 jours", "sur": "en dix jours", "remplace": "en 1 jour" } ]
+  ```
 - Le dézoom va dans `zooms` : `{ "type": "ouverture", "sur": "<le mot fort>", "echelle": 1.12 }`, seul
-  zoom de l'accroche.
+  zoom de l'accroche. Pendant l'accroche, aucun sous-titre (le script le marque).
 
 ### Image de réaction (mème)
 Le calage exige un élément avec un texte : mets un élément `role: "image"` dont le texte dit qu'il

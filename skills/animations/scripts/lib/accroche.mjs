@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // ------------------------------------------------------------------ vocabulaire
-export const TYPES = ['mot-derriere', 'chiffre', 'question-coupee', 'deux-paves', 'titre-depuis-le-dezoom', 'libre'];
+export const TYPES = ['mot-derriere', 'chiffre', 'question-coupee', 'deux-paves', 'titre-depuis-le-dezoom', 'substitution', 'libre'];
 export const EFFETS = ['surprise', 'tension', 'curiosite', 'identification'];
 export const ROLES = ['phrase', 'mot', 'relance'];
 export const PLACES = ['derriere', 'haut', 'bas'];
@@ -19,6 +19,25 @@ export const ALIGNES = ['gauche', 'droite', 'centre'];
 export const ENTREES = { phrase: ['apparition', 'pose'], mot: ['apparition', 'saccade', 'pose'], relance: ['saccade', 'apparition', 'pose'] };
 export const TAILLES = { phrase: ['normale', 'grande'], mot: ['geant', 'grand', 'moyen'], relance: ['normale', 'grande'] };
 export const PAVES = ['orange', 'craie', 'aucun'];
+
+// Substitution (Yoan, 2026-11-20) : deux exemples parallèles qui servent le même propos se montrent au même endroit, le
+// second remplaçant le premier, élément par élément (« remplace » : le texte de l'élément remplacé). Le second prend la
+// place, l'alignement, la taille et le pavé du premier : on voit que c'est la même phrase, avec d'autres mots.
+const texteDe = (e) => String(e?.texte ?? '').trim().toLocaleUpperCase('fr');
+export function remplacements(els) {
+  const out = new Map();   // index de l'élément qui remplace -> index de l'élément remplacé
+  els.forEach((e, j) => {
+    if (e.remplace == null) return;
+    const i = els.findIndex((x, k) => k !== j && texteDe(x) === String(e.remplace).trim().toLocaleUpperCase('fr'));
+    out.set(j, i);
+  });
+  return out;
+}
+// Le mot fort est le dernier « mot » à l'écran : celui qu'aucun autre ne remplace.
+export const motFort = (els) => {
+  const R = remplacements(els), remplaces = new Set([...R.values()]);
+  return els.find((e, j) => e.role === 'mot' && !remplaces.has(j));
+};
 
 const sansAccents = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
@@ -36,16 +55,32 @@ export function controler(d) {
   if (!EFFETS.includes(sansAccents(c.effet))) R('EFFET_INCONNU', `effet « ${c.effet} » : ${EFFETS.join(', ')} (ce qu'on veut faire ressentir au spectateur)`);
   if (!c.pourquoi || String(c.pourquoi).trim().length < 25) R('POURQUOI_MANQUANT', 'une phrase qui dit l\'effet visé et pourquoi cette disposition (25 caractères au moins)');
   const els = Array.isArray(d.elements) ? d.elements : [];
-  const mots = els.filter((e) => e.role === 'mot');
-  if (mots.length !== 1) R('MOT_FORT', `il faut exactement un élément « mot » (le mot fort), il y en a ${mots.length}`);
+  const RM = remplacements(els), remplaces = new Set([...RM.values()]);
+  const mots = els.filter((e, j) => e.role === 'mot' && !remplaces.has(j));
+  if (mots.length !== 1) R('MOT_FORT', `il faut exactement un élément « mot » (le mot fort), il y en a ${mots.length}${RM.size ? ' (sans compter ceux qui sont remplacés)' : ''}`);
+  for (const [j, i] of RM) {
+    const e = els[j], nom = `elements[${j}]`;
+    if (i < 0) { R('REMPLACE', `${nom} : « remplace » ${JSON.stringify(e.remplace)} ne nomme aucun autre élément (écris le texte exact de l'élément remplacé)`); continue; }
+    const r = els[i];
+    if (r.role !== e.role) R('REMPLACE', `${nom} : « ${e.texte} » (${e.role}) remplace « ${r.texte} » (${r.role}) : un élément ne remplace qu'un élément du même rôle`);
+    if (RM.has(i)) R('REMPLACE', `${nom} : « ${r.texte} » remplace déjà un autre élément ; une seule substitution par emplacement`);
+    if ([...RM.values()].filter((x) => x === i).length > 1) R('REMPLACE', `« ${r.texte} » est remplacé deux fois`);
+    if ((r.place ?? null) === 'derriere' || e.place === 'derriere') R('REMPLACE', `${nom} : une substitution se fait devant lui (haut ou bas), pas derrière lui`);
+    if (e.place != null && r.place != null && e.place !== r.place) R('REMPLACE', `${nom} : « ${e.texte} » prend la place de « ${r.texte} » (${r.place}) ; ne lui donne pas d'autre place`);
+    const surDe = (x) => (x.sur && typeof x.sur === 'object' ? `w${x.sur.premier}` : sansAccents(x.sur));
+    if (e.sur && r.sur && surDe(e) === surDe(r)) R('REMPLACE', `${nom} : il arrive sur le même mot que l'élément qu'il remplace`);
+  }
+  if (RM.size && c.type !== 'substitution') R('TYPE_INCONNU', `des éléments en remplacent d'autres : le type est « substitution » (pour le registre)`);
+  if (c.type === 'substitution' && !RM.size) R('REMPLACE', 'type « substitution » sans élément qui en remplace un autre (« remplace » : le texte de l\'élément remplacé)');
   const relances = els.filter((e) => e.role === 'relance');
   if (relances.length > 2) R('RELANCES', 'deux relances au plus');
   let oranges = 0;
   for (const [j, e] of els.entries()) {
+    const remplaceOrange = RM.has(j) && RM.get(j) >= 0;   // même emplacement que l'élément remplacé : un seul orange à l'image
     const nom = `elements[${j}]`;
     if (!ROLES.includes(e.role)) { R('ROLE_INCONNU', `${nom} : rôle « ${e.role} » (${ROLES.join(', ')})`); continue; }
     const place = e.place ?? (e.role === 'phrase' ? null : undefined);
-    if (e.role !== 'phrase' && !PLACES.includes(place)) R('PLACE_INCONNUE', `${nom} (${e.role}) : place « ${e.place} » (${PLACES.join(', ')})`);
+    if (e.role !== 'phrase' && !PLACES.includes(place) && !(RM.has(j) && e.place == null)) R('PLACE_INCONNUE', `${nom} (${e.role}) : place « ${e.place} » (${PLACES.join(', ')})`);
     if (e.role === 'phrase' && e.place != null && !PLACES.includes(e.place)) R('PLACE_INCONNUE', `${nom} : place « ${e.place} »`);
     if (e.role === 'relance' && e.place === 'derriere') R('PLACE_INCONNUE', `${nom} : la relance passe devant lui (haut ou bas) ; derrière, sous le mot, on ne la verrait pas`);
     if (e.aligne != null && !ALIGNES.includes(e.aligne)) R('ALIGNE_INCONNU', `${nom} : aligne « ${e.aligne} » (${ALIGNES.join(', ')})`);
@@ -59,8 +94,8 @@ export function controler(d) {
     }
     if (e.role === 'mot' && e.place === 'derriere' && e.pave && e.pave !== 'aucun') R('PAVE_INCONNU', `${nom} : un mot derrière lui n'a pas de pavé`);
     const pave = e.role === 'relance' ? (e.pave ?? 'auto') : (e.pave ?? 'aucun');
-    if (pave === 'orange') oranges++;
-    if (e.role === 'mot' && e.souligne) oranges++;
+    if (pave === 'orange' && !remplaceOrange) oranges++;
+    if (e.role === 'mot' && e.souligne && !remplaceOrange) oranges++;
   }
   if (oranges > 1) R('ACCENT_DOUBLE', 'un seul accent orange par image : un pavé orange OU un soulignage orange, pas deux');
   if (c.type === 'question-coupee' && !c.barre_sur) avis.push('question coupée sans « barre_sur » : la question n\'est pas barrée quand la réponse arrive');
@@ -71,7 +106,7 @@ export function controler(d) {
 // ------------------------------------------------------------------ la signature d'une accroche (ce que le registre compare)
 export function signature(d) {
   const c = d.composition || {};
-  const mot = (d.elements || []).find((e) => e.role === 'mot') || {};
+  const mot = motFort(d.elements || []) || {};
   const relance = (d.elements || []).find((e) => e.role === 'relance') || null;
   return {
     type: c.type || null,

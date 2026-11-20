@@ -333,8 +333,11 @@ export const ACCROCHE = {
   // trois temps : une ouverture avant 0,6 s, le mot fort entre 0,8 et 2,4 s, la relance entre 1,9 et 4 s
   temps: { ouverture: 0.6, mot: [0.8, 2.4], relance: [1.9, 4.0], ecartMin: 0.45 },
   // tout repart ensemble : 1 s après le dernier mot affiché, jamais avant 4 s (pas de vide après 3 s), au plus 7 s
-  fin: { tenue: 1.0, min: 4.0, max: 7.0, aimant: 0.35 },
+  fin: { tenue: 1.0, min: 4.0, max: 7.0, aimant: 0.35, plan: 2.8 },   // plan : un plan filmé qui suit peut l'arrêter dès 2,8 s
   lecture: { phraseMin: 3, sautMax: 2 },   // une phrase de tête de 3 mots au moins ; 2 mots dits sautés au plus d'un élément au suivant
+  // substitution (deux exemples parallèles au même endroit) : l'ancien part vers le haut en 0,1 s, le nouveau monte à sa
+  // place en 0,18 s sur l'attaque de son mot (y en part de sa hauteur) ; jamais les deux lisibles ensemble
+  remplace: { sortie: 0.1, entree: 0.18, y: 0.35, courbeSortie: 'power2.in', courbeEntree: 'power3.out' },
   ouverture: 1.12,       // dézoom d'ouverture conseillé (brique zooms, type ouverture, 1,2 au plus)
 };
 
@@ -395,6 +398,30 @@ SONS.serieMaxS = 0.2;   // une série (écrans, cases) : sons d'un même geste �
 // ================================================================ ajouts du tour 21
 // Pleins écrans (note du tour 20) : le fond s'affiche un peu avant le premier texte ; texte sur 2 lignes de même largeur.
 export const PLEIN_TEMPS = { avanceFond: 0.25 };
+// Plein écran qui commence sur son visage (Yoan, 2026-11-20 ; scripts/plein-ecran-visage.mjs) : le titre en capitales
+// au-dessus de sa tête sur l'image filmée, puis le fond uni monte du bas (0,32 s power2.inOut) sous le titre qui reste à
+// sa place, puis 1 à 3 points (figure + libellé) sur leurs mots. Le titre se lit seul 0,8 s au moins sur son visage ;
+// 5,5 s au plus sans le voir. Figure : courbe qui monte, 3 cases qui se cochent, barre qui se remplit (geste du schéma).
+// La multitude (« on voit ça partout », scripts/partout.mjs ; effet validé par Yoan sur le test v19 : « l'effet plein de
+// screens, c'était bien ») : captures d'articles sur téléphone (page de capture px CSS de large, agrandie à 1080), le mot
+// fixe dans le texte de chaque page, sur son surligneur orange, ligne de base base (px vidéo), bord gauche commun à toutes
+// les pages choisi par le navigateur entre x.min et x.max (au plus près de x.pref, la place de la v19) ; une page
+// par coupe sèche, durées en images tirées de durees (2 à 4) ; traînées vers le bas par bandes sous la ligne du mot
+// (bandes en tailles de texte, trainees en px de filtre, flous = facteur des pages en flou, flouLigne = flou de la ligne du
+// mot sur une page en flou) ; marge du site réglée dans margeSite et corps du texte dans corps (px CSS, comme la taille de texte
+// d'un navigateur), un mot coupé en fin de ligne seulement s'il le faut (coupure = sa pénalité, en px de marge) ; décor dans bibliotheque/partout/decor.json.
+export const PARTOUT = { durees: [3, 3, 3, 3, 4, 3, 2, 3, 3, 4, 4], dureeMin: 0.8, dureeMax: 3.0, aimant: 0.6, ditAvantMax: 20,
+  pagesMin: 6, pagesMax: 12, titreMax: 70, motMax: 24, debutsMax: 4,
+  capture: 390, mot: { x: { pref: 196, min: 150, max: 360 }, base: 760 }, margeSite: [12, 30], corps: [16, 20], coupure: 8, surligne: { marge: 0.2, haut: 0.24, bas: 0.24 },
+  bandes: [[0, 0.45], [0.45, 4.2], [4.2, 9], [9, 99]], trainees: [0, 7, 15, 26], flous: [1, 1.6, 2.4], flouLigne: 4 };
+// Plan filmé qui manque (scripts/plan-a-filmer.mjs, Yoan 2026-11-20) : écran charbon, « B-ROLL » en capitales craie et ce
+// qu'il faut filmer dessous, centrés au-dessus des sous-titres, qui restent.
+export const PLAN_A_FILMER = { titre: 120, texte: 54, opaciteTexte: 0.72, ecart: 34, centreY: 820, marge: 20, lignesMax: 4, quoiMin: 12, aimant: 0.4 };
+export const PLEIN_VISAGE = { ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
+  fond: { d: 0.32, courbe: 'power2.inOut', avance: 0.1, avant: 0.45, couleur: 0.14, voile: 0.25 },
+  ecartTitre: 90, ecartFigure: 28, ecartPoints: 70, libelle: 96, pointsMax: 3,
+  figures: ['courbe', 'cases', 'barre', 'aucune'],
+  figure: { l: 240, h: 120, case: 70, ecartCases: 16, barre: 50, trait: 8, trace: 0.6, retard: 0.04 } };
 
 // ---------------------------------------------------------------- cartes de la planche (px vidéo)
 // Toutes : carte charbon rayon 18 (CARTE), onglet orange (ONGLET), une seule zone orange en plus. Chaque élément entre
@@ -463,7 +490,7 @@ function recolorerTout(o) {
 const CONSTANTES = { VIDEO, ZONE_SURE, COULEURS, NATIF, POLICES, RAYONS, OMBRES, MARCHE, ONGLET, CARTE, VOILE, SOUS_TITRES, HOOKS,
   CTA, COURBES, MATIERES, DESSIN, ENTREES, SOUS_TITRES_TEMPS, HOOK_TEMPS, CTA_TEMPS, FAISCEAU, FLASH, FRAPPE, SONS, RENDU,
   ATTAQUE, APPARITION, MONTEE_ACCENT, APPARITION_LIGNE, SOULIGNE, ENRICHI, TITRE_DERRIERE, ACCROCHE, FONDS, PLEIN, DEMI, LISTE, MINUTEUR,
-  CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
+  CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, PLEIN_VISAGE, PARTOUT, PLAN_A_FILMER, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
   NUTRITION, CHRONO, BROLL, ANGLE, TAMPON, ANATOMIE, VERT, TIER };
 if (DOSSIER_STYLE) {
   const inconnus = Object.keys(R).filter((k) => !(k in CONSTANTES) && !['nom', 'ETALONNAGE'].includes(k) && !k.startsWith('_'));

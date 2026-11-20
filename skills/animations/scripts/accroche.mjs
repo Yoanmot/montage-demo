@@ -23,7 +23,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { S, K, P, FPS, ICI, Couche, chargerMots, resoudre, texteSousTitres, normaliser, coupes, img, tImg, f4, mesure, son,
   ecrireCalque, voileCss } from './lib/style.mjs';
-import { controler, verifier, noter, decrire } from './lib/accroche.mjs';
+import { controler, verifier, noter, decrire, remplacements, motFort } from './lib/accroche.mjs';
 
 const args = process.argv.slice(2);
 const M = args[0] && path.resolve(args[0]);
@@ -69,9 +69,14 @@ if (!ouverture && !derog) R('SANS_OUVERTURE', 'la signature ouvre en dézoom : m
 
 // Éléments : place, alignement, taille, entrée, pavé (valeurs par défaut de la signature quand le plan ne dit rien)
 const els = d.elements.map((e, i) => ({ ...e, i, id: `e${i}` }));
-const motE = els.find((e) => e.role === 'mot');
+// Substitution : l'élément qui en remplace un autre prend son emplacement (place, alignement, taille, pavé)
+const RM = remplacements(els);
+for (const [j, i] of RM) { els[j].remplace_de = els[i]; els[i].remplace_par = els[j]; }
+const motE = motFort(els);
 let orangePris = els.some((e) => (e.role === 'mot' && (e.pave === 'orange' || e.souligne)));
-for (const e of els) {
+for (const e of [...els.filter((x) => !x.remplace_de), ...els.filter((x) => x.remplace_de)]) {
+  const r = e.remplace_de;
+  if (r) { e.place = r.place; e.aligne ??= r.aligne; e.taille ??= r.taille; e.pave ??= r.pave; }
   if (e.role === 'phrase') {
     e.place ??= motE.place; e.taille ??= 'normale'; e.entree ??= 'apparition'; e.aligne ??= 'gauche'; e.pave = 'aucun';
     e.texteAffiche = String(e.texte).toLocaleLowerCase('fr');
@@ -81,7 +86,7 @@ for (const e of els) {
   } else {
     e.taille ??= 'normale'; e.entree ??= 'saccade'; e.aligne ??= e.place === 'bas' ? 'droite' : 'gauche';
     if (!e.pave) { e.pave = orangePris ? 'craie' : 'orange'; }
-    if (e.pave === 'orange') orangePris = true;
+    if (e.pave === 'orange' && !r) orangePris = true;
     e.texteAffiche = String(e.texte).toLocaleUpperCase('fr');
   }
   e.kind = e.pave && e.pave !== 'aucun' ? 'pave' : (e.role === 'phrase' ? 'tx' : 'ti');
@@ -117,6 +122,11 @@ for (const e of els) {
   }
 }
 
+// Substitution : les deux exemples ont la même taille à la même place (la plus petite des deux, pour que les deux tiennent)
+for (const e of els.filter((x) => x.remplace_de && x.kind === 'ti' && x.remplace_de.kind === 'ti')) {
+  const r = e.remplace_de, F = Math.min(e.F, r.F);
+  for (const x of [e, r]) if (x.F !== F) { x.F = F; x.geant = false; x.m = mesure('encre', 'titre', F, x.texteAffiche); }
+}
 // Haut du crâne (pour le mot derrière lui) : mesuré sur la vidéo coupée, sur toute la fenêtre de l'accroche
 const derriere = els.filter((e) => e.place === 'derriere');
 let tete = opt('--tete') !== null ? +opt('--tete') : null;
@@ -133,6 +143,18 @@ let images = img(finS);
 const aimant = coupesV.filter((c) => Math.abs(c - images) <= A.fin.aimant * FPS && c >= img(A.fin.min)).sort((a, b) => Math.abs(a - images) - Math.abs(b - images))[0];
 if (aimant) images = aimant;
 images = Math.min(images, Math.max(1, total || images));
+// Un plan filmé (ou son écran « B-ROLL ») qui commence avant la fin prévue : l'accroche s'arrête à sa coupe, pour lui
+// laisser la place (Yoan, 2026-11-20 : la chose concrète citée juste après les exemples se montre). Pas de vide après
+// 3 s : le plan prend le relais. Jamais avant A.fin.plan s.
+let parPlan = null;
+{
+  const debuts = [...(plan.b_roll || []).map((b) => b.de), ...(plan.animations || []).filter((a) => a.geste === 'plan-a-filmer').map((a) => a.de)]
+    .filter(Boolean).map((x) => { try { return resoudre(x, mots); } catch { return null; } }).filter(Boolean);
+  for (const b of debuts) {
+    const coupe = coupesV.filter((c) => c <= b.image && b.image - c <= A.fin.aimant * FPS).at(-1) ?? b.image;
+    if (coupe < images && coupe >= img(A.fin.plan)) { images = coupe; parPlan = b.texte; }
+  }
+}
 
 const UNITES = { un: '1', une: '1', deux: '2', trois: '3', quatre: '4', cinq: '5', six: '6', sept: '7', huit: '8', neuf: '9', dix: '10',
   onze: '11', douze: '12', treize: '13', quatorze: '14', quinze: '15', seize: '16', vingt: '20', trente: '30', cent: '100' };
@@ -149,11 +171,17 @@ const jetons = (s) => normaliser(s).split(/\s+/).filter(Boolean).map((w) => UNIT
   const ordre = [...els].sort((x, y) => x.sur.premier - y.sur.premier);
   const pb = [];
   const phrases = els.filter((e) => e.role === 'phrase');
-  if (!phrases.length) pb.push('il n\'y a pas de phrase de tête : une phrase courte qui pose la tension, avant le mot fort');
+  // Substitution : le premier exemple (tout ce qui arrive avant le premier remplacement) se lit comme une phrase
+  const premierRemplacement = RM.size ? Math.min(...els.filter((e) => e.remplace_de).map((e) => e.sur.premier)) : null;
+  if (RM.size) {
+    const tete = ordre.filter((e) => e.sur.premier < premierRemplacement);
+    const n = tete.reduce((k, e) => k + jetons(e.texte).length, 0);
+    if (n < A.lecture.phraseMin) pb.push(`le premier exemple (« ${tete.map((e) => e.texte).join(' / ')} ») a ${n} mot(s) : il en faut ${A.lecture.phraseMin} au moins pour qu'il se lise comme une phrase`);
+  } else if (!phrases.length) pb.push('il n\'y a pas de phrase de tête : une phrase courte qui pose la tension, avant le mot fort');
   // une phrase peut tenir sur plusieurs lignes (éléments « phrase » qui se suivent) : c'est leur ensemble qui compte
   const blocs = [];
   for (const e of ordre) { if (e.role !== 'phrase') { blocs.push(null); continue; } if (blocs.length && blocs.at(-1)) blocs.at(-1).push(e); else blocs.push([e]); }
-  for (const b of blocs.filter(Boolean)) {
+  for (const b of RM.size ? [] : blocs.filter(Boolean)) {
     const n = b.reduce((k, e) => k + jetons(e.texte).length, 0), txt = b.map((e) => e.texte).join(' ');
     if (n < A.lecture.phraseMin) pb.push(`« ${txt} » n'est pas une phrase (${n} mot(s), ${A.lecture.phraseMin} au moins) : prends la phrase qui pose la tension, une suite de ses mots qui mène au mot fort`);
   }
@@ -216,7 +244,8 @@ function empiler(liste) {
   }
 }
 const decaler = (liste, dy) => liste.forEach((e) => { e.g = geo(e, e.g.top + dy); });
-const bandes = { haut: els.filter((e) => e.place === 'haut'), derriere, bas: els.filter((e) => e.place === 'bas') };
+const fixes = els.filter((e) => !e.remplace_de);
+const bandes = { haut: fixes.filter((e) => e.place === 'haut'), derriere, bas: fixes.filter((e) => e.place === 'bas') };
 for (const [nom, liste] of Object.entries(bandes)) {
   if (!liste.length) continue;
   empiler(liste);
@@ -229,6 +258,8 @@ for (const [nom, liste] of Object.entries(bandes)) {
     else decaler(liste, tete + A.derriere * capDe(motE.F) - motE.g.base);
   }
 }
+// Substitution : même emplacement que l'élément remplacé (même haut visuel ; l'alignement fait le reste)
+for (const e of els.filter((x) => x.remplace_de)) e.g = geo(e, topPour(e, e.remplace_de.g.vTop));
 // Horizontal : gauche, droite ou centre de la zone sûre, à l'encre près
 for (const e of els) {
   if (e.kind === 'pave') e.x = e.aligne === 'droite' ? Z.x1 - e.w : e.aligne === 'centre' ? (Z.x0 + Z.x1) / 2 - e.w / 2 : Z.x0;
@@ -247,6 +278,18 @@ if (!refus.length) {
   const eh = etendue(bandes.haut), ed = etendue(bandes.derriere), eb = etendue(bandes.bas);
   if (eh && ed && eh[1] + A.ecartBlocs > ed[0]) R('CHEVAUCHEMENT', 'les éléments du haut et le mot derrière lui se chevauchent : mets-les ensemble derrière lui, ou le mot en bas');
   if (eb && ((ed && ed[1] > eb[0]) || (eh && eh[1] + A.ecartBlocs > eb[0]))) R('CHEVAUCHEMENT', 'les éléments du bas remontent sur ceux du haut');
+  // un élément qui en remplace un autre ne touche aucun élément affiché en même temps que lui
+  const vis = (e) => [t(e), e.remplace_par ? t(e.remplace_par) : Infinity];
+  const boite = (e) => ({ x: e.kind === 'pave' ? [e.x, e.x + e.w] : [e.x + e.m.gauche, e.x + e.m.droite], y: [e.g.vTop, e.g.bas] });
+  for (const e of els.filter((x) => x.remplace_de)) {
+    for (const o of els) {
+      if (o === e || o === e.remplace_de) continue;
+      const [a0, a1] = vis(e), [b0, b1] = vis(o);
+      if (!(a0 < b1 && b0 < a1)) continue;
+      const p = boite(e), q = boite(o);
+      if (p.x[0] < q.x[1] && q.x[0] < p.x[1] && p.y[0] < q.y[1] + A.ecartBlocs / 2 && q.y[0] < p.y[1] + A.ecartBlocs / 2) R('CHEVAUCHEMENT', `« ${e.texteAffiche} » (à la place de « ${e.remplace_de.texteAffiche} ») touche « ${o.texteAffiche} » : une taille plus petite, ou un autre emplacement pour le premier exemple`);
+    }
+  }
 }
 if (refus.length) fin();
 
@@ -298,7 +341,15 @@ for (const e of els) {
   }
   const h = e.kind === 'pave' ? e.g.bas - e.g.vTop : capDe(e.F);
   let lisible;
-  if (e.entree === 'pose') { c.montre(sel, img(te), e.texteAffiche); lisible = img(te); }
+  if (e.remplace_de) {
+    // remplacement net (Yoan, 2026-11-20 : « texte qui se fait remplacer de manière assez clean ») : l'ancien part vers le
+    // haut en s'effaçant, le nouveau monte à sa place, sur l'attaque de son mot ; jamais les deux lisibles ensemble
+    const R2 = A.remplace, dy = R2.y * h, dyR = R2.y * (e.remplace_de.kind === 'pave' ? e.remplace_de.g.bas - e.remplace_de.g.vTop : capDe(e.remplace_de.F));
+    NS[couche(e.remplace_de)].js += `tl.to('#${e.remplace_de.id}', { opacity: 0, y: ${(-dyR).toFixed(1)}, duration: ${R2.sortie}, ease: '${R2.courbeSortie}' }, ${f4(te - R2.sortie)});\n`;
+    c.js += `tl.fromTo('${sel}', { opacity: 0, y: ${dy.toFixed(1)} }, { opacity: 1, y: 0, duration: ${R2.entree}, ease: '${R2.courbeEntree}', immediateRender: true }, ${f4(te)});\n`;
+    lisible = img(te + R2.entree / 2);
+    c.attendus.push({ nom: e.texteAffiche, image: lisible });
+  } else if (e.entree === 'pose') { c.montre(sel, img(te), e.texteAffiche); lisible = img(te); }
   else if (e.entree === 'saccade') { c.accent(sel, te, e.texteAffiche); lisible = img(te) + 1; }
   else { lisible = img(c.app(sel, te, h, e.texteAffiche)); }
   if (e.compte_de != null) {   // le chiffre compte jusqu'au sien : rapide puis freiné (power2.out), jamais d'image sans chiffre
@@ -315,7 +366,7 @@ for (const e of els) {
   // ses mots affichés (le même texte que ce qu'il dit) sortent des sous-titres : chaque mot dit ne s'affiche qu'une fois
   const repris = e.repris ?? (jetons(e.texte).join(' ') === jetons(texteSousTitres(M, `w${e.sur.premier}-w${e.sur.dernier}`, mots)).join(' '));
   if (repris) reprisPar[couche(e)].push([e.sur.premier, e.sur.dernier]);
-  if (e.role === 'mot') sons[couche(e)].push(son('arrivee', lisible, `le mot fort « ${e.texteAffiche} » devient lisible`));
+  if (e === motE) sons[couche(e)].push(son('arrivee', lisible, `le mot fort « ${e.texteAffiche} » devient lisible`));
   if (e.role === 'relance') sons[couche(e)].push(son('pose', img(te) + (e.entree === 'saccade' ? 1 : 0), `la relance « ${e.texteAffiche} » se pose`));
   // soulignage orange sous le mot fort, qui se trace quand le mot est lisible
   if (e.role === 'mot' && e.souligne) {
@@ -366,10 +417,13 @@ for (const nom of ['derriere', 'devant']) {
     id, demande: d.id, debut: 0, images, couche: nom, ordre: nom === 'derriere' ? 10 : 30,
     sons_suggeres: sons[nom], attendus: c.attendus.map(({ mi, ...a }) => a), mots_repris: reprisPar[nom],
     suit_ouverture: nom === 'derriere' && suit,
+    // pendant l'accroche, son texte remplace les sous-titres (Yoan, 2026-11-20 : « le côté caption avec le surlignage
+    // blanc sur le hook, il faut vraiment l'enlever ») : aucun sous-titre tant qu'elle est à l'écran
+    masque_sous_titres: true,
     oranges: els.some((e) => couche(e) === nom && (e.pave === 'orange' || (e.role === 'mot' && e.souligne))) ? [[0, images]] : [],
     origine: { sur_mesure: `accroche composée (${comp.type}, effet ${comp.effet}) : ${comp.pourquoi}`,
       gestes_repris: ['apparition v2', 'montée du bas en saccade 12 i/s', 'pavés des hooks', 'mot géant derrière la tête', 'dézoom d\'ouverture'] },
-    params: { composition: comp, elements: els.map((e) => ({ role: e.role, texte: e.texteAffiche, place: e.place, aligne: e.aligne, taille: e.taille, entree: e.entree, pave: e.pave })) },
+    params: { composition: comp, elements: els.map((e) => ({ role: e.role, texte: e.texteAffiche, place: e.place, aligne: e.aligne, taille: e.taille, entree: e.remplace_de ? 'remplacement' : e.entree, pave: e.pave, ...(e.remplace_de ? { remplace: e.remplace_de.texteAffiche } : {}) })) },
   }, c.page());
   ecrits.push(id);
 }
@@ -377,12 +431,12 @@ for (const nom of ['derriere', 'devant']) {
 // ------------------------------------------------------------------ 6. la fiche de l'accroche et le registre
 const fiche = { id: d.id, video: plan.video || null, type: comp.type, effet: comp.effet, pourquoi: comp.pourquoi, images,
   temps: { ouverture: +temps.ouverture.toFixed(2), mot: +temps.mot.toFixed(2), relance: temps.relance.map((x) => +x.toFixed(2)) },
-  elements: els.map((e) => ({ role: e.role, texte: e.texteAffiche, sur: e.sur.texte, place: e.place, aligne: e.aligne, taille: e.taille, entree: e.entree, pave: e.pave })),
+  elements: els.map((e) => ({ role: e.role, texte: e.texteAffiche, sur: e.sur.texte, place: e.place, aligne: e.aligne, taille: e.taille, entree: e.remplace_de ? 'remplacement' : e.entree, pave: e.pave, ...(e.remplace_de ? { remplace: e.remplace_de.texteAffiche } : {}) })),
   calques: ecrits, haut_tete: tete, ecrit_le: new Date().toISOString().slice(0, 10) };
 fs.writeFileSync(path.join(M, 'accroche.json'), JSON.stringify(fiche, null, 2) + '\n');
 for (const a of avis) console.log(`AVIS ${a}`);
-console.log(`ACCROCHE ${comp.type} (effet ${comp.effet}) : images 0 à ${images - 1} (${(images / FPS).toFixed(1)} s), calques ${ecrits.join(', ')}${suit ? ', le mot derrière lui suit le dézoom' : ''}`);
-for (const e of els) console.log(`   ${e.role} « ${e.texteAffiche} » sur « ${e.sur.texte} » à ${t(e).toFixed(2)} s : ${e.place}${e.place !== 'derriere' ? ' ' + e.aligne : ''}, ${e.taille}, entrée ${e.entree}${e.kind === 'pave' ? `, pavé ${e.pave}` : ''}`);
+console.log(`ACCROCHE ${comp.type} (effet ${comp.effet}) : images 0 à ${images - 1} (${(images / FPS).toFixed(1)} s), calques ${ecrits.join(', ')}${suit ? ', le mot derrière lui suit le dézoom' : ''}${parPlan ? `, s'arrête où commence le plan filmé « ${parPlan} »` : ''}`);
+for (const e of els) console.log(`   ${e.role} « ${e.texteAffiche} » sur « ${e.sur.texte} » à ${t(e).toFixed(2)} s : ${e.place}${e.place !== 'derriere' ? ' ' + e.aligne : ''}, ${e.taille}, entrée ${e.remplace_de ? `remplacement de « ${e.remplace_de.texteAffiche} »` : e.entree}${e.kind === 'pave' ? `, pavé ${e.pave}` : ''}`);
 if (avecRegistre) { const l = noter(d, M, { titre: plan.video || null }); console.log(`REGISTRE noté : ${decrire(l)}`); }
 console.log(`Ensuite : verifier.mjs sur ${ecrits.join(' et ')} (avec --video), puis calques.mjs.`);
 

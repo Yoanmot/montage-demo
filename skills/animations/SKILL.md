@@ -78,13 +78,37 @@ node "$SK/scripts/accroche.mjs" "$M" --video "<vidéo coupée>"
 - Il contrôle aussi qu'elle se lit comme une phrase (`LECTURE` : phrase de tête de 3 mots au moins, ses mots exacts,
   2 mots dits sautés au plus d'un élément au suivant, sauf `titre_reformule`) et que rien ne couvre ses yeux ni sa
   bouche (`VISAGE`, ses yeux mesurés toutes les 10 images, `lib/visage.py`). `--video` est obligatoire.
-- Le calque devant qui porte un pavé orange le déclare (`oranges`) : les sous-titres préparés ensuite passent en pavé
-  craie pendant l'accroche (un seul orange par image), et `verifier.mjs <dossier> --mots` refuse deux oranges à la même
-  image sur toute la vidéo (`ORANGE_DOUBLE`).
+- **Pendant l'accroche, pas de sous-titres** (Yoan, 2026-11-20) : ses calques sont marqués `masque_sous_titres`, son
+  texte les remplace. Le calque devant qui porte un pavé orange le déclare aussi (`oranges`) ; `verifier.mjs <dossier>
+  --mots` refuse deux oranges à la même image sur toute la vidéo (`ORANGE_DOUBLE`).
+- **Substitution** (`type: substitution`) : un élément qui porte `remplace` prend l'emplacement de l'élément remplacé
+  (même haut de lettres, même alignement, même taille, même pavé) ; sur l'attaque de son mot, l'ancien part vers le haut
+  en 0,1 s et le nouveau monte à sa place en 0,18 s (`ACCROCHE.remplace`). Contrôles : `REMPLACE` (élément nommé,
+  même rôle, une seule substitution par emplacement, pas derrière lui), `CHEVAUCHEMENT` (le nouveau ne touche aucun
+  élément affiché en même temps que lui), `LECTURE` (le premier exemple se lit comme une phrase).
+- Un plan filmé (`b_roll`) ou un écran « B-ROLL » (`plan-a-filmer`) qui commence pendant l'accroche l'arrête à sa
+  coupe, dès 2,8 s (`ACCROCHE.fin.plan`) : le plan prend le relais.
 - Refus (code 2) : `TROIS_TEMPS`, `SANS_OUVERTURE`, `LECTURE`, `VISAGE`, `HORS_ZONE`, `CHEVAUCHEMENT`, `TROP_LARGE`, `ACCENT_DOUBLE`… : c'est
   la disposition du plan qui change (un autre mot, une autre place, une taille plus petite), puis caler et relancer.
   `RÉPÉTITION` (code 4) : la même accroche qu'une des deux dernières vidéos ; change la place, l'entrée ou le mot.
 - Puis `verifier.mjs` sur `a01-derriere` et `a01-devant` (avec `--video`), et regarde leurs planches.
+
+### 2 ter. Les gestes composés du corps (`plein-ecran-visage`, `partout`, `plan-a-filmer`)
+Comme l'accroche, ils ne s'instancient pas : leur script les compose à partir de la demande calée (format dans
+`../plan-montage/references/format.md`, README de chaque geste dans `bibliotheque/`), puis `verifier.mjs` et la planche.
+```
+node "$SK/scripts/plein-ecran-visage.mjs" "$M" <id> --video "<vidéo coupée>"   # la phrase à retenir, qui commence sur lui
+node "$SK/scripts/partout.mjs" "$M" <id>                                       # la multitude
+node "$SK/scripts/plan-a-filmer.mjs" "$M" <id>                                 # l'écran « B-ROLL » d'un plan qui manque
+```
+- `plein-ecran-visage` : mesure le haut de sa tête (`--video`), pose le titre au-dessus, le fond monte du bas sous le
+  titre resté à sa place (clic suggéré), les points arrivent sur leurs mots avec leur figure. Refus : `TROP_TOT` (le
+  titre doit se lire 0,8 s sur lui), `TROP_LONG` (5,5 s au plus sans lui), `POINTS`, `FIGURE_INCONNUE`, `HORS_ZONE`.
+- `partout` : le mot fixe (le sien) sur son surligneur, des captures d'articles sur téléphone en coupes sèches, flash
+  d'entrée et clic. Refus : `MOT_NON_DIT`, `PAGES`, `CHIFFRE_NON_DIT`, `TROP_COURT`.
+- `plan-a-filmer` : écran charbon, « B-ROLL » et ce qu'il faut filmer, sur toute la phrase ; ses sous-titres restent.
+  Refus : `QUOI_FLOU`, `QUOI_LONG`. Le monteur le liste dans son compte rendu (« à filmer »).
+- Les trois effacent ce qu'il faut des sous-titres d'eux-mêmes (`masque_sous_titres`, sauf `plan-a-filmer`).
 
 ### 2. Pour chaque demande : gabarit ou sur mesure
 La bibliothèque est une **vitrine du vocabulaire**, pas un catalogue.
@@ -237,6 +261,9 @@ gestes repris), photos à demander à Romain, et les **sons suggérés** (champ 
 | Geste | Couche | Plan | Sons que le style associe |
 |---|---|---|---|
 | accroche (composée, `accroche.mjs`) | derriere + devant | | tick sur le mot fort, clac sous chaque relance |
+| plein-ecran-visage (composé) | devant | | clic quand le fond monte |
+| partout (composé) | devant | | clic au flash d'entrée, petit clic à chaque écran |
+| plan-a-filmer (composé) | devant | | aucun |
 | hook-paves, plein-ecran-orange, liste, schema, carte-chapitre, carte-presentation, carte-nutrition, broll-annote, anatomie | devant | | aucun |
 | transition-flash | devant | | clic sur l'image de la coupe |
 | hook-titre-derriere | derriere | | tick quand le mot géant passe 50 % |

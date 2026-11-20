@@ -58,36 +58,43 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 
 1. **Comprends le reel en une phrase** : ce que la personne doit avoir compris ou ressenti à la
    fin. Tout le plan sert cette phrase.
-2. **Le style est classique** (`regles.md`, « Le principe ») : une accroche composée qui claque, puis
-   un montage simple et propre (ses sous-titres, ses plans filmés au bon moment, de bons zooms, un plein
-   écran sur fond uni pour la phrase à retenir, une ou deux animations légères au plus). Ce qu'il a
+2. **Le style est classique, pas vide** (`regles.md`, « Le principe », « Comment penser chaque moment »,
+   « Densité ») : une accroche composée qui claque, puis un montage simple et propre (ses sous-titres, ses plans
+   filmés au bon moment, de bons zooms, le plein écran qui commence sur lui pour la phrase à retenir, un temps fort
+   toutes les 10 à 15 s, chacun tiré d'une phrase). Ce qu'il a
    demandé de retenir (ta mémoire, `## Pour le plan`) passe avant. Le rythme des coupes a été choisi aux
    coupes ; s'il ne colle plus, refais `compiler` avant le calage.
-3. **Découpe le texte en temps** : l'accroche (les 5 premières secondes), le corps, la phrase à
-   retenir, la fin. Repère les phrases qui portent l'idée, les chiffres, les contrastes (« pas X, mais
-   Y »), les listes, les moments où il montre quelque chose, et les passages longs où l'attention risque
-   de tomber (un zoom qui suit sa tête y suffit souvent).
+3. **Lis la forme de chaque phrase** (`regles.md`, « Comment penser chaque moment ») et écris-la, une ligne
+   par phrase, dans `<nom>-montage/remarques-plan.md` (section « Lecture des phrases », avant toute décision) :
+   exemples parallèles, opposition, énumération, multitude (« partout », « tout le monde »), chose concrète qu'on
+   peut voir (même citée pour s'en moquer), phrase à retenir, confidence, ou rien de particulier. Pour chacune :
+   ce que le spectateur doit comprendre ou ressentir. Puis découpe en temps : l'accroche (les 5 premières
+   secondes), le corps, la phrase à retenir, la fin, et repère les passages de plus de 15 s sans temps fort.
 4. **Compose l'accroche** (`regles.md`, « L'accroche ») :
    1. lis le registre : `node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les
       deux dernières accroches, ce qu'il ne faut pas reprendre) ;
    2. regarde une image de ses premières secondes (où est sa tête, de quel côté il reste de la place) ;
-   3. choisis l'effet voulu, le mot qui porte, sa taille, sa place, son entrée, la relance, et écris
-      en une phrase pourquoi (`composition.pourquoi`) ;
+   3. regarde la forme de ses premières phrases : deux exemples parallèles = substitution (le second
+      remplace le premier au même endroit) ; puis choisis l'effet voulu, le mot qui porte, sa taille, sa place,
+      son entrée, la relance, et écris en une phrase pourquoi (`composition.pourquoi`) ;
    4. le dézoom d'ouverture dans `zooms`, sur le mot fort.
 5. **Pose le reste, dans cet ordre** :
-   1. ses plans filmés en plus, chacun sur la phrase qu'il joue, en coupe sèche (un flash avec clic
-      seulement à un changement de lieu ou de partie) ;
-   2. la phrase à retenir en plein écran sur fond uni (charbon ou orange), flash et clic à l'entrée et
-      à la sortie quand il y a une coupe ;
-   3. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
+   1. ce qu'il montre : chaque chose concrète qu'il cite et qu'on peut voir a son plan filmé, sur la phrase
+      qui la cite, en coupe sèche (un flash avec clic seulement à un changement de lieu ou de partie) ; sans
+      clip, l'écran « B-ROLL » (`plan-a-filmer`) avec ce qu'il faut filmer ;
+   2. la phrase à retenir en plein écran qui commence sur lui (`plein-ecran-visage`), flash et clic à la
+      sortie ;
+   3. la multitude (`partout`) s'il dit qu'une chose se voit ou se dit partout ;
+   4. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
       sur un mot qui claque ;
-   4. au plus une ou deux animations légères, seulement si elles font comprendre (une liste qu'il
-      énumère, un chiffre posé à côté de lui) ;
-   5. la fin.
-   À chaque élément, demande-toi : retenir, faire comprendre ou faire agir ? Sinon, retire-le. Dans le
-   doute, rien : son visage et ses sous-titres portent la vidéo.
-6. **Vérifie le dosage** (`regles.md`, « Dosage ») : un seul accent à la fois, lui à l'écran au moins
-   70 % du temps, 1 plein écran (2 au plus), 0 à 2 animations dans le corps.
+   5. les animations légères là où la densité manque (plus de 15 s sans temps fort), chacune tirée de la
+      forme d'une phrase du passage (une énumération, un chiffre posé à côté de lui, une opposition) ;
+   6. la fin.
+   À chaque élément, demande-toi : qu'est-ce que le spectateur doit comprendre ou ressentir ici, et est-ce
+   que ça le garde avec Romain ? Un effet qui ne répond à aucune phrase se retire.
+6. **Vérifie le dosage** (`regles.md`, « Dosage », « Densité ») : un seul accent à la fois, lui à l'écran au
+   moins 60 % du temps, 1 plein écran (2 au plus), un temps fort toutes les 10 à 15 s hors accroche, aucun
+   passage de plus de 15 s avec seulement des sous-titres et des zooms (sauf une histoire ou une émotion).
 7. **Écris le plan** dans `<nom>-montage/plan-montage.json` (`format.md`). Chaque ancre est une
    citation courte et distinctive de `texte-sous-titres.md` (ou un `wNN`). Chaque chiffre affiché
    est un chiffre qu'il dit. Rien d'inventé sur lui.
@@ -147,16 +154,21 @@ une simple trace dans le dossier de montage.
   libre, rien sur son visage.
 - [ ] Le titre d'accroche se comprend sans le son, ne promet rien qu'il ne dit pas, reprend ses mots
   quand c'est possible ; l'`intention` cite la phrase de lui d'où il vient.
-- [ ] Le corps est simple : ses sous-titres, ses plans filmés sur leurs phrases, 3 à 6 zooms (le zoom
-  qui suit sa tête d'abord), la phrase à retenir sur fond uni, 0 à 2 animations légères.
+- [ ] La forme de chaque phrase est lue (`remarques-plan.md`, « Lecture des phrases ») et chaque effet en vient :
+  exemples parallèles en substitution, énumération chose par chose, multitude en `partout`, chose concrète
+  montrée, phrase à retenir en plein écran qui commence sur lui.
+- [ ] Le corps est simple mais pas vide : ses sous-titres, ses plans filmés (ou écrans « B-ROLL ») sur leurs
+  phrases, 3 à 6 zooms (le zoom qui suit sa tête d'abord), la phrase à retenir en plein écran qui commence sur lui,
+  un temps fort toutes les 10 à 15 s.
 - [ ] Aucun effet « sur sa demande » (sous-titres enrichis, mème, carte, demi-écran, format connu,
   animation qui illustre) qu'il n'a pas demandé, pour cette vidéo ou dans ta mémoire.
 - [ ] Ses clips sont posés sur la phrase qu'ils jouent, chacun vérifié sur sa vignette ; jamais un
-  clip qui montre autre chose que ce qu'il dit ; une scène de vie sans clip reste sur lui, notée « à
-  filmer la prochaine fois ».
+  clip qui montre autre chose que ce qu'il dit ; une chose concrète citée sans clip (exercice, geste,
+  aliment, scène de vie, même citée pour s'en moquer) a son écran « B-ROLL » qui dit quoi filmer.
 - [ ] Aucun B-roll généré par IA qu'il n'a pas demandé, aucune image de lui prise ailleurs.
-- [ ] Plein écran : sur fond uni (charbon ou orange), jamais sur sa vidéo floutée, sa raison écrite
-  dans l'`intention` ; posé sur une coupe (`/`) pour avoir son flash, sinon entrée et sortie sèches.
+- [ ] Plein écran : il commence sur lui (`plein-ecran-visage` : le mot clé au-dessus de sa tête, puis le fond),
+  jamais sur sa vidéo floutée, sa raison écrite dans l'`intention` ; 5,5 s au plus sans le voir ; sortie par un
+  flash sur une coupe (`/`).
 - [ ] Chaque flash est posé sur un mot précédé d'un `/` (une coupe).
 - [ ] Aucun mot en double : ce qui s'affiche en grand est retiré des sous-titres. Chiffres en chiffres.
 - [ ] Rien ne s'affiche avant que Romain dise le mot (sauf le titre d'accroche, qui ne promet rien

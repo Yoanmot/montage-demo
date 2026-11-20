@@ -68,6 +68,10 @@ for (const [k, d] of demandes.entries()) {
     for (const [code, msg] of c.refus) R(id, code, msg);
     for (const msg of c.avis) A(id, 'ACCROCHE', msg);
     r.composition = d.composition || null;
+  } else if (GESTES[geste] && GESTES[geste].instancier === 'composer') {
+    // gestes composés par leur script (plein-ecran-visage, partout, plan-a-filmer) : la composition passe telle quelle,
+    // le script la contrôle
+    r.composition = d.composition || {};
   }
   const anc = (a, quoi) => { try { return resoudre(a, mots); } catch (e) { R(id, e.message.split(' ')[0], `${quoi} : ${e.message}`); return null; } };
   if (!d.de) R(id, 'PASSAGE_MANQUANT', 'le plan doit dire sur quels mots (champ « de », et « a » pour la fin)');
@@ -76,7 +80,7 @@ for (const [k, d] of demandes.entries()) {
   if (r.de && r.a && r.a.premier < r.de.premier) R(id, 'PASSAGE_INVERSE', '« a » est dit avant « de »');
   // Plan contre style : le style gagne, on applique sa valeur et on le dit.
   r.style_gagne = [];
-  if (geste && geste !== 'sur-mesure' && geste !== 'accroche' && GESTES[geste]) {
+  if (geste && geste !== 'sur-mesure' && GESTES[geste] && GESTES[geste].instancier !== 'composer') {
     const SG = (msg) => { r.style_gagne.push(msg); A(id, 'STYLE_GAGNE', msg); remarques.push(`- ${id} (${geste}) : ${msg}`); };
     const RG = reglagesGabarit(geste), appliques = {};
     for (const [k, v] of Object.entries(d.reglages || {})) {
