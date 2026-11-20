@@ -15,6 +15,17 @@ set -u
 BASE="$STUDIO_RACINE"
 stamp="$(date +%Y%m%d-%H%M%S)"
 
+# Le garde (mises à jour et retour arrière) : retiré avant le service, pour qu'il ne le relance pas.
+GARDE_LABEL="$STUDIO_LABEL.garde"
+GARDE_PLIST="$(dirname "$STUDIO_PLIST")/$GARDE_LABEL.plist"
+if launchctl print "$STUDIO_DOMAINE/$GARDE_LABEL" >/dev/null 2>&1; then
+  launchctl bootout "$STUDIO_DOMAINE/$GARDE_LABEL" 2>/dev/null || true
+  echo "RETIRE garde $GARDE_LABEL"
+else
+  echo "ABSENT garde $GARDE_LABEL"
+fi
+if [ -f "$GARDE_PLIST" ]; then rm -f "$GARDE_PLIST"; echo "RETIRE réglage du garde"; fi
+
 # Le service (le serveur arrête ses sessions Claude sur SIGTERM)
 if studio_charge; then
   launchctl bootout "$STUDIO_DOMAINE/$STUDIO_LABEL" 2>/dev/null || true

@@ -18,7 +18,8 @@
 #   code       -> <racine>/config                  CODE=...                (serveur de coupe, via couper.mjs code)
 #   claude     -> <racine>/claude.env              CLAUDE_CODE_OAUTH_TOKEN=...  (connexion du studio sans personne
 #                 devant : le jeton d'un an affiché par « claude setup-token », lancé avant dans le Terminal ;
-#                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos)
+#                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos ; la date de pose,
+#                 jamais la valeur, est notée dans <racine>/connexion-claude.json pour prévenir avant l'expiration)
 # Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
 #          | CLE_INTERDITE zernio (client à simulation forcée : installation d'essai, aucune clé de publication)
 #          | CLE_INTERDITE zernio-lecture (client sans stats_reelles ou sans simulation forcée)
@@ -128,7 +129,7 @@ OSA
     local v cl="" c d r pid i=0
     v="$(sed -n 's/^CLAUDE_CODE_OAUTH_TOKEN=//p' "$ENV_CL" | tail -1 | tr -d "\"' ")"
     case "$v" in sk-ant-*) ;; *) echo "CLE_REFUSEE claude (ce n'est pas un code de connexion de Claude)"; return;; esac
-    for c in "$HOME/.local/bin/claude" /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
+    for c in "$BASE/bin/claude" "$HOME/.local/bin/claude" /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
       [ -n "$c" ] && [ -x "$c" ] && { cl="$c"; break; }
     done
     [ -n "$cl" ] || { echo "CLE_NON_VERIFIEE claude programme claude introuvable"; return; }
@@ -182,7 +183,10 @@ OSA
       claude)
         v="$(demander "Studio : connexion à Claude" "Colle ici le long code de connexion que le Terminal t'a affiché (il commence par sk-ant), puis clique sur OK.")"
         [ -n "$v" ] || { echo "CLE_ANNULEE claude"; return; }
-        v="$(nettoie "$v")"; ecrire_cle "$ENV_CL" CLAUDE_CODE_OAUTH_TOKEN "$v"; verifier_claude;;
+        v="$(nettoie "$v")"; ecrire_cle "$ENV_CL" CLAUDE_CODE_OAUTH_TOKEN "$v"; v=""
+        # La date de pose (un an de validité), pour que le studio prévienne avant l'expiration.
+        /bin/bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/studio.sh" date-connexion cles.sh >/dev/null 2>&1 || true
+        verifier_claude;;
       *) echo "NOM_INCONNU $1 (elevenlabs, zernio, code, claude, zernio-lecture)";;
     esac
     v=""

@@ -344,6 +344,20 @@ PYEOF
     echec "hyperframes : npx absent (Node manque)"
   fi
 
+  # ------------------------------------------------------------ dépendances de la liste (dont la version de claude du studio)
+  # installation/dependances.txt : ce que les mises à jour vérifient aussi ; ici, tout est revu.
+  if [ -f "$CLONE/installation/dependances.sh" ]; then
+    local ld
+    while IFS= read -r ld; do
+      case "$ld" in
+        DEP_OK*) ;;
+        DEP_INSTALLE*) installe "dependance ${ld#DEP_INSTALLE }";;
+        DEP_MANQUE*) echec "dependance ${ld#DEP_MANQUE }";;
+        DEP_FIN*) ok "dependances ${ld#DEP_FIN }";;
+      esac
+    done < <(/bin/bash "$CLONE/installation/dependances.sh" </dev/null 2>&1)
+  fi
+
   # ------------------------------------------------------------ copie du head of content (carrousels, publication)
   if [ ! -f "$CLE_HOC" ]; then
     mkdir -p "$(dirname "$CLE_HOC")"; chmod 700 "$(dirname "$CLE_HOC")"

@@ -28,8 +28,8 @@
   "config_claude": null,
   "polices_locales": {},
   "claude": {
-    "modele": null,
+    "modele": "opus",
     "modele_rangement": null,
-    "modele_sous_agents": null
+    "modele_sous_agents": "opus"
   }
 }
