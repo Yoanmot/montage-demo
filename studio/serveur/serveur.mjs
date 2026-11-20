@@ -4,6 +4,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { CODE } from "./config.mjs";
@@ -20,15 +21,16 @@ import { attenduPresent } from "./attendus.mjs";
 import { lierSlides } from "../publication/carrousels.mjs";
 import { configBrute } from "./publication.mjs";
 import {
-  ErreurStudio, MESSAGE_GENERIQUE, outilDepot, lancerRangement, placerManuel, retirerRush, changerTypeRush,
+  ErreurStudio, MESSAGE_GENERIQUE, outilDepot, lancerRangement, placerManuel, retirerRush, changerTypeRush, lancerArchivage,
 } from "./depot-outils.mjs";
+import { alertes as lireAlertes } from "./alertes.mjs";
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
 import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible } from "./tournage.mjs";
 import { arriveesPertinentes, typeFichier, verrouPris } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
-import { adresser } from "./client.mjs";
+import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
 import { telechargerVideo } from "./telecharger.mjs";
@@ -216,7 +218,26 @@ function placeLibre(dossier) {
   try { const s = fs.statfsSync(dossier); return Number(s.bavail) * Number(s.bsize); } catch { return Infinity; }
 }
 
+// Le chat général repart sur une conversation neuve quand Romain revient après une pause (lot 12, demande de Yoan :
+// « entre plusieurs sessions ça peut se reset »). Six heures : une après-midi de travail, même entrecoupée, garde
+// son fil ; le lendemain matin, ou le soir après une matinée, on repart à zéro. Un « nouveau jour » couperait une
+// séance tardive en plein milieu (minuit), ce que ce seuil ne fait pas.
+export const PAUSE_CHAT_GENERAL_MS = 6 * 3600e3;
+
+// La version du code servi (lot 12) : le commit du dépôt lu au démarrage, sinon l'heure de démarrage. Une interface
+// restée ouverte pendant une mise à jour la compare à chaque reconnexion et se recharge (sinon : nouvelle interface
+// d'un côté, ancien serveur de l'autre, ou l'inverse).
+function versionDuCode() {
+  try {
+    const r = spawnSync("git", ["rev-parse", "HEAD"], { cwd: CODE, encoding: "utf8", timeout: 5000 });
+    const h = String(r.stdout || "").trim();
+    if (r.status === 0 && /^[0-9a-f]{40}$/.test(h)) return h.slice(0, 12);
+  } catch { /* pas de git */ }
+  return `d${Date.now()}`;
+}
+
 export function creerServeur({ config, jeton, pont, file, synchro, journal = () => {} }) {
+  const VERSION = versionDuCode();
   const port = config.port;
   const hotes = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const origines = new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`]);
@@ -339,9 +360,11 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   const titresCartes = () => new Map([...cartes.values()].filter((c) => c.slug).map((c) => [c.slug, c.titre]));
   stats.on(() => diffuser("stats", stats.vue(titresCartes())));
   pont.on("chat", (e) => diffuser("chat", e));
+  pont.on("reinitialise", (e) => diffuser("chat_reinitialise", e));
   pont.on("actives", () => rafraichir());
-  file.on("change", (actions) => {
-    diffuser("file", { actions });
+  const vueFile = () => ({ actions: file.liste(), pause: file.vuePause?.() || null });
+  file.on("change", () => {
+    diffuser("file", vueFile());
     rafraichir();
   });
   // Les slides d'une mise en page se lient à la fin de chaque tour de sa session (gabarit du lot 5),
@@ -468,6 +491,21 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   periodique.unref?.();
   const ping = setInterval(() => diffuser("ping", {}), 20000);
   ping.unref?.();
+  // Alertes (lot 12) : place libre et connexion au compte Claude, relues toutes les 5 minutes.
+  let alertesJson = "[]";
+  const alertesDuStudio = () => {
+    let a = [];
+    try { a = lireAlertes(config, config.client || clientActif()); } catch { /* relu au prochain passage */ }
+    const j = JSON.stringify(a);
+    if (j !== alertesJson) {
+      alertesJson = j;
+      if (a.length) journal("alertes", { ids: a.map((x) => `${x.id}:${x.genre}`) });
+      diffuser("alertes", { alertes: a });
+    }
+    return a;
+  };
+  const veilleAlertes = setInterval(alertesDuStudio, 5 * 60000);
+  veilleAlertes.unref?.();
 
   // ------------------------------------------------------------ routes API
 
@@ -640,6 +678,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         cartes: [...cartes.values()],
         a_ranger: JSON.parse(aRangerJson),
         file: file.liste(),
+        file_pause: file.vuePause?.() || null,
+        version: VERSION,
+        alertes: alertesDuStudio(),
         sync: synchro.etat,
         tournages: listeTournages(config),
         config: {
@@ -1014,6 +1055,25 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       if (!file.arreter(decodeURIComponent(p[1]))) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce travail.", 404);
       return envoyerJson(res, 200, {});
     }
+    // Une action en souci (lot 12) : la relancer (elle repart sur sa conversation) ou l'effacer de la liste.
+    if (m === "POST" && p[0] === "actions" && ["relancer", "effacer"].includes(p[2]) && p.length === 3) {
+      const r = p[2] === "relancer" ? file.relancer(decodeURIComponent(p[1])) : file.effacer(decodeURIComponent(p[1]));
+      if (r.code === "INTROUVABLE") throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce travail.", 404);
+      if (r.code === "PAS_RELANCABLE") throw new ErreurStudio("PAS_RELANCABLE", "Ce travail se relance depuis son bouton, dans le dossier du contenu.", 409);
+      if (!r.ok) throw new ErreurStudio(r.code, "Ce travail n'est pas en souci.", 409);
+      return envoyerJson(res, 200, {});
+    }
+    // « Faire de la place » (lot 12) : les vidéos de tournage des contenus publiés partent sur le disque externe.
+    if (m === "POST" && p[0] === "archiver" && p.length === 1) {
+      if (file.liste().some((a) => a.type === "archivage" && a.statut === "en_cours")) {
+        throw new ErreurStudio("OCCUPE", "Je fais déjà de la place : attends que ce soit fini.", 409);
+      }
+      const r = await file.suivre("archivage", {}, () => lancerArchivage(config));
+      alertesJson = "";
+      alertesDuStudio();
+      rafraichir();
+      return envoyerJson(res, 200, r);
+    }
 
     if (p[0] === "chats" && p.length >= 2) {
       const chatId = decodeURIComponent(p[1]);
@@ -1021,9 +1081,20 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       if (m === "GET" && p.length === 2) {
         return envoyerJson(res, 200, { messages: pont.historique(chatId), etat: pont.etat(chatId) });
       }
+      if (m === "POST" && p[2] === "nouvelle" && p.length === 3) {
+        if (t.genre !== "general") throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas cette conversation.", 404);
+        if (!pont.reinitialiser(chatId)) throw new ErreurStudio("OCCUPE", "J'ai un travail en cours ici : attends qu'il soit fini, ou arrête-le.", 409);
+        return envoyerJson(res, 200, {});
+      }
       if (m === "POST" && p[2] === "messages") {
         const texte = typeof corps.texte === "string" ? corps.texte.trim().slice(0, 20000) : "";
         if (!texte) throw new ErreurStudio("VIDE", "Écris ton message avant de l'envoyer.", 400);
+        // Retour après une pause : le chat général repart sur une conversation neuve (l'ancienne est archivée).
+        if (t.genre === "general" && !pont.actif(chatId)) {
+          const dernier = pont.dernierMessage(chatId);
+          const quand = Date.parse(dernier?.le || "");
+          if (Number.isFinite(quand) && Date.now() - quand > PAUSE_CHAT_GENERAL_MS) pont.reinitialiser(chatId);
+        }
         if (t.genre === "monteur" && !existe(path.join(config.media, t.slug))) {
           throw new ErreurStudio("PAS_DE_VIDEO", "Il n'y a pas encore de vidéo pour ce contenu.", 409);
         }
@@ -1037,7 +1108,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return envoyerJson(res, 200, {});
       }
       if (m === "POST" && p[2] === "arreter") {
-        pont.arreter(chatId);
+        if (!pont.arreter(chatId)) throw new ErreurStudio("RIEN_A_ARRETER", "Il n'y a rien en cours ici.", 409);
         return envoyerJson(res, 200, {});
       }
     }
@@ -1123,7 +1194,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       });
       res.write(": studio\n\n");
       res.write(`event: sync\ndata: ${adresser(JSON.stringify(synchro.etat))}\n\n`);
-      res.write(`event: file\ndata: ${adresser(JSON.stringify({ actions: file.liste() }))}\n\n`);
+      res.write(`event: file\ndata: ${adresser(JSON.stringify(vueFile()))}\n\n`);
       clients.add(res);
       req.on("close", () => clients.delete(res));
       return undefined;

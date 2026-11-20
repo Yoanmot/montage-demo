@@ -9,6 +9,11 @@
 //                         `sleep` du même groupe) | erreur (résultat en erreur) | coupe (sort sans résultat)
 //                         | suite (reparle après la fin du tour, comme après un rendu en arrière-plan)
 //                         | long (réponse longue écrite morceau par morceau, pour regarder le défilement du chat)
+//                         | limite (abonnement au maximum : rate_limit_event refusé, texte <synthetic>, résultat en erreur)
+//                         | surcharge (« API Error: 529 ... overloaded », texte <synthetic> et résultat en erreur)
+//                         | perdue (--resume d'une conversation effacée : « No conversation found » puis sortie 1)
+//   FAUX_CLAUDE_ECHECS    fichier : nombre d'échecs restants pour limite et surcharge (décompté ; à 0, réponse normale)
+//   FAUX_CLAUDE_REPRISE   secondes epoch de reprise annoncées par le scénario limite (défaut : dans 2 h)
 //   FAUX_CLAUDE_DELAI_LONG ms entre deux morceaux du scénario long (défaut 60)
 //   FAUX_CLAUDE_ATTENTE   ms d'attente du scénario lent (défaut 60000)
 //   FAUX_CLAUDE_ECRIT     chemin relatif au dossier de travail à écrire avant le résultat ;
@@ -43,6 +48,21 @@ noter({
   },
 });
 
+// Conversation effacée par Claude (plus de 30 jours) : il le dit sur la sortie d'erreur et s'arrête.
+if (scenario === "perdue" && iResume >= 0) {
+  process.stderr.write(`No conversation found with session ID: ${session}\n`);
+  process.exit(1);
+}
+
+function echecRestant() {
+  const f = process.env.FAUX_CLAUDE_ECHECS;
+  if (!f) return true;
+  const n = Number(fs.readFileSync(f, "utf8")) || 0;
+  if (n <= 0) return false;
+  fs.writeFileSync(f, String(n - 1));
+  return true;
+}
+
 const modele = fs.readFileSync(ENREG, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -66,6 +86,18 @@ async function repondre(message) {
   const texte = typeof message?.content === "string" ? message.content
     : (message?.content || []).map((b) => b.text || "").join("");
   noter({ evenement: "message", texte });
+  if ((scenario === "limite" || scenario === "surcharge") && echecRestant()) {
+    if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
+    premier = false;
+    const limite = scenario === "limite";
+    const reprise = Number(process.env.FAUX_CLAUDE_REPRISE) || Math.floor(Date.now() / 1000) + 7200;
+    const texteErreur = limite ? "You've hit your session limit · resets 3pm"
+      : 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}';
+    if (limite) ecrire({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: reprise, rateLimitType: "five_hour" }, session_id: session });
+    ecrire({ type: "assistant", message: { id: `msg_${crypto.randomUUID()}`, model: "<synthetic>", role: "assistant", type: "message", content: [{ type: "text", text: texteErreur }] }, parent_tool_use_id: null, session_id: session });
+    ecrire({ type: "result", subtype: "success", is_error: true, api_error_status: limite ? 429 : 529, result: texteErreur, session_id: session });
+    return;
+  }
   if (scenario === "lent") {
     const enfant = spawn("sleep", ["300"], { stdio: "ignore" });
     noter({ evenement: "sous_processus", pid_enfant: enfant.pid });

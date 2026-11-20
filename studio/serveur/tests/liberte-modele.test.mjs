@@ -27,22 +27,22 @@ function configAvec(id, fichier) {
   }
 }
 
-test("modèle : Yoan sur opus partout par son fichier de client, Romain inchangé", () => {
+test("modèle : Yoan sur opus partout par son fichier de client, Romain sur opus aussi (lot 12)", () => {
   const y = chargerClient({ id: "yoan" });
   assert.deepEqual(modelesDuClient(y), { modele: "opus", modele_rangement: "opus", modele_sous_agents: "opus" });
   assert.deepEqual(defautsDuClient(y).claude, { modele: "opus", modele_rangement: "opus", modele_sous_agents: "opus" });
   for (const id of ["romain", "romain-test"]) {
     const c = chargerClient({ id });
-    assert.equal(modelesDuClient(c), null, id);
-    assert.equal(defautsDuClient(c).claude, undefined, id);
+    assert.deepEqual(modelesDuClient(c), { modele: "opus", modele_sous_agents: "opus" }, id);
+    assert.deepEqual(defautsDuClient(c).claude, { modele: "opus", modele_sous_agents: "opus" }, id);
   }
   // Config neuve, config qui ne fixe rien (null, valeurs de l'exemple), config qui fixe un modèle.
   assert.equal(configAvec("yoan").claude.modele, "opus");
   assert.equal(configAvec("yoan", { claude: { binaire: "claude", modele: null } }).claude.modele, "opus");
   assert.equal(configAvec("yoan", { claude: { modele: "sonnet" } }).claude.modele, "sonnet");
   assert.equal(configAvec("yoan").claude.modeleSousAgents, "opus");
-  assert.equal(configAvec("romain").claude.modele, null);
-  assert.equal(configAvec("romain").claude.modeleSousAgents, null);
+  assert.equal(configAvec("romain").claude.modele, "opus");
+  assert.equal(configAvec("romain").claude.modeleSousAgents, "opus");
 });
 
 test("modèle : --model et modèle des sous-agents passés aux sessions de Yoan, rien chez Romain", () => {
@@ -53,9 +53,13 @@ test("modèle : --model et modèle des sous-agents passés aux sessions de Yoan,
     assert.equal(arg(r, "--model"), "opus", id);
     assert.equal(r.env.CLAUDE_CODE_SUBAGENT_MODEL, "opus", id);
   }
-  const r = reglagesChat("un-reel:monteur", { ...base, client: chargerClient({ id: "romain" }), claude: { modele: null } });
-  assert.ok(!r.args.includes("--model"));
-  assert.equal(r.env.CLAUDE_CODE_SUBAGENT_MODEL, undefined);
+  // Sans modèle fixé, rien n'est forcé ; Romain a le sien par son fichier de client (opus, lot 12).
+  const sans = reglagesChat("un-reel:monteur", { ...base, client: chargerClient({ id: "romain" }), claude: { modele: null } });
+  assert.ok(!sans.args.includes("--model"));
+  assert.equal(sans.env.CLAUDE_CODE_SUBAGENT_MODEL, undefined);
+  const r = reglagesChat("un-reel:monteur", { ...base, client: chargerClient({ id: "romain" }), claude: { modele: "opus", modeleSousAgents: "opus" } });
+  assert.equal(arg(r, "--model"), "opus");
+  assert.equal(r.env.CLAUDE_CODE_SUBAGENT_MODEL, "opus");
 });
 
 test("liberté : écriture dans les médias pour toutes les sessions, contenus du head of content pour le monteur", () => {

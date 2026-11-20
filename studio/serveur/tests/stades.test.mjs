@@ -57,7 +57,14 @@ test("reel : tous les stades, du moins avancé au plus avancé", () => {
   assert.match(libelle("programme", "reel", { prevu_le: futur }), /^programmé jeu\. 01\/01$/);
 
   m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut: "programmé", prevu_le: "2020-01-01 18:30" } } });
-  assert.equal(stadeDe(m, s).stade, "publie", "programmé avec une date passée = publié");
+  // Lot 12 : l'heure passée ne suffit plus, il faut la confirmation d'Instagram (relue chez Zernio).
+  const passe = stadeDe(m, s);
+  assert.equal(passe.stade, "programme", "programmé avec une date passée : programmé tant qu'Instagram n'a pas confirmé");
+  assert.equal(libelle("programme", "reel", { statut: "programmé", prevu_le: "2020-01-01 18:30" }), "sortie à confirmer");
+
+  m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut: "failed", prevu_le: "2020-01-01 18:30" } } });
+  assert.equal(stadeDe(m, s).stade, "monte", "refusé par Instagram : revient à publier");
+  assert.equal(libelle("monte", "reel", { statut: "failed" }), "refusé par Instagram");
 
   m.json("depot/publications/registre.json", { version: 1, publications: { [s]: { statut: "publié" } } });
   assert.equal(stadeDe(m, s).stade, "publie");

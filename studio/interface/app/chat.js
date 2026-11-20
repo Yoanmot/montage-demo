@@ -6,9 +6,13 @@ import { el, markdown, icone, annoncer, heure, previens } from "./outils.js";
 // ni avant : ? ! ;, dans une colonne étroite.
 const insecables = (t) => String(t ?? "").replace(/« /g, "«\u00a0").replace(/ ([»:;?!])/g, "\u00a0$1");
 
+// La ligne d'état sous le dernier message. Une erreur porte sa propre phrase (m.texte, écrite par le serveur : limite
+// de l'abonnement avec l'heure de reprise, Claude surchargé, pas d'internet, compte déconnecté) ; la phrase fixe
+// ne sert que de repli (lot 12 : avant, la phrase du serveur n'était jamais affichée).
 const LIGNES_ETAT = {
   fini: "C'est fait.",
   arrete: "Tu as arrêté. Écris quand tu veux reprendre.",
+  coupe: "Le studio a redémarré pendant que je travaillais. Écris « continue » pour que je reprenne.",
   erreur: `Ça a coincé. Réessaie, et si ça recommence, ${previens()}.`,
 };
 
@@ -69,7 +73,8 @@ export class Chat {
       this.fil.querySelectorAll(".msg").forEach((n) => n.remove());
       this.messages.clear();
       for (const m of r.messages || []) this.recevoir(m, false, true);
-      this.poserEtat(r.etat ?? this.etat);
+      this.videNoeud.hidden = this.messages.size > 0;
+      this.poserEtat(r.etat ?? null);
       if (this._collé) this.basDeFil(true); else this.fil.scrollTop = this._pos;
       this._obs.takeRecords(); // un rechargement n'est pas un nouveau message
     } catch (e) { annoncer(e.message, "erreur"); }
@@ -103,7 +108,10 @@ export class Chat {
 
   dessiner(m, partiel) {
     if (m.type === "activite") return el("div", { class: "msg msg-activite" }, el("span", { class: "trait", "aria-hidden": "true" }), m.texte);
-    if (m.type === "etat") return el("div", { class: `msg msg-etat msg-etat-${m.etat}` }, LIGNES_ETAT[m.etat]);
+    if (m.type === "etat") {
+      const texte = m.etat === "erreur" && m.texte ? m.texte : LIGNES_ETAT[m.etat];
+      return el("div", { class: `msg msg-etat msg-etat-${m.etat}${m.motif ? ` msg-motif-${m.motif}` : ""}` }, insecables(texte));
+    }
     if (m.role === "romain") return el("div", { class: "msg msg-romain" }, el("div", { class: "bulle", texte: insecables(m.texte) }), m.le ? el("time", { texte: heure(m.le) }) : null);
     const n = el("div", { class: `msg msg-studio${partiel ? " partiel" : ""}`, html: markdown(insecables(m.texte)) });
     return n;

@@ -175,8 +175,9 @@ test('archivage : disque absent, puis copie vérifiée et original supprimé', {
   const il_y_a = (j) => new Date(Date.now() - j * 86400e3).toISOString();
   fs.writeFileSync(path.join(T.depot, 'publications', 'registre.json'), JSON.stringify({ version: 1, publications: {
     'faim-a-16h': { statut: 'publié', prevu_le: il_y_a(40) },
-    'proteines-au-petit-dej': { statut: 'programmé', prevu_le: il_y_a(35) },
-    'dos-qui-tire-au-bureau': { statut: 'programmé', prevu_le: new Date(Date.now() + 86400e3).toISOString() },
+    'proteines-au-petit-dej': { statut: 'publié', prevu_le: il_y_a(35) },
+    // Lot 12 : l'heure d'un programmé est passée, mais Instagram ne l'a pas confirmé (refusé ?) : rien n'est archivé.
+    'dos-qui-tire-au-bureau': { statut: 'programmé', prevu_le: il_y_a(2) },
   } }, null, 2));
   fs.writeFileSync(M('faim-a-16h', 'face', 'IMG_1001-monte.mp4'), 'video finale');
   const h1001 = await sha256(M('faim-a-16h', 'face', 'IMG_1001.MOV'));
@@ -198,7 +199,7 @@ test('archivage : disque absent, puis copie vérifiée et original supprimé', {
   assert.equal(await sha256(copie), h1001);
   assert.ok(!fs.existsSync(M('faim-a-16h', 'face', 'IMG_1001.MOV')));
   assert.ok(fs.existsSync(M('faim-a-16h', 'face', 'IMG_1001-monte.mp4')), 'la vidéo finale reste sur le Mac');
-  assert.ok(fs.existsSync(M('dos-qui-tire-au-bureau', 'face', 'IMG_1003.MOV')), 'pas encore publié : reste');
+  assert.ok(fs.existsSync(M('dos-qui-tire-au-bureau', 'face', 'IMG_1003.MOV')), 'programmé passé mais pas confirmé : reste');
   assert.equal(rouge.archive, path.join(T.disque, 'Contenu', rouge.fichier));
   assert.equal(fs.readlinkSync(M('faim-a-16h', 'b-roll', `${rougeId}.mov`)), rouge.archive);
   assert.equal(lancer(ARCHIVER, ['--config', T.config], { ARCHIVE_DISQUE_LOCAL: '1' }).lignes.at(-1), 'FIN archives=0 gardes=0');

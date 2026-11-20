@@ -70,9 +70,90 @@ export function phraseActivite(outil, entree = {}) {
 }
 
 // Ce que claude écrit lui-même (modèle « <synthetic> ») quand il n'est pas ou plus connecté au compte
-// (lot 11) : jamais montré tel quel, remplacé par une phrase pour Romain.
-const CONNEXION = /not logged in|run \/login|oauth token|token has expired|invalid api key|authentication_error|revoked/i;
+// (lot 11), qu'une limite d'abonnement est atteinte ou que l'API répond en erreur (« API Error: 529 {...} ») :
+// jamais montré tel quel (anglais, technique), remplacé par une phrase pour le client (lot 12).
+const CONNEXION = /not logged in|run \/login|oauth token|token has expired|invalid api key|authentication_error|authentication failed|revoked|\b401\b/i;
+const LIMITE = /you(?:'|’)ve hit your|you(?:'|’)ve reached your|usage limit|limit reached|session limit|weekly limit|out of (?:extra )?usage|usage credits|rate[_ ]limit|quota/i;
+const RESEAU = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|fetch failed|network|socket hang up|connection error|unable to connect|request timed out|timed out/i;
+const SURCHARGE = /overloaded|\b(?:500|502|503|504|529)\b|internal server error|bad gateway|service unavailable|gateway timeout|api error/i;
 export const PHRASE_CONNEXION = `Ton studio n'est plus connecté à ton compte Claude. Préviens ${contact()} : la reconnexion prend deux minutes.`;
+export const PHRASE_SURCHARGE = "Claude est surchargé en ce moment, ce n'est pas ton studio. Réessaie dans quelques minutes.";
+export const PHRASE_RESEAU = "Ton Mac n'a pas internet en ce moment. Réessaie quand la connexion est revenue.";
+export const PHRASE_AUTRE = `Quelque chose a coincé de mon côté. Réessaie, et si ça recommence, préviens ${contact()}.`;
+
+// Classe une erreur de Claude d'après son texte (résultat, message <synthetic>, sortie d'erreur) et son code HTTP.
+// Rend { motif: "connexion" | "limite" | "reseau" | "surcharge" | "autre", reprise: ms | null }.
+export function classerErreur(texte, statut = null, { maintenant = Date.now() } = {}) {
+  const t = String(texte || "");
+  const code = Number(statut) || null;
+  if (code === 401 || CONNEXION.test(t)) return { motif: "connexion", reprise: null };
+  if (code === 429 || LIMITE.test(t)) return { motif: "limite", reprise: heureDeReprise(t, maintenant) };
+  if (RESEAU.test(t)) return { motif: "reseau", reprise: null };
+  if ((code && code >= 500) || SURCHARGE.test(t)) return { motif: "surcharge", reprise: null };
+  return { motif: "autre", reprise: null };
+}
+
+const MOIS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+
+// L'heure de reprise écrite par Claude : « resets 3pm », « resets 3:30 pm (Europe/Zurich) », « resets 15:00 »,
+// « resets Nov 21, 3pm », « resets Nov 21 at 3pm », « resets in 2h 30m ». Heure du Mac (celle de Claude aussi).
+export function heureDeReprise(texte, maintenant = Date.now()) {
+  const t = String(texte || "");
+  const dans = /resets?\s+in\s+((?:\d+\s*(?:d|h|hr|hrs|hours?|m|min|mins|minutes?)\s*)+)/i.exec(t);
+  if (dans) {
+    let ms = 0;
+    for (const [, n, u] of dans[1].matchAll(/(\d+)\s*([a-z]+)/gi)) {
+      const k = u[0].toLowerCase();
+      ms += Number(n) * (k === "d" ? 86400e3 : k === "h" ? 3600e3 : 60e3);
+    }
+    return ms ? maintenant + ms : null;
+  }
+  const m = /resets?\s+(?:at\s+|on\s+)?(?:([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})(?:,|\s+at)?\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i.exec(t);
+  if (!m) return null;
+  let h = Number(m[3]);
+  const min = Number(m[4] || 0);
+  const ap = (m[5] || "").toLowerCase();
+  if (!ap && !m[4]) return null; // « resets 3 » seul : trop flou
+  if (ap === "pm" && h < 12) h += 12;
+  if (ap === "am" && h === 12) h = 0;
+  if (h > 23 || min > 59) return null;
+  const d = new Date(maintenant);
+  if (m[1] && m[2] && MOIS[m[1].toLowerCase()] !== undefined) {
+    d.setMonth(MOIS[m[1].toLowerCase()], Number(m[2]));
+    d.setHours(h, min, 0, 0);
+    if (d.getTime() < maintenant - 86400e3) d.setFullYear(d.getFullYear() + 1);
+    return d.getTime();
+  }
+  d.setHours(h, min, 0, 0);
+  if (d.getTime() <= maintenant) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+// « vers 15 h », « demain vers 9 h 30 », « le 23 novembre vers 9 h » (heure de Zurich).
+export function quandReprise(ms, maintenant = Date.now()) {
+  if (!ms || !Number.isFinite(ms)) return null;
+  const jour = (x) => new Intl.DateTimeFormat("fr-CH", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(x));
+  const p = Object.fromEntries(new Intl.DateTimeFormat("fr-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  const heure = `${Number(p.hour)} h${p.minute !== "00" ? ` ${p.minute}` : ""}`;
+  if (jour(ms) === jour(maintenant)) return `vers ${heure}`;
+  if (jour(ms) === jour(maintenant + 86400e3)) return `demain vers ${heure}`;
+  const date = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Zurich", day: "numeric", month: "long" }).format(new Date(ms));
+  return `le ${date} vers ${heure}`;
+}
+
+// La phrase du chat pour une erreur classée. parFile : un travail lancé par un bouton (il repart tout seul).
+export function phraseErreur({ motif, reprise = null } = {}, { parFile = false, maintenant = Date.now() } = {}) {
+  if (motif === "connexion") return PHRASE_CONNEXION;
+  if (motif === "limite") {
+    const quand = quandReprise(reprise, maintenant) || "dans quelques heures";
+    return `Tu as atteint la limite d'utilisation de ton abonnement Claude. Rien n'est cassé : ça repart tout seul ${quand}. `
+      + (parFile ? "Ce travail reprendra tout seul à ce moment-là." : "Redemande-moi à ce moment-là.");
+  }
+  if (motif === "surcharge") return PHRASE_SURCHARGE;
+  if (motif === "reseau") return PHRASE_RESEAU;
+  return PHRASE_AUTRE;
+}
 
 // Un normaliseur par processus `claude`. `allouer()` donne le numéro du prochain message du chat.
 export class Normaliseur {
@@ -87,7 +168,7 @@ export class Normaliseur {
   //   { genre: "session", session_id }
   //   { genre: "texte", n, texte, partiel: bool }
   //   { genre: "activite", texte }
-  //   { genre: "fin", erreur: string | null, limite: bool }
+  //   { genre: "fin", erreur: string | null, limite: bool, motif?, reprise? }  (motif : voir classerErreur)
   traiter(evt) {
     const sortie = [];
     if (!evt || typeof evt !== "object") return sortie;
@@ -115,10 +196,19 @@ export class Normaliseur {
         }
       }
     }
+    // L'abonnement refuse la demande : Claude donne l'heure de reprise (en secondes) avant tout texte.
+    if (evt.type === "rate_limit_event" && evt.rate_limit_info?.status === "rejected") {
+      this.limite = { reprise: Number(evt.rate_limit_info.resetsAt) * 1000 || null };
+    }
     if (evt.type === "assistant" && evt.message) {
       const id = evt.message.id || "m";
       for (const bloc of evt.message.content || []) {
-        if (bloc.type === "text" && evt.message.model === "<synthetic>" && CONNEXION.test(bloc.text || "")) { this.connexion = true; continue; }
+        // Un texte écrit par Claude lui-même (limite, erreur d'API, connexion) n'est jamais relayé : il nourrit
+        // seulement le classement de l'erreur de fin de tour.
+        if (bloc.type === "text" && evt.message.model === "<synthetic>") {
+          this.synthetiques = `${this.synthetiques || ""}\n${bloc.text || ""}`.slice(-2000);
+          continue;
+        }
         if (bloc.type === "text" && !evt.parent_tool_use_id && !this.avecPartiels.has(id) && bloc.text?.trim()) {
           sortie.push({ genre: "texte", n: this.allouer(), texte: bloc.text, partiel: false });
         }
@@ -138,14 +228,21 @@ export class Normaliseur {
       }
       this.blocs.clear();
       this.derniereActivite = null;
-      const limite = evt.api_error_status === 429 || /limit|quota/i.test(String(evt.result || "")) && evt.is_error;
-      const connexion = this.connexion || (evt.is_error && CONNEXION.test(String(evt.result || "")));
-      const erreur = connexion ? PHRASE_CONNEXION : evt.is_error || (evt.subtype && evt.subtype !== "success")
-        ? (limite
-          ? "Ton abonnement a atteint sa limite pour le moment. Ça reprendra tout seul plus tard."
-          : `Quelque chose a coincé de mon côté. Réessaie, et si ça recommence, préviens ${contact()}.`)
-        : null;
-      sortie.push({ genre: "fin", erreur, limite: Boolean(limite) });
+      const enErreur = Boolean(evt.is_error || (evt.subtype && evt.subtype !== "success"));
+      const synth = this.synthetiques || "";
+      this.synthetiques = "";
+      const limiteVue = this.limite;
+      this.limite = null;
+      if (!enErreur) {
+        sortie.push({ genre: "fin", erreur: null, limite: false });
+        return sortie;
+      }
+      const c = classerErreur(`${synth}\n${evt.result || ""}\n${(evt.errors || []).join?.("\n") || ""}`, evt.api_error_status);
+      if (limiteVue && c.motif !== "connexion") {
+        c.motif = "limite";
+        c.reprise = limiteVue.reprise || c.reprise;
+      }
+      sortie.push({ genre: "fin", erreur: phraseErreur(c), limite: c.motif === "limite", motif: c.motif, reprise: c.reprise || null });
     }
     return sortie;
   }

@@ -45,6 +45,7 @@ import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 import { motAbsent } from '../interface/app/mot-absent.js';
+import { lireDate as lireDateServeur } from '../serveur/outils.mjs';
 export { motAbsent };
 
 export const RECAP_MINUTES = 30;
@@ -83,11 +84,21 @@ export function enSimulation(config) {
 const FINAUX = new Set(['publié', 'programmé', 'failed']);
 let derniereActualisation = 0;
 
-export function enRoute(config) {
+// Lot 12 : un programmé dont l'heure est passée est relu aussi (lecture seule), pour ne le dire « publié » que quand
+// Instagram l'a sorti, et montrer clairement un refus (« failed »). Cinq minutes de marge : Instagram met un moment.
+const MARGE_PROGRAMME_MS = 5 * 60e3;
+
+export function enRoute(config, maintenant = Date.now()) {
   const reg = lireJson(path.join(chemins(config).depot, 'publications', 'registre.json'), {});
   return Object.entries(reg?.publications || {})
-    .filter(([, e]) => e && e.zernio_post && !FINAUX.has(e.statut))
+    .filter(([, e]) => e && e.zernio_post && (!FINAUX.has(e.statut) || (e.statut === 'programmé' && programmePasse(e, maintenant))))
     .map(([slug]) => slug);
+}
+
+function programmePasse(e, maintenant) {
+  const d = lireDateServeur(e.prevu_le);
+  if (!d) return false;
+  return d.getTime() + MARGE_PROGRAMME_MS <= maintenant;
 }
 
 export async function actualiserPublications(config, { executer = lancerZernio, maintenant = Date.now, intervalleMs = 60000 } = {}) {

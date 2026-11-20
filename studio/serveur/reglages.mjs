@@ -90,7 +90,9 @@ export function consigneStudio(prenom = clientActif().prenom, contact = clientAc
 }
 export const CONSIGNE_STUDIO = consigneStudio();
 
-function absolu(p) {
+export const JOURS_CONVERSATIONS = 3650;
+
+export function absolu(p) {
   return `//${path.resolve(p).replace(/^\/+/, "")}`;
 }
 
@@ -100,6 +102,9 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   if (!t) throw new Error(`chat inconnu : ${chatId}`);
   const client = config.client || clientActif();
   const memoire = client.configClaudeAbs ? `${absolu(client.configClaudeAbs)}/agent-memory/**` : "~/.claude/agent-memory/**";
+  // Écritures dans le dossier de la session : par son chemin absolu, posé plus bas une fois le dossier choisi.
+  // `./**` seul ne suffit pas (lot 12, essai du 2026-11-20) : Claude le résout depuis le dossier courant du shell,
+  // que chaque `cd` de l'outil Bash déplace ; après `cd outils`, une écriture dans `contenus/` était refusée.
   const autorises = [
     ...OUTILS_DE_BASE, "Edit(./**)", "Write(./**)", "NotebookEdit(./**)",
     // La mémoire des agents (préférences apprises du monteur) vit hors du dossier de travail.
@@ -143,6 +148,7 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   // Où sont les médias et le dépôt du head of content, pour qu'un agent y range ce qu'on lui demande.
   if (config.media) env.STUDIO_MEDIA = config.media;
   if (config.depot) env.STUDIO_DEPOT = config.depot;
+  if (config.home) env.STUDIO_STATS = config.stats?.fichier || path.join(config.home, "stats", "cache.json");
   // Modèle des sous-agents (fichier du client, « claude.modele_sous_agents ») : sans lui, un sous-agent intégré
   // peut tourner sur un modèle plus petit que la session.
   if (config.claude?.modeleSousAgents) env.CLAUDE_CODE_SUBAGENT_MODEL = config.claude.modeleSousAgents;
@@ -154,7 +160,11 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   // de DEPOT/.claude/settings.json (head of content), on ne le force pas.
   if (t.genre !== "monteur" && config.agents?.idees && config.agents.forcer === true) agent = config.agents.idees;
 
-  const reglages = { permissions: { deny: refusCommuns(client, config) } };
+  if (cwd) autorises.push(`Edit(${absolu(cwd)}/**)`, `Write(${absolu(cwd)}/**)`, `NotebookEdit(${absolu(cwd)}/**)`);
+
+  // cleanupPeriodDays : Claude efface les conversations inactives depuis 30 jours par défaut ; un contenu repris après
+  // des vacances perdait son fil (lot 12). Le pont repart aussi d'une conversation neuve si elle a disparu.
+  const reglages = { cleanupPeriodDays: JOURS_CONVERSATIONS, permissions: { deny: refusCommuns(client, config) } };
   const args = [
     "-p",
     "--input-format", "stream-json",

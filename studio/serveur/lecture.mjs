@@ -7,7 +7,7 @@ import {
   lireJson, lireTexte, empreinteFichier, existe, stat, lister, isoZurich, lundiDe,
   SLUG_RE, EXT_IMAGE, EXT_VIDEO, lireDate, jourZurich, isoZurich as iso,
 } from "./outils.mjs";
-import { stade, libelle, estMonte, estOriginale } from "./stades.mjs";
+import { stade, libelle, estMonte, estOriginale, sortieAConfirmer } from "./stades.mjs";
 import { contact } from "./client.mjs";
 import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
@@ -508,7 +508,12 @@ export function detail(config, slug, etatLocal) {
   if (brief) r.brief = brief;
   if (carte.fichiers.includes("montage")) r.montage = montageDe(config, slug, lu, tournage);
   const pub = lu.pub[slug];
-  if (pub) r.publication = { statut: pub.statut, quand: pub.prevu_le || pub.publie_le || null, lien: pub.lien || null };
+  if (pub) {
+    r.publication = { statut: pub.statut, quand: pub.prevu_le || pub.publie_le || null, lien: pub.lien || null };
+    // Lot 12 : l'heure prévue est passée, Instagram n'a pas encore confirmé (relu chez Zernio après chaque synchro).
+    if (sortieAConfirmer(pub)) r.publication.a_confirmer = true;
+    if (pub.statut === "failed") r.publication.refuse = true;
+  }
   if (config.apercuRessources && existe(path.join(config.depot, "site", slug, "index.html"))) {
     r.ressource_url = `${config.apercuRessources.replace(/\/$/, "")}/${slug}/`;
   }

@@ -31,6 +31,8 @@
       </div>
     </header>
 
+    <div class="alertes-studio" hidden></div>
+
     <div class="colonnes">
       <nav class="col-arbre" aria-label="Tes contenus">
         <div class="arbre-outils">
@@ -47,7 +49,10 @@
 
       <aside class="col-chat" aria-labelledby="chat-titre">
         <header class="chat-tete">
-          <p class="chat-portee"></p>
+          <div class="chat-tete-ligne">
+            <p class="chat-portee"></p>
+            <button class="bouton bouton-discret bouton-petit chat-nouvelle" type="button" hidden>Nouvelle conversation</button>
+          </div>
           <h2 id="chat-titre"></h2>
           <p class="chat-sous"></p>
         </header>

@@ -31,6 +31,13 @@ claude -p --input-format stream-json --output-format stream-json --verbose --inc
   plus `~/.claude/agent-memory/**` (la mémoire des préférences du monteur). Une écriture ailleurs est
   refusée. Vérifié avec le vrai `claude` 2.1.325 : écriture dans le dossier acceptée, écriture dans
   un dossier voisin refusée « mode don't ask ».
+  **Lot 12 (2026-11-20)** : la même règle est aussi posée par le chemin absolu du dossier de la session
+  (`Edit(//<dossier>/**)`, `Write(...)`, `NotebookEdit(...)`). Claude résout `./` depuis le dossier
+  courant du shell, que chaque `cd` de l'outil Bash déplace : après `cd outils`, `Write contenus/...`
+  était refusé (vu en essai réel). La règle absolue ne bouge pas avec le shell.
+- **Conversations gardées** : `cleanupPeriodDays: 3650` dans les réglages passés par `--settings`
+  (Claude efface sinon les conversations inactives depuis 30 jours). Si une conversation a quand même
+  disparu, le pont repart sur une conversation neuve pour ce chat, sans erreur visible.
 - **Liberté (2026-11-19, demande de Yoan pour Yoan et Romain)** : l'agent fait ce qu'on lui demande,
   comme Claude Code dans un terminal, même hors du flux prévu (un plan en plus du brief, des images
   dans le dossier du contenu, un brief changé, une étape refaite). Donc, en plus :

@@ -49,7 +49,11 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   // Les valeurs que Romain avait dans l'exemple de configuration ne bougent pas.
   const exemple = JSON.parse(fs.readFileSync(path.join(CODE, "studio.config.exemple.json"), "utf8"));
   const d = defautsDuClient(r);
-  for (const k of Object.keys(d)) assert.deepEqual(d[k], exemple[k], k);
+  for (const k of Object.keys(d)) {
+    if (k === "claude") continue; // Romain passe sur opus par son fichier de client (lot 12)
+    assert.deepEqual(d[k], exemple[k], k);
+  }
+  assert.deepEqual(d.claude, { modele: "opus", modele_sous_agents: "opus" });
   assert.equal(r.racine, "~/.montage-yoan");
   assert.equal(r.config_claude, null);
   assert.equal(y.contact, "Yoan");

@@ -14,6 +14,11 @@ const params = new URLSearchParams(location.search);
 const MAQUETTE = params.get("maquette") === "1";
 if (["light", "dark"].includes(params.get("theme"))) document.documentElement.dataset.theme = params.get("theme");
 
+// Lot 12 : hors ligne, le bandeau ne promet plus que les changements partiront au retour (les boutons qui
+// enregistrent échouent sans internet, et le chat aussi). Il dit ce qui attend la connexion.
+const HORS_LIGNE = "Pas d'internet : le chat et l'enregistrement de tes textes attendent la connexion";
+const syncHonnete = (s) => (s && s.etat === "hors_ligne" ? { ...s, message: HORS_LIGNE } : s || null);
+
 class Studio {
   constructor(api) {
     this.api = api;
@@ -76,6 +81,13 @@ class Studio {
       this.q(".filtre-format").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       this.arbre.dessiner();
     });
+    // Chat général (lot 12) : repartir d'une conversation neuve. L'ancienne est gardée de côté, pas montrée.
+    this.q(".chat-nouvelle").addEventListener("click", async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try { await this.api.nouvelleConversation("general"); await this.chats.get("general")?.charger(); this.chats.get("general")?.focus(); }
+      catch (err) { annoncer(err.message, "erreur"); }
+      finally { b.disabled = false; this.majNouvelle(); }
+    });
     const bFile = this.q("#file-bouton");
     bFile.addEventListener("click", () => { const p = this.q("#file-liste"); p.hidden = !p.hidden; bFile.setAttribute("aria-expanded", String(!p.hidden)); this.dessinerFile(); });
     document.addEventListener("click", (e) => {
@@ -88,8 +100,12 @@ class Studio {
       const e = await this.api.etat();
       this.cartes.clear();
       for (const c of e.cartes || []) this.cartes.set(cle(c), c);
-      this.a_ranger = e.a_ranger || []; this.file = e.file || []; this.sync = e.sync || null; this.tournages = e.tournages || [];
+      this.a_ranger = e.a_ranger || []; this.file = e.file || []; this.sync = syncHonnete(e.sync); this.tournages = e.tournages || [];
+      this.filePause = e.file_pause || null; this.alertes = e.alertes || [];
       if (e.config) this.config = { ...this.config, ...e.config };
+      // Le code du studio a changé (mise à jour, retour arrière) : la page se recharge pour parler au bon serveur.
+      if (this.version && e.version && e.version !== this.version) { this.rechargerQuandLibre(); return; }
+      if (e.version) this.version = e.version;
       this.q(".prenom").textContent = this.config.prenom || "";
       this.q(".app").classList.remove("non-connecte");
       this.toutDessiner();
@@ -107,7 +123,45 @@ class Studio {
     if (this.sel.genre === "accueil") this.vue.transverseChangee();
   }
 
-  toutDessiner() { this.arbre.dessiner(); this.vue.afficher(); this.majChat(); this.dessinerFile(); this.dessinerSync(); }
+  // Recharge la page, mais jamais pendant que la personne écrit (un message, un brief en cours de retouche) : on
+  // attend qu'elle ait envoyé ou vidé son texte.
+  rechargerQuandLibre() {
+    const occupe = () => Boolean(this.vue?.edition) || [...document.querySelectorAll("textarea, input[type=text]")].some((x) => x.value.trim());
+    if (!occupe()) { location.reload(); return; }
+    clearInterval(this._rechargement);
+    this._rechargement = setInterval(() => { if (!occupe()) location.reload(); }, 3000);
+  }
+
+  toutDessiner() { this.arbre.dessiner(); this.vue.afficher(); this.majChat(); this.dessinerFile(); this.dessinerSync(); this.dessinerAlertes(); }
+
+  // « Nouvelle conversation » : seulement dans le chat général, quand il a un fil et qu'il ne travaille pas.
+  majNouvelle(id = this.porteeChat().id) {
+    const b = this.q(".chat-nouvelle");
+    const ch = this.chats.get("general");
+    b.hidden = !(id === "general" && ch && ch.messages.size > 0 && ch.etat !== "en_cours");
+  }
+
+  // ---------- Alertes (lot 12) : place libre, connexion au compte Claude ----------
+  dessinerAlertes() {
+    const z = this.q(".alertes-studio");
+    const liste = this.alertes || [];
+    z.hidden = !liste.length;
+    z.replaceChildren(...liste.map((a) => {
+      const action = a.action === "archiver" ? el("button", { class: "bouton bouton-petit", type: "button" }, "Faire de la place") : null;
+      action?.addEventListener("click", async () => {
+        action.disabled = true; action.textContent = "Je fais de la place…";
+        try {
+          const r = await this.api.archiver();
+          annoncer(r.disque_absent ? "Ton disque externe n'est pas branché : branche-le, puis réessaie."
+            : r.archives ? `C'est fait : ${pluriel(r.archives, "vidéo rangée", "vidéos rangées")} sur ton disque externe.`
+              : "Rien à ranger pour l'instant : aucun contenu publié n'a encore ses vidéos de tournage sur ton Mac.");
+        } catch (e) { annoncer(e.message, "erreur"); }
+        finally { action.disabled = false; action.textContent = "Faire de la place"; }
+      });
+      return el("div", { class: `bandeau-alerte bandeau-${a.genre}`, role: a.genre === "critique" ? "alert" : "status" },
+        el("span", { html: icone("attention") }), el("p", {}, a.texte), action);
+    }));
+  }
 
   evenement(type, d) {
     if (type === "carte") {
@@ -122,9 +176,12 @@ class Studio {
       else { this.arbre.dessiner(); this.vue.transverseChangee(); }
     } else if (type === "chat") {
       this.chats.get(d.chat_id)?.recevoir(d.message, d.partiel);
-    } else if (type === "file") { this.file = d.actions || []; this.dessinerFile(); }
+      if (d.chat_id === "general") this.majNouvelle();
+    } else if (type === "chat_reinitialise") { this.chats.get(d.chat_id)?.charger(); }
+    else if (type === "alertes") { this.alertes = d.alertes || []; this.dessinerAlertes(); }
+    else if (type === "file") { this.file = d.actions || []; this.filePause = d.pause || null; this.dessinerFile(); }
     else if (type === "a_ranger") { this.a_ranger = d.fichiers || []; this.arbre.dessiner(); this.vue.transverseChangee(); }
-    else if (type === "sync") { this.sync = d; this.dessinerSync(); }
+    else if (type === "sync") { this.sync = syncHonnete(d); this.dessinerSync(); }
     else if (type === "tournages") { this.tournages = d.tournages || []; this.arbre.dessiner(); this.vue.transverseChangee(); }
     else if (type === "stats") { this.stats = d; if (this.sel.genre === "accueil") this.vue.transverseChangee(); }
   }
@@ -187,10 +244,11 @@ class Studio {
     this.q(".chat-sous").textContent = p.sous;
     let ch = this.chats.get(p.id);
     if (!ch) {
-      ch = new Chat({ api: this.api, chatId: p.id, vide: p.vide, invite: p.invite });
+      ch = new Chat({ api: this.api, chatId: p.id, vide: p.vide, invite: p.invite, onEtat: () => this.majNouvelle() });
       this.chats.set(p.id, ch);
       ch.charger();
     }
+    this.majNouvelle(p.id);
     const zone = this.q(".chat-zone");
     const extra = [];
     if (p.note) extra.push(el("p", { class: "chat-note" }, p.note));
@@ -225,7 +283,8 @@ class Studio {
   dessinerFile() {
     const b = this.q("#file-bouton"); const texte = b.querySelector(".file-texte");
     const actives = this.file.filter((a) => ["en_cours", "en_file", "a_toi", "erreur"].includes(a.statut));
-    b.hidden = !actives.length;
+    const pause = this.filePause;
+    b.hidden = !actives.length && !pause;
     if (!actives.length) { this.q("#file-liste").hidden = true; return; }
     const cours = actives.filter((a) => a.statut === "en_cours");
     const parType = {};
@@ -237,20 +296,42 @@ class Studio {
     if (atoi) morceaux.push(`${atoi} attend${atoi > 1 ? "ent" : ""} ta réponse`);
     const err = actives.filter((a) => a.statut === "erreur").length;
     if (err) morceaux.push(`${err} en souci`);
+    // En pause (limite de l'abonnement, compte déconnecté) : c'est la première chose à dire.
+    if (pause) morceaux.unshift(pause.motif === "limite" ? "En pause jusqu'à la reprise de ton abonnement" : "En pause : compte Claude déconnecté");
     texte.textContent = morceaux.join(", ");
+    b.classList.toggle("en-pause", Boolean(pause));
     b.classList.toggle("travaille", cours.length > 0);
     const liste = this.q("#file-liste");
     if (liste.hidden) return;
-    const titre = (a) => (a.slugs || [a.slug]).filter(Boolean).map((s) => this.cartes.get(s)?.titre || "un contenu").join(", ") || "le chat";
+    const SANS_CONTENU = { rangement: "tes vidéos", archivage: "ton disque externe", publication: "ta publication" };
+    const titre = (a) => (a.slugs || [a.slug]).filter(Boolean).map((s) => this.cartes.get(s)?.titre || "un contenu").join(", ") || SANS_CONTENU[a.type] || "le chat";
     const STATUT = { en_cours: "en cours", en_file: "en attente", a_toi: "attend ta réponse", erreur: "souci" };
-    liste.replaceChildren(el("p", { class: "file-tete" }, "Ce qui tourne"), ...actives.map((a) => {
-      const stop = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, a.statut === "en_file" ? "Retirer" : "Arrêter");
-      stop.addEventListener("click", async () => { stop.disabled = true; try { await this.api.arreterAction(a.id); } catch (e) { annoncer(e.message, "erreur"); stop.disabled = false; } });
-      return el("div", { class: `file-ligne file-${a.statut}` },
-        el("div", {}, el("p", { class: "file-quoi" }, `${(NOMS_ACTION[a.type]?.[0] || "action").replace(/^./, (x) => x.toUpperCase())} : ${titre(a)}`),
-          el("p", { class: "file-statut" }, a.statut === "erreur" && a.erreur ? a.erreur : STATUT[a.statut])),
-        ["en_cours", "en_file"].includes(a.statut) ? stop : null);
-    }));
+    const bouton = (texteB, faire) => {
+      const x = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, texteB);
+      x.addEventListener("click", async (e) => { e.stopPropagation(); x.disabled = true; try { await faire(); } catch (err) { annoncer(err.message, "erreur"); x.disabled = false; } });
+      return x;
+    };
+    // Relancer : seulement un travail fait par Claude (script, plan de tournage, montage, mise en page) ; les autres
+    // se relancent depuis leur bouton, dans le dossier du contenu.
+    const RELANCABLES = new Set(["script", "tournage", "montage", "mise_en_page"]);
+    liste.replaceChildren(el("p", { class: "file-tete" }, "Ce qui tourne"),
+      ...(pause ? [el("p", { class: "file-pause" }, pause.phrase)] : []),
+      ...actives.map((a) => {
+        let boutons = null;
+        if (["en_cours", "en_file"].includes(a.statut)) boutons = bouton(a.statut === "en_file" ? "Retirer" : "Arrêter", () => this.api.arreterAction(a.id));
+        else if (a.statut === "erreur") {
+          boutons = el("div", { class: "file-boutons" },
+            RELANCABLES.has(a.type) ? bouton("Relancer", () => this.api.relancerAction(a.id)) : null,
+            bouton("Effacer", () => this.api.effacerAction(a.id)));
+        }
+        const statut = a.statut === "erreur" && a.erreur ? a.erreur
+          : a.statut === "en_file" && pause?.motif === "limite" ? "en pause, reprend tout seul"
+            : a.statut === "en_file" && pause ? "en pause, en attente de la connexion" : STATUT[a.statut];
+        return el("div", { class: `file-ligne file-${a.statut}` },
+          el("div", {}, el("p", { class: "file-quoi" }, `${(NOMS_ACTION[a.type]?.[0] || "action").replace(/^./, (x) => x.toUpperCase())} : ${titre(a)}`),
+            el("p", { class: "file-statut" }, statut)),
+          boutons);
+      }));
   }
 
   // ---------- Synchro ----------

@@ -2,7 +2,7 @@
 // ou une vue d'ensemble (chiffres, publier sur Instagram, tournages, à ranger). En plein, jamais en
 // fenêtre par-dessus. Ce qui s'affiche vient du serveur (fichiers), jamais de la mémoire du modèle.
 
-import { el, icone, annoncer, markdown, texteBrut, copier, quandLisible, jourCourt, dateCourte, dateEnJour, heure, aujourdhui, ajouterJours, prochainJourParDefaut, pluriel } from "./outils.js";
+import { el, icone, annoncer, markdown, texteBrut, copier, quandLisible, jourCourt, dateCourte, dateEnJour, heure, aujourdhui, ajouterJours, prochainJourParDefaut, pluriel, previens } from "./outils.js";
 import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefaut, ouChat, ouArbre, titreTournage } from "./commun.js";
 import { recapDans } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
@@ -724,8 +724,15 @@ export class Vue {
   }
 
   etapePublication(d) {
+    // Lot 12 : l'heure passée ne vaut plus publication ; le studio attend qu'Instagram la confirme.
+    if (d.stade === "programme" && d.publication?.a_confirmer) return this.etape(`<strong>Prévu ${quandLisible(d.publication.quand)}.</strong> J'attends qu'Instagram confirme qu'il est en ligne : ça se met à jour tout seul. S'il n'apparaît pas sur ton compte d'ici une heure, ${previens()}.`);
     if (d.stade === "programme" && d.publication) return this.etape(`<strong>Programmé ${quandLisible(d.publication.quand)}.</strong> Ça part tout seul, même Mac fermé.`);
     if (d.stade === "publie") return this.etape("<strong>Publié.</strong>", d.publication?.lien ? el("a", { class: "bouton", href: d.publication.lien, target: "_blank", rel: "noopener", html: `${icone("lien")}<span>Voir la publication</span>` }) : null);
+    if (["monte", "mis_en_page"].includes(d.stade) && d.publication?.refuse) {
+      return this.etape(`<strong>Instagram ne l'a pas publié.</strong> Il était prévu ${quandLisible(d.publication.quand)}, mais il n'est pas en ligne. Tu peux le reprogrammer dans « Publier sur Instagram » ; si ça recommence, ${previens()}.`,
+        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Publier sur Instagram</span>`,
+          onclick: () => this.studio.selectionner({ genre: "transverse", quoi: "publier", vers: d.slug }) }));
+    }
     if (["monte", "mis_en_page"].includes(d.stade)) {
       return this.etape(`<strong>Prêt à poster.</strong> Tu le prépares dans « Publier sur Instagram » : tu relis sa légende et ce qu'il offre, puis tu choisis quand il part.`,
         el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Publier sur Instagram</span>`,

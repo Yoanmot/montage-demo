@@ -146,3 +146,18 @@ export async function changerTypeRush(config, { slug, type, nom, nouveau }) {
   }
   return true;
 }
+
+// « Faire de la place » (lot 12) : archiver.mjs déplace sur le disque externe les rushs des contenus publiés
+// (confirmés par Instagram) et les clips dont tous les contenus sont publiés depuis 30 jours. Copie vérifiée avant
+// toute suppression ; la vidéo montée reste sur le Mac ; rien d'un contenu pas encore publié n'est touché.
+export async function lancerArchivage(config) {
+  const script = path.join(CODE, "rangement", "archiver.mjs");
+  if (!existe(script)) throw new ErreurStudio("ARCHIVAGE_ABSENT", ABSENT, 503);
+  const r = await executer(process.execPath, [script, "--config", config.fichier], {
+    cwd: CODE, env: { ...process.env, STUDIO_CONFIG: config.fichier }, delaiMs: 60 * 60000,
+  });
+  const absent = /^DISQUE_ABSENT (.*)$/m.exec(r.sortie);
+  const fin = /^FIN archives=(\d+) gardes=(\d+)/m.exec(r.sortie);
+  if (!fin) throw new ErreurStudio("ARCHIVAGE_ECHEC", `Le rangement sur ton disque n'a pas abouti. Réessaie, et si ça recommence, préviens ${contact()}.`, 500);
+  return { disque_absent: absent ? absent[1] : null, archives: Number(fin[1]), gardes: Number(fin[2]) };
+}

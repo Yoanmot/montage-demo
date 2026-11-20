@@ -37,7 +37,7 @@ export async function demarrer({ env = process.env, silencieux = false } = {}) {
   const jeton = jetonDuStudio(home);
 
   const synchro = new Synchro({ depot: config.depot, journal });
-  const pont = new Pont({ config, journal });
+  const pont = new Pont({ config, journal, envConfig: env });
   // Avant chaque action : tirer, et renvoyer ce qui serait resté hors ligne (une mise en page tourne
   // dans la copie des scripts du Mac, qui ne voit que le dépôt en ligne).
   const file = new File({ config, pont, journal, avant: () => synchro.pousser() }).charger();
@@ -73,12 +73,32 @@ export async function demarrer({ env = process.env, silencieux = false } = {}) {
     }
     return arret;
   };
-  return { config, jeton, url, pont, file, synchro, app, arreter };
+  return { config, jeton, url, pont, file, synchro, app, arreter, journal };
+}
+
+// Erreurs que personne n'a attrapées (lot 12) : avant, une écriture sur un disque plein dans un gestionnaire de
+// flux faisait tomber le serveur, launchd le relançait en boucle et les sessions continuaient orphelines. Une
+// erreur d'entrée-sortie (disque plein, fichier disparu, client parti) est journalisée et le serveur continue ;
+// une autre erreur, dont on ne sait pas si elle laisse le serveur sain, est journalisée puis le serveur s'arrête
+// proprement (sessions arrêtées) et launchd le relance.
+export const ERREURS_SURES = new Set(["ENOSPC", "EDQUOT", "EIO", "EPIPE", "ECONNRESET", "ENOENT", "EACCES", "EPERM", "EBUSY", "EMFILE", "ENFILE", "ETIMEDOUT", "ERR_STREAM_DESTROYED", "ERR_STREAM_WRITE_AFTER_END"]);
+
+export function installerFilet({ journal, arreter, sortir = (c) => process.exit(c), proc = process }) {
+  proc.on("uncaughtException", (e) => {
+    const code = e?.code || null;
+    journal("exception_non_geree", { code, erreur: String(e?.stack || e).slice(0, 1500) });
+    if (code && ERREURS_SURES.has(code)) return;
+    Promise.resolve(arreter("exception")).catch(() => {}).finally(() => sortir(1));
+  });
+  proc.on("unhandledRejection", (e) => {
+    journal("promesse_non_geree", { code: e?.code || null, erreur: String(e?.stack || e).slice(0, 1500) });
+  });
 }
 
 const direct = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (direct) {
   demarrer().then((s) => {
+    installerFilet({ journal: s.journal, arreter: s.arreter });
     for (const sig of ["SIGTERM", "SIGINT"]) {
       process.on(sig, () => {
         s.arreter(sig).finally(() => process.exit(0));

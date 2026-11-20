@@ -41,8 +41,17 @@ export const LIBELLES = {
 
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
+// Un programmé dont l'heure est passée et qu'Instagram n'a pas encore confirmé.
+export function sortieAConfirmer(publication, maintenant = new Date()) {
+  if (publication?.statut !== "programmé") return false;
+  const d = lireDate(publication.prevu_le);
+  return Boolean(d && d.getTime() <= maintenant.getTime());
+}
+
 export function libelle(stade, format, publication) {
   if (stade === "valide" && format === "carrousel") return "à mettre en page";
+  if (publication?.statut === "failed" && ["monte", "mis_en_page"].includes(stade)) return "refusé par Instagram";
+  if (stade === "programme" && sortieAConfirmer(publication)) return "sortie à confirmer";
   if (stade === "programme" && publication?.prevu_le) {
     const d = lireDate(publication.prevu_le);
     const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(publication.prevu_le));
@@ -68,11 +77,10 @@ function stadePublication(pub, maintenant) {
   // Parti tout de suite, Instagram le prépare encore (« envoyé », ou l'état brut de Zernio d'avant le
   // 2026-11-19 comme « publishing ») : déjà posté, on ne le propose plus à la publication.
   if (pub.statut === "envoyé" || ["pending", "processing", "uploading", "publishing", "partial", "published"].includes(pub.statut)) return "publie";
-  if (pub.statut === "programmé") {
-    const d = lireDate(pub.prevu_le);
-    if (d && d.getTime() <= maintenant.getTime()) return "publie";
-    return "programme";
-  }
+  // Programmé : il reste « programmé » jusqu'à ce que le studio ait relu chez Zernio qu'Instagram l'a sorti (lot 12).
+  // Avant, il passait « publié » à l'heure prévue sans vérification, même si Instagram l'avait refusé.
+  if (pub.statut === "programmé") return "programme";
+  // Refusé par Instagram (« failed ») : le contenu revient à son stade d'avant, prêt à être reprogrammé.
   return null;
 }
 

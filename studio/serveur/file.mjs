@@ -8,6 +8,7 @@ import { lireJson, ecrireJson, isoZurich, horodatage, lireTexte, existe, lister 
 import { attenduPresent, formatDuContenu } from "./attendus.mjs";
 import { lireDepot, videoFace, videosFace, brolls } from "./lecture.mjs";
 import { contact, clientActif } from "./client.mjs";
+import { quandReprise, PHRASE_CONNEXION } from "./normalisation.mjs";
 
 const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page"]);
 const GARDER_TERMINEES = 300;
@@ -95,7 +96,15 @@ export function messageAction(a, config) {
   return "";
 }
 
-const REPRISE = "Le studio a redémarré pendant que tu travaillais sur ce contenu : reprends où tu en étais.";
+const REPRISES = {
+  redemarrage: "Le studio a redémarré pendant que tu travaillais sur ce contenu : reprends où tu en étais.",
+  limite: "La limite d'utilisation de l'abonnement Claude est repassée : reprends ce travail où tu en étais.",
+  connexion: "Le studio est de nouveau connecté au compte Claude : reprends ce travail où tu en étais.",
+  relance: "On relance ce travail, qui avait coincé la dernière fois : reprends où tu en étais.",
+};
+// Sans heure de reprise donnée par Claude, la file réessaie après ce délai (limite d'abonnement).
+const PAUSE_LIMITE_MS = 30 * 60e3;
+const MOTIFS_PAUSE = new Set(["limite", "connexion"]);
 
 export class File extends EventEmitter {
   constructor({ config, pont, journal = () => {}, avant = async () => {} }) {
@@ -109,13 +118,22 @@ export class File extends EventEmitter {
     this.lancesParFile = new Set();
     this.enTick = false;
     this.compteur = 0;
+    // Pause de toute la file (lot 12) : limite d'abonnement (jusqu'à l'heure de reprise) ou compte déconnecté
+    // (jusqu'au prochain tour réussi ou au redémarrage). Les actions restent en attente, rien n'échoue en chaîne.
+    this.pause = null;   // { motif, jusqua: ms | null }
+    this.minuteriePause = null;
     pont.resoudreFin = (chatId) => this.resoudreFin(chatId);
     pont.on("fin", (e) => this.surFin(e));
+    // Un processus qui finit après son tour (lot 12 : un chat reste occupé tant que son processus vit) libère le chat.
+    pont.on("libre", () => setImmediate(() => this.tick()));
   }
 
   charger() {
     const d = lireJson(this.fichier, null);
     this.actions = Array.isArray(d?.actions) ? d.actions : [];
+    // Une limite d'abonnement survit au redémarrage ; une déconnexion non (le jeton a pu être reposé).
+    const pause = d?.pause;
+    if (pause?.motif === "limite" && Number(pause.jusqua) > Date.now()) this.poserPause("limite", Number(pause.jusqua), { sauver: false });
     let repris = 0;
     for (const a of this.actions) {
       if (a.statut === "en_cours") {
@@ -125,7 +143,7 @@ export class File extends EventEmitter {
           a.fin = isoZurich();
         } else if (TYPES_CLAUDE.has(a.type)) {
           a.statut = "en_file";
-          a.reprise = true;
+          a.reprise = a.reprise || "redemarrage";
           repris += 1;
         } else {
           a.statut = "erreur";
@@ -146,7 +164,8 @@ export class File extends EventEmitter {
   cloreAttendus() {
     let n = 0;
     for (const a of this.actions) {
-      if (a.statut === "a_toi" && TYPES_CLAUDE.has(a.type) && a.type !== "idees" && attenduPresent(a, this.config)) {
+      // Une action en souci dont le fichier existe maintenant (refaite depuis la carte ou le chat) est finie aussi.
+      if (["a_toi", "erreur"].includes(a.statut) && TYPES_CLAUDE.has(a.type) && a.type !== "idees" && attenduPresent(a, this.config)) {
         a.statut = "fini";
         a.fin = isoZurich();
         n += 1;
@@ -161,15 +180,95 @@ export class File extends EventEmitter {
       const retirer = new Set(terminees.slice(0, terminees.length - GARDER_TERMINEES).map((a) => a.id));
       this.actions = this.actions.filter((a) => !retirer.has(a.id));
     }
-    ecrireJson(this.fichier, { version: 1, actions: this.actions });
+    try {
+      ecrireJson(this.fichier, { version: 1, actions: this.actions, ...(this.pause ? { pause: this.pause } : {}) });
+    } catch (e) {
+      // Disque plein : la file reste juste en mémoire, le serveur ne tombe pas.
+      this.journal("ecriture_impossible", { fichier: "file.json", erreur: e.code || String(e) });
+    }
     this.emit("change", this.liste());
   }
 
   liste() {
-    return this.actions.map((a) => {
+    return this.actions.filter((a) => a.statut !== "efface").map((a) => {
       const { reprise, ...reste } = a;
       return reste;
     });
+  }
+
+  // ------------------------------------------------------------ pause (limite d'abonnement, déconnexion)
+
+  pauseActive() {
+    if (!this.pause) return false;
+    if (this.pause.jusqua && Date.now() >= this.pause.jusqua) {
+      this.leverPause("heure");
+      return false;
+    }
+    return true;
+  }
+
+  poserPause(motif, jusqua, { sauver = true } = {}) {
+    this.pause = { motif, jusqua: jusqua || null };
+    if (this.minuteriePause) clearTimeout(this.minuteriePause);
+    this.minuteriePause = null;
+    if (jusqua) {
+      // Une minute de marge après l'heure donnée par Claude.
+      const dans = Math.max(1000, jusqua - Date.now() + 60e3);
+      this.minuteriePause = setTimeout(() => { this.leverPause("heure"); this.tick(); }, Math.min(dans, 2 ** 31 - 1));
+      this.minuteriePause.unref?.();
+    }
+    this.journal("file_en_pause", { motif, jusqua: jusqua ? new Date(jusqua).toISOString() : null });
+    if (sauver) this.sauver();
+  }
+
+  leverPause(raison) {
+    if (!this.pause) return;
+    this.journal("file_reprend", { motif: this.pause.motif, raison });
+    this.pause = null;
+    if (this.minuteriePause) clearTimeout(this.minuteriePause);
+    this.minuteriePause = null;
+    this.sauver();
+  }
+
+  // Ce que l'interface montre de la pause : une phrase, jamais un détail technique.
+  vuePause() {
+    if (!this.pauseActive()) return null;
+    const { motif, jusqua } = this.pause;
+    const n = this.actions.filter((a) => a.statut === "en_file").length;
+    const quand = quandReprise(jusqua) || "dans quelques heures";
+    const phrase = motif === "limite"
+      ? `Limite de ton abonnement Claude atteinte : ${n > 1 ? "tes travaux reprennent" : "ça reprend"} tout seul ${quand}.`
+      : PHRASE_CONNEXION;
+    return { motif, jusqua: jusqua ? new Date(jusqua).toISOString() : null, phrase };
+  }
+
+  // ------------------------------------------------------------ relancer, effacer (actions en souci)
+
+  // Relance une action en souci (ou arrêtée) qui passe par Claude : elle revient en file, sur sa conversation.
+  relancer(id) {
+    const a = this.trouver(id);
+    if (!a || a.statut === "efface") return { ok: false, code: "INTROUVABLE" };
+    if (!["erreur", "arrete"].includes(a.statut)) return { ok: false, code: "PAS_EN_SOUCI" };
+    if (!TYPES_CLAUDE.has(a.type)) return { ok: false, code: "PAS_RELANCABLE" };
+    a.statut = "en_file";
+    a.erreur = null;
+    a.fin = null;
+    a.reprise = "relance";
+    this.sauver();
+    this.journal("action_relancee", { id: a.id, type: a.type });
+    setImmediate(() => this.tick());
+    return { ok: true };
+  }
+
+  // Efface une action terminée (en souci ou arrêtée) de la liste : elle n'est plus montrée.
+  effacer(id) {
+    const a = this.trouver(id);
+    if (!a || a.statut === "efface") return { ok: false, code: "INTROUVABLE" };
+    if (!["erreur", "arrete", "fini"].includes(a.statut)) return { ok: false, code: "PAS_TERMINEE" };
+    a.statut = "efface";
+    this.sauver();
+    this.journal("action_effacee", { id: a.id, type: a.type });
+    return { ok: true };
   }
 
   nouvelId(prefixe) {
@@ -261,14 +360,34 @@ export class File extends EventEmitter {
     return attenduPresent(a, this.config) ? "fini" : "a_toi";
   }
 
-  surFin({ chat_id: chatId, etat, erreur }) {
+  surFin({ chat_id: chatId, etat, erreur, motif, reprise }) {
     const a = this.actionDuChat(chatId, ["en_cours"]);
     this.lancesParFile.delete(a?.id);
+    // Limite d'abonnement ou compte déconnecté : l'action attend, et toute la file se met en pause au lieu
+    // d'enchaîner des échecs. Elle repart seule à l'heure de reprise (ou au prochain tour réussi).
+    if (etat === "erreur" && MOTIFS_PAUSE.has(motif)) {
+      if (a) {
+        a.statut = "en_file";
+        a.reprise = motif;
+        a.attente = motif;
+        this.journal("action_en_pause", { id: a.id, type: a.type, motif });
+      }
+      this.poserPause(motif, motif === "limite" ? (Number(reprise) || Date.now() + PAUSE_LIMITE_MS) : null);
+      return;
+    }
+    // Un tour qui réussit prouve que Claude répond : la pause éventuelle est levée.
+    if (["fini", "a_toi"].includes(etat) && this.pause) this.leverPause("tour_reussi");
     if (a && etat) {
       a.statut = etat;
       if (etat === "erreur") a.erreur = erreur;
       if (["fini", "erreur", "arrete"].includes(etat)) a.fin = isoZurich();
-      if (etat === "fini") this.cloreAttendus();
+      if (etat === "fini") {
+        // Les essais précédents du même travail, restés en souci, sont clos avec lui.
+        for (const x of this.actions) {
+          if (x !== a && x.statut === "erreur" && x.type === a.type && x.slug && x.slug === a.slug) { x.statut = "fini"; x.fin = isoZurich(); }
+        }
+        this.cloreAttendus();
+      }
       this.sauver();
       this.journal("action_terminee", { id: a.id, type: a.type, statut: etat });
       if (etat === "fini") this.emit("fini", a);
@@ -285,6 +404,7 @@ export class File extends EventEmitter {
     this.enTick = true;
     try {
       for (;;) {
+        if (this.pauseActive()) break;
         if (this.enCoursParFile() >= this.config.parallele) break;
         const a = this.actions.find((x) => x.statut === "en_file" && TYPES_CLAUDE.has(x.type)
           && !this.pont.actif(chatDeAction(x)));
@@ -307,7 +427,7 @@ export class File extends EventEmitter {
     const reprise = a.reprise && a.debut && this.pont.aUneSession(chat);
     let envoi;
     try {
-      envoi = reprise ? REPRISE : messageAction(a, this.config);
+      envoi = reprise ? (REPRISES[a.reprise] || REPRISES.redemarrage) : messageAction(a, this.config);
     } catch (e) {
       a.statut = "erreur";
       a.erreur = `Je n'ai pas pu préparer ce travail. Préviens ${contact()}.`;
@@ -320,6 +440,7 @@ export class File extends EventEmitter {
     a.debut = a.debut || isoZurich();
     a.session = chat;
     delete a.reprise;
+    delete a.attente;
     this.lancesParFile.add(a.id);
     this.sauver();
     this.journal("action_lancee", { id: a.id, type: a.type, chat_id: chat });

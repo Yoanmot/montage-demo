@@ -3,17 +3,40 @@
 // envoyé pendant un tour part sur la même entrée), puis on la ferme : le processus se termine.
 // Le tour suivant reprend la conversation par --resume. Chaque processus est lancé dans son
 // propre groupe (detached) et tué par groupe.
-import { spawn } from "node:child_process";
+//
+// Lot 12 : jamais deux processus sur un même chat (un message arrivé pendant qu'un processus finit, ou fait un
+// rendu en arrière-plan, attend sa fin) ; une erreur passagère de Claude est réessayée avant d'être dite ; une
+// conversation effacée par Claude repart sur une conversation neuve sans erreur visible.
+import { spawn, execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { isoZurich, lireJson, ecrireJson } from "./outils.mjs";
 import { reglagesChat, environnement, typeDeChat } from "./reglages.mjs";
-import { Normaliseur } from "./normalisation.mjs";
+import { Normaliseur, classerErreur, phraseErreur } from "./normalisation.mjs";
 import { contact } from "./client.mjs";
 
 const DELAI_KILL_MS = 3000;
+// Erreurs passagères (Claude surchargé, coupure réseau) : réessayées après ces délais, puis dites.
+const DELAIS_REESSAI_MS = [15000, 45000];
+const PASSAGERES = new Set(["surcharge", "reseau"]);
+const PERDUE = /No conversation found/i;
+
+// Ce que reçoit le modèle quand le studio réessaie un tour coupé, ou repart d'une conversation neuve.
+const LIGNE_REESSAI = "[Message du studio : ta réponse précédente a été coupée par une erreur passagère de Claude. "
+  + "Reprends exactement où tu en étais, sans en parler.]";
+const RAPPEL_NEUVE = "[Message du studio : la conversation précédente de ce chat n'existe plus. Tu repars d'une conversation "
+  + "neuve : relis d'abord les fichiers utiles (le contenu, son brief, son script, ce qui est déjà fait), sans en parler.]\n\n";
+
+const ligneUtilisateur = (contenu) => JSON.stringify({ type: "user", message: { role: "user", content: contenu } }) + "\n";
+
+function prefixer(ligne, texte) {
+  const evt = JSON.parse(ligne);
+  const c = evt.message.content;
+  evt.message.content = typeof c === "string" ? texte + c : [{ type: "text", text: texte }, ...(Array.isArray(c) ? c : [])];
+  return JSON.stringify(evt) + "\n";
+}
 
 // Les consignes d'une conversation (fichier de l'agent et consigne du studio) sont figées à son
 // ouverture : une conversation reprise par --resume garde les anciennes, même passées en ligne de
@@ -61,19 +84,71 @@ function joindreConsignes(ligne, c) {
 }
 
 export class Pont extends EventEmitter {
-  constructor({ config, journal = () => {}, envBase = process.env }) {
+  // envConfig : l'environnement du studio (HOME, CLAUDE_CONFIG_DIR) pour retrouver les conversations de Claude ;
+  // envBase reste lu à chaque lancement (les tests le changent en cours de route).
+  constructor({ config, journal = () => {}, envBase = process.env, envConfig = null, delaisReessai = DELAIS_REESSAI_MS }) {
     super();
     this.config = config;
     this.journal = journal;
     this.envBase = envBase;
+    this.envConfig = envConfig;
+    this.delaisReessai = delaisReessai;
     this.dossierChats = path.join(config.home, "chats");
     this.fichierSessions = path.join(config.home, "sessions.json");
-    this.processus = new Map(); // chat_id -> { enfant, enAttente, arret, normaliseur, parFile }
+    this.fichierProcessus = path.join(config.home, "processus.json");
+    this.processus = new Map(); // chat_id -> tour en cours { enfant, enAttente, arret, normaliseur, parFile, ... }
+    this.vivants = new Map();   // chat_id -> processus lancé et pas encore terminé (même après la fin du tour)
+    this.differes = new Map();  // chat_id -> { lignes, opts, minuterie } : messages qui attendent (fin du processus, réessai)
     this.compteurs = new Map(); // chat_id -> dernier n
     this.etats = new Map();     // chat_id -> dernier état
     // Décide l'état de fin de tour ("fini" ou "a_toi"), branché par la file.
     this.resoudreFin = () => "a_toi";
     fs.mkdirSync(this.dossierChats, { recursive: true });
+    this.nettoyerOrphelins();
+    this.marquerCoupes();
+  }
+
+  // ------------------------------------------------------------ après un arrêt brutal
+
+  // Sessions d'un serveur tombé (plantage, disque plein) : leurs groupes tournent encore, détachés. On les arrête
+  // avant d'en relancer une sur la même conversation. Un PID n'est visé que s'il fait encore tourner `claude`.
+  nettoyerOrphelins() {
+    const notes = lireJson(this.fichierProcessus, {}) || {};
+    for (const [chatId, x] of Object.entries(notes)) {
+      const pid = Number(x?.pid);
+      if (!Number.isInteger(pid) || pid <= 1) continue;
+      let commande = "";
+      try { commande = execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim(); } catch { continue; }
+      if (!commande || !commande.includes(path.basename(String(x.binaire || this.config.claude.binaire)))) continue;
+      try { process.kill(-pid, "SIGTERM"); } catch { try { process.kill(pid, "SIGTERM"); } catch { /* déjà fini */ } }
+      const t = setTimeout(() => { try { process.kill(-pid, "SIGKILL"); } catch { /* déjà fini */ } }, DELAI_KILL_MS);
+      t.unref?.();
+      this.journal("session_orpheline_arretee", { chat_id: chatId, pid });
+    }
+    this.ecrireProcessus({});
+  }
+
+  ecrireProcessus(notes) {
+    try { ecrireJson(this.fichierProcessus, notes); } catch (e) { this.journal("ecriture_impossible", { fichier: "processus.json", erreur: e.code || String(e) }); }
+  }
+
+  noterProcessus(chatId, pid) {
+    const notes = lireJson(this.fichierProcessus, {}) || {};
+    if (pid) notes[chatId] = { pid, binaire: this.config.claude.binaire };
+    else delete notes[chatId];
+    this.ecrireProcessus(notes);
+  }
+
+  // Un tour coupé par l'arrêt du studio : le chat le dit (« Tu as arrêté » était faux), une seule fois.
+  marquerCoupes() {
+    let noms = [];
+    try { noms = fs.readdirSync(this.dossierChats).filter((f) => f.endsWith(".jsonl")); } catch { return; }
+    for (const f of noms) {
+      const chatId = f.slice(0, -6);
+      if (!typeDeChat(chatId)) continue;
+      const e = this.historique(chatId).filter((m) => m.type === "etat").at(-1);
+      if (e?.etat === "en_cours") this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "coupe" });
+    }
   }
 
   // ------------------------------------------------------------ historique
@@ -107,22 +182,54 @@ export class Pont extends EventEmitter {
     return n;
   }
 
-  // Ajoute un message à l'historique et le diffuse.
+  // Ajoute un message à l'historique et le diffuse. Une écriture impossible (disque plein) est journalisée : le
+  // message part quand même à l'écran, et le serveur ne tombe pas.
   noter(chatId, message, { partiel = false } = {}) {
     if (!partiel) {
-      fs.appendFileSync(this.fichierChat(chatId), JSON.stringify(message) + "\n");
+      try {
+        fs.appendFileSync(this.fichierChat(chatId), JSON.stringify(message) + "\n");
+      } catch (e) {
+        this.journal("ecriture_impossible", { chat_id: chatId, erreur: e.code || String(e) });
+      }
       if (message.type === "etat") this.etats.set(chatId, message.etat);
     }
     this.emit("chat", { chat_id: chatId, message, ...(partiel ? { partiel: true } : {}) });
   }
 
   etat(chatId) {
-    if (this.processus.has(chatId)) return "en_cours";
+    if (this.processus.has(chatId) || this.differes.has(chatId)) return "en_cours";
     if (this.etats.has(chatId)) return this.etats.get(chatId);
     const h = this.historique(chatId).filter((m) => m.type === "etat");
     const e = h.length ? h[h.length - 1].etat : null;
     // Un tour coupé par un arrêt brutal du serveur ne peut plus être en cours.
-    return e === "en_cours" ? "arrete" : e;
+    return e === "en_cours" ? "coupe" : e;
+  }
+
+  // Dernier message du chat (sa date), pour la remise à zéro du chat général après une pause.
+  dernierMessage(chatId) {
+    const h = this.historique(chatId);
+    return h.length ? h[h.length - 1] : null;
+  }
+
+  // Le chat général repart sur une conversation neuve (bouton, ou retour après une pause) : l'ancien fil est
+  // archivé à côté (jamais effacé), la session oubliée. Refusé pendant qu'il travaille.
+  reinitialiser(chatId) {
+    if (this.actif(chatId)) return false;
+    const f = this.fichierChat(chatId);
+    if (fs.existsSync(f)) {
+      const archives = path.join(this.dossierChats, "archives");
+      fs.mkdirSync(archives, { recursive: true });
+      const nom = `${chatId}-${isoZurich().replace(/[:+]/g, "-").slice(0, 19)}.jsonl`;
+      let dest = path.join(archives, nom);
+      for (let k = 2; fs.existsSync(dest); k++) dest = path.join(archives, nom.replace(/\.jsonl$/, `-${k}.jsonl`));
+      fs.renameSync(f, dest);
+    }
+    this.oublierSession(chatId);
+    this.compteurs.delete(chatId);
+    this.etats.delete(chatId);
+    this.journal("chat_reinitialise", { chat_id: chatId });
+    this.emit("reinitialise", { chat_id: chatId });
+    return true;
   }
 
   // ------------------------------------------------------------ sessions (--resume)
@@ -134,15 +241,55 @@ export class Pont extends EventEmitter {
   noterSession(chatId, infos) {
     const s = this.sessions();
     s[chatId] = { ...s[chatId], ...infos, maj: isoZurich() };
-    ecrireJson(this.fichierSessions, s);
+    try { ecrireJson(this.fichierSessions, s); } catch (e) { this.journal("ecriture_impossible", { fichier: "sessions.json", erreur: e.code || String(e) }); }
   }
 
+  oublierSession(chatId) {
+    const s = this.sessions();
+    if (!(chatId in s)) return;
+    delete s[chatId];
+    try { ecrireJson(this.fichierSessions, s); } catch { /* la vérification au prochain lancement la rattrapera */ }
+  }
+
+  // La conversation notée existe-t-elle encore chez Claude ? Il efface les conversations inactives (30 jours par
+  // défaut) : son fichier disparaît de <config Claude>/projects/<dossier>/<id>.jsonl. Sans dossier projects (pas
+  // encore de conversation sur ce Mac, ou tests), on ne peut rien en dire : on la tient pour vivante.
+  conversationExiste(sessionId, env = {}) {
+    const base = this.envConfig || this.envBase;
+    const config = env.CLAUDE_CONFIG_DIR || base.CLAUDE_CONFIG_DIR || path.join(base.HOME || "", ".claude");
+    const projets = path.join(config, "projects");
+    let dossiers;
+    try { dossiers = fs.readdirSync(projets); } catch { return true; }
+    return dossiers.some((d) => fs.existsSync(path.join(projets, d, `${sessionId}.jsonl`)));
+  }
+
+  // Une session reprenable pour ce chat (même dossier, conversation encore là). Oublie une session perdue.
+  sessionVivante(chatId, r = null) {
+    const session = this.sessions()[chatId];
+    if (!session?.session_id) return false;
+    try { r = r || reglagesChat(chatId, this.config); } catch { return false; }
+    if (path.resolve(session.cwd || "") !== path.resolve(r.cwd)) return false;
+    if (this.conversationExiste(session.session_id, r.env)) return true;
+    this.journal("conversation_perdue", { chat_id: chatId });
+    this.oublierSession(chatId);
+    return false;
+  }
+
+  aUneSession(chatId) {
+    return this.sessionVivante(chatId);
+  }
+
+  // Les chats qui travaillent : tour en cours, message en attente, ou suite après la fin du tour (rendu en
+  // arrière-plan). Un processus qui sort juste après son tour n'en fait pas partie (mais reste « actif »).
   actives() {
-    return [...this.processus.keys()];
+    const suites = [...this.vivants].filter(([, p]) => p.suite).map(([c]) => c);
+    return [...new Set([...this.processus.keys(), ...this.differes.keys(), ...suites])];
   }
 
+  // Un chat est occupé tant qu'un processus tourne pour lui (même après la fin de son tour, par exemple pendant un
+  // rendu en arrière-plan) ou qu'un message y attend son lancement.
   actif(chatId) {
-    return this.processus.has(chatId);
+    return this.processus.has(chatId) || this.vivants.has(chatId) || this.differes.has(chatId);
   }
 
   // ------------------------------------------------------------ envoyer
@@ -154,39 +301,66 @@ export class Pont extends EventEmitter {
     if (romain && texte) {
       this.noter(chatId, { n: this.prochainN(chatId), le, role: "romain", type: "texte", texte });
     }
-    const contenu = envoi ?? texte;
-    const ligne = JSON.stringify({ type: "user", message: { role: "user", content: contenu } }) + "\n";
+    const ligne = ligneUtilisateur(envoi ?? texte);
     const p = this.processus.get(chatId);
     if (p && !p.entreeFermee) {
       p.enAttente += 1;
+      p.lignes.push(ligne);
       p.enfant.stdin.write(ligne);
       if (parFile) p.parFile = true;
       return { nouveau: false };
     }
-    this.lancer(chatId, ligne, { parFile, besoin });
+    const d = this.differes.get(chatId);
+    if (d) {
+      d.lignes.push(ligne);
+      if (parFile) d.opts.parFile = true;
+      return { nouveau: false, attend: true };
+    }
+    if (this.vivants.has(chatId)) {
+      // Le processus d'avant n'est pas fini (il sort, ou il rend une vidéo en arrière-plan) : le message part
+      // quand il a fini, sur la même conversation. Jamais deux processus sur un même chat.
+      this.differes.set(chatId, { lignes: [ligne], opts: { parFile, besoin, sansEtat: true }, minuterie: null });
+      this.noter(chatId, { n: this.prochainN(chatId), le, role: "studio", type: "etat", etat: "en_cours" });
+      this.journal("message_differe", { chat_id: chatId });
+      this.emit("actives", this.actives());
+      return { nouveau: false, attend: true };
+    }
+    this.lancer(chatId, [ligne], { parFile, besoin });
     return { nouveau: true };
   }
 
-  aUneSession(chatId) {
-    return Boolean(this.sessions()[chatId]?.session_id);
+  lancerDifferes(chatId) {
+    const d = this.differes.get(chatId);
+    if (!d || this.vivants.has(chatId)) return;
+    this.differes.delete(chatId);
+    if (d.minuterie) clearTimeout(d.minuterie);
+    this.lancer(chatId, d.lignes, d.opts);
   }
 
-  lancer(chatId, ligne, { parFile, besoin }) {
+  lancer(chatId, lignes, { parFile = false, besoin = {}, essais = 0, sansEtat = false, neuve = false } = {}) {
+    const opts = { parFile, besoin, essais, sansEtat, neuve };
     const r = reglagesChat(chatId, this.config, { besoin });
     const args = [...r.args];
-    const session = this.sessions()[chatId];
     const consignes = consignesActuelles(r, this.envBase);
-    if (session?.session_id && path.resolve(session.cwd || "") === path.resolve(r.cwd)) {
-      args.push("--resume", session.session_id);
-      if (session.consignes !== consignes.empreinte) {
-        ligne = joindreConsignes(ligne, consignes);
+    const avaitSession = Boolean(this.sessions()[chatId]?.session_id);
+    lignes = [...lignes];
+    if (!neuve && this.sessionVivante(chatId, r)) {
+      args.push("--resume", this.sessions()[chatId].session_id);
+      if (this.sessions()[chatId].consignes !== consignes.empreinte) {
+        lignes[0] = joindreConsignes(lignes[0], consignes);
         this.journal("consignes_jointes", { chat_id: chatId });
       }
+    } else if (avaitSession || neuve) {
+      // La conversation de ce chat a disparu : on repart d'une neuve, le dossier du contenu porte le contexte.
+      this.oublierSession(chatId);
+      lignes[0] = prefixer(lignes[0], RAPPEL_NEUVE);
+      this.journal("conversation_neuve", { chat_id: chatId });
     }
-    const etat = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" };
-    this.noter(chatId, etat);
+    if (!sansEtat) {
+      this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" });
+    }
     if (!fs.existsSync(r.cwd)) {
-      this.finir(chatId, null, "Le dossier de ce contenu n'existe pas encore sur ton Mac.");
+      this.finir(chatId, null, "Le dossier de ce contenu n'existe pas encore sur ton Mac.", undefined, { parFile });
       return;
     }
     let enfant;
@@ -198,17 +372,19 @@ export class Pont extends EventEmitter {
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (e) {
-      this.finir(chatId, null, `Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens ${contact()}.`);
+      this.finir(chatId, null, `Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens ${contact()}.`, undefined, { parFile });
       this.journal("lancement_impossible", { chat_id: chatId, erreur: e.code || String(e) });
       return;
     }
     const p = {
-      enfant, enAttente: 1, arret: false, parFile, entreeFermee: false, fini: false,
+      enfant, enAttente: lignes.length, arret: false, parFile, entreeFermee: false, fini: false, ferme: false,
       normaliseur: new Normaliseur(() => this.prochainN(chatId)), stderr: "", cwd: r.cwd, agent: r.agent,
-      consignes: consignes.empreinte,
+      consignes: consignes.empreinte, lignes: [...lignes], opts,
     };
     this.processus.set(chatId, p);
-    this.journal("session_lancee", { chat_id: chatId, pid: enfant.pid, reprise: args.includes("--resume") });
+    this.vivants.set(chatId, p);
+    this.noterProcessus(chatId, enfant.pid);
+    this.journal("session_lancee", { chat_id: chatId, pid: enfant.pid, reprise: args.includes("--resume"), essai: essais || undefined });
     this.emit("actives", this.actives());
 
     enfant.on("error", (e) => {
@@ -216,7 +392,7 @@ export class Pont extends EventEmitter {
       this.finir(chatId, p, `Je n'arrive pas à démarrer l'assistant sur ce Mac. Préviens ${contact()}.`);
     });
     enfant.stdin.on("error", () => {});
-    enfant.stdin.write(ligne);
+    for (const l of lignes) enfant.stdin.write(l);
 
     let reste = "";
     enfant.stdout.setEncoding("utf8");
@@ -229,20 +405,72 @@ export class Pont extends EventEmitter {
         if (!l) continue;
         let evt;
         try { evt = JSON.parse(l); } catch { continue; }
-        this.traiter(chatId, p, evt);
+        try { this.traiter(chatId, p, evt); } catch (e) { this.journal("evenement_ignore", { chat_id: chatId, erreur: String(e?.message || e) }); }
       }
     });
     enfant.stderr.setEncoding("utf8");
     enfant.stderr.on("data", (m) => { p.stderr = (p.stderr + m).slice(-2000); });
     enfant.on("close", (code, signal) => {
+      p.ferme = true;
+      if (p.minuterieKill) clearTimeout(p.minuterieKill);
+      if (this.vivants.get(chatId) === p) this.vivants.delete(chatId);
+      this.noterProcessus(chatId, null);
       this.journal("session_terminee", { chat_id: chatId, pid: enfant.pid, code, signal, stderr: p.stderr.slice(-300) || undefined });
-      if (p.suite) this.finirSuite(chatId, p, null);
-      if (!p.fini) {
+      if (p.suite) this.finirSuite(chatId, p, null, p.arret ? "arrete" : undefined);
+      if (p.reessai && p.arret) {
+        this.finir(chatId, p, null, "arrete");
+      } else if (p.reessai) {
+        this.reessayer(chatId, p);
+      } else if (!p.fini) {
         if (p.arret) this.finir(chatId, p, null, "arrete");
-        else if (p.enAttente > 0) this.finir(chatId, p, `La conversation s'est coupée d'un coup. Réessaie, et si ça recommence, préviens ${contact()}.`);
+        else if (p.enAttente > 0) this.coupure(chatId, p);
         else this.finir(chatId, p, null, null);
       }
+      // Un message arrivé pendant que ce processus finissait part maintenant.
+      if (this.differes.get(chatId) && !this.differes.get(chatId).minuterie) this.lancerDifferes(chatId);
+      this.emit("actives", this.actives());
+      // Le chat est libre : une action de la file qui l'attendait peut partir.
+      if (!this.actif(chatId)) this.emit("libre", { chat_id: chatId });
     });
+  }
+
+  // Le processus est sorti sans résultat de fin : conversation effacée, coupure réseau, ou plantage.
+  coupure(chatId, p) {
+    if (PERDUE.test(p.stderr) && !p.opts.neuve) {
+      this.journal("conversation_perdue", { chat_id: chatId, par: "claude" });
+      this.oublierSession(chatId);
+      if (this.processus.get(chatId) === p) this.processus.delete(chatId);
+      p.fini = true;
+      this.lancer(chatId, p.lignes, { ...p.opts, sansEtat: true, neuve: true });
+      return;
+    }
+    const c = classerErreur(p.stderr);
+    if (PASSAGERES.has(c.motif) && p.opts.essais < this.delaisReessai.length) {
+      this.reessayer(chatId, p);
+      return;
+    }
+    const erreur = c.motif === "autre"
+      ? `La conversation s'est coupée d'un coup. Réessaie, et si ça recommence, préviens ${contact()}.`
+      : phraseErreur(c, { parFile: p.parFile });
+    this.finir(chatId, p, erreur, undefined, { motif: c.motif, reprise: c.reprise });
+  }
+
+  // Réessai d'un tour coupé par une erreur passagère, après un délai. Le chat reste « en cours » pendant l'attente ;
+  // un message envoyé entre-temps part avec le réessai.
+  reessayer(chatId, p) {
+    p.fini = true;
+    if (this.processus.get(chatId) === p) this.processus.delete(chatId);
+    const essais = p.opts.essais + 1;
+    const delai = this.delaisReessai[essais - 1] ?? this.delaisReessai.at(-1) ?? 15000;
+    const reprendre = this.sessionVivante(chatId) ? [ligneUtilisateur(LIGNE_REESSAI)] : p.lignes;
+    const avant = this.differes.get(chatId);
+    const d = { lignes: [...reprendre, ...(avant?.lignes || [])], opts: { ...p.opts, parFile: p.parFile, essais, sansEtat: true, neuve: false }, minuterie: null };
+    if (avant?.minuterie) clearTimeout(avant.minuterie);
+    d.minuterie = setTimeout(() => { d.minuterie = null; this.lancerDifferes(chatId); }, delai);
+    d.minuterie.unref?.();
+    this.differes.set(chatId, d);
+    this.journal("tour_reessaye", { chat_id: chatId, essai: essais, delai_ms: delai });
+    this.emit("actives", this.actives());
   }
 
   traiter(chatId, p, evt) {
@@ -250,13 +478,13 @@ export class Pont extends EventEmitter {
       // Tour déjà rendu, mais le processus reparle : un travail lancé en arrière-plan (un rendu long)
       // a fini et l'agent continue. Le chat repasse « en cours », puis reçoit son état de fin à la fin
       // de cette suite (vu le 2026-11-19 : sans ça, le chat restait « en train de travailler »).
-      if (p.fini && !p.suite && (el.genre === "texte" || el.genre === "activite")) {
+      if (p.fini && !p.suite && !p.reessai && (el.genre === "texte" || el.genre === "activite")) {
         p.suite = true;
-        this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" });
+        if (!this.differes.has(chatId)) this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: "en_cours" });
         this.journal("suite_apres_fin", { chat_id: chatId });
       }
       if (p.suite && el.genre === "fin") {
-        this.finirSuite(chatId, p, el.erreur);
+        this.finirSuite(chatId, p, el.erreur, undefined, el);
         continue;
       }
       if (el.genre === "session") {
@@ -268,12 +496,19 @@ export class Pont extends EventEmitter {
         this.noter(chatId, { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "activite", texte: el.texte });
       } else if (el.genre === "fin") {
         p.enAttente = Math.max(0, p.enAttente - 1);
-        if (el.erreur) this.journal("tour_en_erreur", { chat_id: chatId, limite: el.limite });
+        if (el.erreur) this.journal("tour_en_erreur", { chat_id: chatId, motif: el.motif, limite: el.limite });
         if (p.enAttente === 0) {
           // Tour fini : on ferme l'entrée, le processus se termine de lui-même.
           p.entreeFermee = true;
           try { p.enfant.stdin.end(); } catch { /* déjà fermée */ }
-          this.finir(chatId, p, el.erreur);
+          if (PASSAGERES.has(el.motif) && !p.arret && p.opts.essais < this.delaisReessai.length) {
+            // Erreur passagère : réessayée quand ce processus est sorti, rien n'est dit tout de suite.
+            p.reessai = true;
+            continue;
+          }
+          // La phrase dépend de qui a lancé le tour : un travail de la file repart tout seul, un message se redemande.
+          const erreur = el.motif ? phraseErreur(el, { parFile: p.parFile }) : el.erreur;
+          this.finir(chatId, p, erreur, undefined, { motif: el.motif, reprise: el.reprise });
         }
       }
     }
@@ -281,18 +516,20 @@ export class Pont extends EventEmitter {
 
   // Fin d'une suite après la fin du tour : pas de file à prévenir (l'action est déjà close), seulement
   // l'état du chat. Si une nouvelle conversation a pris le relais entre-temps, elle garde la main.
-  finirSuite(chatId, p, erreur) {
+  finirSuite(chatId, p, erreur, etatForce, infos = {}) {
     if (!p.suite) return;
     p.suite = false;
-    if (this.processus.has(chatId)) return;
-    const m = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat: erreur ? "erreur" : "a_toi" };
+    if (this.processus.has(chatId) || this.differes.has(chatId)) return;
+    const etat = etatForce || (erreur ? "erreur" : "a_toi");
+    const m = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat };
     if (erreur) m.texte = erreur;
+    if (erreur && infos.motif) m.motif = infos.motif;
     this.noter(chatId, m);
   }
 
   // Termine un tour : écrit l'état final et prévient la file. La décision « fini » ou « à toi »
   // peut demander un instant (synchro) : le chat reste marqué occupé jusque-là.
-  async finir(chatId, p, erreur, etatForce) {
+  async finir(chatId, p, erreur, etatForce, { motif = null, reprise = null, parFile = false } = {}) {
     if (p) {
       if (p.fini) return;
       p.fini = true;
@@ -307,12 +544,14 @@ export class Pont extends EventEmitter {
       }
     }
     if (p && this.processus.get(chatId) === p) this.processus.delete(chatId);
-    if (etat) {
+    if (etat && !this.differes.has(chatId)) {
       const m = { n: this.prochainN(chatId), le: isoZurich(), role: "studio", type: "etat", etat };
       if (erreur) m.texte = erreur;
+      if (erreur && motif) m.motif = motif;
+      if (erreur && reprise) m.reprise = new Date(reprise).toISOString();
       this.noter(chatId, m);
     }
-    this.emit("fin", { chat_id: chatId, etat, erreur: erreur || null, parFile: Boolean(p?.parFile) });
+    this.emit("fin", { chat_id: chatId, etat, erreur: erreur || null, parFile: Boolean(p?.parFile || parFile), motif: erreur ? motif : null, reprise: erreur ? reprise : null });
     this.emit("actives", this.actives());
   }
 
@@ -326,22 +565,40 @@ export class Pont extends EventEmitter {
     }
   }
 
+  // Arrête tout ce qui tourne pour ce chat : le tour en cours, un processus qui continue après la fin de son tour
+  // (rendu en arrière-plan), un message en attente ou un réessai prévu. Rend faux s'il n'y avait rien.
   arreter(chatId) {
-    const p = this.processus.get(chatId);
-    if (!p) return false;
-    p.arret = true;
-    this.tuerGroupe(p, "SIGTERM");
-    p.minuterie = setTimeout(() => this.tuerGroupe(p, "SIGKILL"), DELAI_KILL_MS);
-    p.minuterie.unref?.();
-    this.journal("session_arretee", { chat_id: chatId, pid: p.enfant.pid });
-    return true;
+    let fait = false;
+    const d = this.differes.get(chatId);
+    if (d) {
+      if (d.minuterie) clearTimeout(d.minuterie);
+      this.differes.delete(chatId);
+      fait = true;
+    }
+    const p = this.processus.get(chatId) || this.vivants.get(chatId);
+    if (p && !p.ferme) {
+      p.arret = true;
+      this.tuerGroupe(p, "SIGTERM");
+      if (p.minuterieKill) clearTimeout(p.minuterieKill);
+      p.minuterieKill = setTimeout(() => this.tuerGroupe(p, "SIGKILL"), DELAI_KILL_MS);
+      p.minuterieKill.unref?.();
+      this.journal("session_arretee", { chat_id: chatId, pid: p.enfant.pid });
+      fait = true;
+    }
+    // Rien en cours de tour : c'est ici qu'on écrit l'arrêt (sinon la fin du processus s'en charge).
+    if (d && !this.processus.has(chatId) && !p?.suite) {
+      this.finir(chatId, null, null, "arrete", { parFile: d.opts?.parFile });
+    }
+    if (fait) this.emit("actives", this.actives());
+    return fait;
   }
 
   // Arrête tout et attend la fin de chaque processus (par son PID, jamais par motif).
   async toutArreter() {
     const attentes = [];
-    for (const [chatId, p] of this.processus) {
-      attentes.push(new Promise((r) => p.enfant.once("close", r)));
+    for (const chatId of this.actives()) {
+      const p = this.vivants.get(chatId);
+      if (p && !p.ferme) attentes.push(new Promise((r) => p.enfant.once("close", r)));
       this.arreter(chatId);
     }
     await Promise.race([Promise.all(attentes), new Promise((r) => setTimeout(r, DELAI_KILL_MS + 1500))]);

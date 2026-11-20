@@ -61,6 +61,10 @@ export function creerApiServeur() {
     chat: (chatId) => appel("GET", `/api/chats/${enc(chatId)}`),
     envoyer: (chatId, texte) => appel("POST", `/api/chats/${enc(chatId)}/messages`, { texte }),
     arreterChat: (chatId) => appel("POST", `/api/chats/${enc(chatId)}/arreter`, {}),
+    nouvelleConversation: (chatId) => appel("POST", `/api/chats/${enc(chatId)}/nouvelle`, {}),
+    relancerAction: (id) => appel("POST", `/api/actions/${enc(id)}/relancer`, {}),
+    effacerAction: (id) => appel("POST", `/api/actions/${enc(id)}/effacer`, {}),
+    archiver: () => appel("POST", "/api/archiver", {}),
     tournage: (id) => appel("GET", `/api/tournages/${enc(id)}`),
     receptionPlan: (id) => appel("GET", `/api/tournages/${enc(id)}/reception`),
     brief: (slug, corps) => appel("POST", `/api/cartes/${enc(slug)}/brief`, corps),
@@ -113,7 +117,7 @@ function envoyerFichier(slug, fichier, type, onProgres = () => {}) {
 // Flux d'événements : reconnexion automatique avec attente croissante.
 // À chaque reconnexion, l'appli recharge l'état complet (onConnexion("ok")) pour ne rien rater.
 function ecouterServeur({ onEvenement, onConnexion }) {
-  const TYPES = ["carte", "carte_retiree", "chat", "file", "a_ranger", "sync", "stats", "tournages", "ping"];
+  const TYPES = ["carte", "carte_retiree", "chat", "chat_reinitialise", "file", "alertes", "a_ranger", "sync", "stats", "tournages", "ping"];
   let source = null; let attente = 1000; let minuteur = null; let ferme = false; let dernierSignal = Date.now();
   let veille = null;
 

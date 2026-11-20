@@ -32,14 +32,14 @@ function disqueBranche(d) {
   try { return fs.statSync(d).dev !== fs.statSync('/').dev && fs.statSync(d).isDirectory(); } catch { return false; }
 }
 
-// Date de publication de chaque contenu publié (contrat, section 6 : « publié », ou « programmé » et passé).
+// Date de publication de chaque contenu publié. Lot 12 : seulement « publié » (Instagram l'a confirmé). Un
+// « programmé » dont l'heure est passée peut avoir été refusé par Instagram : ses rushs restent sur le Mac.
 function publies(depot) {
   const reg = lireJson(path.join(depot, 'publications', 'registre.json'), { publications: {} });
   const out = {};
   for (const [slug, e] of Object.entries(reg.publications || {})) {
-    const quand = lireDate(e.prevu_le) || lireDate(e.enregistre_le) || lireDate(e.publie_le);
+    const quand = lireDate(e.publie_le) || lireDate(e.prevu_le) || lireDate(e.enregistre_le);
     if (e.statut === 'publié') out[slug] = quand || new Date(0);
-    else if (e.statut === 'programmé' && quand && quand < new Date()) out[slug] = quand;
   }
   return out;
 }

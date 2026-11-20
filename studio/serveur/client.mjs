@@ -90,6 +90,8 @@ function reglesSoi(nom) {
     [new RegExp(`${p} si tu as un doute\\.`, "g"), (m) => maj(m, "relis-le avant de confirmer.")],
     [new RegExp(`Pour le décaler, préviens ${echapperRe(nom)}\\.`, "g"), () => "Pour le décaler, il faut d'abord l'annuler : ça ne se fait pas encore depuis le studio."],
     [new RegExp(`${p} : la reconnexion prend deux minutes\\.`, "g"), (m) => maj(m, "reconnecte-le : ça prend deux minutes.")],
+    [new RegExp(`${p} avant cette date : il la renouvelle en deux minutes\\.`, "g"), (m) => maj(m, "renouvelle-la avant cette date : ça prend deux minutes.")],
+    [new RegExp(`${p} : une autorisation est à donner dans les réglages de ton Mac\\.`, "g"), (m) => maj(m, "donne-lui l'autorisation dans les réglages de ton Mac (Confidentialité et sécurité, Fichiers et dossiers).")],
     [new RegExp(`Rien n'est perdu : préviens ${echapperRe(nom)}\\.`, "g"), () => "Rien n'est perdu, mais il faut les raccorder à la main."],
     [new RegExp(`${p}\\b`, "g"), (m) => maj(m, "c'est un souci du studio à corriger")],
   ];
