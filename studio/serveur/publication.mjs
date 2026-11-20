@@ -6,7 +6,7 @@ import { construireCartes } from "./lecture.mjs";
 import { ErreurStudio, MESSAGE_GENERIQUE } from "./depot-outils.mjs";
 import { ressourcesActives } from "./ressources.mjs";
 
-const STATUT_HTTP = { RESSOURCES_ABSENTES: 404, RIEN_A_POSER: 400, RIEN_A_PUBLIER: 409, DATE_ILLISIBLE: 400, RECAP_INCONNU: 409, RECAP_EXPIRE: 409, RECAP_DEJA_UTILISE: 409 };
+const STATUT_HTTP = { RESSOURCES_ABSENTES: 404, RIEN_A_POSER: 400, RIEN_A_REESSAYER: 400, PAS_DE_POST: 409, REFUS: 409, ARRET: 409, REESSAI_IMPOSSIBLE: 409, RIEN_A_PUBLIER: 409, DATE_ILLISIBLE: 400, RECAP_INCONNU: 409, RECAP_EXPIRE: 409, RECAP_DEJA_UTILISE: 409 };
 
 // Le lot 5 lit la config sous sa forme de fichier (depot_hoc, depot_mac, media...) : on lui donne
 // les chemins déjà développés.
@@ -61,11 +61,31 @@ export class Publication {
     }
   }
 
+  // Lot 13 : le TikTok du client est-il relié chez Zernio, et que permet-il ? Lu par `zernio.py tiktok` (lecture
+  // seule), gardé deux minutes. L'identifiant du fichier du client (zernio.tiktok) est passé s'il est connu ; sinon
+  // zernio.py le découvre sur le profil (GET /v1/accounts) dès qu'il y apparaît. Illisible : null (TikTok grisé).
+  async etatTiktok(maintenant = Date.now()) {
+    if (this.tiktokCache && maintenant - this.tiktokCache.le < 120e3) return this.tiktokCache.etat;
+    const id = this.config.client?.zernio?.tiktok;
+    const args = ['tiktok', '--format', 'json', ...(id ? ['--tiktok-compte', String(id)] : [])];
+    let etat = null;
+    try {
+      const { code, sortie } = await pub.lancerZernio(configBrute(this.config), args, { timeoutMs: 60000 });
+      const ligne = String(sortie || '').trim().split('\n').pop();
+      const j = code === 0 ? JSON.parse(ligne) : null;
+      if (j && typeof j === 'object' && 'relie' in j) etat = j;
+    } catch { etat = null; }
+    this.tiktokCache = { le: maintenant, etat };
+    this.journal("tiktok_lu", { relie: etat ? etat.relie : "illisible" });
+    return etat;
+  }
+
   async recap(elements) {
     await this.pousser();
     try {
       const c = await this.choixRessources();
-      const r = await pub.recap(elements, configBrute(this.config), { ressources: c.ressources, ressourcesNote: c.note });
+      const tiktok = await this.etatTiktok();
+      const r = await pub.recap(elements, configBrute(this.config), { ressources: c.ressources, ressourcesNote: c.note, tiktok: tiktok || { relie: null } });
       this.journal("recap_publication", { recap_id: r.recap_id, n: r.elements.length });
       return r;
     } catch (e) {
@@ -75,12 +95,15 @@ export class Publication {
 
   // textes : { <slug>: { legende?, message?, bouton? } } retouchés au récapitulatif juste avant le clic.
   // quands : { <slug>: "maintenant" | "AAAA-MM-JJ HH:MM" } choisis après la préparation (lot 10).
-  async confirmer(recapId, textes, quands = {}) {
+  // plateformes : { <slug>: ["instagram", "tiktok"] } cochées au clic (lot 13) ; tiktok : { <slug>: { commentaires,
+  // duo, collage, consentement } }, les réglages et l'accord donnés par ce clic.
+  async confirmer(recapId, textes, quands = {}, plateformes = {}, tiktok = {}) {
     await this.pousser();
     try {
-      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config), { textes, quands }));
+      const r = await this.file.suivre("publication", {}, () => pub.confirmer(recapId, configBrute(this.config), { textes, quands, plateformes, tiktok }));
       await this.tirer();
-      this.journal("publication", { recap_id: recapId, simulation: Boolean(r.simulation), n: r.resultats?.length || 0 });
+      this.journal("publication", { recap_id: recapId, simulation: Boolean(r.simulation), n: r.resultats?.length || 0,
+        plateformes: (r.resultats || []).map((x) => `${x.slug}:${(x.plateformes_choisies || []).join("+") || "aucune"}:${x.statut}`) });
       return { resultats: r.resultats };
     } catch (e) {
       throw traduireErreur(e);
@@ -94,6 +117,19 @@ export class Publication {
       const r = await this.file.suivre("publication", {}, () => pub.poserMot(slug, ressource, configBrute(this.config)));
       await this.tirer();
       this.journal("poser_mot", { slug, statut: r.statut });
+      return r;
+    } catch (e) {
+      throw traduireErreur(e);
+    }
+  }
+
+  // « Réessayer sur TikTok » (ou Instagram) : seulement cette plateforme, au clic.
+  async reessayer(slug, plateforme) {
+    await this.pousser();
+    try {
+      const r = await this.file.suivre("publication", {}, () => pub.reessayer(slug, plateforme, configBrute(this.config)));
+      await this.tirer();
+      this.journal("reessayer", { slug, plateforme, statut: r.statut });
       return r;
     } catch (e) {
       throw traduireErreur(e);

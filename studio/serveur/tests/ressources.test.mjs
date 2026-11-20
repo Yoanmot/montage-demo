@@ -303,7 +303,7 @@ test("serveur yoan : message pas validé : le récapitulatif le montre, le clic 
   const avant = appels().length;
   s.config.simulation = false;
   try {
-    const faux = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r.json.recap_id, textes: { "video-montee": { message: "Salut [son prénom] \u2014 voici." } } } });
+    const faux = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r.json.recap_id, plateformes: { "video-montee": ["instagram"] }, textes: { "video-montee": { message: "Salut [son prénom] \u2014 voici." } } } });
     assert.equal(faux.statut, 200, faux.texte);
     assert.equal(faux.json.resultats[0].statut, "bloque");
     assert.match(faux.json.resultats[0].message, /tiret long/);
@@ -312,7 +312,7 @@ test("serveur yoan : message pas validé : le récapitulatif le montre, le clic 
     // Le clic, pour de vrai (faux Zernio) : validation écrite et poussée, puis programmation.
     const r2 = await requete("/api/publication/recap", { methode: "POST", corps: { elements: [{ slug: "video-montee", quand: `${DANS_3_JOURS} 18:30`, ressource: "le-monteur" }] } });
     const n = appels().length;
-    const c = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r2.json.recap_id } });
+    const c = await requete("/api/publication/confirmer", { methode: "POST", corps: { recap_id: r2.json.recap_id, plateformes: { "video-montee": ["instagram"] } } });
     assert.equal(c.statut, 200, c.texte);
     assert.equal(c.json.resultats[0].statut, "programmé", c.json.resultats[0].message);
     const suite = appels().slice(n).map((a) => a.argv[0]);

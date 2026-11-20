@@ -49,8 +49,10 @@ export function refusCommuns(client = clientActif(), config = null) {
     "Bash(*/.ssh*)", "Bash(*~/.ssh*)", "Bash(*zernio.env*)", "Bash(*monteur-romain/.env*)",
     ...(maison ? [] : ["Bash(*elevenlabs.env*)", "Bash(*claude.env*)"]),
     // La publication ne part que d'un clic sur le récapitulatif du studio (ZERNIO_ECRITURE=<compte>, et
-    // l'ancien ZERNIO_ECRITURE_ROMAIN=oui).
+    // l'ancien ZERNIO_ECRITURE_ROMAIN=oui). Lot 13 : le renvoi d'une plateforme (reessayer) et l'accord TikTok
+    // (--tiktok-consentement, que seul le clic donne) aussi, même en simulation.
     "Bash(*ZERNIO_ECRITURE_ROMAIN*)", "Bash(*ZERNIO_ECRITURE*)", "Bash(*zernio.py publier*--envoyer*)",
+    "Bash(*zernio.py reessayer*--envoyer*)", "Bash(*zernio.py poser-mot*--envoyer*)", "Bash(*--tiktok-consentement*)",
     // Installation d'essai qui lit les vrais chiffres (stats_reelles) : la clé de lecture (<racine>/zernio-lecture.env,
     // déjà illisible par Read comme tout <racine>/*.env) ne passe pas non plus par une commande, ni par les variables
     // qui la donneraient à zernio.py.
@@ -80,8 +82,8 @@ export function consigneStudio(prenom = clientActif().prenom, contact = clientAc
   return [
     `Tu parles à ${prenom} dans son studio, une appli de son Mac. Son chat est une colonne étroite à droite.`,
     `Tu fais ce que ${prenom} te demande, comme un assistant qui travaille directement sur son Mac, même hors du déroulé prévu : un plan en plus de ceux du brief, un nouveau fichier ou des images dans le dossier du contenu, un brief changé, une étape refaite, une recherche, un petit outil fait pour l'occasion. Le déroulé de tes consignes dit ce que tu fais quand il ne demande rien ; ce n'est jamais une limite. Ne réponds jamais « ce n'est pas prévu » ou « ce n'est pas mon rôle » : fais-le, ou dis en une phrase ce qu'il te manque pour le faire.`,
-    `Ce qui reste fermé, même s'il le demande : rien ne part sur Instagram depuis ce chat (la publication se fait par son clic sur le récapitulatif) ; ses clés restent secrètes ; rien n'est supprimé hors de ses dossiers de travail ; jamais de visage ni de voix de ${prenom} fabriqués (une autre image générée ou un visuel qu'il demande expressément, oui) ; tu ne modifies ni tes propres consignes, ni le studio lui-même (son interface, ses réglages) : s'il le demande, ${studioFerme}.`,
-    "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Publier sur Instagram ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
+    `Ce qui reste fermé, même s'il le demande : rien ne part sur Instagram ni sur TikTok depuis ce chat (la publication se fait par son clic sur le récapitulatif de « Poster ») ; ses clés restent secrètes ; rien n'est supprimé hors de ses dossiers de travail ; jamais de visage ni de voix de ${prenom} fabriqués (une autre image générée ou un visuel qu'il demande expressément, oui) ; tu ne modifies ni tes propres consignes, ni le studio lui-même (son interface, ses réglages) : s'il le demande, ${studioFerme}.`,
+    "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Poster ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
     "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
     "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
     "S'il te demande expressément de lui montrer ou de lui expliquer quelque chose dans le chat, fais-le, court. Quand tu n'enregistres rien (une question, un conseil), réponds normalement, court aussi.",

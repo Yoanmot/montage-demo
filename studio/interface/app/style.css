@@ -393,6 +393,31 @@ textarea.champ.recap-texte { font-size: 14px; line-height: 1.55; min-height: 0; 
 .recap-essai-passage legend { float: left; width: 100%; padding: 0; margin-bottom: 2px; font-size: 13px; font-weight: 700; color: var(--encre-2); }
 input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; margin: 0; flex: none; }
 .recap-essai-note { font-size: 12.5px; }
+/* Lot 13 : où part chaque contenu, Instagram et TikTok (préfixe rp-). Deux cases décochées d'office ; le bloc de
+   chaque plateforme n'apparaît que coché ; TikTok grisé avec sa raison quand il n'est pas relié. */
+.verdict-neutre { background: var(--fond-2); color: var(--encre-2); font-weight: 650; }
+.rp-plateformes { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; }
+.rp-case { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; color: var(--encre-2); }
+.rp-case input { width: 18px; height: 18px; margin: 0; accent-color: var(--orange); }
+.rp-case:hover { color: var(--encre); }
+.rp-case:has(input:checked) { color: var(--encre); font-weight: 650; }
+.rp-case-grisee, .rp-case-grisee:hover { color: var(--encre-3, var(--encre-2)); opacity: .6; cursor: not-allowed; }
+.rp-raison { flex-basis: 100%; font-size: 13px; margin: 0; }
+.rp-bloc { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--rayon-petit); border: 1px solid var(--trait); }
+.rp-bloc[hidden] { display: none; }
+.rp-bloc-titre { margin: 0; font-size: 12.5px; font-weight: 750; letter-spacing: .02em; text-transform: uppercase; color: var(--encre-2); }
+.rp-compteur { font-size: 12.5px; margin: 0; font-variant-numeric: tabular-nums; }
+.rp-compteur-trop { color: var(--rouge); font-weight: 650; }
+.rp-note { font-size: 12.5px; margin: 0; }
+.rp-reglages { display: grid; gap: 2px; justify-items: start; }
+.rp-grise .recap-ressource, .rp-grise .recap-dm, .rp-grise .recap-mot { opacity: .5; }
+.rp-pied-texte { flex: 1; min-width: 220px; display: grid; gap: 8px; }
+.rp-ou { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13.5px; color: var(--encre-2); }
+.rp-ou strong { color: var(--encre); font-weight: 650; }
+.rp-ou-vide { color: var(--ambre); font-weight: 600; }
+.rp-accord { margin: 0; font-size: 13px; color: var(--encre-2); max-width: 62ch; }
+.rp-liens { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.recap-resultats li.partiel .ico { color: var(--ambre); }
 
 /* ressources gratuites (préfixe res-) */
 .res-liste { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--encre-2); }
@@ -773,7 +798,7 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 @container (max-width: 640px) { .etapes-ligne { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @container (max-width: 430px) { .etapes-ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); } .etp-n { font-size: 22px; } }
 
-/* Publier sur Instagram : une carte par contenu prêt (préfixe pub-). L'image du hook en haut, cadrée en haut (le titre
+/* Poster (ex « Publier sur Instagram ») : une carte par contenu prêt (préfixe pub-). L'image du hook en haut, cadrée en haut (le titre
    du hook y est), le titre, puis « Préparer à poster ». Choisir plusieurs cartes ouvre la barre du groupe. */
 .pub-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 16px; }
 .pub-carte { display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); overflow: hidden; transition: border-color .15s, box-shadow .15s; }

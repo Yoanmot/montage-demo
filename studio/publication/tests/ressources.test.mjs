@@ -13,7 +13,12 @@ import { after, before, beforeEach, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { spawnSync } from 'node:child_process';
-import { confirmer, lancerZernio, motAbsent, oublierRecaps, poserMot, recap, PHRASE_MOT_SANS_RESSOURCE } from '../publication.mjs';
+import { confirmer as confirmerAuClic, lancerZernio, motAbsent, oublierRecaps, poserMot, recap, PHRASE_MOT_SANS_RESSOURCE } from '../publication.mjs';
+
+// Lot 13 : rien ne part sans plateforme cochée. Ces essais d'avant TikTok cochent Instagram pour chaque contenu,
+// comme le ferait le clic ; les essais de TikTok (tiktok.test.mjs) passent leurs propres choix.
+const INSTAGRAM_COCHE = new Proxy({}, { get: (_, k) => (typeof k === 'string' ? ['instagram'] : undefined) });
+const confirmer = (id, config, opts = {}) => confirmerAuClic(id, config, { plateformes: INSTAGRAM_COCHE, ...opts });
 import { motAbsent as motAbsentInterface } from '../../interface/app/mot-absent.js';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -126,7 +131,7 @@ describe('récapitulatif avec ressources', { skip: SAUTER }, () => {
     const r = await recap([{ slug: 'messages-a-23h', quand: `${DANS_3_JOURS} 18:30`, ressource: 'le-tableur-de-suivi' }], config, { ressources: PRETES });
     const c = await confirmer(r.recap_id, config);
     assert.equal(c.resultats[0].statut, 'simulation', c.resultats[0].message);
-    assert.match(c.resultats[0].message, /Ceux qui commenteraient TABLEUR recevraient « Le modèle de tableur de suivi »/);
+    assert.match(c.resultats[0].message, /Ceux qui commenteraient TABLEUR sur Instagram recevraient « Le modèle de tableur de suivi »/);
     const pub = appels().find((x) => x.argv[0] === 'publier');
     assert.ok(pub.argv.includes('--ressource') && pub.argv.includes('le-tableur-de-suivi'), pub.argv.join(' '));
     assert.ok(!pub.argv.includes('--envoyer'));
@@ -243,7 +248,7 @@ describe('message pas validé et retouches au récapitulatif', { skip: SAUTER },
     const x = c.resultats[0];
     assert.equal(x.statut, 'simulation', x.message);
     assert.deepEqual(x.envoi, { legende: 'Commente MONTEUR, je t\'envoie tout.', mot: 'MONTEUR',
-      message: 'Salut [son prénom], la méthode retouchée est là.', bouton: 'Voir la méthode' });
+      message: 'Salut [son prénom], la méthode retouchée est là.', bouton: 'Voir la méthode', plateformes: ['instagram'] });
     // Les requêtes exactes que publier aurait envoyées : rien de la fiche ne reste.
     const pub = sorties.find((y) => y.args[0] === 'publier');
     assert.ok(pub.args.includes('--message-fichier') && pub.args.includes('--legende-fichier'), pub.args.join(' '));

@@ -20,6 +20,7 @@
 // }
 // etatLocal : { actions: [Action], actives: [chat_id], maintenant: Date }
 import { EXT_VIDEO, lireDate } from "./outils.mjs";
+import { listePlateformes } from "../publication/plateformes.mjs";
 import path from "node:path";
 
 export const LIBELLES = {
@@ -52,6 +53,12 @@ export function libelle(stade, format, publication) {
   if (stade === "valide" && format === "carrousel") return "à mettre en page";
   if (publication?.statut === "failed" && ["monte", "mis_en_page"].includes(stade)) return "refusé par Instagram";
   if (stade === "programme" && sortieAConfirmer(publication)) return "sortie à confirmer";
+  // Lot 13 : parti sur une plateforme, refusé sur l'autre ; la carte dit lequel et propose de réessayer.
+  const pl = listePlateformes(publication);
+  const refusees = pl.filter((x) => x.statut === "failed");
+  if (["publie", "programme"].includes(stade) && refusees.length && refusees.length < pl.length) {
+    return `${stade === "publie" ? "publié" : "programmé"}, refusé sur ${refusees.map((x) => x.nom).join(" et ")}`;
+  }
   if (stade === "programme" && publication?.prevu_le) {
     const d = lireDate(publication.prevu_le);
     const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(publication.prevu_le));

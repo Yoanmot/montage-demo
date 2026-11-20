@@ -4,7 +4,7 @@
 
 import { el, icone, annoncer, markdown, texteBrut, copier, quandLisible, jourCourt, dateCourte, dateEnJour, heure, aujourdhui, ajouterJours, prochainJourParDefaut, pluriel, previens } from "./outils.js";
 import { NOMS_FICHIERS, ICONES_FICHIERS, ACTIONS_LOT, cle, libre, fichierParDefaut, ouChat, ouArbre, titreTournage } from "./commun.js";
-import { recapDans } from "./programmer.js";
+import { recapDans, liensPlateformes } from "./programmer.js";
 import { morceauxDuTexte } from "./morceaux.js";
 import { nomFormat, nomRole } from "./genres.js";
 import { Apercu } from "./apercu.js";
@@ -600,8 +600,8 @@ export class Vue {
   }
 
   // ---------- Vidéo montée, images ----------
-  // Lot 10 : ici on regarde ce qui est prêt. Poster, programmer et la légende se font à un seul endroit, « Publier sur
-  // Instagram » (préparation, puis quand). La légende se retouche dans le brief.
+  // Lot 10 : ici on regarde ce qui est prêt. Poster, programmer et la légende se font à un seul endroit, « Poster »
+  // (préparation, puis quand). La légende se retouche dans le brief.
   vueVideo(d) {
     const m = d.medias || {};
     return el("div", {}, this.etapePublication(d),
@@ -725,18 +725,38 @@ export class Vue {
   }
 
   etapePublication(d) {
-    // Lot 12 : l'heure passée ne vaut plus publication ; le studio attend qu'Instagram la confirme.
-    if (d.stade === "programme" && d.publication?.a_confirmer) return this.etape(`<strong>Prévu ${quandLisible(d.publication.quand)}.</strong> J'attends qu'Instagram confirme qu'il est en ligne : ça se met à jour tout seul. S'il n'apparaît pas sur ton compte d'ici une heure, ${previens()}.`);
-    if (d.stade === "programme" && d.publication) return this.etape(`<strong>Programmé ${quandLisible(d.publication.quand)}.</strong> Ça part tout seul, même Mac fermé.`);
-    if (d.stade === "publie") return this.etape("<strong>Publié.</strong>", d.publication?.lien ? el("a", { class: "bouton", href: d.publication.lien, target: "_blank", rel: "noopener", html: `${icone("lien")}<span>Voir la publication</span>` }) : null);
+    // Lot 13 : une ligne par plateforme (Instagram, TikTok) : où il est parti, le lien de chacune, l'échec d'une seule
+    // dit clairement avec « Réessayer sur <plateforme> » (au clic, seulement celle-là).
+    const pl = d.publication?.plateformes || [];
+    const refusees = pl.filter((x) => x.statut === "failed");
+    const parties = pl.filter((x) => x.statut !== "failed");
+    const liens = liensPlateformes(pl);
+    const surQuoi = (liste) => liste.map((x) => x.nom).join(" et ");
+    const reessayer = (x) => {
+      const b = el("button", { class: "bouton", type: "button", html: `${icone("synchro")}<span>Réessayer sur ${x.nom}</span>` });
+      b.addEventListener("click", async () => {
+        b.disabled = true; b.querySelector("span").textContent = `Je renvoie sur ${x.nom}`;
+        try { const r = await this.api.reessayer(d.slug, x.plateforme); annoncer(r.message); }
+        catch (err) { annoncer(err.message, "erreur"); b.disabled = false; b.querySelector("span").textContent = `Réessayer sur ${x.nom}`; }
+      });
+      return b;
+    };
+    const echec = refusees.length && parties.length
+      ? ` Mais ${surQuoi(refusees)} l'a refusé : tu peux renvoyer seulement là, sans reposter ailleurs.` : "";
+    const boutons = (...x) => { const n = x.filter(Boolean); return n.length ? el("div", { class: "rp-liens" }, ...n) : null; };
+    const relance = parties.length ? refusees.map(reessayer) : [];
+    if (d.stade === "programme" && d.publication?.a_confirmer) return this.etape(`<strong>Prévu ${quandLisible(d.publication.quand)}${parties.length ? ` sur ${surQuoi(parties)}` : ""}.</strong> J'attends la confirmation qu'il est en ligne : ça se met à jour tout seul. S'il n'apparaît pas d'ici une heure, ${previens()}.${echec}`, boutons(...relance));
+    if (d.stade === "programme" && d.publication) return this.etape(`<strong>Programmé ${quandLisible(d.publication.quand)}${parties.length ? ` sur ${surQuoi(parties)}` : ""}.</strong> Ça part tout seul, même Mac fermé.${echec}`, boutons(...relance));
+    if (d.stade === "publie") return this.etape(`<strong>Publié${parties.length ? ` sur ${surQuoi(parties)}` : ""}.</strong>${echec}`, boutons(liens, ...relance)
+      || (d.publication?.lien ? el("a", { class: "bouton", href: d.publication.lien, target: "_blank", rel: "noopener", html: `${icone("lien")}<span>Voir la publication</span>` }) : null));
     if (["monte", "mis_en_page"].includes(d.stade) && d.publication?.refuse) {
-      return this.etape(`<strong>Instagram ne l'a pas publié.</strong> Il était prévu ${quandLisible(d.publication.quand)}, mais il n'est pas en ligne. Tu peux le reprogrammer dans « Publier sur Instagram » ; si ça recommence, ${previens()}.`,
-        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Publier sur Instagram</span>`,
+      return this.etape(`<strong>${pl.length > 1 ? surQuoi(refusees) : "Instagram"} ne l'a pas publié.</strong> Il était prévu ${quandLisible(d.publication.quand)}, mais il n'est pas en ligne. Tu peux le reprogrammer dans « Poster » ; si ça recommence, ${previens()}.`,
+        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Poster</span>`,
           onclick: () => this.studio.selectionner({ genre: "transverse", quoi: "publier", vers: d.slug }) }));
     }
     if (["monte", "mis_en_page"].includes(d.stade)) {
-      return this.etape(`<strong>Prêt à poster.</strong> Tu le prépares dans « Publier sur Instagram » : tu relis sa légende et ce qu'il offre, puis tu choisis quand il part.`,
-        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Publier sur Instagram</span>`,
+      return this.etape(`<strong>Prêt à poster.</strong> Tu le prépares dans « Poster » : tu choisis où il part (Instagram, TikTok ou les deux), tu relis sa légende et ce qu'il offre, puis tu choisis quand il part.`,
+        el("button", { class: "bouton", type: "button", html: `${icone("envoi")}<span>Ouvrir Poster</span>`,
           onclick: () => this.studio.selectionner({ genre: "transverse", quoi: "publier", vers: d.slug }) }));
     }
     return null;
@@ -1287,7 +1307,7 @@ export class Vue {
     return blocs;
   }
 
-  // ---------- Publier sur Instagram (refait au lot 10 des deux studios) ----------
+  // ---------- Poster (« Publier sur Instagram » jusqu'au lot 13 ; refait au lot 10 des deux studios) ----------
   // Une carte par contenu prêt (titre, image du hook). « Préparer à poster » ouvre le récapitulatif : légende et message
   // retouchables, ressource, reel d'essai ; le quand (jour et heure, ou tout de suite) se choisit après, en bas. Plusieurs
   // cartes cochées se préparent ensemble. Rien ne part sans le clic final (programmer.js).
@@ -1353,7 +1373,7 @@ export class Vue {
     }
     const ligneSimple = (c, meta) => el("button", { class: `accueil-ligne f-${c.format}`, type: "button", onclick: () => s.selectionner({ genre: "dossier", cle: cle(c) }) },
       el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), el("span", { class: "ligne-corps" }, el("strong", {}, c.titre), el("span", { class: "ligne-meta" }, meta)), el("span", { html: icone("fleche") }));
-    return el("article", { class: "vue" }, ...this.entete("Publier sur Instagram", "Prépare ce qui est prêt : tu relis sa légende et ce qu'il offre, puis tu choisis s'il part tout de suite ou à un jour et une heure, même Mac fermé. Rien ne part sans ton clic."),
+    return el("article", { class: "vue" }, ...this.entete("Poster", "Prépare ce qui est prêt : tu choisis où il part (Instagram, TikTok ou les deux), tu relis sa légende et ce qu'il offre, puis tu choisis s'il part tout de suite ou à un jour et une heure, même Mac fermé. Rien ne part sans ton clic."),
       this.bloc("Prêts à poster", prets.length ? el("div", {}, grille, barre)
         : el("p", { class: "vide-doux" }, "Rien de prêt pour l'instant : une vidéo montée ou un carrousel mis en page arrive ici."),
       { aide: prets.length ? `${pluriel(prets.length, "contenu", "contenus")}${prets.length > 1 ? ", coche-en plusieurs pour les préparer ensemble" : ""}` : null }),

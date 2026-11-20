@@ -2,7 +2,7 @@
 
 // Les actions qui se lancent sur plusieurs dossiers d'un coup, depuis le fichier où vit leur bouton
 // (lot 11 : plus de cases dans l'arborescence). Le plan de tournage se choisit dans « Tournages », la
-// publication dans « Publier sur Instagram ».
+// publication dans « Poster ».
 export const ACTIONS_LOT = [
   { type: "script", titre: "Plusieurs briefs d'un coup", libelle: (n) => `Écrire les ${n} briefs`, ok: (c) => c.stade === "gardee",
     note: "Je les écris l'un après l'autre. Si j'ai une question, le dossier concerné te la pose." },

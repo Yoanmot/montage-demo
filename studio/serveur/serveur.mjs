@@ -1177,7 +1177,14 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const textes = corps.textes && typeof corps.textes === "object" && !Array.isArray(corps.textes) ? corps.textes : {};
         // Le quand de chaque post, choisi après la préparation (lot 10) : « maintenant » ou « AAAA-MM-JJ HH:MM ».
         const quands = corps.quands && typeof corps.quands === "object" && !Array.isArray(corps.quands) ? corps.quands : {};
-        const r = await publication.confirmer(String(corps.recap_id || ""), textes, quands);
+        // Lot 13 : où chaque post part (cases cochées) et les réglages et l'accord TikTok de ce clic.
+        const objet = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : {});
+        const r = await publication.confirmer(String(corps.recap_id || ""), textes, quands, objet(corps.plateformes), objet(corps.tiktok));
+        rafraichir();
+        return envoyerJson(res, 200, r);
+      }
+      if (p[1] === "reessayer") {
+        const r = await publication.reessayer(String(corps.slug || ""), String(corps.plateforme || ""));
         rafraichir();
         return envoyerJson(res, 200, r);
       }

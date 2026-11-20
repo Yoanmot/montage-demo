@@ -13,7 +13,12 @@ import { spawnSync } from 'node:child_process';
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { confirmer, oublierRecaps, recap, textesSimules } from '../publication.mjs';
+import { confirmer as confirmerAuClic, oublierRecaps, recap, textesSimules } from '../publication.mjs';
+
+// Lot 13 : rien ne part sans plateforme cochée. Ces essais d'avant TikTok cochent Instagram pour chaque contenu,
+// comme le ferait le clic ; les essais de TikTok (tiktok.test.mjs) passent leurs propres choix.
+const INSTAGRAM_COCHE = new Proxy({}, { get: (_, k) => (typeof k === 'string' ? ['instagram'] : undefined) });
+const confirmer = (id, config, opts = {}) => confirmerAuClic(id, config, { plateformes: INSTAGRAM_COCHE, ...opts });
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const HOC = process.env.ZERNIO_REEL_YOAN

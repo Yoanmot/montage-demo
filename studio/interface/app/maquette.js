@@ -53,7 +53,7 @@ function slide(n, titre, fond, encre) {
   <rect x="32" y="440" width="90" height="6" fill="#F15A24"/></svg>`);
 }
 const VIDEO = "/app/maquette/video-exemple.mp4";
-// L'image de la carte dans « Publier sur Instagram » (lot 10) : fabriquée ici, comme le reste de la maquette.
+// L'image de la carte dans « Poster » (lot 10) : fabriquée ici, comme le reste de la maquette.
 function vignetteDe(c) {
   if (c.format === "reel" && c.fichiers.includes("video")) return vignette("Le hook", "#6b4a35");
   if (c.format === "carrousel" && c.fichiers.includes("slides")) return slide(1, c.titre, "#111111", "#F3F3F3");

@@ -261,7 +261,7 @@ test("publication en simulation : récapitulatif puis confirmation, jamais --env
   const el = r.json.elements[0];
   assert.equal(el.slug, "faim-a-16h");
   assert.ok(["OK", "ATTENTION", "BLOQUE"].includes(el.verdict));
-  const c = await api("POST", "/api/publication/confirmer", { recap_id: r.json.recap_id });
+  const c = await api("POST", "/api/publication/confirmer", { recap_id: r.json.recap_id, plateformes: { "faim-a-16h": ["instagram"] } });
   assert.equal(c.statut, 200, c.texte);
   assert.ok(Array.isArray(c.json.resultats));
   const appels = fs.readFileSync(process.env.FAUX_ZERNIO_LOG, "utf8").trim().split("\n").map((l) => JSON.parse(l));

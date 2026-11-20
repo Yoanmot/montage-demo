@@ -76,7 +76,7 @@ Un refus gagne sur toute permission, y compris celles des réglages de l'utilisa
 | `Bash(rm -rf /*)`, `Bash(rm -rf ~*)`, `Bash(rm -rf ..*)`, `Bash(rm -rf $HOME*)` et les variantes `-fr`, `-r -f`, `-Rf`, `-r` | pas de suppression hors du dossier de la session (chemin absolu, maison, remontée) |
 | `Bash(git push --force*)`, `-f`, `--force-with-lease`, `git reset --hard*`, `git clean *` | jamais de force sur le dépôt du client |
 | `Bash(*/.ssh*)`, `Bash(*~/.ssh*)`, `Bash(*zernio.env*)`, `Bash(*monteur-romain/.env*)` (et, hors Romain, `Bash(*elevenlabs.env*)`, `Bash(*claude.env*)`) | les secrets ne passent pas non plus par une commande |
-| `Bash(*ZERNIO_ECRITURE*)` (garde-fou générique `ZERNIO_ECRITURE=<compte>`), `Bash(*ZERNIO_ECRITURE_ROMAIN*)`, `Bash(*zernio.py publier*--envoyer*)` | rien ne part sur Instagram depuis un chat : seulement par le clic de confirmation du studio |
+| `Bash(*ZERNIO_ECRITURE*)` (garde-fou générique `ZERNIO_ECRITURE=<compte>`), `Bash(*ZERNIO_ECRITURE_ROMAIN*)`, `Bash(*zernio.py publier*--envoyer*)`, `Bash(*zernio.py reessayer*--envoyer*)`, `Bash(*zernio.py poser-mot*--envoyer*)`, `Bash(*--tiktok-consentement*)` (lot 13) | rien ne part sur Instagram ni sur TikTok depuis un chat, et l'accord exigé par TikTok n'est donné que par le clic : seulement par le clic de confirmation du studio |
 | Client d'essai à `stats_reelles` (romain-test) : `Bash(*zernio-lecture*)`, `Bash(*ZERNIO_ENV_FILE*)`, `Bash(*ZERNIO_API_KEY*)` | la clé de lecture des chiffres (`<racine>/zernio-lecture.env`, déjà couverte par `<racine>/*.env`) ne passe par aucune commande ; seul le serveur la donne à `zernio.py stats` |
 | `Bash(sudo *)`, `Bash(security *)`, `Bash(launchctl *)`, `Bash(defaults write*)` | trousseau, services, réglages du Mac |
 

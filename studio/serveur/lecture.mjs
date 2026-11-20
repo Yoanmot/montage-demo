@@ -12,6 +12,7 @@ import { contact } from "./client.mjs";
 import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 import { autresFichiers } from "./autres.mjs";
+import { listePlateformes } from "../publication/plateformes.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -50,6 +51,7 @@ const SECTIONS = [
   ["plans a tourner", "plans"],
   ["a filmer en plus", "a_filmer"],
   ["photos a envoyer", "photos"],
+  ["legende tiktok", "legende_tiktok"],
   ["legende", "legende"],
   ["message automatique", "message_auto"],
   ["a verifier", "a_verifier"],
@@ -337,7 +339,7 @@ function carteContenu(config, slug, depotLu, etatLocal) {
     const genre = genreDe(etat, lireTexte(path.join(dossier, "script.md"), null));
     if (genre !== "face-camera") carte.genre = genre;
   }
-  // L'image de la carte (lot 10, « Publier sur Instagram ») : la vignette du hook tirée de la vidéo montée (fabriquée à
+  // L'image de la carte (lot 10, « Poster ») : la vignette du hook tirée de la vidéo montée (fabriquée à
   // la demande, l'adresse change avec la vidéo), ou la première slide d'un carrousel mis en page.
   const vignette = vignetteDe(config, slug, contenu.format);
   if (vignette) carte.vignette = vignette;
@@ -533,7 +535,9 @@ export function detail(config, slug, etatLocal) {
   if (carte.fichiers.includes("montage")) r.montage = montageDe(config, slug, lu, tournage);
   const pub = lu.pub[slug];
   if (pub) {
-    r.publication = { statut: pub.statut, quand: pub.prevu_le || pub.publie_le || null, lien: pub.lien || null };
+    r.publication = { statut: pub.statut, quand: pub.prevu_le || pub.publie_le || null, lien: pub.lien || null,
+      // Lot 13 : une ligne par plateforme (Instagram, TikTok) : statut, lien, heure, erreur. Une entrée d'avant = Instagram.
+      plateformes: listePlateformes(pub) };
     // Lot 12 : l'heure prévue est passée, Instagram n'a pas encore confirmé (relu chez Zernio après chaque synchro).
     if (sortieAConfirmer(pub)) r.publication.a_confirmer = true;
     if (pub.statut === "failed") r.publication.refuse = true;

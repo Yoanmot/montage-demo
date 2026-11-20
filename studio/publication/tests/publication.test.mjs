@@ -14,8 +14,13 @@ import { fileURLToPath } from 'node:url';
 
 import { dossierSlides, lierSlides, slidesDe } from '../carrousels.mjs';
 import {
-  actualiserPublications, confirmer, dateZurich, enRoute, lancerZernio, lireVerifier, oublierRecaps, phrase, recap, semaine,
+  actualiserPublications, confirmer as confirmerAuClic, dateZurich, enRoute, lancerZernio, lireVerifier, oublierRecaps, phrase, recap, semaine,
 } from '../publication.mjs';
+
+// Lot 13 : rien ne part sans plateforme cochée. Ces essais d'avant TikTok cochent Instagram pour chaque contenu,
+// comme le ferait le clic ; les essais de TikTok (tiktok.test.mjs) passent leurs propres choix.
+const INSTAGRAM_COCHE = new Proxy({}, { get: (_, k) => (typeof k === 'string' ? ['instagram'] : undefined) });
+const confirmer = (id, config, opts = {}) => confirmerAuClic(id, config, { plateformes: INSTAGRAM_COCHE, ...opts });
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const REEL = process.env.ZERNIO_REEL
@@ -169,7 +174,7 @@ describe('confirmer', () => {
     const c = await confirmer(r.recap_id, config);
     assert.equal(c.simulation, true);
     assert.deepEqual(c.resultats.map((x) => x.statut), ['simulation', 'simulation']);
-    assert.match(c.resultats[0].message, /^Simulation, rien n'est parti : en vrai, ta vidéo serait programmée pour \S+ \d+ \S+ à 18 h 30\.$/);
+    assert.match(c.resultats[0].message, /^Simulation, rien n'est parti : en vrai, ta vidéo serait programmée sur Instagram pour \S+ \d+ \S+ à 18 h 30\.$/);
     const pub = appels().filter((a) => a.argv[0] === 'publier');
     assert.equal(pub.length, 2);
     for (const a of appels()) {
@@ -177,7 +182,7 @@ describe('confirmer', () => {
       if (a.argv[0] === 'publier') assert.ok(!a.argv.includes('--pousser'), JSON.stringify(a));
       assert.equal(a.ecriture, null);
     }
-    assert.deepEqual(pub[0].argv, ['publier', 'faim-a-16h', '--video', path.join(media, 'faim-a-16h', 'face', 'rush-monte-2.mp4'), '--quand', `${DEMAIN} 18:30`]);
+    assert.deepEqual(pub[0].argv, ['publier', 'faim-a-16h', '--video', path.join(media, 'faim-a-16h', 'face', 'rush-monte-2.mp4'), '--quand', `${DEMAIN} 18:30`, '--plateformes', 'instagram']);
   });
 
   test('simulation par STUDIO_SIMULATION=1, prioritaire sur la config', async () => {
@@ -218,7 +223,7 @@ describe('confirmer', () => {
     const c = await confirmer(r.recap_id, cfg, { executer });
     assert.equal(c.simulation, false);
     assert.equal(c.resultats[0].statut, 'programmé');
-    assert.match(c.resultats[0].message, /^Ta vidéo est programmée pour .* à 18 h 30\. Tu peux fermer ton Mac/);
+    assert.match(c.resultats[0].message, /^Ta vidéo est programmée sur Instagram pour .* à 18 h 30\. Tu peux fermer ton Mac/);
     assert.equal(c.resultats[1].statut, 'bloque');
     const pub = vus.filter((v) => v.args[0] === 'publier');
     assert.equal(pub.length, 1, 'le contenu bloqué ne part pas');
@@ -236,7 +241,7 @@ describe('confirmer', () => {
     };
     const r = await recap([{ slug: 'faim-a-16h', quand: 'maintenant' }], cfg, { executer });
     const c = await confirmer(r.recap_id, cfg, { executer });
-    assert.match(c.resultats[0].message, /^Ta vidéo est partie : Instagram la prépare, elle apparaît sur ton compte d'ici quelques minutes\./);
+    assert.match(c.resultats[0].message, /^Ta vidéo est partie sur Instagram : Instagram la prépare, elle apparaît sur ton compte d'ici quelques minutes\./);
     assert.doesNotMatch(c.resultats[0].message, /en ligne|sort à l'heure/);
   });
 
@@ -417,9 +422,9 @@ describe('préparation, puis le quand choisi au clic (lot 10)', () => {
     const c = await confirmer(r.recap_id, config, { quands: { 'faim-a-16h': `${DEMAIN} 18:30`, 'trois-erreurs': 'maintenant' } });
     assert.deepEqual(c.resultats.map((x) => x.statut), ['simulation', 'simulation']);
     const pub = appels().filter((a) => a.argv[0] === 'publier');
-    assert.deepEqual(pub[0].argv.slice(-2), ['--quand', `${DEMAIN} 18:30`]);
+    assert.deepEqual(pub[0].argv.slice(-4), ['--quand', `${DEMAIN} 18:30`, '--plateformes', 'instagram']);
     assert.ok(pub[1].argv.includes('--maintenant') && !pub[1].argv.includes('--quand'), JSON.stringify(pub[1].argv));
-    assert.match(c.resultats[0].message, /programmée pour \S+ \d+ \S+ à 18 h 30/);
+    assert.match(c.resultats[0].message, /programmée sur Instagram pour \S+ \d+ \S+ à 18 h 30/);
     assert.match(c.resultats[1].message, /tout de suite/);
   });
 
@@ -444,6 +449,6 @@ describe('préparation, puis le quand choisi au clic (lot 10)', () => {
     fs.unlinkSync(log);
     const c = await confirmer(r.recap_id, config, { quands: {} });
     assert.equal(c.resultats[0].statut, 'simulation');
-    assert.deepEqual(appels().filter((a) => a.argv[0] === 'publier')[0].argv.slice(-2), ['--quand', `${DEMAIN} 18:30`]);
+    assert.deepEqual(appels().filter((a) => a.argv[0] === 'publier')[0].argv.slice(-4), ['--quand', `${DEMAIN} 18:30`, '--plateformes', 'instagram']);
   });
 });

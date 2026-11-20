@@ -45,7 +45,7 @@ import path from 'node:path';
 import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 import { motAbsent } from '../interface/app/mot-absent.js';
-import { lireDate as lireDateServeur } from '../serveur/outils.mjs';
+import { enRouteEntree } from './plateformes.mjs';
 export { motAbsent };
 
 export const RECAP_MINUTES = 30;
@@ -81,24 +81,17 @@ export function enSimulation(config) {
 // Une publication partie tout de suite reste quelques minutes en préparation chez Instagram. Le registre
 // la note alors « envoyé » (ou garde l'état brut de Zernio, comme « publishing » avant le 2026-11-19).
 // Le studio la relit chez Zernio (lecture seule, `zernio.py actualiser`) jusqu'à ce qu'elle soit sortie.
-const FINAUX = new Set(['publié', 'programmé', 'failed']);
 let derniereActualisation = 0;
 
 // Lot 12 : un programmé dont l'heure est passée est relu aussi (lecture seule), pour ne le dire « publié » que quand
 // Instagram l'a sorti, et montrer clairement un refus (« failed »). Cinq minutes de marge : Instagram met un moment.
-const MARGE_PROGRAMME_MS = 5 * 60e3;
 
+// Lot 13 : plateforme par plateforme (même règle que zernio.py a_relire), dont un TikTok sorti sans son lien.
 export function enRoute(config, maintenant = Date.now()) {
   const reg = lireJson(path.join(chemins(config).depot, 'publications', 'registre.json'), {});
   return Object.entries(reg?.publications || {})
-    .filter(([, e]) => e && e.zernio_post && (!FINAUX.has(e.statut) || (e.statut === 'programmé' && programmePasse(e, maintenant))))
+    .filter(([, e]) => e && enRouteEntree(e, maintenant))
     .map(([slug]) => slug);
-}
-
-function programmePasse(e, maintenant) {
-  const d = lireDateServeur(e.prevu_le);
-  if (!d) return false;
-  return d.getTime() + MARGE_PROGRAMME_MS <= maintenant;
 }
 
 export async function actualiserPublications(config, { executer = lancerZernio, maintenant = Date.now, intervalleMs = 60000 } = {}) {
@@ -243,16 +236,33 @@ export function lancerZernio(config, args, { ecriture = false, timeoutMs = 12000
 //   ATTENTION <texte>                          (0 à n)
 //   BLOQUE <texte>                             (0 à n)
 //   OK prêt                                    (si aucun BLOQUE ; code de sortie 0, sinon 1)
+//
+// Lot 13 (TikTok), avec --plateformes : en plus PLATEFORMES, LEGENDE_TIKTOK (même forme que LEGENDE),
+// TIKTOK compte=... | TIKTOK_ABSENT | TIKTOK_INCONNU, BLOQUE_<PLATEFORME> / ATTENTION_<PLATEFORME> (ce qui ne
+// vaut que pour une plateforme ; BLOQUE / ATTENTION seuls valent pour toutes), « OK <plateforme> ».
+function texteCompte(sortie, etiquette) {
+  const m = new RegExp(`^${etiquette} \\((.*), (\\d+) caractères\\) :\\n`, 'm').exec(sortie);
+  if (!m) return null;
+  const apres = Array.from(sortie.slice(m.index + m[0].length));
+  return { texte: apres.slice(0, +m[2]).join(''), source: m[1], debut: m.index, fin: m.index + m[0].length + apres.slice(0, +m[2]).join('').length };
+}
+
 export function lireVerifier(sortie) {
-  const r = { legende: null, mot: null, attention: [], bloque: [], ok: false, medias: [] };
-  let reste = sortie;
-  const m = /^LEGENDE \((.*), (\d+) caractères\) :\n/m.exec(sortie);
-  if (m) {
-    const apres = Array.from(sortie.slice(m.index + m[0].length));
-    r.legende = apres.slice(0, +m[2]).join('');
-    reste = sortie.slice(0, m.index) + '\n' + apres.slice(+m[2]).join('');
+  const r = { legende: null, mot: null, attention: [], bloque: [], ok: false, medias: [],
+    legende_tiktok: null, legende_tiktok_source: null, tiktok: null, ok_plateformes: [],
+    par_plateforme: { instagram: { bloque: [], attention: [] }, tiktok: { bloque: [], attention: [] } } };
+  let reste = String(sortie || '');
+  // Les textes comptés d'abord (ils peuvent contenir des lignes qui ressemblent à BLOQUE ...).
+  for (const [etiquette, cle] of [['LEGENDE_TIKTOK', 'legende_tiktok'], ['LEGENDE', 'legende']]) {
+    const x = texteCompte(reste, etiquette);
+    if (!x) continue;
+    r[cle] = x.texte;
+    if (cle === 'legende_tiktok') r.legende_tiktok_source = x.source;
+    reste = reste.slice(0, x.debut) + '\n' + reste.slice(x.fin);
   }
   for (const ligne of reste.split('\n')) {
+    const p = /^(BLOQUE|ATTENTION)_(INSTAGRAM|TIKTOK) (.*)$/.exec(ligne);
+    if (p) { r.par_plateforme[p[2].toLowerCase()][p[1] === 'BLOQUE' ? 'bloque' : 'attention'].push(p[3].trim()); continue; }
     if (ligne.startsWith('ATTENTION ')) r.attention.push(ligne.slice(10).trim());
     else if (ligne.startsWith('BLOQUE ')) r.bloque.push(ligne.slice(7).trim());
     else if (ligne.startsWith('MEDIA ')) r.medias.push(ligne.slice(6).trim());
@@ -260,6 +270,13 @@ export function lireVerifier(sortie) {
       const mot = ligne.slice(4).trim();
       r.mot = /^[A-Z]{2,}$/.test(mot) ? mot : null;
     } else if (ligne.trim() === 'OK prêt') r.ok = true;
+    else if (/^OK (instagram|tiktok)$/.test(ligne.trim())) r.ok_plateformes.push(ligne.trim().slice(3));
+    else if (ligne.startsWith('TIKTOK ')) {
+      const o = { relie: true };
+      for (const [, k, v] of ligne.slice(7).matchAll(/(\w+)=(\S+)/g)) o[k] = v;
+      r.tiktok = o;
+    } else if (ligne.startsWith('TIKTOK_ABSENT')) r.tiktok = { relie: false };
+    else if (ligne.startsWith('TIKTOK_INCONNU')) r.tiktok = { relie: null, raison: ligne.slice(15).trim() };
   }
   return r;
 }
@@ -270,6 +287,24 @@ export function lireVerifier(sortie) {
 // d'arrêt de cmd_publier / appel / main, traduit en une phrase claire. Les motifs suivent le texte
 // exact du script : un texte inconnu donne une phrase générique, jamais le message brut.
 const BLOQUES = [
+  // TikTok (lot 13) : avant les règles d'Instagram, dont certains motifs les prendraient.
+  [/^tiktok pas relié/, () => "Ton TikTok n'est pas encore relié."],
+  [/^tiktok illisible/, () => "Je n'arrive pas à vérifier ton TikTok pour l'instant : revérifie dans un moment."],
+  [/^tiktok pas public/, () => `TikTok ne permet pas de poster en public depuis ce compte : préviens ${contact()}.`],
+  [/^tiktok complet/, () => "TikTok n'accepte plus de publication de ton compte pour l'instant (sa limite de la journée) : réessaie plus tard, ou poste sur Instagram seul."],
+  [/^consentement TikTok absent/, () => "TikTok demande ta confirmation : elle se donne en cliquant pour poster."],
+  [/^légende TikTok provisoire/, () => "La légende pour TikTok n'est pas encore écrite (il n'y a qu'un texte d'attente) : écris-la ici, ou demande-la à ton head of content."],
+  [/^la légende TikTok contient un tiret long/, () => 'La légende pour TikTok contient un tiret long : remplace-le par une virgule ou deux points.'],
+  [/^légende TikTok trop longue : (\d+) caractères \(TikTok : (\d+)\)/, (m) => `La légende est trop longue pour TikTok (${m[1]} caractères, ${m[2]} au plus) : raccourcis-la ici.`],
+  [/^légende TikTok : /, () => "Il n'y a pas encore de légende pour TikTok : écris-la ici, ou demande-la à ton head of content dans la carte."],
+  [/^la vidéo doit être en \.mp4, \.mov ou \.webm pour TikTok/, () => "La vidéo n'est pas dans un format que TikTok accepte : refais le montage."],
+  [/^vidéo trop lourde pour TikTok : (\d+)/, (m) => `La vidéo est trop lourde pour TikTok (${m[1]} Mo, 4 Go au plus).`],
+  [/^vidéo trop courte pour TikTok : (\d+)/, (m) => `La vidéo est trop courte pour TikTok (${m[1]} s, 3 s au moins).`],
+  [/^vidéo trop longue pour TikTok : (\d+) s \((\d+)/, (m) => `La vidéo est trop longue pour TikTok (${m[1]} s, ${m[2]} s au plus).`],
+  [/^un carrousel TikTok a 35 images au plus \((\d+)/, (m) => `Un carrousel TikTok a 35 images au plus (il en a ${m[1]}).`],
+  [/^images trop lourdes pour TikTok/, () => "Des images du carrousel sont trop lourdes pour TikTok (20 Mo au plus chacune) : refais la mise en page."],
+  [/^déjà (programmé|publié) sur TikTok le (.+?) \(zernio_post/, (m) => `Ce contenu est déjà ${m[1]} sur TikTok (${dateCourte(m[2])}). Pour le décaler, préviens ${contact()}.`],
+  [/^ressource \S+ : le mot en commentaire passe par Instagram/, () => "La ressource gratuite passe par Instagram : coche Instagram, ou choisis « Aucune ressource »."],
   [/^slug invalide/, () => `Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`],
   [/^légende : .*introuvable|^légende : pas de section|^légende : aucun texte de carrousel/,
     () => "Il n'y a pas encore de légende validée pour ce contenu : demande-la à ton head of content dans la carte."],
@@ -296,6 +331,8 @@ const BLOQUES = [
 ];
 
 const ATTENTIONS = [
+  [/^tiktok (commentaires|duo|collage) fermés/, (m) => `${{ commentaires: 'Les commentaires', duo: 'Les duos', collage: 'Les collages' }[m[1]]} sont fermés dans ton appli TikTok : ils restent fermés sur ce post.`],
+  [/^durée de la vidéo pas vérifiée pour TikTok/, () => "Je n'ai pas pu lire la durée de la vidéo : TikTok accepte de 3 secondes à 10 minutes."],
   [/^le fichier ne finit pas par -monte\.mp4/, () => "Cette vidéo ne porte pas le nom d'une vidéo montée : vérifie que c'est la bonne."],
   [/^message automatique pas encore en service/, () => "Les messages automatiques ne sont pas encore en service : vérifie que la légende ne promet pas d'envoyer quelque chose en message."],
   [/^la légende ne cite pas le mot (\S+) : dis-le/, (m) => `La légende ne cite pas le mot ${m[1]} : dis-le bien dans la vidéo, sinon personne ne saura quoi commenter.`],
@@ -304,6 +341,8 @@ const ATTENTIONS = [
 ];
 
 const ARRETS = [
+  [/^PLATEFORMES_VIDES|^PLATEFORMES_INCONNUES/, () => "Rien n'est parti : choisis où poster, Instagram, TikTok, ou les deux."],
+  [/^VALIDATION_REFUSEE/, () => `Rien n'est parti : la vérification juste avant l'envoi a refusé ce post. Préviens ${contact()} avec le message ci-dessous.`],
   [/^QUAND_PASSE/, () => "L'heure choisie est déjà passée, ou dans moins de 10 minutes : choisis une heure plus tard."],
   [/^QUAND_ILLISIBLE|^QUAND_MANQUANT/, () => "Je n'ai pas compris la date choisie : choisis-la à nouveau."],
   [/^VERROU/, () => `Rien n'est parti : la publication n'a pas été autorisée de mon côté. Préviens ${contact()}.`],
@@ -333,7 +372,7 @@ export function phrase(genre, texte) {
 // La première ligne d'arrêt reconnue dans une sortie de `publier` (ou null).
 function arret(sortie) {
   for (const ligne of sortie.split('\n')) {
-    if (/^(QUAND_[A-Z]+|VERROU|CLE_ABSENTE|CLE_REFUSEE|DROITS|COMPTE_ABSENT|HORS_LIGNE|ESSAI_REFUSE|ECHEC_PUBLICATION|ERREUR_ZERNIO)\b/.test(ligne)) return ligne.trim();
+    if (/^(QUAND_[A-Z]+|VERROU|CLE_ABSENTE|CLE_REFUSEE|DROITS|COMPTE_ABSENT|HORS_LIGNE|ESSAI_REFUSE|ECHEC_PUBLICATION|ERREUR_ZERNIO|PLATEFORMES_[A-Z]+|VALIDATION_REFUSEE)\b/.test(ligne)) return ligne.trim();
   }
   return null;
 }
@@ -410,14 +449,26 @@ function urlMedia(slug, ...parties) {
 
 // --pousser : la copie des scripts se remet d'abord au niveau du dépôt en ligne (texte validé depuis
 // le studio ou le téléphone). Rien n'est envoyé ni écrit dans le dépôt par verifier.
-function argsVerifier(el) {
+// Plateformes (lot 13) : au récapitulatif, les deux quand TikTok est relié (pour tout savoir sans revérifier au
+// changement d'une case) ; au clic, celles qui sont cochées. Sans TikTok relié : l'appel d'avant, inchangé.
+function argsVerifier(el, plats = el.verif_plateformes) {
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
-  return ['verifier', el.slug, ...media, ...argsRessource(el), ...argsEssai(el), ...argsLegende(el), '--pousser'];
+  return ['verifier', el.slug, ...media, ...argsPlateformes(el, plats), ...argsRessource(el, plats), ...argsEssai(el, plats),
+    ...argsLegende(el, plats), '--pousser'];
+}
+
+function argsPlateformes(el, plats) {
+  if (!plats) return [];
+  const a = ['--plateformes', plats.join(',')];
+  if (plats.includes('tiktok') && el.tiktok_compte) a.push('--tiktok-compte', el.tiktok_compte);
+  return a;
 }
 
 // Simulation avec une légende retouchée : elle n'est pas enregistrée, zernio.py la lit dans un fichier.
-function argsLegende(el) {
-  return el.legende_fichier ? ['--legende-fichier', el.legende_fichier] : [];
+function argsLegende(el, plats) {
+  const a = el.legende_fichier ? ['--legende-fichier', el.legende_fichier] : [];
+  if (el.legende_tiktok_fichier && (!plats || plats.includes('tiktok'))) a.push('--legende-tiktok-fichier', el.legende_tiktok_fichier);
+  return a;
 }
 
 const MESSAGE_PAS_VALIDE = /^ressource \S+ : message pas validé/;
@@ -437,6 +488,9 @@ function messagePropre(t) {
 
 // Les limites de zernio.py (LEGENDE_MAX, MESSAGE_MAX, BOUTON_MAX), pour les champs du récapitulatif.
 export const LIMITES = { legende: 2200, message: 640, bouton: 20 };
+// TikTok (lot 13) : légende d'une vidéo 2 200 caractères, d'un carrousel photo 4 000 (doc Zernio).
+export const LIMITES_TIKTOK = { reel: 2200, carrousel: 4000 };
+export const PLATEFORMES = ['instagram', 'tiktok'];
 const TIRET_LONG = '\u2014';
 
 // Ce qui empêche une retouche de partir, en phrases (le studio montre la même chose sous le champ).
@@ -463,12 +517,13 @@ export function erreursTextes({ legende, message, bouton } = {}) {
   return e;
 }
 
-function argsRessource(el) {
-  return el.ressource ? ['--ressource', el.ressource] : [];
+// La ressource gratuite et le reel d'essai ne valent que sur Instagram : sans Instagram choisi, jamais passés.
+function argsRessource(el, plats) {
+  return el.ressource && (!plats || plats.includes('instagram')) ? ['--ressource', el.ressource] : [];
 }
 
-function argsEssai(el) {
-  return el.essai ? ['--reel-essai', el.essai] : [];
+function argsEssai(el, plats) {
+  return el.essai && (!plats || plats.includes('instagram')) ? ['--reel-essai', el.essai] : [];
 }
 
 const sansAccents = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -483,11 +538,39 @@ function annonceUnMot(legende, attention, pretes) {
 
 export const PHRASE_MOT_SANS_RESSOURCE = 'Ta légende demande de commenter un mot : choisis la ressource que recevront ceux qui commentent. Sans elle, personne ne recevrait rien.';
 
-async function verifierUn(demande, config, maintenant, executer, pretes) {
+// TikTok (lot 13) : relié ou non pour ce client (lu par `zernio.py tiktok`, côté serveur), ce que le contenu
+// peut en faire. Rien de connu : TikTok est grisé, avec une phrase.
+export const PHRASE_TIKTOK_ABSENT = "Ton TikTok n'est pas encore relié.";
+export const PHRASE_TIKTOK_INCONNU = "Je n'arrive pas à vérifier ton TikTok pour l'instant : revérifie dans un moment.";
+
+function tiktokPour(type, etat) {
+  if (!etat || etat.relie === false) return { possible: false, raison: PHRASE_TIKTOK_ABSENT };
+  if (etat.relie !== true || !etat.compte) return { possible: false, raison: PHRASE_TIKTOK_INCONNU };
+  const infos = (type === 'carrousel' ? etat.photo : etat.video) || {};
+  const ouvert = (k) => (infos[k] === undefined || infos[k] === null ? null : infos[k] !== false);
+  return {
+    possible: true, raison: null, compte: etat.compte, nom: etat.nom || null,
+    // null : sans objet (duo et collage d'un carrousel) ; false : fermé par toi dans ton appli TikTok.
+    interactions: { commentaires: ouvert('commentaires') ?? true, duo: type === 'carrousel' ? null : ouvert('duo') ?? true,
+      collage: type === 'carrousel' ? null : ouvert('collage') ?? true },
+  };
+}
+
+function sourceTiktok(source) {
+  if (!source) return null;
+  if (/^variante/.test(source)) return 'variante';
+  if (/coupée/.test(source)) return 'coupee';
+  return 'instagram';
+}
+
+async function verifierUn(demande, config, maintenant, executer, pretes, tiktokEtat) {
   const { depot, media } = chemins(config);
   const slug = demande && demande.slug;
   const quand = demande && typeof demande.quand === 'string' ? demande.quand.trim() : null;
-  const el = { slug, quand, type: 'reel', titre: slug || '', legende: null, mot: null, messages: [], bloque: false, attention: false };
+  const el = { slug, quand, type: 'reel', titre: slug || '', legende: null, mot: null, messages: [], bloque: false, attention: false,
+    messages_commun: [], bloque_commun: false };
+  // Ce qui empêche le contenu de partir où que ce soit (pas de vidéo, nom, date, vérification impossible).
+  const bloquerTout = (m) => { el.messages.push(m); el.messages_commun.push(m); el.bloque = true; el.bloque_commun = true; };
   if (config.ressources) {
     const r = demande && typeof demande.ressource === 'string' ? demande.ressource.trim() : '';
     el.ressource = r && slugValide(r) ? r : null;
@@ -500,9 +583,9 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     if (x && x.disponible === false) el.ressource_probleme = x.probleme || null;
   }
 
+  el.tiktok = { possible: false, raison: PHRASE_TIKTOK_ABSENT, messages: [], bloque: false, attention: false };
   if (!slugValide(slug)) {
-    el.messages.push(`Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`);
-    el.bloque = true;
+    bloquerTout(`Ce contenu a un nom que je ne reconnais pas : préviens ${contact()}.`);
     return el;
   }
   el.type = typeDe(slug, depot, media);
@@ -514,19 +597,16 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
   if (quand !== 'maintenant') {
     const d = dateZurich(quand);
     if (!d) {
-      el.messages.push('Choisis une date et une heure pour ce contenu.');
-      el.bloque = true;
+      bloquerTout('Choisis une date et une heure pour ce contenu.');
     } else if (d.getTime() < maintenant.getTime() + 10 * 60 * 1000) {
-      el.messages.push("L'heure choisie est déjà passée, ou dans moins de 10 minutes : choisis une heure plus tard.");
-      el.bloque = true;
+      bloquerTout("L'heure choisie est déjà passée, ou dans moins de 10 minutes : choisis une heure plus tard.");
     }
   }
 
   if (el.type === 'reel') {
     el.video = videoMontee(slug, config);
     if (!el.video) {
-      el.messages.push("Je ne trouve pas encore de vidéo montée pour ce contenu.");
-      el.bloque = true;
+      bloquerTout("Je ne trouve pas encore de vidéo montée pour ce contenu.");
       return el;
     }
     el.video_url = urlMedia(slug, 'face', el.video.nom);
@@ -540,21 +620,43 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     el.slides = empreinteSlides(slug, config);
   }
 
+  const tt = tiktokPour(el.type, tiktokEtat);
+  Object.assign(el.tiktok, { possible: tt.possible, raison: tt.raison, nom: tt.nom || null, interactions: tt.interactions || null });
+  if (tt.possible) {
+    el.tiktok_compte = tt.compte;
+    el.verif_plateformes = ['instagram', 'tiktok'];
+  }
+
   const { code, sortie } = await executer(argsVerifier(el), { ecriture: false });
   const v = lireVerifier(sortie);
   el.legende = v.legende;
   el.mot = v.mot;
   if (code !== 0 && code !== 1 && !v.bloque.length) {
-    el.messages.push(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
+    bloquerTout(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
     el.detail = sortie.trim().split('\n').slice(-3).join(' / ');
-    el.bloque = true;
   }
   for (const b of v.bloque) {
     // Message pas encore validé d'une ressource offrable : le clic sur Programmer le validera.
     if (el.message_dm && MESSAGE_PAS_VALIDE.test(b)) continue;
+    bloquerTout(phrase('BLOQUE', b));
+  }
+  for (const b of v.par_plateforme.instagram.bloque) {
+    if (el.message_dm && MESSAGE_PAS_VALIDE.test(b)) continue;
     el.messages.push(phrase('BLOQUE', b));
     el.bloque = true;
   }
+  // TikTok : ce qui ne vaut que pour lui, à part (la case TikTok a son propre verdict).
+  if (tt.possible) {
+    if (v.tiktok && v.tiktok.relie !== true) {
+      Object.assign(el.tiktok, { possible: false, raison: v.tiktok.relie === false ? PHRASE_TIKTOK_ABSENT : PHRASE_TIKTOK_INCONNU });
+    } else {
+      el.tiktok.legende = v.legende_tiktok;
+      el.tiktok.legende_source = sourceTiktok(v.legende_tiktok_source);
+      for (const b of v.par_plateforme.tiktok.bloque) { el.tiktok.messages.push(phrase('BLOQUE', b)); el.tiktok.bloque = true; }
+      for (const a of v.par_plateforme.tiktok.attention) { el.tiktok.messages.push(phrase('ATTENTION', a)); el.tiktok.attention = true; }
+    }
+  }
+  v.attention.push(...v.par_plateforme.instagram.attention);
   if (el.ressource_probleme) {
     el.messages.push(`La ressource choisie ne peut pas être offerte pour l'instant : ${el.ressource_probleme} Choisis-en une autre, ou aucune.`);
     el.bloque = true;
@@ -577,10 +679,15 @@ async function verifierUn(demande, config, maintenant, executer, pretes) {
     el.attention = true;
   }
   if (code === 0 && !v.ok && !el.bloque) {
-    el.messages.push(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
-    el.bloque = true;
+    bloquerTout(`Je n'arrive pas à vérifier ce contenu : préviens ${contact()}.`);
   }
   return el;
+}
+
+// Le verdict de TikTok pour ce contenu : ce qui bloque partout compte aussi pour lui.
+function verdictTiktok(el) {
+  if (!el.tiktok?.possible) return null;
+  return el.bloque_commun || el.tiktok.bloque ? 'BLOQUE' : el.tiktok.attention ? 'ATTENTION' : 'OK';
 }
 
 function versApi(el) {
@@ -604,9 +711,22 @@ function versApi(el) {
   if (el.essai_propose) o.reel_essai = { choix: el.essai || null };
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
   else if (el.video_url) o.video_url = el.video_url;
+  // Lot 13 : où ce contenu peut partir. Instagram toujours ; TikTok s'il est relié (sinon grisé, avec sa raison).
+  // Aucune case n'est cochée ici : c'est le client qui coche, à chaque fois.
+  const t = el.tiktok || { possible: false, raison: PHRASE_TIKTOK_ABSENT };
+  o.plateformes = {
+    instagram: { possible: true },
+    tiktok: t.possible
+      ? { possible: true, nom: t.nom, verdict: verdictTiktok(el), messages: [...el.messages_commun, ...t.messages],
+        legende: t.legende ?? null, legende_source: t.legende_source || null,
+        legende_modifiable: el.type === 'reel' && Boolean(el.script_empreinte),
+        limite: LIMITES_TIKTOK[el.type] || LIMITES_TIKTOK.reel, interactions: t.interactions }
+      : { possible: false, raison: t.raison },
+  };
   return o;
 }
 
+// opts.tiktok : ce que `zernio.py tiktok --format json` a dit (serveur) ; absent = TikTok pas relié.
 export async function recap(elements, config, opts = {}) {
   if (!Array.isArray(elements) || !elements.length) {
     throw new ErreurPublication('RIEN_A_PUBLIER', 'Choisis au moins un contenu à programmer.');
@@ -615,11 +735,11 @@ export async function recap(elements, config, opts = {}) {
   const vus = [];
   const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
   const pretes = config.ressources ? (opts.ressources || []) : null;
-  for (const demande of elements) vus.push(await verifierUn(demande, config, maintenant, executer, pretes));
+  for (const demande of elements) vus.push(await verifierUn(demande, config, maintenant, executer, pretes, opts.tiktok));
   const id = 'r-' + crypto.randomBytes(12).toString('hex');
   const minutes = opts.minutes || RECAP_MINUTES;
   recaps.set(id, { id, expire: maintenant.getTime() + minutes * 60 * 1000, utilise: false, elements: vus });
-  const r = { recap_id: id, elements: vus.map(versApi) };
+  const r = { recap_id: id, elements: vus.map(versApi), limites_tiktok: LIMITES_TIKTOK };
   // La liste déroulante du récapitulatif : les ressources du site, offrables ou grisées avec leur raison.
   if (pretes) {
     r.ressources = pretes.map((x) => {
@@ -636,15 +756,28 @@ export async function recap(elements, config, opts = {}) {
 
 // ------------------------------------------------------------------ confirmer
 
+// Les plateformes cochées (el.choisies, lot 13) partent seules : --plateformes toujours, TikTok avec son compte,
+// ses réglages et le consentement du clic (el.tiktok_choix.consentement), jamais posé autrement.
 function argsPublier(el) {
+  const plats = el.choisies;
   const media = el.type === 'carrousel' ? ['--carrousel'] : ['--video', el.video.chemin];
   const quand = el.quand === 'maintenant' ? ['--maintenant'] : ['--quand', el.quand];
-  const message = el.message_fichier ? ['--message-fichier', el.message_fichier] : [];
-  return ['publier', el.slug, ...media, ...quand, ...argsRessource(el), ...argsEssai(el), ...argsLegende(el), ...message];
+  const message = el.message_fichier && plats.includes('instagram') ? ['--message-fichier', el.message_fichier] : [];
+  const tiktok = [];
+  if (plats.includes('tiktok')) {
+    const c = el.tiktok_choix || {};
+    if (c.commentaires === false) tiktok.push('--tiktok-sans-commentaires');
+    if (c.duo === false && el.type !== 'carrousel') tiktok.push('--tiktok-sans-duo');
+    if (c.collage === false && el.type !== 'carrousel') tiktok.push('--tiktok-sans-collage');
+    if (c.consentement === true) tiktok.push('--tiktok-consentement');
+  }
+  return ['publier', el.slug, ...media, ...quand, ...argsPlateformes(el, plats), ...argsRessource(el, plats), ...argsEssai(el, plats),
+    ...argsLegende(el, plats), ...message, ...tiktok];
 }
 
 // Ce qui partirait, lu dans les requêtes que `publier` montre en simulation (3-post, 4-mot) : la légende,
-// le message et le bouton exacts, tels que la personne les verra (« [son prénom] »).
+// le message et le bouton exacts, tels que la personne les verra (« [son prénom] »), et, par plateforme,
+// où ça part et la légende de chacune (lot 13).
 export function textesSimules(sortie) {
   const corps = (titre) => {
     const lignes = String(sortie || '').split('\n');
@@ -656,8 +789,17 @@ export function textesSimules(sortie) {
   };
   const post = corps('3-post');
   if (!post || typeof post.content !== 'string') return null;
-  const o = { legende: post.content };
+  const plats = (post.platforms || []).map((x) => x && x.platform).filter(Boolean);
   const ig = (post.platforms || []).find((x) => x && x.platform === 'instagram');
+  const tt = (post.platforms || []).find((x) => x && x.platform === 'tiktok');
+  const o = { plateformes: plats };
+  if (ig) o.legende = post.content;
+  if (tt) {
+    const s = post.tiktokSettings || {};
+    o.legende_tiktok = s.media_type === 'photo' ? s.description : (tt.customContent ?? post.content);
+    o.tiktok = { commentaires: s.allow_comment, duo: s.allow_duet, collage: s.allow_stitch, public: s.privacy_level === 'PUBLIC_TO_EVERYONE',
+      consentement: s.content_preview_confirmed === true && s.express_consent_given === true };
+  }
   const essai = ig?.platformSpecificData?.trialParams?.graduationStrategy;
   if (essai) o.reel_essai = essai;
   const regle = corps('4-mot');
@@ -669,16 +811,16 @@ export function textesSimules(sortie) {
   return o;
 }
 
-// « Ceux qui commentent MOT reçoivent « titre » », pour les résultats.
+// « Ceux qui commentent MOT reçoivent « titre » », pour les résultats (Instagram seulement).
 function phraseMot(el, futur) {
-  if (!el.ressource || !el.mot) return '';
+  if (!el.ressource || !el.mot || !(el.choisies || ['instagram']).includes('instagram')) return '';
   const titre = el.ressource_titre ? ` « ${el.ressource_titre} »` : ' la ressource';
-  return futur ? ` Ceux qui commenteraient ${el.mot} recevraient${titre}.` : ` Ceux qui commentent ${el.mot} reçoivent${titre}.`;
+  return futur ? ` Ceux qui commenteraient ${el.mot} sur Instagram recevraient${titre}.` : ` Ceux qui commentent ${el.mot} sur Instagram reçoivent${titre}.`;
 }
 
 // « En reel d'essai : ... », pour les résultats.
 export function phraseEssai(el, futur) {
-  if (!el.essai) return '';
+  if (!el.essai || !(el.choisies || ['instagram']).includes('instagram')) return '';
   const qui = futur ? 'serait montrée' : 'est montrée';
   const passage = el.essai === 'SS_PERFORMANCE'
     ? `Instagram la ${futur ? 'passerait' : 'passera'} en reel normal toute seule si elle marche`
@@ -686,15 +828,24 @@ export function phraseEssai(el, futur) {
   return ` En reel d'essai : elle ${qui} seulement aux gens qui ne te suivent pas, et ${passage}.`;
 }
 
+export const NOMS = { instagram: 'Instagram', tiktok: 'TikTok' };
+// « Instagram et TikTok »
+export function ou(plats) {
+  const n = (plats || ['instagram']).map((p) => NOMS[p] || p);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}` : n[0];
+}
+
 function phraseQuand(el, futur) {
   const quoi = el.type === 'carrousel' ? 'ton carrousel' : 'ta vidéo';
-  if (el.quand === 'maintenant') return futur ? `${quoi} serait publié${el.type === 'carrousel' ? '' : 'e'} tout de suite` : `${quoi} est en ligne`;
-  return `${quoi} ${futur ? 'serait' : 'est'} programmé${el.type === 'carrousel' ? '' : 'e'} pour ${quandLisible(el.quand)}`;
+  const sur = ` sur ${ou(el.choisies)}`;
+  if (el.quand === 'maintenant') return futur ? `${quoi} serait publié${el.type === 'carrousel' ? '' : 'e'} tout de suite${sur}` : `${quoi} est en ligne${sur}`;
+  return `${quoi} ${futur ? 'serait' : 'est'} programmé${el.type === 'carrousel' ? '' : 'e'}${sur} pour ${quandLisible(el.quand)}`;
 }
 
 function majuscule(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
 
-// Ce qui a changé depuis le récapitulatif (vidéo, légende, vérification) : rend une phrase, ou null.
+// Ce qui a changé depuis le récapitulatif (vidéo, légendes, vérification), sur les plateformes cochées : rend une
+// phrase, ou null.
 async function encorePareil(el, config, executer) {
   if (el.type === 'reel') {
     let st = null;
@@ -709,15 +860,32 @@ async function encorePareil(el, config, executer) {
   } else if (empreinteSlides(el.slug, config) !== el.slides) {
     return 'Les images du carrousel ont changé depuis le récapitulatif : refais-le pour revoir ce qui partira.';
   }
-  const { sortie } = await executer(argsVerifier(el), { ecriture: false });
+  const plats = el.verif_plateformes ? el.choisies : null;
+  const { sortie } = await executer(argsVerifier(el, plats), { ecriture: false });
   const v = lireVerifier(sortie);
-  const bloque = v.bloque.filter((b) => !(el.message_dm && MESSAGE_PAS_VALIDE.test(b)));
+  const bloque = [...v.bloque, ...v.par_plateforme.instagram.bloque].filter((b) => !(el.message_dm && MESSAGE_PAS_VALIDE.test(b)));
   if (bloque.length) return phrase('BLOQUE', bloque[0]);
-  if (v.legende !== el.legende) return 'La légende a changé depuis le récapitulatif : refais-le pour relire ce qui partira.';
-  if (v.mot !== el.mot) return 'Le mot en commentaire a changé depuis le récapitulatif : refais-le pour revoir ce qui partira.';
+  if (v.par_plateforme.tiktok.bloque.length) return phrase('BLOQUE', v.par_plateforme.tiktok.bloque[0]);
+  const ig = el.choisies.includes('instagram');
+  if (ig && v.legende !== el.legende) return 'La légende a changé depuis le récapitulatif : refais-le pour relire ce qui partira.';
+  if (ig && v.mot !== el.mot) return 'Le mot en commentaire a changé depuis le récapitulatif : refais-le pour revoir ce qui partira.';
+  if (el.choisies.includes('tiktok') && v.legende_tiktok !== el.tiktok.legende) {
+    return 'La légende pour TikTok a changé depuis le récapitulatif : refais-le pour relire ce qui partira.';
+  }
   return null;
 }
 
+// Les lignes « PLATEFORME <p> statut=<s> lien=<l> [erreur=...] » de publier ou reessayer.
+export function lirePlateformes(sortie) {
+  const r = [];
+  for (const m of String(sortie || '').matchAll(/^PLATEFORME (instagram|tiktok) statut=(\S+) lien=(\S+)(?: venir)?(?: erreur=(.*))?$/gm)) {
+    r.push({ plateforme: m[1], statut: m[2], lien: m[3] === 'à' ? null : m[3], ...(m[4] ? { erreur: m[4].trim() } : {}) });
+  }
+  return r;
+}
+
+// opts.plateformes : { <slug>: ["instagram", "tiktok"] } cochées au clic, rien d'autre ne part (lot 13) ;
+// opts.tiktok : { <slug>: { commentaires, duo, collage, consentement } }, réglages et accord du clic.
 export async function confirmer(recapOuId, config, opts = {}) {
   const id = typeof recapOuId === 'string' ? recapOuId : recapOuId && recapOuId.recap_id;
   const r = id ? recaps.get(id) : null;
@@ -737,44 +905,60 @@ export async function confirmer(recapOuId, config, opts = {}) {
   // Le quand choisi après la préparation (lot 10) : il remplace celui du récapitulatif, avec les mêmes contrôles
   // (date lisible, au moins 10 minutes plus tard) faits plus bas avant tout envoi. Rien d'autre ne change.
   const quands = opts.quands && typeof opts.quands === 'object' ? opts.quands : {};
+  const choixPlateformes = opts.plateformes && typeof opts.plateformes === 'object' ? opts.plateformes : {};
+  const choixTiktok = opts.tiktok && typeof opts.tiktok === 'object' ? opts.tiktok : {};
   const resultats = [];
   let stop = null;
   const temporaires = [];
 
   for (const el of r.elements) {
-    const res = (statut, message, detail) => resultats.push({ slug: el.slug, statut, message, ...(detail ? { detail } : {}) });
+    const res = (statut, message, detail, extra) => resultats.push({ slug: el.slug, statut, message, ...(detail ? { detail } : {}), ...(extra || {}) });
     if (stop) { res('pas_envoye', "Pas envoyé : je me suis arrêté après le souci précédent."); continue; }
     if (Object.prototype.hasOwnProperty.call(quands, el.slug)) {
       const q = typeof quands[el.slug] === 'string' ? quands[el.slug].trim() : '';
       if (q !== 'maintenant' && !dateZurich(q)) { res('bloque', 'Pas programmé : choisis une date et une heure pour ce contenu.'); continue; }
       el.quand = q;
     }
-    if (el.bloque) { res('bloque', 'Pas programmé : ' + (el.messages[0] || 'ce contenu ne peut pas partir.')); continue; }
+    // Où ça part : seulement ce qui a été coché, dans l'ordre fixe. Rien de coché : rien ne part.
+    const coche = Array.isArray(choixPlateformes[el.slug]) ? choixPlateformes[el.slug].map(String) : [];
+    el.choisies = PLATEFORMES.filter((p) => coche.includes(p));
+    if (!el.choisies.length) { res('bloque', "Pas posté : coche où il part (Instagram, TikTok, ou les deux). Rien ne part sans ton choix."); continue; }
+    if (el.choisies.includes('tiktok') && !el.tiktok?.possible) { res('bloque', `Pas posté : ${el.tiktok?.raison || PHRASE_TIKTOK_ABSENT}`); continue; }
+    if (el.choisies.includes('instagram') && el.bloque) { res('bloque', 'Pas programmé : ' + (el.messages[0] || 'ce contenu ne peut pas partir.')); continue; }
+    if (el.bloque_commun) { res('bloque', 'Pas programmé : ' + (el.messages_commun[0] || 'ce contenu ne peut pas partir.')); continue; }
+    if (el.choisies.includes('tiktok') && el.tiktok.bloque) { res('bloque', 'Pas posté sur TikTok : ' + (el.tiktok.messages[0] || 'il ne peut pas partir.')); continue; }
+    if (el.choisies.includes('tiktok')) {
+      const c = choixTiktok[el.slug] && typeof choixTiktok[el.slug] === 'object' ? choixTiktok[el.slug] : {};
+      el.tiktok_choix = { commentaires: c.commentaires !== false, duo: c.duo !== false, collage: c.collage !== false, consentement: c.consentement === true };
+      if (!el.tiktok_choix.consentement) { res('bloque', "Pas posté : TikTok demande ta confirmation, elle se donne en cliquant pour poster."); continue; }
+    }
     if (el.quand !== 'maintenant') {
       const d = dateZurich(el.quand);
       if (!d || d.getTime() < maintenant.getTime() + 10 * 60 * 1000) {
         res('bloque', "Pas programmé : l'heure choisie est passée entre-temps. Choisis-en une autre."); continue;
       }
     }
+
     const change = await encorePareil(el, config, executer);
     if (change) { res('bloque', 'Pas programmé : ' + change); continue; }
 
-    // Le clic vaut enregistrement de ce qui était affiché : légende retouchée, message retouché ou à valider.
+    // Le clic vaut enregistrement de ce qui était affiché : légendes retouchées, message retouché ou à valider.
     const ecrit = await enregistrerTextes(el, textes[el.slug], config, executer, simulation, temporaires);
     if (ecrit) { res('bloque', 'Pas programmé : ' + ecrit); continue; }
 
     if (simulation) {
-      // publier lit les textes retouchés (légende et message en fichiers, message tenu pour validé) : les
+      // publier lit les textes retouchés (légendes et message en fichiers, message tenu pour validé) : les
       // requêtes montrées sont exactement celles qui partiraient au même clic en vrai.
       const { sortie } = await executer(argsPublier(el), { ecriture: false });
       if (/^SIMULATION_OK$/m.test(sortie)) {
         const envoi = textesSimules(sortie);
-        resultats.push({ slug: el.slug, statut: 'simulation',
+        resultats.push({ slug: el.slug, statut: 'simulation', plateformes_choisies: el.choisies,
           message: `Simulation, rien n'est parti : en vrai, ${phraseQuand(el, true)}.${phraseEssai(el, true)}${phraseMot(el, true)}${phraseEcrits(el)}`,
           ...(envoi ? { envoi } : {}) });
       } else {
         const a = arret(sortie);
-        const b = lireVerifier(sortie).bloque[0];
+        const v = lireVerifier(sortie);
+        const b = v.bloque[0] || v.par_plateforme.instagram.bloque[0] || v.par_plateforme.tiktok.bloque[0];
         res('erreur', a ? phrase('ARRET', a) : b ? phrase('BLOQUE', b) : phrase('ARRET', ''), (a || b || '').slice(0, 300));
       }
       continue;
@@ -782,14 +966,35 @@ export async function confirmer(recapOuId, config, opts = {}) {
 
     const { code, sortie } = await executer([...argsPublier(el), '--envoyer', '--pousser'], { ecriture: true, timeoutMs: 30 * 60 * 1000 });
     const post = /^POST (\S+) statut=(\S+) lien=(\S+)/m.exec(sortie);
+    const plats = lirePlateformes(sortie);
+    const extra = { plateformes_choisies: el.choisies, ...(plats.length ? { plateformes: plats } : {}) };
+    // Une plateforme a refusé, l'autre est partie (code 8, ou 6 avec une ligne ECHEC_PARTIEL) : on le dit, avec
+    // « Réessayer sur <plateforme> », jamais un second envoi du post entier.
+    const refusees = plats.filter((x) => x.statut === 'failed').map((x) => x.plateforme);
+    const partiel = refusees.length && refusees.length < el.choisies.length && [0, 6, 8].includes(code);
+    if (partiel) {
+      const parties = el.choisies.filter((p) => !refusees.includes(p));
+      const etat = el.quand === 'maintenant' ? 'parti' : `programmé pour ${quandLisible(el.quand)}`;
+      const motPasPose = code === 6 && /^MOT_NON_POSE\b/m.test(sortie) && el.ressource;
+      resultats.push({ slug: el.slug, statut: 'partiel', ...extra,
+        message: `C'est ${etat} sur ${ou(parties)}, mais ${ou(refusees)} l'a refusé. Clique sur « Réessayer sur ${NOMS[refusees[0]]} » : ça renvoie seulement là, sans reposter ailleurs.${motPasPose ? ` Et le mot${el.mot ? ` ${el.mot}` : ''} n'est pas encore branché : clique sur « Brancher le mot », une seule fois.` : ''}`,
+        detail: (/^ECHEC_PARTIEL .*$/m.exec(sortie) || [''])[0].slice(0, 300),
+        reessayer: { slug: el.slug, plateforme: refusees[0] },
+        ...(motPasPose ? { poser_mot: { slug: el.slug, ressource: el.ressource } } : {}) });
+      continue;
+    }
     if (code === 0 && /^FAIT$/m.test(sortie)) {
       const statut = post ? post[2] : 'programmé';
       const lien = post && post[3] !== 'à' ? post[3] : null;
-      if (statut === 'publié') res('publié', `C'est en ligne.${phraseEssai(el, false)}${phraseMot(el, false)}${lien ? ' ' + lien : ''}`);
-      // Publié tout de suite mais pas encore sorti : Instagram traite la vidéo (quelques minutes pour
+      const liens = plats.filter((x) => x.lien).map((x) => (plats.length > 1 ? `${NOMS[x.plateforme]} : ${x.lien}` : x.lien));
+      if (statut === 'publié') res('publié', `C'est en ligne sur ${ou(el.choisies)}.${phraseEssai(el, false)}${phraseMot(el, false)}${liens.length ? ' ' + liens.join(' ; ') : lien ? ' ' + lien : ''}`, null, extra);
+      // Publié tout de suite mais pas encore sorti : la plateforme traite la vidéo (quelques minutes pour
       // une vidéo longue, vu le 2026-11-19). Ne pas dire « en ligne » avant que ce soit vrai.
-      else if (el.quand === 'maintenant') res('programmé', `${el.type === 'carrousel' ? 'Ton carrousel est parti' : 'Ta vidéo est partie'} : Instagram ${el.type === 'carrousel' ? 'le' : 'la'} prépare, ${el.type === 'carrousel' ? 'il' : 'elle'} apparaît sur ton compte d'ici quelques minutes.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac.`);
-      else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`));
+      else if (el.quand === 'maintenant') {
+        const n = el.choisies.length;
+        res('programmé', `${el.type === 'carrousel' ? 'Ton carrousel est parti' : 'Ta vidéo est partie'} sur ${ou(el.choisies)} : ${ou(el.choisies)} ${el.type === 'carrousel' ? 'le' : 'la'} prépare${n > 1 ? 'nt' : ''}, ${el.type === 'carrousel' ? 'il' : 'elle'} apparaît sur ${n > 1 ? 'tes comptes' : 'ton compte'} d'ici quelques minutes.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac.`, null, extra);
+      }
+      else res('programmé', majuscule(`${phraseQuand(el, false)}.${phraseEssai(el, false)}${phraseMot(el, false)} Tu peux fermer ton Mac, tout sort à l'heure.`), null, extra);
       continue;
     }
     // Le post est parti, mais pas la règle du mot (code 6) : on le dit, et on propose « Brancher le mot »
@@ -798,7 +1003,7 @@ export async function confirmer(recapOuId, config, opts = {}) {
       const quoi = el.quand === 'maintenant' ? `${el.type === 'carrousel' ? 'Ton carrousel est en ligne' : 'Ta vidéo est en ligne'}`
         : majuscule(phraseQuand(el, false));
       resultats.push({
-        slug: el.slug, statut: 'mot_non_pose',
+        slug: el.slug, statut: 'mot_non_pose', ...extra,
         message: `${quoi}, mais le mot${el.mot ? ` ${el.mot}` : ''} n'est pas encore branché : ceux qui commentent ne reçoivent rien pour l'instant. Clique sur « Brancher le mot », une seule fois.`,
         detail: (/^MOT_NON_POSE.*$/m.exec(sortie) || [''])[0].slice(0, 300),
         poser_mot: { slug: el.slug, ressource: el.ressource },
@@ -806,10 +1011,13 @@ export async function confirmer(recapOuId, config, opts = {}) {
       continue;
     }
     const a = arret(sortie);
-    const b = lireVerifier(sortie).bloque[0];
+    const v = lireVerifier(sortie);
+    const b = v.bloque[0] || v.par_plateforme.instagram.bloque[0] || v.par_plateforme.tiktok.bloque[0];
     if (!a && b) { res('bloque', 'Pas programmé : ' + phrase('BLOQUE', b)); continue; }
     // Reel d'essai refusé par Instagram (fonction pas ouverte sur le compte) : aucun post créé, on continue.
     if (a && /^ESSAI_REFUSE\b/.test(a)) { res('bloque', phrase('ARRET', a), a.slice(0, 300)); continue; }
+    // Refus avant l'envoi (validation) : rien n'est parti, on peut continuer avec les suivants.
+    if (a && /^VALIDATION_REFUSEE\b/.test(a)) { res('bloque', phrase('ARRET', a), a.slice(0, 300)); continue; }
     // Une erreur pendant l'envoi : on ne sait pas toujours ce qui est parti. On s'arrête là, sans relance.
     res('erreur', a ? phrase('ARRET', a) : `Il y a eu un souci pendant l'envoi : je ne sais pas si c'est parti. Ne relance pas, préviens ${contact()} avec le message ci-dessous.`,
       (a || sortie.trim().split('\n').slice(-2).join(' / ')).slice(0, 300));
@@ -822,7 +1030,8 @@ export async function confirmer(recapOuId, config, opts = {}) {
 // Ce que le clic a enregistré (pour la phrase de simulation).
 function phraseEcrits(el) {
   const quoi = [el.legende_retouchee ? 'ta légende retouchée serait enregistrée' : null,
-    el.message_retouche ? 'ton message retouché serait enregistré et validé' : el.message_dm?.a_valider ? 'le message serait validé' : null].filter(Boolean);
+    el.legende_tiktok_retouchee ? 'ta légende TikTok retouchée serait enregistrée' : null,
+    el.message_retouche ? 'ton message retouché serait enregistré et validé' : el.message_dm?.a_valider && el.choisies.includes('instagram') ? 'le message serait validé' : null].filter(Boolean);
   return quoi.length ? ` Et ${quoi.join(', ')}.` : '';
 }
 
@@ -839,34 +1048,55 @@ function blocageOutil(sortie) {
   return m ? { code: m[1], texte: m[2] } : null;
 }
 
+// La légende TikTok retouchée : mêmes contrôles que zernio.py (vide, tiret long, limite de TikTok).
+export function erreurLegendeTiktok(t, type) {
+  const l = legendePropre(t);
+  const max = LIMITES_TIKTOK[type] || LIMITES_TIKTOK.reel;
+  if (!l) return 'La légende pour TikTok ne peut pas être vide.';
+  if (l.includes(TIRET_LONG)) return 'La légende pour TikTok contient un tiret long : remplace-le par une virgule ou deux points.';
+  if (Array.from(l).length > max) return `La légende est trop longue pour TikTok (${Array.from(l).length} caractères, ${max} au plus).`;
+  return null;
+}
+
 // Enregistre, au clic, les retouches du récapitulatif et la validation du message ; rend une phrase si
 // quelque chose bloque (rien n'est alors parti pour ce contenu), sinon null. Simulation : contrôles
-// seuls (--essai), rien d'écrit ; la légende retouchée passe par un fichier temporaire.
+// seuls (--essai), rien d'écrit ; les légendes retouchées passent par des fichiers temporaires. Seulement ce
+// qui sert aux plateformes cochées (lot 13) : sans Instagram, ni légende Instagram ni message ; sans TikTok,
+// pas de légende TikTok.
 async function enregistrerTextes(el, t, config, executer, simulation, temporaires) {
   t = t && typeof t === 'object' ? t : {};
+  const ig = el.choisies.includes('instagram');
+  const tk = el.choisies.includes('tiktok');
   const retouches = {};
-  if (typeof t.legende === 'string' && legendePropre(t.legende) !== legendePropre(el.legende)) {
+  if (ig && typeof t.legende === 'string' && legendePropre(t.legende) !== legendePropre(el.legende)) {
     if (el.type !== 'reel') return 'La légende d\'un carrousel se retouche dans son brief : refais le récapitulatif.';
     retouches.legende = t.legende;
   }
-  if (el.message_dm) {
+  if (tk && typeof t.legende_tiktok === 'string' && legendePropre(t.legende_tiktok) !== legendePropre(el.tiktok.legende)) {
+    if (el.type !== 'reel') return 'La légende TikTok d\'un carrousel se retouche dans son brief : refais le récapitulatif.';
+    const x = erreurLegendeTiktok(t.legende_tiktok, el.type);
+    if (x) return x;
+    retouches.legende_tiktok = t.legende_tiktok;
+  }
+  if (ig && el.message_dm) {
     if (typeof t.message === 'string' && messagePropre(versFiche(t.message)) !== messagePropre(el.message_dm.message)) retouches.message = t.message;
     if (typeof t.bouton === 'string' && t.bouton.split(/\s+/).filter(Boolean).join(' ') !== el.message_dm.bouton) retouches.bouton = t.bouton;
   }
-  const err = erreursTextes(retouches);
+  const err = erreursTextes({ legende: retouches.legende, message: retouches.message, bouton: retouches.bouton });
   const premiere = err.legende || err.message || err.bouton;
   if (premiere) return premiere;
 
-  if (retouches.legende !== undefined) {
-    const legende = legendePropre(retouches.legende);
-    el.legende_retouchee = true;
+  if (retouches.legende !== undefined || retouches.legende_tiktok !== undefined) {
+    const e = {};
+    if (retouches.legende !== undefined) { e.legende = legendePropre(retouches.legende); el.legende_retouchee = true; }
+    if (retouches.legende_tiktok !== undefined) { e.legende_tiktok = legendePropre(retouches.legende_tiktok); el.legende_tiktok_retouchee = true; }
     if (simulation) {
-      const f = path.join(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'studio-legende-')), 'legende.txt');
-      fs.writeFileSync(f, legende + '\n');
-      temporaires.push(path.dirname(f));
-      el.legende_fichier = f;
+      const d = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'studio-legende-'));
+      temporaires.push(d);
+      if (e.legende !== undefined) { el.legende_fichier = path.join(d, 'legende.txt'); fs.writeFileSync(el.legende_fichier, e.legende + '\n'); }
+      if (e.legende_tiktok !== undefined) { el.legende_tiktok_fichier = path.join(d, 'legende-tiktok.txt'); fs.writeFileSync(el.legende_tiktok_fichier, e.legende_tiktok + '\n'); }
     } else {
-      const f = fichierEntree(temporaires, { legende });
+      const f = fichierEntree(temporaires, e);
       const { sortie } = await executer(['ecrire', el.slug, '--depuis', f, '--empreinte', el.script_empreinte, '--pousser'],
         { ecriture: false, dans: 'depot', script: 'brief.py', timeoutMs: 2 * 60 * 1000 });
       if (!/^OK /m.test(sortie)) {
@@ -874,10 +1104,11 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
         return (b && PHRASES_ECRITURE[b.code]) || `Je n'ai pas pu enregistrer ta légende : rien n'est parti. Préviens ${contact()} si ça recommence.`;
       }
     }
-    el.legende = legende;
+    if (e.legende !== undefined) el.legende = e.legende;
+    if (e.legende_tiktok !== undefined) el.tiktok.legende = e.legende_tiktok;
   }
 
-  if (el.message_dm && (el.message_dm.a_valider || retouches.message !== undefined || retouches.bouton !== undefined)) {
+  if (ig && el.message_dm && (el.message_dm.a_valider || retouches.message !== undefined || retouches.bouton !== undefined)) {
     el.message_retouche = retouches.message !== undefined || retouches.bouton !== undefined;
     const args = ['valider-message', el.ressource];
     if (el.message_dm.empreinte) args.push('--empreinte', el.message_dm.empreinte);
@@ -905,11 +1136,13 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
   }
 
   // Après une écriture : la vérification relit le dépôt en ligne ; ce qui part doit être ce qui était affiché.
-  if (!simulation && (el.legende_retouchee || el.message_dm?.a_valider || el.message_retouche)) {
-    const { sortie } = await executer(argsVerifier(el), { ecriture: false });
+  if (!simulation && (el.legende_retouchee || el.legende_tiktok_retouchee || (ig && el.message_dm?.a_valider) || el.message_retouche)) {
+    const { sortie } = await executer(argsVerifier(el, el.verif_plateformes ? el.choisies : null), { ecriture: false });
     const v = lireVerifier(sortie);
-    if (v.bloque.length) return phrase('BLOQUE', v.bloque[0]);
-    if (legendePropre(v.legende) !== legendePropre(el.legende)) return 'La légende enregistrée n\'est pas celle affichée : refais le récapitulatif.';
+    const b = v.bloque[0] || v.par_plateforme.instagram.bloque[0] || v.par_plateforme.tiktok.bloque[0];
+    if (b) return phrase('BLOQUE', b);
+    if (ig && legendePropre(v.legende) !== legendePropre(el.legende)) return 'La légende enregistrée n\'est pas celle affichée : refais le récapitulatif.';
+    if (tk && legendePropre(v.legende_tiktok) !== legendePropre(el.tiktok.legende)) return 'La légende TikTok enregistrée n\'est pas celle affichée : refais le récapitulatif.';
   }
   return null;
 }
@@ -952,6 +1185,38 @@ export async function poserMot(slug, ressource, config, opts = {}) {
   const a = arret(sortie);
   if (a) throw new ErreurPublication('MOT_ARRET', phrase('ARRET', a));
   throw new ErreurPublication('MOT_NON_POSE', `Le mot n'a pas pu être branché. Ne relance pas plusieurs fois : préviens ${contact()} avec le message ci-dessous.`);
+}
+
+// ------------------------------------------------------------------ réessayer une plateforme (lot 13)
+
+// « Réessayer sur TikTok » (ou Instagram) : renvoie seulement la plateforme refusée d'un post déjà parti, au clic,
+// une fois (`zernio.py reessayer`). En simulation : la requête est montrée, rien ne part.
+export async function reessayer(slug, plateforme, config, opts = {}) {
+  if (!slugValide(slug) || !PLATEFORMES.includes(plateforme)) throw new ErreurPublication('RIEN_A_REESSAYER', 'Je ne retrouve pas ce post.');
+  const simulation = enSimulation(config);
+  const executer = opts.executer || ((args, o) => lancerZernio(config, args, o));
+  const args = ['reessayer', slug, '--plateforme', plateforme];
+  const nom = NOMS[plateforme];
+  const { code, sortie } = simulation
+    ? await executer(args, { ecriture: false })
+    : await executer([...args, '--envoyer', '--pousser'], { ecriture: true, timeoutMs: 15 * 60 * 1000 });
+  if (simulation && /^SIMULATION_OK$/m.test(sortie)) {
+    return { simulation, statut: 'simulation', plateforme, message: `Simulation, rien n'est parti : en vrai, je renverrais seulement sur ${nom}.` };
+  }
+  const p = lirePlateformes(sortie).find((x) => x.plateforme === plateforme);
+  if (!simulation && code === 0 && /^FAIT$/m.test(sortie)) {
+    if (p?.statut === 'publié') return { simulation, statut: 'publié', plateforme, lien: p.lien, message: `C'est en ligne sur ${nom}.${p.lien ? ' ' + p.lien : ''}` };
+    return { simulation, statut: 'envoyé', plateforme, message: `C'est reparti sur ${nom} : ${nom} le prépare, il apparaît d'ici quelques minutes.` };
+  }
+  const b = lireVerifier(sortie).bloque[0];
+  if (b && /n'a pas échoué sur/.test(b)) return { simulation, statut: 'deja', plateforme, message: `Ce post n'est plus en échec sur ${nom} : rien à refaire.` };
+  if (b && /^aucun post/.test(b)) throw new ErreurPublication('PAS_DE_POST', `Ce contenu n'est pas encore parti sur ${nom}.`);
+  const a = arret(sortie);
+  if (a && /^ECHEC_PUBLICATION/.test(a)) {
+    throw new ErreurPublication('REFUS', `${nom} l'a encore refusé. Ne relance pas en boucle : préviens ${contact()} avec le message ci-dessous.`);
+  }
+  if (a) throw new ErreurPublication('ARRET', phrase('ARRET', a));
+  throw new ErreurPublication('REESSAI_IMPOSSIBLE', `Je n'ai pas pu renvoyer sur ${nom}. Ne relance pas plusieurs fois : préviens ${contact()}.`);
 }
 
 // ------------------------------------------------------------------ semaine

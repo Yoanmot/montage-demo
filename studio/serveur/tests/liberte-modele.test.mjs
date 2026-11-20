@@ -116,7 +116,7 @@ test("consigne du studio : on fait ce qui est demandé, le studio se change aill
   for (const c of [y, r]) {
     assert.match(c, /ce n'est jamais une limite/);
     assert.match(c, /un plan en plus de ceux du brief/);
-    assert.match(c, /rien ne part sur Instagram depuis ce chat/);
+    assert.match(c, /rien ne part sur Instagram ni sur TikTok depuis ce chat/);
     assert.match(c, /ni le studio lui-même/);
     assert.ok(!c.includes("\u2014"));
     // Lot 12, dernière passe : fichiers fabriqués rangés dans le studio, état relu, français entre deux étapes.
@@ -138,7 +138,7 @@ test("agents monteurs : la demande passe avant le déroulé, plans hors brief pe
     assert.match(t, /## Ce qu'il te demande passe avant le déroulé/, f);
     assert.match(t, /Des plans qui ne sont pas dans le brief/, f);
     assert.match(t, /ce n'est jamais une limite/, f);
-    assert.match(t, /rien ne part sur Instagram depuis ce chat/, f);
+    assert.match(t, /rien ne part sur Instagram ni sur TikTok depuis ce chat/, f);
     assert.ok(!/Jamais de B-roll généré par IA\*\*|Jamais d'image générée par IA\*\*/.test(t), f);
     assert.ok(!t.includes("\u2014"), f);
   }

@@ -40,6 +40,21 @@ def interdit(*a, **k):
 
 
 z.appel = interdit
+
+# Lot 13 : FAUX_ZERNIO_TIKTOK (fichier JSON {"accounts": [...], "creator": {...}}) donne les deux LECTURES
+# TikTok (compte du profil, infos créateur) ; toute autre requête reste interdite.
+if os.environ.get("FAUX_ZERNIO_TIKTOK"):
+    with open(os.environ["FAUX_ZERNIO_TIKTOK"], encoding="utf-8") as f:
+        _tt = json.load(f)
+
+    def lecture_tiktok(methode, chemin, params=None, corps=None, entetes=None):
+        if methode == "GET" and chemin == "/v1/accounts":
+            return {"accounts": _tt.get("accounts") or []}
+        if methode == "GET" and chemin.endswith("/tiktok/creator-info"):
+            return _tt.get("creator") or {}
+        interdit()
+
+    z.appel = lecture_tiktok
 z.envoyer_fichier = interdit
 z.urllib.request.urlopen = interdit
 z.git = interdit

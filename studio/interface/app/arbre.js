@@ -116,7 +116,7 @@ export class Arbre {
     };
     const cs = [...s.cartes.values()];
     entree("accueil", "Vue d'ensemble", "maison");
-    entree("publier", "Publier sur Instagram", "envoi", cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).length || null);
+    entree("publier", "Poster", "envoi", cs.filter((c) => ["monte", "mis_en_page"].includes(c.stade)).length || null);
     entree("tournage", "Tournages", "camera", s.tournages.filter((t) => t.en_cours || t.a_finir).length || null);
     // Seulement pour un client qui a un site de ressources gratuites (studio de Yoan).
     if (s.config.ressources) entree("ressources", "Ressources gratuites", "cadeau");
@@ -141,7 +141,7 @@ export class Arbre {
     const chevron = el("button", { class: "chevron", type: "button", tabindex: "-1", "aria-label": ouvert ? "Fermer le dossier" : "Ouvrir le dossier", html: icone("fleche") });
     chevron.addEventListener("click", (e) => { e.stopPropagation(); this.basculer(k); });
     // Pas de case à cocher (lot 11) : les actions en lot se choisissent dans la vue qui les concerne
-    // (Tournages, Publier sur Instagram, ou le fichier où vit le bouton de l'action).
+    // (Tournages, Poster, ou le fichier où vit le bouton de l'action).
     const parts = [chevron];
     const tags = this.etiquettes(c, avecTags);
     parts.push(el("span", { class: "ligne-corps" }, el("span", { class: "ligne-titre" }, c.titre),
