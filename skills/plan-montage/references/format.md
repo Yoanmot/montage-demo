@@ -219,7 +219,8 @@ disposition. `elements` : chaque texte et son mot, avec son rôle et sa disposit
   phrase, quand sa voix ne permet pas les trois temps : ils deviennent un avis), `titre_reformule` (une phrase :
   pourquoi le texte n'est pas ce qu'il dit ; sinon chaque élément reprend ses mots exacts, la phrase de tête a 3 mots
   au moins, et on ne saute aucun mot dit d'un élément au suivant).
-- Tout est en capitales ; la ponctuation de fin (« ? », « ! ») est permise. Le premier élément est sur son premier mot,
+- Tout est en capitales ; la ponctuation de fin (« ? », « ! ») est permise, et « ? » attendu sur une affirmation qu'il
+  cite pour la démonter. Le premier élément est sur son premier mot,
   et du premier au dernier élément, aucun mot dit n'est sauté (`LECTURE`). Deux voisins du même bloc : capitales 1,6 fois
   au plus l'une de l'autre (`TAILLE`) : phrase `normale` (64 px de capitales) ou `grande` (84), mot `moyen` (80) ou
   `grand` (100), `geant` seulement seul dans son bloc.

@@ -105,7 +105,8 @@ une relance vers 2,5 s) ; elle dure le temps de ses phrases, puis ses sous-titre
    ensuite le mot en bas » ; une phrase courte réduite à son mot clé au lieu d'être affichée en entier) : l'accroche **commence sur son premier mot** et affiche
    **tout ce qu'il dit** jusqu'à son dernier élément, sans un mot sauté (contrôle `LECTURE`). Une phrase courte (quatre
    mots environ) s'affiche en entier, petits mots compris, avec son « ? » ou son « ! » si elle se dit comme une question
-   ou une exclamation. Une phrase longue se coupe en éléments qui se suivent (une ligne chacun), jamais en mots-clés.
+   ou une exclamation. Une affirmation qu'il cite **pour la démonter** (une promesse de pub, une idée reçue, ce que « tout
+   le monde dit ») prend « ? » : le spectateur lit le doute avant qu'il l'explique. Une phrase longue se coupe en éléments qui se suivent (une ligne chacun), jamais en mots-clés.
    L'accroche part dès qu'il dit un mot qu'elle n'affiche pas : ses sous-titres reprennent là (plus de minimum de 4 s).
 0 bis. **La forme de ses premières phrases** (« Comment penser chaque moment », point 1). Deux exemples parallèles qui servent
    le même propos (« X en A. Y en B. ») : l'accroche est une **substitution** (`type: substitution`) : le premier exemple
