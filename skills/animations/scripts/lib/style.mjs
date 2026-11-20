@@ -390,6 +390,7 @@ const SON = {
   entree: () => ({ fichier: S.SONS.entree.fichier, niveau: { rms_db_sous_voix: S.SONS.entree.ecartRmsDb } }),
   transition: () => ({ fichier: S.SONS.transition.fichier, niveau: { rms_db_sous_voix: S.SONS.transition.ecartRmsDb } }),
   meme: () => ({ fichier: S.SONS.meme.fichier, niveau: { lu_sous_voix: S.SONS.meme.ecartLU } }),
+  pose: () => ({ fichier: S.SONS.pose.fichier, niveau: { rms_db_sous_voix: S.SONS.pose.ecartRmsDb } }),
 };
 export function son(cle, imageAbs, pourquoi, k = 0) {
   if (!SON[cle]) throw new Error(`son inconnu : ${cle} (connus : ${Object.keys(SON).join(', ')})`);

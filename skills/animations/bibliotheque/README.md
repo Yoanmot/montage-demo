@@ -24,7 +24,8 @@ de ces gabarits et des règles de `STYLE.md`.
 | Dossier | Effet | Cartes | Couches |
 |---|---|---|---|
 | `sous-titres/` | ses sous-titres (Inter Black, pavé orange qui glisse), repris de son ancien skill le 2026-11-13 | captions_romain.py | devant |
-| `hook-paves/` | hook pavés craie ou orange | r19-02a, r19-02b | devant |
+| `accroche/` | l'accroche composée pour chaque vidéo (signature fixe, disposition libre), 5 exemples commentés ; fabriquée par `scripts/accroche.mjs` | page des hooks, direction A (2026-11-20) | derrière + devant |
+| `hook-paves/` | hook pavés craie ou orange (brique, animée) | r19-02a, r19-02b | devant |
 | `hook-titre-derriere/` | titre derrière lui | r20-01d | derrière |
 | `hook-mot-geant/` | mot géant derrière la tête | r20-01f | derrière + devant |
 | `hook-chiffre/` | hook chiffre | r20-01g | devant |

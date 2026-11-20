@@ -275,9 +275,11 @@ export function progresAccent(t, depart) {
 }
 export const sortieCubique = (x) => 1 - Math.pow(1 - x, 3);
 // Code GSAP (timeline « tl ») : la courbe est quantifiée dans la fonction d'ease (paliers de 1/12 s depuis le départ).
+// À p = 0 elle rend 0 (2026-11-20) : avant, GSAP posait le premier palier (50 % d'opacité) dès l'image 0 du calque, avec
+// immediateRender, et le texte se voyait à moitié avant son mot.
 export function monteeAccentJs(sel, t) {
   const M = MONTEE_ACCENT, f = (x) => Math.max(0, x).toFixed(4);
-  const ease = `(p) => { const q = Math.min(1, (Math.floor(p * ${M.duree} * ${M.ips} + 1e-6) + 1) / ${M.ips} / ${M.duree}); return 1 - Math.pow(1 - q, 3); }`;
+  const ease = `(p) => { if (p <= 0) return 0; const q = Math.min(1, (Math.floor(p * ${M.duree} * ${M.ips} + 1e-6) + 1) / ${M.ips} / ${M.duree}); return 1 - Math.pow(1 - q, 3); }`;
   return `tl.fromTo('${sel}', { y: ${M.montee}, opacity: 0 }, { y: 0, opacity: 1, duration: ${M.duree}, ease: ${ease}, immediateRender: true }, ${f(t)});\n`;
 }
 
@@ -308,6 +310,32 @@ export const ENRICHI = { min: 1.0, max: 1.2, fort: 1.2, moyen: 1.15, secondaire:
 // Titre derrière lui (correction) : toute la composition derrière lui, phrase plus haut, écart resserré entre la phrase
 // et le mot géant (ligne de base de la phrase -> haut des capitales). Deux écarts proposés.
 export const TITRE_DERRIERE = { phraseTop: 250, ecarts: [16, 34], ecartPave: 22 };
+
+// Accroche composée (Yoan, 2026-11-20, direction A « Romain, en plus nerveux ») : la signature est fixe (Inter Black,
+// capitales pour le mot fort, minuscules pour la phrase, un seul accent orange par image, charbon et craie, ouverture en
+// dézoom, trois temps sur les 5 premières secondes, son sur le mot fort), la disposition se décide pour chaque vidéo
+// (scripts/accroche.mjs, bibliotheque/accroche/README.md). Valeurs en px de la vidéo 1080 x 1920.
+export const ACCROCHE = {
+  phrase: { normale: 56, grande: 70 },               // minuscules (.tx)
+  mot: { grandCap: 170, moyenCap: 110 },             // capitales (.ti) ; géant : encre sur toute la zone sûre (mesure.py geant)
+  pave: { normale: 60, grande: 128, grand: 128, moyen: 72 },   // pavés en capitales ; rembourrage HOOKS.paves à l'échelle de 58 px
+  hautY: 255,            // haut de l'encre du premier élément placé en haut
+  basY: 1190,            // bas du dernier élément placé en bas (les sous-titres sont centrés à 0,70 de la hauteur)
+  marge: 5,              // encre à 5 px des bords de la zone sûre (x 96 à 985)
+  ecartPhraseMot: 16,    // ligne de base d'une phrase -> haut des capitales du mot (TITRE_DERRIERE)
+  ecartPave: 22,         // ligne de base d'un texte -> haut d'un pavé
+  ecartPaves: 10,        // entre deux pavés (HOOKS.paves.ecart), marche comprise en plus
+  ecartBlocs: 26,        // entre deux autres éléments
+  derriere: 0.3,         // mot derrière lui : bas des capitales 30 % de leur hauteur sous le haut du crâne
+  barre: { ep: 12, d: 0.12, decalage: 0.07, courbe: 'power2.inOut', estompe: 0.32, dEstompe: 0.2 },   // question coupée
+  souligne: { part: 0.06, min: 8, ecart: 20, d: 0.35, courbe: 'power2.inOut' },
+  compte: { images: 10 },                            // chiffre qui compte jusqu'au sien
+  // trois temps : une ouverture avant 0,6 s, le mot fort entre 0,8 et 2,4 s, la relance entre 1,9 et 4 s
+  temps: { ouverture: 0.6, mot: [0.8, 2.4], relance: [1.9, 4.0], ecartMin: 0.45 },
+  // tout repart ensemble : 1 s après le dernier mot affiché, jamais avant 4 s (pas de vide après 3 s), au plus 7 s
+  fin: { tenue: 1.0, min: 4.0, max: 7.0, aimant: 0.35 },
+  ouverture: 1.12,       // dézoom d'ouverture conseillé (brique zooms, type ouverture, 1,2 au plus)
+};
 
 // ---------------------------------------------------------------- pleins écrans (planche + v1 r4-03)
 export const FONDS = {
@@ -433,7 +461,7 @@ function recolorerTout(o) {
 }
 const CONSTANTES = { VIDEO, ZONE_SURE, COULEURS, NATIF, POLICES, RAYONS, OMBRES, MARCHE, ONGLET, CARTE, VOILE, SOUS_TITRES, HOOKS,
   CTA, COURBES, MATIERES, DESSIN, ENTREES, SOUS_TITRES_TEMPS, HOOK_TEMPS, CTA_TEMPS, FAISCEAU, FLASH, FRAPPE, SONS, RENDU,
-  ATTAQUE, APPARITION, MONTEE_ACCENT, APPARITION_LIGNE, SOULIGNE, ENRICHI, TITRE_DERRIERE, FONDS, PLEIN, DEMI, LISTE, MINUTEUR,
+  ATTAQUE, APPARITION, MONTEE_ACCENT, APPARITION_LIGNE, SOULIGNE, ENRICHI, TITRE_DERRIERE, ACCROCHE, FONDS, PLEIN, DEMI, LISTE, MINUTEUR,
   CASE_COCHEE, SCHEMA, COMPARAISON, PLEIN_TEMPS, LIGNE_CARTE, SEANCE, SUPERSET, FICHE, RESULTAT, CHAPITRE, PRESENTATION,
   NUTRITION, CHRONO, BROLL, ANGLE, TAMPON, ANATOMIE, VERT, TIER };
 if (DOSSIER_STYLE) {

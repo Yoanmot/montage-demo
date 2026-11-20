@@ -18,6 +18,9 @@ Base de temps : **images de la vidéo coupée**, 30 i/s, image 0 = début de la 
   les constantes, un dossier par geste (README, gabarit HyperFrames, aperçu). Lis `STYLE.md` une fois par session.
 - `scripts/caler.mjs` : lit et vérifie les demandes du plan, cale chaque ancre sur la voix.
 - `scripts/instancier.mjs` : adapte un gabarit à une demande et l'écrit en calque.
+- `scripts/accroche.mjs` : compose l'accroche de la vidéo (geste `accroche`) dans sa signature, à partir de la
+  disposition écrite dans le plan ; `scripts/registre-accroches.mjs` : le registre qui empêche de refaire la même
+  accroche deux vidéos de suite (`lib/accroche.mjs` : vocabulaire, contrôle, registre ; tests dans `tests/`).
 - `scripts/exemple-sur-mesure.mjs` : modèle d'effet sur mesure (compteur de pas, testé).
 - `scripts/verifier.mjs` : contrôle de style (police unique comprise), captions (même ligne, même taille), lint, rendu
   de contrôle, zone sûre, calage, aperçu posé sur la vidéo.
@@ -60,6 +63,22 @@ node "$SK/scripts/caler.mjs" "$M"
   la demande reste exécutable, tu appliques ce que `plan-resolu.json` donne (`reglages` = réglages à passer dans `P`,
   `duree_style` = durée en images), jamais la valeur du plan. Le script l'a écrit dans `M/remarques-plan.md` (trace) ;
   à l'étape plan, le monteur corrige son plan avec la valeur du style.
+
+### 2 bis. L'accroche (geste `accroche`) : composée, jamais instanciée
+Le plan donne sa disposition (`composition` et `elements` avec rôle, place, alignement, taille, entrée : format dans
+`../plan-montage/references/format.md`). Après le calage et la brique zooms (le dézoom d'ouverture écrit `M/ouverture.json`) :
+```
+node "$SK/scripts/accroche.mjs" "$M" --video "<vidéo coupée>"
+```
+- La signature est tenue par le script : police, casse, un seul orange, ouverture en dézoom, trois temps, rien avant le
+  mot, tout repart ensemble après 4 s au moins, tick sur le mot fort et clac sous chaque relance (`sons_suggeres`).
+- Il mesure le haut de sa tête sur la vidéo coupée (mot derrière lui), place chaque élément, vérifie la zone sûre et que
+  les éléments ne se chevauchent pas, puis écrit `calques/a01-derriere` (voile, mot derrière lui qui dézoome avec la
+  caméra) et `calques/a01-devant`, `M/accroche.json` (la composition retenue) et la ligne du registre.
+- Refus (code 2) : `TROIS_TEMPS`, `SANS_OUVERTURE`, `HORS_ZONE`, `CHEVAUCHEMENT`, `TROP_LARGE`, `ACCENT_DOUBLE`… : c'est
+  la disposition du plan qui change (un autre mot, une autre place, une taille plus petite), puis caler et relancer.
+  `RÉPÉTITION` (code 4) : la même accroche qu'une des deux dernières vidéos ; change la place, l'entrée ou le mot.
+- Puis `verifier.mjs` sur `a01-derriere` et `a01-devant` (avec `--video`), et regarde leurs planches.
 
 ### 2. Pour chaque demande : gabarit ou sur mesure
 La bibliothèque est une **vitrine du vocabulaire**, pas un catalogue.
@@ -211,9 +230,11 @@ gestes repris), photos à demander à Romain, et les **sons suggérés** (champ 
 
 | Geste | Couche | Plan | Sons que le style associe |
 |---|---|---|---|
-| hook-paves, hook-question, plein-ecran-orange, liste, schema, carte-chapitre, carte-presentation, carte-nutrition, broll-annote, anatomie | devant | | aucun |
+| accroche (composée, `accroche.mjs`) | derriere + devant | | tick sur le mot fort, clac sous chaque relance |
+| hook-paves, plein-ecran-orange, liste, schema, carte-chapitre, carte-presentation, carte-nutrition, broll-annote, anatomie | devant | | aucun |
 | transition-flash | devant | | clic sur l'image de la coupe |
-| hook-titre-derriere | derriere | | aucun |
+| hook-titre-derriere | derriere | | tick quand le mot géant passe 50 % |
+| hook-question | devant | | tick quand le sujet passe 50 % |
 | hook-mot-geant, cta-mot-derriere | derriere + devant | | tick quand le mot géant passe 50 % |
 | hook-chiffre, carte-chrono, tampon-verdict | devant | | tick quand le chiffre / le tampon passe 50 % |
 | cta-champ-instagram | devant | | une frappe par lettre (t1 à t4 tournantes) |

@@ -19,17 +19,31 @@ html,body{margin:0;background:transparent;}
 <body>
 <div id="root" data-composition-id="root" data-width="1080" data-height="1920" data-start="0" data-duration="3">
   <div class="a" style="inset:0;background:linear-gradient(to bottom,rgba(10,8,6,0.46) 0px,rgba(10,8,6,0.28) 520px,rgba(10,8,6,0) 1020px);"></div>
-  <div class="a tx c-cr douce" style="left:91px;top:250px;font-size:54px">tu soulèves lourd mais tes</div>
-  <div class="a ti c-cr douce" style="left:94px;top:303.32px;font-size:113.69px">articulations</div>
-  <div class="a tx" style="right:90px;top:418.97px;font-size:56px"><span class="pav">sont rouillées</span></div>
+  <div class="a tx c-cr douce" id="phrase" style="left:91px;top:250px;font-size:54px">tu soulèves lourd mais tes</div>
+  <div class="a ti c-cr douce" id="mot" style="left:94px;top:303.32px;font-size:113.69px">articulations</div>
+  <div class="a tx" id="pv" style="right:90px;top:418.97px;font-size:56px"><span class="pav">sont rouillées</span></div>
 </div>
 <script>
 // ===================================================== PARAMÈTRES (seule partie à changer d'une vidéo à l'autre)
 // Textes : directement dans le HTML ci-dessus. Durée du calque : data-duration de #root et dernière ligne de la timeline.
+// Instants en secondes depuis le début du calque (image n = n / 30), calés sur l'attaque des mots de la voix.
+// Animé depuis le 2026-11-20 (plus d'image posée sans mouvement) : phrase, mot géant, puis pavé en saccade.
+const T = {
+  t01: 0.0000,   // #phrase apparaît
+  t02: 0.6000,   // #mot apparaît (le mot géant)
+  t03: 1.4000,   // #pv monte du bas en saccade 12 i/s (le pavé)
+};
 </script>
 <script src="../../vendor/gsap.min.js"></script>
 <script>
 const tl = gsap.timeline({ paused: true });
+tl.fromTo('#phrase', { y: 10.0 }, { y: 0, duration: 0.350, ease: 'power3.out', immediateRender: true }, T.t01);
+tl.fromTo('#phrase', { opacity: 0 }, { opacity: 1, duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#phrase', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.300, ease: 'power2.out', immediateRender: true }, T.t01);
+tl.fromTo('#mot', { y: 10.8 }, { y: 0, duration: 0.378, ease: 'power3.out', immediateRender: true }, T.t02);
+tl.fromTo('#mot', { opacity: 0 }, { opacity: 1, duration: 0.321, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#mot', { filter: 'blur(8.0px)' }, { filter: 'blur(0px)', duration: 0.378, ease: 'power2.out', immediateRender: true }, T.t02);
+tl.fromTo('#pv', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: (p) => { if (p <= 0) return 0; const q = Math.min(1, (Math.floor(p * 0.4 * 12 + 1e-6) + 1) / 12 / 0.4); return 1 - Math.pow(1 - q, 3); }, immediateRender: true }, T.t03);
 tl.set({}, {}, 3);
 window.__timelines = window.__timelines || {};
 window.__timelines['root'] = tl;

@@ -1,6 +1,6 @@
 ---
 name: zooms
-description: Brique du monteur. Prépare les zooms d'une vidéo déjà coupée, au style de Romain : zoom éclair (115 % en 0,13 s avec un léger flou de mouvement, sur un mot qui claque), rapprochement court (110 % en 1 s, sur une phrase qui monte vers une idée), centrés entre ses yeux, tenus jusqu'à la coupe qui revient au plan large, et dézoom d'ouverture de l'accroche (120 % vers 100 % jusqu'au mot clé). Exécute les zooms du plan de montage ; sans plan, en choisit peu, avec retenue. Ne fabrique pas la vidéo : c'est la brique rendu qui le fait.
+description: Brique du monteur. Prépare les zooms d'une vidéo déjà coupée, au style de Romain : zoom qui suit sa tête (110 % en 0,8 s, puis le cadre suit sa tête jusqu'à la coupe, comme un caméraman), zoom éclair (115 % en 0,13 s avec un léger flou de mouvement, sur un mot qui claque), rapprochement court (110 % en 1 s, sur une phrase qui monte vers une idée), centrés entre ses yeux, tenus jusqu'à la coupe qui revient au plan large, et dézoom d'ouverture de l'accroche (120 % vers 100 % jusqu'au mot clé). Exécute les zooms du plan de montage ; sans plan, en choisit peu, avec retenue. Ne fabrique pas la vidéo : c'est la brique rendu qui le fait.
 ---
 
 # Préparer les zooms
@@ -29,15 +29,16 @@ son numéro (`[12]abdos`). Lis-le en entier.
 Pour chaque zoom du plan, retrouve dans le texte numéroté **le mot** où il part.
 - Ne te fie jamais à un minutage : seule la phrase dite compte. Si une ancre ne se retrouve pas telle quelle, prends
   la phrase qui dit la même chose au même endroit. Si tu ne la retrouves pas, ne l'invente pas : signale-la au monteur.
-- Éclair : le mot qui claque (celui que le plan désigne, sinon le mot fort de la phrase). Rapprochement : le début de
-  la phrase qui monte vers l'idée.
+- Éclair : le mot qui claque (celui que le plan désigne, sinon le mot fort de la phrase). Rapprochement et zoom qui suit
+  sa tête : le début de la phrase.
 - Une échelle demandée au-delà du plafond est ramenée au plafond (le script le dit). Un « recul » au milieu de la
   vidéo, un « zoom progressif lent » ou un « punch-in sur la coupe » ne sont pas dans le style : prends le geste le plus
   proche (éclair ou rapprochement) et dis-le au monteur.
 - **Dézoom d'ouverture** (accroche du niveau travaillé, avec le titre derrière lui) : `ouverture`, sur le mot clé de
   sa première phrase, là où il s'arrête.
 
-**Sans plan** : choisis toi-même, avec retenue. Éclair sur un mot qui claque (un chiffre, une affirmation qui tranche,
+**Sans plan** : choisis toi-même, avec retenue. Pour Romain, le zoom qui suit sa tête d'abord (une phrase qui compte,
+une confidence, une explication un peu longue). Éclair sur un mot qui claque (un chiffre, une affirmation qui tranche,
 l'appel à l'action) ; au plus un ou deux rapprochements par vidéo, sur une phrase qui monte vers une idée. Environ un
 zoom toutes les 15 à 20 secondes, jamais deux phrases de suite.
 
@@ -48,7 +49,14 @@ zoom toutes les 15 à 20 secondes, jamais deux phrases de suite.
   { "type": "rapprochement", "mot": 49 }
 ] }
 ```
-- `type` : `eclair`, `rapprochement` ou `ouverture`.
+- `type` : `suivi`, `eclair`, `rapprochement` ou `ouverture`.
+  - `suivi` : 110 % en 0,8 s (power2.inOut), part à l'attaque du mot, puis **le cadre suit sa tête** jusqu'à la coupe
+    (Romain, 2026-11-20 : « rien qu'un zoom et un mouvement de caméra qui fait qu'on suit la tête, c'est un effet en
+    soi ») : ses yeux sont mesurés toutes les 3 images pendant le zoom tenu, les trous comblés, lissés sur 0,4 s
+    environ ; le cadre se décale de ce que sa tête a bougé, sans jamais sortir de l'image (borné par la marge du zoom).
+    Sa tête reste à la même place à l'écran, le décor bouge un peu : c'est le mouvement de caméra. Il faut au moins
+    1,2 s jusqu'à la coupe. Moins de la moitié des mesures réussies : le zoom reste fixe et le script le dit
+    (`SUIVI IMPOSSIBLE`).
   - `eclair` : 115 % en 0,13 s (courbe power2.out), léger flou de mouvement, part à l'attaque du mot.
   - `rapprochement` : 110 % en 1 s (power2.inOut, départ et arrivée freinés), part à l'attaque du mot.
   - `ouverture` : la vidéo commence à 120 % (`echelle`, 1,2 au plus) et revient à 100 % d'un pas égal à chaque image,
@@ -58,7 +66,9 @@ zoom toutes les 15 à 20 secondes, jamais deux phrases de suite.
 - `mot` : numéro du mot où le geste part (pour `ouverture` : où il s'arrête).
 - La fin n'est pas à écrire : le zoom tient **jusqu'à la coupe suivante**, qui revient au plan large. S'il n'y a pas de
   coupe dans les 4 s, il finit au bout de la phrase (ou du mot `fin`, facultatif), calé sur une coupe proche si possible.
-- `echelle` (facultatif) : par défaut `1.15` (éclair) ou `1.1` (rapprochement). Ne la change pas sans demande. Plafond :
+- `suivre` (facultatif, `true`) : le même suivi de sa tête pour un éclair ou un rapprochement, pendant qu'il est tenu.
+  Un `cadrage` donné à la main l'annule (le cadre reste où on l'a mis).
+- `echelle` (facultatif) : par défaut `1.15` (éclair), `1.1` (rapprochement, suivi). Ne la change pas sans demande. Plafond :
   `1.15` pour une vidéo jusqu'au 1080p, `1.8` pour une 4K.
 - `cadrage` (facultatif) : `[x, y]` de `0` à `1`, le point fixe du zoom. Par défaut, le script le trouve tout seul
   **entre ses yeux**. Ne le mets que si l'aperçu montre un point faux.
@@ -80,18 +90,21 @@ Le script liste chaque zoom (type, échelle, de quand à quand, point fixe, phra
   d'une coupe si le plan le permet.
 
 ### 4. Vérifier (c'est ton travail)
-Regarde chaque image de contrôle : le rond est entre ses yeux, son visage est entier dans le cadre. Sinon, mets un
+Regarde chaque image de contrôle : le rond est entre ses yeux, son visage est entier dans le cadre. Pour un zoom qui
+suit sa tête, regarde aussi `zoom-NN-suivi.jpg` (4 images du zoom tenu, chacune avec son cadre) : sa tête reste à peu
+près à la même place, jamais coupée. Sinon, mets un
 `cadrage` et relance `preparer` (instantané). Puis rends la main au monteur.
 
 ## Les retouches (quand Romain a vu la vidéo)
 - « moins de zooms », « pas sur cette phrase » : retire-les de `zooms.json` ;
 - « ajoute un zoom sur telle phrase » : ajoute-le ;
-- « plus doux » : rapprochement au lieu d'éclair ; « plus sec » : l'inverse.
+- « plus doux » : rapprochement ou zoom qui suit sa tête au lieu d'éclair ; « plus sec » : l'inverse ;
+- « que la caméra me suive », « moins de mouvement » : `suivi` (ou `"suivre": true`), ou l'inverse.
 Puis `preparer`, et le monteur refait la vidéo depuis l'originale.
 
 ## Ce qui sort aussi : `zooms-donnees.json`
 Les mêmes zooms en données (type, échelle, point fixe en part de l'original, images de début, de pose et de fin,
-courbe), avec l'empreinte de `zooms.txt` : l'aperçu du studio (`rendu`, `apercu.py`) les joue sans rendu. Le rendu ne
+courbe, et pour un zoom qui suit sa tête `suivi` : images clés et décalage du cadre), avec l'empreinte de `zooms.txt` : l'aperçu du studio (`rendu`, `apercu.py`) les joue sans rendu. Le rendu ne
 le lit pas. Écrit à chaque `preparer`, à ne jamais modifier à la main.
 
 ## Ce qui sort : `zooms.txt`
@@ -101,7 +114,8 @@ Un morceau de graphe ffmpeg, à poser tel quel entre le plan coupé et la suite 
   sans ça la sortie était en base 1/1000000 et les calques posés ensuite prenaient l'image d'avant une fois sur trois).
   La mise à 1080 x 1920 et l'étalonnage viennent après (brique rendu).
 - Hors des zooms, les images passent sans retouche. Pendant un zoom : recadrage autour du point fixe (`perspective`,
-  interpolation cubique, précision sous le pixel). Sur chaque image où l'échelle bouge, le **flou de mouvement** est
+  interpolation cubique, précision sous le pixel). Un zoom qui suit sa tête décale ce cadre image par image (images
+  clés toutes les 6 images, interpolées linéairement entre elles, dans l'expression de `perspective`). Sur chaque image où l'échelle bouge, le **flou de mouvement** est
   inclus : 10 sous-images moyennées (obturateur 360 degrés, comme `zoom.py` de la bibliothèque).
 - Sans zoom, le fichier contient `null` (le plan passe tel quel).
 - Le graphe a été comparé image par image à `zoom.py` de la bibliothèque du style : écart moyen sous 1 niveau de

@@ -4,6 +4,9 @@
 Deux gestes (bibliotheque/zooms/, STYLE.md « Zooms »), plus le dézoom d'ouverture de l'accroche :
   eclair        : 115 % en 0,13 s, power2.out, léger flou de mouvement, sur le mot fort, tenu jusqu'à la coupe
   rapprochement : 110 % en 1 s, power2.inOut, tenu jusqu'à la coupe
+  suivi         : 110 % en 0,8 s, power2.inOut, puis le cadre suit sa tête (comme un caméraman) jusqu'à la coupe
+                  (Romain, 2026-11-20 : « rien qu'un zoom et un mouvement de caméra qui fait qu'on suit la tête, c'est un
+                  effet en soi ») ; « suivre »: true donne le même suivi à un éclair ou un rapprochement
   ouverture     : la vidéo commence à 120 % et revient à 100 % de l'image 0 jusqu'au mot clé, où elle s'arrête net
                   (règle de Yoan pour l'accroche du niveau travaillé, avec le titre derrière lui qui dézoome pareil :
                   la brique écrit ouverture.json, que l'animation du titre suit image par image)
@@ -28,6 +31,7 @@ FPS_ATTENDU = 30
 GESTES = {  # échelle par défaut, durée du geste (s), courbe
     "eclair": (1.15, 0.13, "power2.out"),
     "rapprochement": (1.10, 1.0, "power2.inOut"),
+    "suivi": (1.10, 0.8, "power2.inOut"),
     "ouverture": (1.20, None, "linéaire, arrêt net"),
 }
 PLAFOND_OUVERTURE = 1.2               # le dézoom d'ouverture part de 120 % au plus (règle de Yoan, 2026-11-11)
@@ -38,8 +42,13 @@ SOUS_IMAGES = 10                      # obturateur 360 degrés
 AIMANT_COUPE = 0.35                   # une fin demandée se cale sur une coupe à moins de ça (s)
 TENU_MAX = 4.0                        # sans coupe dans ces 4 s, le zoom finit avec sa phrase
 ECART_COUPE_ECLAIR = 0.2              # un éclair à moins de 0,2 s après une coupe = punch-in serré sur la coupe (rejeté)
-TENU_MIN = {"eclair": 0.4, "rapprochement": 1.1}  # du début du geste à la coupe, au minimum (s)
+TENU_MIN = {"eclair": 0.4, "rapprochement": 1.1, "suivi": 1.2}  # du début du geste à la coupe, au minimum (s)
 ANCRE_DEFAUT = (0.5, 0.35)
+# Suivi de la tête : ses yeux mesurés toutes les PAS_MESURE images pendant le zoom tenu, lissés (moyenne glissante de
+# LISSAGE mesures, soit 0,4 s environ : pas de tremblement, sans traîner derrière lui), puis posés en images clés toutes les PAS_CLE images, interpolées
+# entre elles. Le cadre garde sa tête à la même place à l'écran, sans jamais sortir de l'image (borné par la marge du
+# zoom). Moins de SUIVI_MIN mesures réussies : pas de suivi, le zoom reste fixe (et le script le dit).
+PAS_MESURE, PAS_CLE, LISSAGE, SUIVI_MIN = 3, 6, 5, 0.5
 
 
 def say(m): print(m, flush=True)
@@ -113,10 +122,70 @@ def premier_in(ff):
     return round((20 - sum(1 for v in ligne if v > 128)) / 4)
 
 
-def coins(ax, ay, W, H, s):
-    """Les 4 coins (source) du cadre zoomé autour du point fixe (ax, ay) : x0 y0 x1 y1 x2 y2 x3 y3."""
-    g, d, h, b = f"({ax:.4f}-{ax:.4f}/{s})", f"({ax:.4f}+{W - ax:.4f}/{s})", f"({ay:.4f}-{ay:.4f}/{s})", f"({ay:.4f}+{H - ay:.4f}/{s})"
+def coins(ax, ay, W, H, s, dx="0", dy="0"):
+    """Les 4 coins (source) du cadre zoomé autour du point fixe (ax, ay) : x0 y0 x1 y1 x2 y2 x3 y3. dx, dy : décalage
+    du cadre (expressions, px de l'original) quand il suit sa tête ; 0 sinon."""
+    if dx == "0" and dy == "0":
+        g, d, h, b = f"({ax:.4f}-{ax:.4f}/{s})", f"({ax:.4f}+{W - ax:.4f}/{s})", f"({ay:.4f}-{ay:.4f}/{s})", f"({ay:.4f}+{H - ay:.4f}/{s})"
+    else:
+        g, d = f"({ax:.4f}-{ax:.4f}/{s}+{dx})", f"({ax:.4f}+{W - ax:.4f}/{s}+{dx})"
+        h, b = f"({ay:.4f}-{ay:.4f}/{s}+{dy})", f"({ay:.4f}+{H - ay:.4f}/{s}+{dy})"
     return [g, h, d, h, g, b, d, b]
+
+
+def expr_lineaire(n, cles, vals):
+    """Expression ffmpeg : interpolation linéaire de vals aux images cles (croissantes), constante au-delà."""
+    if len(cles) == 1: return f"{vals[0]:.3f}"
+    e = f"{vals[-1]:.3f}"
+    for k in range(len(cles) - 2, -1, -1):
+        a, b, va, vb = cles[k], cles[k + 1], vals[k], vals[k + 1]
+        e = f"if(lt({n},{b}),{va:.3f}+({vb - va:.3f})*({n}-{a})/{b - a},{e})"
+    return f"if(lt({n},{cles[0]}),{vals[0]:.3f},{e})"
+
+
+def lisser(v, n):
+    """Moyenne glissante centrée de n valeurs, bords repliés."""
+    if len(v) < 3: return list(v)
+    h = n // 2
+    return [sum(v[max(0, min(len(v) - 1, i + k))] for k in range(-h, h + 1)) / (2 * h + 1) for i in range(len(v))]
+
+
+def suivi_tete(ff, info, segs, z, W, H, tmp):
+    """Le cadre qui suit sa tête pendant le zoom tenu (de l'image où l'échelle est posée jusqu'à la fin) : ses yeux
+    mesurés toutes les PAS_MESURE images, trous comblés, lissés, ramenés à un décalage depuis la première mesure,
+    bornés pour que le cadre reste dans l'image. Renvoie { images, decalage: [[dx, dy] px], mesures, reussies } ou None."""
+    fixe = image_fixe(z, z["fps"])
+    if z["f1"] - fixe < 2 * PAS_MESURE: return None
+    fr = list(range(fixe, z["f1"], PAS_MESURE)) + [z["f1"] - 1]
+    pts = []
+    for k, f in enumerate(fr):
+        png = tmp / f"s{z['n']}-{k}.png"; image_source(ff, info, segs, f, png)
+        p = entre_les_yeux(png)
+        pts.append((p[0] * W, p[1] * H) if p else None)
+    ok = [i for i, p in enumerate(pts) if p]
+    z["suivi_mesures"] = (len(ok), len(pts))
+    if len(ok) < SUIVI_MIN * len(pts): return None
+    for i, p in enumerate(pts):   # trous : interpolés entre les mesures voisines, tenus aux bords
+        if p: continue
+        a = max([j for j in ok if j < i], default=None); b = min([j for j in ok if j > i], default=None)
+        if a is None: pts[i] = pts[b]
+        elif b is None: pts[i] = pts[a]
+        else: u = (i - a) / (b - a); pts[i] = tuple(pts[a][c] + (pts[b][c] - pts[a][c]) * u for c in (0, 1))
+    xs = lisser([p[0] for p in pts], LISSAGE); ys = lisser([p[1] for p in pts], LISSAGE)
+    s, ax, ay = z["s"], z["ax"], z["ay"]
+    # le cadre se décale de ce que sa tête a bougé depuis le début du zoom tenu, sans sortir de l'image
+    bx = (-(ax - ax / s), (W - ax) - (W - ax) / s); by = (-(ay - ay / s), (H - ay) - (H - ay) / s)
+    dec = [(min(bx[1], max(bx[0], x - xs[0])), min(by[1], max(by[0], y - ys[0]))) for x, y in zip(xs, ys)]
+    # images clés toutes les PAS_CLE images (et la dernière), valeurs interpolées entre les mesures lissées
+    cles = list(range(fixe, z["f1"], PAS_CLE)) + [z["f1"] - 1]
+    def a_image(f, c):
+        j = max(0, min(len(fr) - 2, next((i for i in range(len(fr) - 1) if fr[i] <= f < fr[i + 1]), len(fr) - 2)))
+        u = 0 if fr[j + 1] == fr[j] else min(1, max(0, (f - fr[j]) / (fr[j + 1] - fr[j])))
+        return dec[j][c] + (dec[j + 1][c] - dec[j][c]) * u
+    out = dict(images=sorted(set(cles)), decalage=[], mesures=len(pts), reussies=len(ok))
+    out["decalage"] = [[round(a_image(f, 0), 2), round(a_image(f, 1), 2)] for f in out["images"]]
+    out["amplitude"] = [round(max(abs(d[0]) for d in out["decalage"]), 1), round(max(abs(d[1]) for d in out["decalage"]), 1)]
+    return out
 
 
 def perspective(cs, par_image):
@@ -182,7 +251,7 @@ def cmd_preparer(w):
         typ = z.get("type") or ANCIENS.get(z.get("entree", "sec"))
         if z.get("entree") == "recul" and not z.get("type"):
             fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, le recul n'est plus dans le style. Prends un éclair ou un rapprochement.")
-        if typ not in GESTES: fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, type « {typ} » inconnu (eclair, rapprochement ou ouverture).")
+        if typ not in GESTES: fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, type « {typ} » inconnu (eclair, rapprochement, suivi ou ouverture).")
         defaut, duree, _ = GESTES[typ]
         a = z.get("mot", z.get("debut"))
         if a is None: fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, il manque « mot » (le numéro du mot où le zoom part, ou où le dézoom d'ouverture s'arrête).")
@@ -232,7 +301,12 @@ def cmd_preparer(w):
             fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n} trop court ({(f1 - f0) / fps:.2f} s) : prends un mot plus tôt ou une fin plus loin.")
         dernier = max([a] + [i for i in range(a, len(ws)) if float(ws[i]["end"]) * fps <= f1 + 1])
         phrase = " ".join(str(m["text"]) for m in ws[a:dernier + 1]).strip()
-        zooms.append(dict(n=n, type=typ, s=s, duree=duree, t0=t0, f0=f0, f1=f1, mot=a, cadrage=z.get("cadrage"), phrase=phrase, sans_coupe=sans_coupe, fps=fps))
+        suivre = typ == "suivi" or bool(z.get("suivre"))
+        if z.get("cadrage") and suivre:
+            say(f"  zoom n°{n} : un cadrage est demandé, le cadre reste fixe (pas de suivi de la tête).")
+            suivre = False
+        zooms.append(dict(n=n, type=typ, s=s, duree=duree, t0=t0, f0=f0, f1=f1, mot=a, cadrage=z.get("cadrage"), phrase=phrase, sans_coupe=sans_coupe, fps=fps,
+                          suivre=suivre))
 
     zooms.sort(key=lambda z: z["f0"])
     for p, q in zip(zooms, zooms[1:]):
@@ -261,6 +335,7 @@ def cmd_preparer(w):
                 else:
                     fx, fy = ANCRE_DEFAUT; z["source_ancre"] = "defaut"
             z["ax"], z["ay"] = fx * W, fy * H
+            z["suivi"] = suivi_tete(ff, info, segs, z, W, H, tmp) if z.get("suivre") else None
 
         txt = graphe(zooms, total, fps, W, H, premier_in(ff))
         (w / "zooms.txt").write_text(txt, encoding="utf-8")
@@ -290,6 +365,15 @@ def cmd_preparer(w):
             d.rectangle(box, outline=(255, 60, 30), width=max(2, r // 3))
             planche = Image.new("RGB", (2 * W, H)); planche.paste(large, (0, 0)); planche.paste(zm, (W, 0))
             planche.thumbnail((1080, 1080 * H // (2 * W) + 1)); planche.save(apercu / f"zoom-{z['n']:02d}.jpg", quality=88)
+            if z.get("suivi"):   # le cadre qui suit sa tête : 4 images du zoom tenu, chacune avec son cadre décalé
+                S_ = z["suivi"]; ks = [S_["images"][round(j * (len(S_["images"]) - 1) / 3)] for j in range(4)]
+                bande = Image.new("RGB", (4 * W, H))
+                for j, f in enumerate(ks):
+                    png = tmp / f"b{z['n']}-{j}.png"; image_source(ff, info, segs, f, png)
+                    im = Image.open(png).convert("RGB"); dx, dy = S_["decalage"][S_["images"].index(f)]
+                    bx = (ax - ax / s + dx, ay - ay / s + dy, ax + (W - ax) / s + dx, ay + (H - ay) / s + dy)
+                    bande.paste(im.resize((W, H), Image.LANCZOS, box=bx), (j * W, 0))
+                bande.thumbnail((1600, 1600 * H // (4 * W) + 1)); bande.save(apercu / f"zoom-{z['n']:02d}-suivi.jpg", quality=86)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -298,7 +382,11 @@ def cmd_preparer(w):
         ancre = {"yeux": "entre ses yeux", "cadrage": "cadrage demandé", "defaut": "VISAGE INTROUVABLE, point par défaut : vérifie l'aperçu"}[z["source_ancre"]]
         say(f"  n°{z['n']} {z['type']} {round(z['s'] * 100)} % : de {z['t0']:.2f} s à {z['f1'] / fps:.2f} s (images {z['f0']} à {z['f1']}), "
             f"{ancre} ({z['ax']:.0f}, {z['ay']:.0f}) : « {z['phrase']} »"
-            + (" [retour au plan large sans coupe : pas de coupe dans les 4 s]" if z["sans_coupe"] else ""))
+            + (" [retour au plan large sans coupe : pas de coupe dans les 4 s]" if z["sans_coupe"] else "")
+            + (f" ; le cadre suit sa tête (jusqu'à {z['suivi']['amplitude'][0]:.0f} px de côté, {z['suivi']['amplitude'][1]:.0f} px en hauteur, "
+               f"{z['suivi']['reussies']}/{z['suivi']['mesures']} mesures)" if z.get("suivi") else "")
+            + (f" ; SUIVI IMPOSSIBLE ({z['suivi_mesures'][0]}/{z['suivi_mesures'][1]} mesures de ses yeux) : cadre fixe, regarde l'aperçu"
+               if z.get("suivre") and not z.get("suivi") and z.get("suivi_mesures") else ""))
 
 
 def image_fixe(z, fps):
@@ -313,14 +401,20 @@ def ecrit_donnees(w, zooms, txt, fps, W, H):
       ouverture : echelle - (echelle - 1) * n / f1 pour n < f1 ;
       eclair, rapprochement : moyenne de echelle_a aux instants (n + j/10)/30, j = 0..9, de f0 à fixe (flou de mouvement
       du rendu : l'aperçu n'en garde que l'échelle moyenne), puis echelle jusqu'à f1 (exclue) ; 1 ailleurs.
-    ancre : point fixe en part de la largeur et de la hauteur de l'original."""
+    ancre : point fixe en part de la largeur et de la hauteur de l'original.
+    suivi (zoom qui suit sa tête, facultatif) : images clés (vidéo coupée) et décalage du cadre à chacune, en part de la
+    largeur et de la hauteur de l'original, interpolé linéairement entre deux clés, tenu avant la première et après la
+    dernière ; il s'ajoute au cadre du zoom tenu (de « fixe » à f1). Un lecteur qui ne le lit pas montre le zoom fixe."""
     import hashlib
     d = dict(version=1, fps=fps, largeur=W, hauteur=H, sous_images=SOUS_IMAGES,
              zooms_txt=hashlib.sha1(txt.encode()).hexdigest()[:16],
              zooms=[dict(type=z["type"], echelle=round(z["s"], 6), ancre=[round(z["ax"] / W, 6), round(z["ay"] / H, 6)],
                          t0=round(z["t0"], 6), duree=round(z["duree"], 6), f0=z["f0"], f1=z["f1"],
                          fixe=z["f1"] if z["type"] == "ouverture" else image_fixe(z, fps),
-                         courbe={"eclair": "power2.out", "rapprochement": "power2.inOut"}.get(z["type"], "lineaire"))
+                         courbe={"eclair": "power2.out", "rapprochement": "power2.inOut", "suivi": "power2.inOut"}.get(z["type"], "lineaire"),
+                         **({"suivi": {"images": z["suivi"]["images"],
+                                       "decalage": [[round(d[0] / W, 6), round(d[1] / H, 6)] for d in z["suivi"]["decalage"]]}}
+                            if z.get("suivi") else {}))
                     for z in zooms])
     (w / "zooms-donnees.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -345,6 +439,10 @@ def graphe(zooms, total, fps, W, H, in0):
         coupe = f"[zs{i}]trim=start_frame={a}:end_frame={b},setpts=PTS-STARTPTS"
         if sorte == "plat":
             chaines.append(f"{coupe}[zp{i}]")
+        elif sorte == "tenu" and z.get("suivi"):
+            n_expr = f"({a - in0}+in)"   # image de la vidéo coupée vue par ce filtre
+            dx, dy = (expr_lineaire(n_expr, z["suivi"]["images"], [v[k] for v in z["suivi"]["decalage"]]) for k in (0, 1))
+            chaines.append(f"{coupe},{perspective(coins(z['ax'], z['ay'], W, H, z['s'], dx, dy), True)}[zp{i}]")
         elif sorte == "tenu":
             chaines.append(f"{coupe},{perspective(coins(z['ax'], z['ay'], W, H, z['s']), False)}[zp{i}]")
         elif sorte == "ouverture":
