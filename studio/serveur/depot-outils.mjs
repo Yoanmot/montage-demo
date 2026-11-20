@@ -41,6 +41,11 @@ const PHRASES = {
   SLUG: "Je ne trouve pas ce contenu.",
   INCONNU: "Je ne trouve pas ce contenu.",
   SYNCHRO: "Je n'arrive pas à me mettre à jour (pas d'internet ?) : rien n'a changé, réessaie dans un moment.",
+  // Lot 12 : la vraie cause d'un échec de mise à jour (outils/commun.py, PHRASES_GIT).
+  DELAI: "La connexion est trop lente pour me mettre à jour : rien n'a changé, réessaie dans un moment.",
+  OCCUPE: "Une autre mise à jour est en cours : rien n'a changé, réessaie dans un moment.",
+  CLE_REFUSEE: `Ton Mac n'a plus l'autorisation d'envoyer tes textes en ligne : rien n'a changé. Préviens ${contact()} : ça se règle en deux minutes.`,
+  GIT: "La mise à jour n'a pas marché cette fois : rien n'a changé, réessaie dans un moment.",
   CONFLIT: "Rien n'a changé : réessaie dans un moment.",
   CHANGE: "Ton texte a changé entre-temps (le chat l'a peut-être retouché). Je te remets la dernière version : refais ta modification dessus.",
   VIDE: "Le texte ne peut pas être vide : rien n'est enregistré.",
