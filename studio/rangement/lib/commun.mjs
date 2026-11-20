@@ -306,7 +306,7 @@ export function arriveesPertinentes(dossier, depuis, { maintenant = Date.now(), 
     const airdrop = Boolean(q && /sharingd/i.test(q.agent));
     const quand = airdrop && q.quand ? q.quand : cree;
     if (quand < seuil) continue;
-    const bouge = maintenant - Math.max(st.mtimeMs || 0, st.ctimeMs || 0) < calme;
+    const bouge = calme > 0 && maintenant - Math.max(st.mtimeMs || 0, st.ctimeMs || 0) < calme;
     const enCours = st.size === 0
       || attrs.has('com.apple.progress.fractionCompleted')
       || (attrs.has('com.apple.FinderInfo') && copieFinderEnCours(chemin))
