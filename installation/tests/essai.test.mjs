@@ -24,7 +24,8 @@ fs.writeFileSync(path.join(FAUX_BIN, "claude"), "#!/bin/bash\necho '0.0.0 (faux 
 function envDe(maison, ajout = {}) {
   return {
     HOME: maison, USER: process.env.USER, PATH: `${FAUX_BIN}:${path.dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`,
-    LANG: "fr_FR.UTF-8", STUDIO_SANS_SERVICE: "1", STUDIO_SANS_DOCK: "1", STUDIO_SANS_CLAUDE: "1", ...ajout,
+    LANG: "fr_FR.UTF-8", STUDIO_SANS_SERVICE: "1", STUDIO_SANS_DOCK: "1", STUDIO_SANS_CLAUDE: "1",
+    STUDIO_SANS_DEPENDANCES: "1", STUDIO_SANS_TELECHARGEMENT: "1", ...ajout,
   };
 }
 const g = (cwd, a) => execFileSync("git", a, { cwd, stdio: "pipe", encoding: "utf8" });

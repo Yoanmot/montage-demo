@@ -1,0 +1,21 @@
+# Ce dont le monteur et le studio ont besoin sur le Mac du client, vérifié et installé par installation/dependances.sh
+# (à l'installation, puis par chaque mise à jour qui change ce fichier). Une ligne par dépendance :
+#   pip <module à importer> <paquet pip>     modules du python3 du système (pip --user)
+#   brew <commande> <formule>                outil de Homebrew (installé seulement si la commande manque)
+#   npx <paquet@version> <arguments...>      paquet npm lancé une fois (cache de npx), ex. navigateur de rendu
+#   claude <version>                         version de claude du studio : sa copie à lui dans <racine>/outils/claude,
+#                                            reliée en <racine>/bin/claude, jamais mise à jour toute seule
+# Une mise à jour qui ajoute une ligne doit pouvoir l'installer seule ; sinon elle est retirée (retour à la version
+# d'avant, voir installation/garde.sh). Changer la version de claude ici = la monter chez le client, après essai.
+
+pip numpy numpy
+pip scipy scipy
+pip PIL pillow
+pip fontTools fonttools
+pip uharfbuzz uharfbuzz
+pip Quartz pyobjc-framework-Quartz
+pip Vision pyobjc-framework-Vision
+brew ffmpeg ffmpeg
+brew ffprobe ffmpeg
+npx hyperframes@0.7.55 browser ensure
+claude 2.1.328

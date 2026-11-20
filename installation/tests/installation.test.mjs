@@ -30,7 +30,8 @@ process.on("exit", () => fs.rmSync(FAUX_BIN, { recursive: true, force: true }));
 function envDe(maison, ajout = {}) {
   return {
     HOME: maison, USER: process.env.USER, PATH: `${FAUX_BIN}:${path.dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`,
-    LANG: "fr_FR.UTF-8", STUDIO_SANS_SERVICE: "1", STUDIO_SANS_DOCK: "1", STUDIO_SANS_CLAUDE: "1", ...ajout,
+    LANG: "fr_FR.UTF-8", STUDIO_SANS_SERVICE: "1", STUDIO_SANS_DOCK: "1", STUDIO_SANS_CLAUDE: "1",
+    STUDIO_SANS_DEPENDANCES: "1", STUDIO_SANS_TELECHARGEMENT: "1", ...ajout,
   };
 }
 
@@ -167,7 +168,7 @@ test("studio.sh installer : Romain identique à avant le multi-clients (service,
   // exactement l'appli d'avant (petit script qui ouvre le navigateur).
   for (const [nom, ref, ajout] of [["ancien", REF_ROMAIN], ["nouveau", null], ["repli", null, { STUDIO_APPLI_NAVIGATEUR: "1" }]]) {
     const c = path.join(t, nom);
-    for (const f of ["installation/studio.sh", "studio/lancement/commun.sh", "studio/lancement/client.sh", "studio/lancement/demarrer.sh",
+    for (const f of ["installation/studio.sh", "installation/garde.sh", "studio/lancement/commun.sh", "studio/lancement/client.sh", "studio/lancement/demarrer.sh",
       "studio/lancement/ouvrir.sh", "studio/lancement/appli.sh", "studio/lancement/appli/Studio",
       "studio/lancement/icone.icns", "studio/studio.config.exemple.json", "studio/clients/romain.json"]) {
       fs.mkdirSync(path.dirname(path.join(c, f)), { recursive: true });
