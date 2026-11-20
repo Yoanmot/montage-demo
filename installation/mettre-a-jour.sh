@@ -262,7 +262,7 @@ EOF_POL
       if [ "$MODE" = "--apres-retour" ] || [ "$(cat "$MAJ/dependances-essai" 2>/dev/null)" != "$empreinte" ] \
          || [ -n "$(find "$MAJ/dependances-essai" -mmin +60 2>/dev/null)" ]; then
         local ancien="" ref rd ld
-        ref="$(tr -d '[:space:]' < "$MAJ/bonne" 2>/dev/null)"; [ -n "$ref" ] || ref="$(tr -d '[:space:]' < "$MAJ/precedente" 2>/dev/null)"
+        ref="$( { tr -d '[:space:]' < "$MAJ/bonne"; } 2>/dev/null)"; [ -n "$ref" ] || ref="$( { tr -d '[:space:]' < "$MAJ/precedente"; } 2>/dev/null)"
         if [ "$MODE" != "--apres-retour" ] && [ -n "$ref" ] && [ "$ref" != "$tete_dep" ]; then
           ancien="$MAJ/.dependances-avant.txt"
           git -C "$CLONE" show "$ref:installation/dependances.txt" > "$ancien" 2>/dev/null || : > "$ancien"

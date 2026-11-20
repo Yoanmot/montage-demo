@@ -59,7 +59,7 @@ main() {
 
   tete() { git -C "$GARDE_CLONE" rev-parse HEAD 2>/dev/null; }
   court() { printf '%s' "${1:0:7}"; }
-  bonne() { tr -d '[:space:]' < "$M/bonne" 2>/dev/null; }
+  bonne() { { tr -d '[:space:]' < "$M/bonne"; } 2>/dev/null; }
   port() {
     local v; v="$(/usr/bin/plutil -extract port raw -o - "$GARDE_STUDIO_HOME/studio.config.json" 2>/dev/null)"
     { [ -z "$v" ] || [ "$v" = "null" ]; } && v="$GARDE_PORT"
@@ -130,7 +130,7 @@ main() {
   valider() {
     local h; h="$(tete)"
     [ -n "$h" ] || return 0
-    [ "$(tr -d '[:space:]' < "$M/maj-ok" 2>/dev/null)" = "$h" ] || return 0
+    [ "$( { tr -d '[:space:]' < "$M/maj-ok"; } 2>/dev/null)" = "$h" ] || return 0
     if [ "$h" != "$(bonne)" ]; then ecrire "$M/bonne" "$h"; journal "VERSION_BONNE $(court "$h") (le serveur répond sur cette version)"; fi
     rm -f "$M/echec-depuis"; oublier_rare muet
     # Le garde se met à jour seulement depuis une version validée, et seulement si le nouveau se lit.
@@ -144,7 +144,7 @@ main() {
   revenir() { # $1 raison
     local raison="$1" h cible
     h="$(tete)"; cible="$(bonne)"
-    [ -n "$cible" ] || cible="$(tr -d '[:space:]' < "$M/precedente" 2>/dev/null)"
+    [ -n "$cible" ] || cible="$( { tr -d '[:space:]' < "$M/precedente"; } 2>/dev/null)"
     if [ -z "$cible" ] || [ "$cible" = "$h" ]; then
       journal_rare impossible "RETOUR_IMPOSSIBLE $(court "$h") : $raison (aucune version d'avant connue)"; return 1
     fi
