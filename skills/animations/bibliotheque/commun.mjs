@@ -406,7 +406,7 @@ export const PLEIN_TEMPS = { avanceFond: 0.25 };
 // Plein écran qui commence sur son visage (Yoan, 2026-11-20 ; scripts/plein-ecran-visage.mjs) : le titre en capitales
 // au-dessus de sa tête sur l'image filmée, puis le fond uni monte du bas (0,32 s power2.inOut) sous le titre qui reste à
 // sa place, puis 1 à 3 points (figure + libellé) sur leurs mots. Depuis le 2026-11-20 (Yoan) : le fond arrive par un flash
-// masqué (tout l'écran sauf le titre), le titre reste craie, les points prennent sa couleur, sortie par un flash et un clic. Le titre se lit seul 0,8 s au moins sur son visage ;
+// rendu sous le titre (tout l'écran sauf ses lettres, à leur forme), le titre reste craie, les points prennent sa couleur, sortie par un flash et un clic. Le titre se lit seul 0,8 s au moins sur son visage ;
 // 5,5 s au plus sans le voir. Figure : courbe qui monte, 3 cases qui se cochent, barre qui se remplit (geste du schéma).
 // La multitude (« on voit ça partout », scripts/partout.mjs ; effet validé par Yoan sur le test v19 : « l'effet plein de
 // screens, c'était bien ») : captures d'articles sur téléphone (page de capture px CSS de large, agrandie à 1080), le mot
@@ -425,9 +425,9 @@ export const PARTOUT = { durees: [3, 3, 3, 3, 4, 3, 2, 3, 3, 4, 4], dureeMin: 0.
 export const PLAN_A_FILMER = { titre: 120, texte: 54, opaciteTexte: 0.72, ecart: 34, centreY: 820, marge: 20, lignesMax: 4, quoiMin: 12, aimant: 0.4 };
 // Animation légère sur la caméra (scripts/texte-sur-lui.mjs, Yoan 2026-11-20) : ses mots en capitales au-dessus de sa
 // tête, sur une phrase d'enjeu ou de contraste ; capitales de 64 ou 84 px, 1 à 3 lignes, une opposition se barre.
-export const TEXTE_SUR_LUI = { formes: ['condition', 'opposition', 'projection', 'adresse'], cap: { normale: 64, grande: 84 }, lignesMax: 3,
+export const TEXTE_SUR_LUI = { formes: ['condition', 'opposition', 'projection', 'adresse', 'question'], cap: { normale: 64, grande: 84 }, lignesMax: 3,
   ecart: 22, margeTete: 24, tenue: 0.5, aimant: 0.5, dureeMax: 6, voile: 0.25 };
-export const PLEIN_VISAGE = { flash: { marge: 22 }, ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
+export const PLEIN_VISAGE = { ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
   fond: { d: 0.32, courbe: 'power2.inOut', avance: 0.1, avant: 0.45, couleur: 0.14, voile: 0.25 },
   ecartTitre: 90, ecartFigure: 28, ecartPoints: 70, libelle: 96, pointsMax: 3,
   figures: ['courbe', 'cases', 'barre', 'aucune'],

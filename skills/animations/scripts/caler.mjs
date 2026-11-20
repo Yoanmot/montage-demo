@@ -135,13 +135,14 @@ for (const [k, d] of demandes.entries()) {
   sortie.push(r);
 }
 
+// Ce qui couvre son image (plein écran, multitude, écran « B-ROLL », liste…) : le reste est une animation sur la caméra.
+const PLEINS = new Set(['plein-ecran-visage', 'plein-ecran-fond', 'plein-ecran-orange', 'partout', 'plan-a-filmer', 'liste', 'schema',
+  'minuteur-chiffres', 'minuteur-barre', 'recherche-google', 'demi-ecran', 'comparaison', 'tier-list']);
 // Densité (Yoan, 2026-11-20 : « classique ne veut pas dire vide », « sur la fin de la vidéo il manque au moins une ou deux
 // animations sur la cam ») : hors accroche, un temps fort toutes les 15 s au plus, fin comprise ; au moins une animation
 // sur la caméra (pas un plein écran) dans le dernier tiers. Une vidéo de moins de 30 s, ou une dérogation écrite dans le
 // plan (« densite_derogation » : une histoire, une émotion où son visage porte tout), passe en avis.
 {
-  const PLEINS = new Set(['plein-ecran-visage', 'plein-ecran-fond', 'plein-ecran-orange', 'partout', 'plan-a-filmer', 'liste', 'schema',
-    'minuteur-chiffres', 'minuteur-barre', 'recherche-google', 'demi-ecran', 'comparaison', 'tier-list']);
   const duree = mots.length ? mots.at(-1).end : 0;
   const forts = [];
   for (const r of sortie) {
@@ -163,6 +164,88 @@ for (const [k, d] of demandes.entries()) {
   }
   const derog = !Array.isArray(plan) && plan.densite_derogation && String(plan.densite_derogation).trim().length >= 20;
   for (const x of pb) { if (derog) A('plan', 'DENSITE', `${x} (dérogation : ${plan.densite_derogation})`); else R('plan', 'DENSITE', x); }
+}
+
+// Lui à l'image (Yoan, 2026-11-20, tour 4) : trois règles qui ne dépendent pas de la durée de la vidéo.
+// 1. FIN_SUR_LUI : une vidéo finit sur son visage ; rien qui couvre son image ne va jusqu'à son dernier mot.
+// 2. PLEINS_DE_SUITE : jamais deux écrans qui le cachent l'un après l'autre sans lui au milieu.
+// 3. QUESTION_SUR_LUI : une question posée au spectateur est animée sur lui (il reste à l'image, ses mots apparaissent).
+// Et pour une vidéo de 30 s et plus, MOMENT_CLE : le moment qui porte l'intention de la vidéo (la bascule vers le
+// spectateur, l'appel à agir) est le temps fort le plus accentué de la fin : le zoom le plus serré de la vidéo, qui suit
+// sa tête (« moment »: true), et une animation sur lui.
+{
+  const FIN_LUI = 1.0, ENTRE_LUI = 1.0, LUI_AU_DEBUT = { 'plein-ecran-visage': 0.8 };
+  const duree = mots.length ? mots.at(-1).end : 0;
+  const couvrants = [];
+  for (const r of sortie) if (r.de && PLEINS.has(r.geste)) couvrants.push({ id: r.id, geste: r.geste, de: r.de.debut_s + (LUI_AU_DEBUT[r.geste] || 0), a: (r.a || r.de).fin_s, anim: true });
+  for (const b of (Array.isArray(plan) ? [] : plan.b_roll || [])) {
+    try { const de = resoudre(b.de, mots), a = b.a ? resoudre(b.a, mots) : de; couvrants.push({ id: b.id || 'b-roll', geste: 'plan filmé', de: de.debut_s, a: a.fin_s, anim: false }); } catch { /* le calage du b-roll le dira */ }
+  }
+  couvrants.sort((x, y) => x.de - y.de);
+  const camera = sortie.filter((r) => r.de && r.geste && !PLEINS.has(r.geste) && !r.geste.startsWith('transition-'));
+  const chevauche = (de, a, x, y) => x < a && y > de;
+  if (mots.length) {
+    const tard = couvrants.filter((c) => duree - c.a < FIN_LUI);
+    for (const c of tard) R('plan', 'FIN_SUR_LUI', `${c.id} (${c.geste}) va jusqu'à ${c.a.toFixed(1)} s, la vidéo finit à ${duree.toFixed(1)} s : elle finit sur son visage (sa dernière phrase à l'image, ${FIN_LUI} s au moins). Termine cet effet plus tôt, ou reste sur lui : une phrase qui conclut ou prend le spectateur à témoin se dit les yeux dans les yeux`);
+  }
+  const anims = couvrants.filter((c) => c.anim);
+  for (let k = 1; k < anims.length; k++) {
+    const p = anims[k - 1], q = anims[k];
+    if (q.de - p.a < ENTRE_LUI) R('plan', 'PLEINS_DE_SUITE', `${p.id} (${p.geste}) puis ${q.id} (${q.geste}) : ${Math.max(0, q.de - p.a).toFixed(1)} s de lui entre les deux, ${ENTRE_LUI} s au moins. Deux écrans qui le cachent ne se suivent jamais : garde celui qui montre vraiment ce que dit sa phrase, et reste sur lui pour l'autre`);
+  }
+  // les questions qu'il pose au spectateur : une phrase qui finit par « ? » et lui parle (tu, te, toi, ton, vous…), hors
+  // d'une pensée citée entre guillemets
+  const ADRESSE = new Set(['tu', 'te', 'toi', 'ton', 'ta', 'tes', 'vous', 'votre', 'vos']);
+  let d0 = 0, cite = false;
+  for (let i = 0; i < mots.length; i++) {
+    const t = String(mots[i].text);
+    if (t.includes('«')) cite = true;
+    const finPh = /[.!?…]["»]?$/.test(t.trim());
+    if (!finPh) continue;
+    const ph = mots.slice(d0, i + 1), q = /\?["»]?$/.test(t.trim()) && !cite;
+    if (t.includes('»')) cite = false;
+    const debutPh = d0; d0 = i + 1;
+    if (!q) continue;
+    const toks = ph.map((w) => normaliser(w.text)).filter(Boolean);
+    if (!toks.some((w) => ADRESSE.has(w) || /^t'/.test(w))) continue;
+    const vrais = ph.filter((w) => normaliser(w.text));
+    const de = vrais[0].start, a = vrais.at(-1).end, texte = vrais.map((w) => w.text).join(' ');
+    const surLui = camera.some((r) => chevauche(de, a, r.de.debut_s, (r.a || r.de).fin_s));
+    const cache = couvrants.find((c) => chevauche(de, a, c.de, c.a));
+    if (cache) R('plan', 'QUESTION_SUR_LUI', `« ${texte} » (w${debutPh}) : une question qu'il pose au spectateur se pose les yeux dans les yeux ; ${cache.id} (${cache.geste}) le cache à ce moment-là`);
+    else if (!surLui) R('plan', 'QUESTION_SUR_LUI', `« ${texte} » (w${debutPh}) : une question qu'il pose au spectateur est toujours animée sur lui (geste « texte-sur-lui », forme « question » : ses mots au-dessus de sa tête, sur sa voix)`);
+  }
+  // le moment clé
+  const mc = Array.isArray(plan) ? null : plan.moment_cle;
+  if (duree >= 30 && !mc) R('plan', 'MOMENT_CLE', 'écris « moment_cle » : { "de", "a", "pourquoi" } : la phrase qui porte l\'intention de la vidéo (ce qu\'elle veut que le spectateur fasse ou ressente en partant : souvent la bascule vers lui, l\'appel à agir), et pourquoi celle-là');
+  if (mc) {
+    let de = null, a = null;
+    try { de = resoudre(mc.de, mots); a = resoudre(mc.a || mc.de, mots); } catch (e) { R('plan', 'MOMENT_CLE', `ancre du moment clé : ${e.message}`); }
+    if (!mc.pourquoi || String(mc.pourquoi).trim().length < 20) R('plan', 'MOMENT_CLE', '« pourquoi » : une phrase, l\'intention de la vidéo et pourquoi ce moment la porte');
+    if (de && a) {
+      // zooms : mêmes valeurs que la brique zooms (zooms.py : défauts, plafonds, MOMENT_ECHELLE)
+      const DEF = { eclair: 1.15, rapprochement: 1.10, suivi: 1.10, ouverture: 1.20 };
+      let W = 1080, H = 1920;
+      try { const inf = JSON.parse(fs.readFileSync(path.join(dossier, 'info.json'), 'utf8')); W = +inf.largeur || W; H = +inf.hauteur || H; } catch { /* défaut */ }
+      const k4 = Math.min(W, H) >= 2000, plafond = k4 ? 1.8 : 1.15, plafondMoment = k4 ? 1.8 : 1.25;
+      const zs = (plan.zooms || []).filter(Boolean);
+      const eff = (z) => (z.moment ? Math.min(+(z.echelle ?? 1.25), plafondMoment)
+        : z.type === 'ouverture' ? Math.min(+(z.echelle ?? DEF.ouverture), 1.2) : Math.min(+(z.echelle ?? DEF[z.type] ?? 1.15), plafond));
+      const zm = zs.filter((z) => z.moment);
+      if (zm.length !== 1) R('plan', 'MOMENT_CLE', `${zm.length} zoom(s) « moment »: true : il en faut un, sur le moment clé (« sur » son premier mot, « a » son dernier) ; il suit sa tête et tient toute la phrase`);
+      else {
+        let s0 = null;
+        try { s0 = resoudre(zm[0].sur, mots); } catch (e) { R('plan', 'MOMENT_CLE', `zoom du moment clé : ${e.message}`); }
+        if (s0 && (s0.premier < de.premier || s0.premier > a.dernier)) R('plan', 'MOMENT_CLE', `le zoom « moment » part sur « ${s0.texte} », hors du moment clé (« ${de.texte} » à « ${a.texte} »)`);
+        const autres = zs.filter((z) => !z.moment), max = Math.max(0, ...autres.map(eff));
+        if (eff(zm[0]) <= max + 1e-6) R('plan', 'MOMENT_CLE', `le zoom du moment clé (${Math.round(eff(zm[0]) * 100)} %) doit être le plus serré de la vidéo ; un autre va à ${Math.round(max * 100)} %`);
+      }
+      const dS = de.debut_s, aS = a.fin_s;
+      if (!camera.some((r) => r.geste !== 'accroche' && chevauche(dS, aS, r.de.debut_s, (r.a || r.de).fin_s))) R('plan', 'MOMENT_CLE', `« ${de.texte} » à « ${a.texte} » : le moment clé a une animation sur lui (geste « texte-sur-lui » : les mots qui portent l'intention, sur sa voix), en plus du zoom`);
+      const cache = couvrants.find((c) => chevauche(dS, aS, c.de, c.a));
+      if (cache) R('plan', 'MOMENT_CLE', `le moment clé se vit sur son visage : ${cache.id} (${cache.geste}) le cache`);
+    }
+  }
 }
 
 fs.mkdirSync(path.join(dossier, 'animations'), { recursive: true });

@@ -111,13 +111,21 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
   demi-écran, formats connus, animations qui illustrent) se fait quand il le demande, jamais de toi-même.
 - **Comment penser chaque moment** (la manière de Yoan, `plan-montage/references/regles.md`) : avant de choisir un
   effet, lis la phrase. Ce qu'on voit sort de sa forme (deux exemples parallèles : le second remplace le premier au
-  même endroit ; une énumération : chose par chose sur sa voix ; « on voit ça partout » : la multitude ; une chose
+  même endroit ; une énumération : chose par chose sur sa voix ; une fréquence qu'il affirme (« on voit ça
+  partout ») : la multitude, qui en est la preuve, jamais sur une connivence avec le spectateur ; une question qu'il
+  pose au spectateur : toujours une animation sur lui ; une chose
   concrète qu'on peut voir : son plan filmé, sinon l'écran « B-ROLL » qui dit quoi filmer ; la phrase à retenir : le
   mot clé sur lui, puis le fond ; une phrase d'enjeu ou de contraste : une animation sur lui, jusqu'à la fin de la
   vidéo) et de ce que le spectateur doit comprendre ou ressentir à ce moment-là. Le texte se lit en entier, sans trou,
   tout en capitales, avec des tailles proches ; un élément qui traverse une transition garde son apparence. Romain reste
-  à l'image le plus possible : un effet qui couvre l'écran commence sur lui et revient vite sur lui. Le texte à
-  l'écran remplace les sous-titres, jamais les deux. Jamais un gabarit posé faute d'idée.
+  à l'image le plus possible : un effet qui couvre l'écran commence sur lui et revient vite sur lui, jamais deux de
+  suite, et la vidéo finit toujours sur son visage. Le texte à l'écran remplace les sous-titres, jamais les deux.
+  Chaque effet a un lien logique avec le sens de sa phrase (il montre, prouve ou joue ce qu'elle dit) : jamais un
+  gabarit posé faute d'idée, ni pour remplir un temps fort.
+- **Le moment clé** : trouve seul l'intention de la vidéo (ce qu'elle veut que le spectateur fasse ou ressente en
+  partant) et le moment où il la tourne vers le spectateur (l'appel à agir, la question qui l'engage). C'est le temps
+  fort le plus accentué de la fin : le zoom le plus serré de la vidéo, qui suit sa tête (`"moment": true`), et une
+  animation sur lui (`moment_cle` dans le plan, contrôlé au calage).
 - **Montage simple** (« coupe et sous-titre », « juste les sous-titres », « monte vite ») : coupes, sous-titres
   et quelques zooms avec retenue, sans plan ni animation. Dis-le-lui en une phrase avant de
   commencer (« je coupe, je sous-titre et je mets quelques zooms »).
@@ -195,7 +203,7 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
 « Ordre d'exécution ») :
 1. **Zooms** (`zooms`) : exactement ceux du plan, rien de plus, dézoom d'ouverture compris (type `ouverture` : il
    écrit `ouverture.json`, que le mot de l'accroche derrière lui suit) et zooms qui suivent sa tête (type `suivi`).
-   `"zooms": []` = aucun. Montage simple : peu, avec retenue. Regarde chaque image de contrôle (et `zoom-NN-suivi.jpg`
+   `"zooms": []` = aucun. Le zoom du moment clé : `"moment": true` et `"fin"` (son dernier mot) dans `zooms.json`. Montage simple : peu, avec retenue. Regarde chaque image de contrôle (et `zoom-NN-suivi.jpg`
    pour un zoom qui suit sa tête : sa tête reste en place, jamais coupée). Les zooms passent avant les animations pour que le titre dézoome avec la caméra.
 2. **Animations** (`animations`), si le plan en a. Commence par le calage : il vérifie toutes les citations du plan
    contre ce que Romain a dit.
@@ -232,7 +240,8 @@ Dis-le-lui en une phrase : « je prépare ce qu'on verra à l'écran ». Dans ce
      composés ») : `plein-ecran-visage.mjs "<nom>-montage" <id> --video "<vidéo coupée>"` (la phrase à retenir, qui
      commence sur lui), `partout.mjs "<nom>-montage" <id>` (la multitude), `plan-a-filmer.mjs "<nom>-montage" <id>`
      (l'écran « B-ROLL » d'un plan filmé qui manque), `texte-sur-lui.mjs "<nom>-montage" <id> --video "<vidéo coupée>"`
-     (une animation légère sur lui). Un refus (`DENSITE` au calage, `TAILLE`, `PLACE`…) se corrige dans le plan.
+     (une animation légère sur lui). Un refus (`DENSITE`, `MOMENT_CLE`, `QUESTION_SUR_LUI`, `FIN_SUR_LUI`,
+     `PLEINS_DE_SUITE` au calage, `TAILLE`, `PLACE`, `PREUVE`…) se corrige dans le plan.
    - Regarde chaque planche de contrôle de la brique avant de passer à la suite.
 3. **Sous-titres** (`sous-titres`), après les animations (ils s'effacent sous celles qui portent leur ligne ou
    couvrent l'écran, et retirent les mots qu'une animation affiche déjà) : un seul style (le sien, groupes découpés

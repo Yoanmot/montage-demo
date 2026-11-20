@@ -8,10 +8,12 @@
 //   (ACCROCHE.ecartTailleMax entre deux voisines) ;
 // - une ligne peut être « pave » (pavé craie, texte charbon : pas d'orange, les sous-titres gardent le leur) ;
 // - une opposition : la ligne marquée « barre » se barre d'un trait craie et s'estompe quand la ligne suivante arrive ;
-// - ses sous-titres restent ; les mots que l'animation écrit en sortent (chaque mot n'est vu qu'une fois).
+// - ses sous-titres restent ; les mots que l'animation écrit en sortent (chaque mot n'est vu qu'une fois) ;
+// - un zoom en même temps (le moment clé : le zoom le plus serré, qui suit sa tête) grossit sa tête : le haut du crâne et
+//   la zone de son visage sont mesurés sur la vidéo coupée, puis passés par ce zoom (zooms-donnees.json).
 // La demande du plan (format.md, « Animation sur lui ») :
 //   { "id": "a08", "geste": "texte-sur-lui", "intention": "...", "de": "<ancre>", "a": "<ancre>",
-//     "composition": { "forme": "condition" | "opposition" | "projection" | "adresse", "pourquoi": "..." },
+//     "composition": { "forme": "condition" | "opposition" | "projection" | "adresse" | "question", "pourquoi": "..." },
 //     "elements": [ { "texte": "...", "sur": "...", "taille"?: "normale" | "grande", "pave"?: true, "barre"?: true } ] }
 // Usage : node texte-sur-lui.mjs <dossier -montage> <id> --video <vidéo coupée> [--tete <y>] [--sans-visage]
 import fs from 'node:fs';
@@ -93,6 +95,28 @@ if (tete === null) {
   const out = execFileSync('/usr/bin/python3', [path.join(ICI, 'verifier.py'), 'tete', video, String(debut), String(images)], { encoding: 'utf8' });
   tete = JSON.parse(out.trim().split('\n').at(-1)).haut_tete;
 }
+// Le zoom qui recouvre l'animation (zooms-donnees.json, écrit par la brique zooms avant les animations) : un point (x, y)
+// de l'image filmée va en s·p - (s - 1)·ancre - s·décalage (le cadre qui suit sa tête décale l'ancre de d·s/(s - 1), même
+// calcul que l'aperçu du studio). On garde le pire cas : l'échelle tenue et chaque décalage du suivi.
+const zoomsSur = (() => {
+  const f = path.join(M, 'zooms-donnees.json');
+  if (!fs.existsSync(f)) return [];
+  const Zd = JSON.parse(fs.readFileSync(f, 'utf8'));
+  return (Zd.zooms || []).filter((z) => z.type !== 'ouverture' && z.f0 < debut + images && z.f1 > debut).map((z) => ({
+    f0: z.f0, f1: z.f1, s: z.echelle, ax: z.ancre[0] * 1080, ay: z.ancre[1] * 1920,
+    dec: [[0, 0], ...((z.suivi && z.suivi.decalage) || []).map(([dx, dy]) => [dx * 1080, dy * 1920])],
+  }));
+})();
+const zoome = (x, y, n) => {   // les positions possibles d'un point filmé à l'image n (n absent : n'importe quand)
+  const out = [[x, y]];
+  for (const z of zoomsSur) if (n === undefined || (n >= z.f0 && n < z.f1)) for (const [dx, dy] of z.dec) out.push([z.s * x - (z.s - 1) * z.ax - z.s * dx, z.s * y - (z.s - 1) * z.ay - z.s * dy]);
+  return out;
+};
+if (zoomsSur.length) {
+  const t2 = Math.min(...zoome(540, tete).map((p) => p[1]));
+  if (t2 < tete - 0.5) avis.push(`un zoom recouvre l'animation : le haut de sa tête monte de ${Math.round(tete - t2)} px à l'écran (${Math.round(tete)} -> ${Math.round(t2)} px), pris en compte`);
+  tete = t2;
+}
 let y = A.hautY;
 for (const e of els) {
   const capH = Math.max(capDe(e.F), e.m.haut);
@@ -109,7 +133,10 @@ const hautBloc = els[0].pave ? els[0].top : els[0].base - Math.max(capDe(els[0].
 if (place === 'haut' && basBloc > tete - TS.margeTete) R('PLACE', `le bloc descend à ${Math.round(basBloc)} px, sa tête commence à ${Math.round(tete)} px : moins de lignes, plus courtes, ou « place »: « bas »`);
 if (!args.includes('--sans-visage') && video && fs.existsSync(video)) {
   const V = JSON.parse(execFileSync('/usr/bin/python3', [path.join(ICI, 'visage.py'), video, String(debut), String(images), '10'], { encoding: 'utf8' }).trim().split('\n').at(-1));
-  for (const z of V.zones) if (hautBloc < z.y1 && z.y0 < basBloc) { R('VISAGE', `le bloc touche ses yeux ou sa bouche (vers ${(z.image / FPS).toFixed(1)} s) : l'autre place`); break; }
+  for (const z of V.zones) {
+    const ys = [...zoome(z.x0, z.y0, z.image), ...zoome(z.x1, z.y1, z.image)].map((p) => p[1]);
+    if (hautBloc < Math.max(...ys) && Math.min(...ys) < basBloc) { R('VISAGE', `le bloc touche ses yeux ou sa bouche (vers ${(z.image / FPS).toFixed(1)} s${zoomsSur.length ? ', zoom compris' : ''}) : l'autre place`); break; }
+  }
 }
 if (refus.length) fin();
 

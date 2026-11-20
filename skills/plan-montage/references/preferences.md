@@ -63,3 +63,9 @@ lignes se contredisent, la plus récente gagne.
 - phrase en minuscules petites et mot en capitales géant → tout en capitales, des tailles proches (1,6 fois au plus entre voisins) ;
 - le mot clé du plein écran qui passait en noir → il traverse la transition intact (même place, même taille, même couleur, un flash autour de lui), ce qui suit prend sa couleur ; sortie par un flash et un clic ;
 - rien sur la caméra à la fin → au moins une animation sur lui dans le dernier tiers, sur une phrase d'enjeu ou de contraste.
+[2026-11-20] Yoan, sur l'essai 3 du lot 14 bis :
+- la multitude posée sur une phrase de connivence (il prend le spectateur à témoin) → un effet a un lien logique avec le sens de la phrase : la multitude prouve une fréquence qu'il affirme ; sur une connivence, on reste sur lui ;
+- une vidéo qui finissait sur deux écrans sans lui → une vidéo finit toujours sur son visage, jamais deux écrans sans lui de suite (contrôlé : `FIN_SUR_LUI`, `PLEINS_DE_SUITE`) ;
+- une question posée au spectateur restée en simple zoom → toujours une animation sur lui (contrôlé : `QUESTION_SUR_LUI`) ;
+- le flash du plein écran laissait un rectangle de vidéo autour du mot → il couvre tout sauf les lettres, à leur forme ;
+- le moment qui porte l'intention de la vidéo (la bascule vers le spectateur) traité comme les autres → le temps fort le plus accentué de la fin : le zoom le plus serré de la vidéo, qui suit sa tête, et une animation sur lui (contrôlé : `MOMENT_CLE`).

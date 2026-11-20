@@ -26,11 +26,13 @@ Les sous-titres de la vidéo s'effacent d'eux-mêmes pendant les gestes marqués
 - `plein-ecran-visage` (caméra puis plein) : la phrase à retenir. Le mot clé au-dessus de sa tête sur son image, puis le
   fond uni (orange ou charbon) qui monte en gardant le mot, puis 1 à 3 points sur leurs mots, chacun avec sa figure
   (`courbe`, `cases`, `barre`, `aucune`). Composé par son script ; format dans `format.md`.
-- `partout` (plein) : la multitude, quand il dit qu'une chose se voit ou se dit partout. Le mot fixe sur son
+- `partout` (plein) : la multitude, quand il **affirme** qu'une chose se voit ou se dit partout : les pages en sont la
+  preuve (`preuve` obligatoire). Jamais sur une connivence ou un constat partagé avec le spectateur. Le mot fixe sur son
   surligneur, des captures d'articles sur téléphone qui défilent autour. Composé par son script.
 - `texte-sur-lui` (caméra) : une animation légère sur lui, sur une phrase d'enjeu ou de contraste (condition,
-  opposition, projection, adresse) : ses mots en capitales au-dessus de sa tête (ou sous son visage), sur sa voix ; dans
-  une opposition, la ligne qui tombe se barre. Au moins une dans le dernier tiers. Composé par son script.
+  opposition, projection, adresse), sur chaque question qu'il pose au spectateur (`question`) et sur le moment clé : ses
+  mots en capitales au-dessus de sa tête (ou sous son visage), sur sa voix ; dans une opposition, la ligne qui tombe se
+  barre. Au moins une dans le dernier tiers. Composé par son script ; il tient compte du zoom en cours.
 - `plan-a-filmer` (plein, ses sous-titres restent) : l'écran « B-ROLL » à la place d'un plan filmé qui manque, sur
   toute la phrase qui cite une chose concrète ; dit ce qu'il faut filmer. Composé par son script.
 

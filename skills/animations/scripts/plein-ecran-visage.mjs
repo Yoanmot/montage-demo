@@ -148,10 +148,10 @@ c.css = `#voile{inset:0;${voileCss('standard')}}
 .cs svg{position:absolute;overflow:visible;}
 `;
 const coche = `M ${PV.figure.case * 0.22} ${PV.figure.case * 0.52} L ${PV.figure.case * 0.42} ${PV.figure.case * 0.72} L ${PV.figure.case * 0.80} ${PV.figure.case * 0.28}`;
-// flash d'entrée masqué : il couvre tout l'écran sauf le titre (un trou autour de son encre), qui reste intact
-const tr = { x0: xT + mT.gauche - PV.flash.marge, x1: xT + mT.droite + PV.flash.marge, y0: baseT - Math.max(capDe(F), mT.haut) - PV.flash.marge, y1: baseT + PV.flash.marge };
-const trou = `polygon(evenodd, 0px 0px, 1080px 0px, 1080px 1920px, 0px 1920px, 0px 0px, ${tr.x0.toFixed(1)}px ${tr.y0.toFixed(1)}px, ${tr.x0.toFixed(1)}px ${tr.y1.toFixed(1)}px, ${tr.x1.toFixed(1)}px ${tr.y1.toFixed(1)}px, ${tr.x1.toFixed(1)}px ${tr.y0.toFixed(1)}px, ${tr.x0.toFixed(1)}px ${tr.y0.toFixed(1)}px)`;
-let html = `  <div class="a fd" id="voile"></div>\n  <div class="a fd" id="fd"></div>\n  <div class="a fd" id="fl" style="clip-path:${trou}"></div>\n  <div class="a ti douce" id="t">${texteT}</div>\n`;
+// flash d'entrée : il couvre tout l'écran sauf les lettres du titre, à leur forme exacte (Yoan, 2026-11-20 : un trou
+// rectangulaire autour du mot laissait voir la vidéo dans un cadre). Le flash est rendu SOUS le titre, qui reste
+// au-dessus avec son ombre : chaque lettre garde sa forme, sa place et sa couleur, et rien d'autre ne passe à travers.
+let html = `  <div class="a fd" id="voile"></div>\n  <div class="a fd" id="fd"></div>\n  <div class="a fd" id="fl"></div>\n  <div class="a ti douce" id="t">${texteT}</div>\n`;
 for (const l of lignes) {
   const fx = l.x, fy = l.haut, FW = PV.figure.l, FH = PV.figure.h;
   if (l.figure === 'courbe') {
@@ -172,7 +172,7 @@ c.html = html;
 // 1. le titre sur son visage, avec le voile du haut
 c.js += `tl.set('#voile', { opacity: 0 }, 0);\ntl.to('#voile', { opacity: 1, duration: ${PV.fond.voile}, ease: '${S.COURBES.entree}' }, ${f4(tc(tT) - AV)});\n`;
 c.app('#t', tc(tT) - AV, capDe(F), texteT); c.attendus.at(-1).mot_image = T.sur.image;
-// 2. flash masqué (paliers du transition-flash : 50 % puis 100 %, tout l'écran sauf le titre), puis le fond uni ; le
+// 2. flash sous le titre (paliers du transition-flash : 50 % puis 100 %, tout l'écran sauf ses lettres), puis le fond uni ; le
 //    titre ne bouge pas, ne change ni de taille ni de couleur
 const nF = img(tc(tFond));
 c.js += `tl.set('#fl', { opacity: 0.5 }, ${f4(tImg(Math.max(0, nF - 1)))});\ntl.set('#fl', { opacity: 1 }, ${f4(tImg(nF))});\ntl.set('#fl', { opacity: 0 }, ${f4(tImg(nF + 1))});\n`;

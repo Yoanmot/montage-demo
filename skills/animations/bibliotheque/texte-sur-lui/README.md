@@ -13,7 +13,10 @@ arrive. Il reste à l'image ; ses sous-titres continuent, sans les mots affiché
 ## Quand l'utiliser
 Une phrase d'enjeu ou de contraste : une condition (« si tu… », une question qui l'engage), une opposition (maintenant /
 plus tard, ce qu'on croit / ce qui est), une projection dans le temps, une adresse qui pousse à agir. Au moins une dans le
-dernier tiers de la vidéo (contrôle `DENSITE` au calage).
+dernier tiers de la vidéo (contrôle `DENSITE` au calage). Toujours sur une question qu'il pose au spectateur (forme
+`question`, contrôle `QUESTION_SUR_LUI`) et sur le moment clé de la vidéo, pendant le zoom le plus serré
+(`MOMENT_CLE`) : le script passe le haut de sa tête et son visage par le zoom en cours (`zooms-donnees.json`) avant de
+placer le texte.
 
 ## La demande
 Format et exemple : `../../../plan-montage/references/format.md`, « Animation sur lui ». Refus : `FORME`, `LIGNES`,

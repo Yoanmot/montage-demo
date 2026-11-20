@@ -19,6 +19,11 @@ tout le monde donne (« on voit ce chiffre partout », « tout le monde te dit �
 est ce qu'il a dit (le chiffre, la règle, le conseil), dans le passage ou dans les 20 s avant. Une fois par vidéo au
 plus : c'est un plein écran fort.
 
+**Les pages sont une preuve** (Yoan, 2026-11-20) : elles montrent qu'une chose se voit partout parce qu'il **affirme**
+cette fréquence. Sur une phrase de connivence (il prend le spectateur à témoin d'une expérience commune, un constat
+partagé), elles ne prouvent rien : c'est un regard échangé, on reste sur lui. Jamais non plus pour finir la vidéo
+(elle finit sur lui) ni juste après un autre écran qui le cache.
+
 ## La demande du plan
 
 ```json
@@ -26,7 +31,7 @@ plus : c'est un plein écran fort.
   "intention": "Il dit que ce conseil revient partout : la multitude.",
   "de": "tout le monde", "a": "répète",
   "elements": [ { "texte": "le matin à jeun", "sur": "tout le monde" } ],
-  "composition": { "pages": [
+  "composition": { "preuve": "il affirme que tout le monde répète ce conseil", "pages": [
     { "titre": "Courir le matin : ce que conseillent les spécialistes", "avant": "Beaucoup recommandent de courir", "apres": "pour profiter de la journée" },
     { "titre": "Les habitudes des sportifs réguliers", "avant": "Leur secret : s'entraîner", "apres": ", avant même le petit-déjeuner" },
     "... 6 à 12 pages"
@@ -36,6 +41,7 @@ plus : c'est un plein écran fort.
 - `elements` : un seul élément, le mot fixe (`texte`, 24 caractères au plus), avec `sur` (premier mot du passage).
   Chiffre avec unité, mot ou courte expression, tel qu'il le dit. `chiffre_source` dit où il le dit si c'est avant le
   passage ; `titre_reformule` (avec sa raison) seulement s'il n'est pas dit tel quel.
+- `composition.preuve` : l'affirmation de fréquence qu'il fait et que les pages prouvent (une phrase).
 - `composition.pages` : 6 à 12 pages `{ titre, avant, apres }`. `titre` : le titre de l'article (70 caractères au
   plus). `avant` : le début de la phrase qui mène au mot ; `apres` : la suite de la phrase (commence par une virgule
   ou un point si la phrase le veut). Aucun chiffre sur une page, sauf celui du mot fixe ; aucune marque.
@@ -43,7 +49,7 @@ plus : c'est un plein écran fort.
   de la brique (`decor.json`), répartis en rotation sur les pages. Le début de la ligne du mot est tiré par le script des
   derniers mots de `avant` (et, si `avant` est court, de la fin de la phrase du décor qui la précède).
 
-Refus (code 2, à corriger dans le plan) : `ELEMENTS` (pas un seul mot fixe, mot trop long), `MOT_NON_DIT`, `PAGES`
+Refus (code 2, à corriger dans le plan) : `PREUVE` (pas d'affirmation de fréquence écrite), `ELEMENTS` (pas un seul mot fixe, mot trop long), `MOT_NON_DIT`, `PAGES`
 (nombre, champ manquant, titre trop long), `CHIFFRE_NON_DIT`, `TROP_COURT` (moins de 0,8 s pour voir défiler les pages).
 
 ## Le temps

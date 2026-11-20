@@ -7,6 +7,9 @@ Deux gestes (bibliotheque/zooms/, STYLE.md « Zooms »), plus le dézoom d'ouver
   suivi         : 110 % en 0,8 s, power2.inOut, puis le cadre suit sa tête (comme un caméraman) jusqu'à la coupe
                   (Romain, 2026-11-20 : « rien qu'un zoom et un mouvement de caméra qui fait qu'on suit la tête, c'est un
                   effet en soi ») ; « suivre »: true donne le même suivi à un éclair ou un rapprochement
+  moment        : « moment »: true sur un zoom (un seul par vidéo) : le moment qui porte l'intention de la vidéo (Yoan,
+                  2026-11-20) ; le zoom le plus serré (125 % par défaut, au-delà du plafond des autres), il suit sa tête et
+                  tient du mot « mot » au mot « fin », à travers les coupes
   ouverture     : la vidéo commence à 120 % et revient à 100 % de l'image 0 jusqu'au mot clé, où elle s'arrête net
                   (règle de Yoan pour l'accroche du niveau travaillé, avec le titre derrière lui qui dézoome pareil :
                   la brique écrit ouverture.json, que l'animation du titre suit image par image)
@@ -38,6 +41,10 @@ PLAFOND_OUVERTURE = 1.2               # le dézoom d'ouverture part de 120 % au 
 ANCIENS = {"sec": "eclair", "progressif": "rapprochement"}  # zooms.json de l'ancienne brique
 ECHELLE_MIN = 1.05
 PLAFOND_HD, PLAFOND_4K = 1.15, 1.8   # jamais au-delà de 115 % hors 4K ; depuis la 4K, sans perte jusqu'à 1,8x
+# Le moment clé (Yoan, 2026-11-20) : la phrase qui porte l'intention de la vidéo (la bascule vers le spectateur, l'appel
+# à agir) a le zoom le plus serré de la vidéo, qui suit sa tête et tient toute la phrase, coupes comprises. Un seul par
+# vidéo : c'est lui qui a droit à plus que le plafond des autres (125 % hors 4K).
+MOMENT_ECHELLE, PLAFOND_MOMENT_HD, MOMENT_MAX = 1.25, 1.25, 8.0
 SOUS_IMAGES = 10                      # obturateur 360 degrés
 AIMANT_COUPE = 0.35                   # une fin demandée se cale sur une coupe à moins de ça (s)
 TENU_MAX = 4.0                        # sans coupe dans ces 4 s, le zoom finit avec sa phrase
@@ -247,6 +254,8 @@ def cmd_preparer(w):
     except Exception as e: fail(13, f"ZOOMS_ILLISIBLE : {e}")
 
     zooms = []
+    if sum(1 for z in liste if z.get("moment")) > 1:
+        fail(13, "ZOOMS_ILLISIBLE : un seul zoom « moment » par vidéo (le moment qui porte l'intention de la vidéo).")
     for n, z in enumerate(liste, 1):
         typ = z.get("type") or ANCIENS.get(z.get("entree", "sec"))
         if z.get("entree") == "recul" and not z.get("type"):
@@ -269,11 +278,17 @@ def cmd_preparer(w):
         a = int(a); b = z.get("fin"); b = int(b) if b is not None else None
         if not 0 <= a < len(ws) or (b is not None and not a <= b < len(ws)):
             fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, mots {a} à {b} invalides (0 à {len(ws) - 1}, début avant fin).")
-        s = float(z.get("echelle", defaut))
+        moment = bool(z.get("moment"))
+        if moment and b is None:
+            fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, le zoom du moment clé dit où il finit (« fin » : le numéro du dernier mot du moment).")
+        if moment and z.get("cadrage"):
+            fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, le zoom du moment clé suit sa tête : pas de « cadrage ».")
+        plafond_z = (PLAFOND_4K if plafond == PLAFOND_4K else PLAFOND_MOMENT_HD) if moment else plafond
+        s = float(z.get("echelle", MOMENT_ECHELLE if moment else defaut))
         if s < ECHELLE_MIN: fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, échelle {s} sous {ECHELLE_MIN} (il ne se verrait pas).")
-        if s > plafond + 1e-9:
-            say(f"  zoom n°{n} : {round(s * 100)} % demandé, ramené à {round(plafond * 100)} % (plafond pour une vidéo {W}x{H}).")
-            s = plafond
+        if s > plafond_z + 1e-9:
+            say(f"  zoom n°{n} : {round(s * 100)} % demandé, ramené à {round(plafond_z * 100)} % (plafond pour une vidéo {W}x{H}).")
+            s = plafond_z
         t0 = float(ws[a]["start"]); f0 = int(t0 * fps)
         # Pas d'éclair collé à une coupe : il se lirait comme un punch-in serré sur la coupe (rejeté par Yoan)
         avant = max([0] + [c for c in coupes if c <= f0])
@@ -281,6 +296,21 @@ def cmd_preparer(w):
             fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, « {ws[a]['text']} » tombe juste sur une coupe : l'éclair se lirait comme un punch-in sur la coupe. Prends le mot fort suivant, ou un mot plus loin dans la phrase.")
         apres = [c for c in coupes if c > f0]
         c1 = apres[0] if apres else total
+        if moment:
+            # le moment clé tient toute sa phrase, à travers ses coupes (le cadre suit sa tête d'un plan à l'autre), jusqu'à
+            # la coupe qui suit son dernier mot si elle est proche, sinon jusqu'au bout de ce mot
+            f1 = round(float(ws[b]["end"]) * fps)
+            suite = [c for c in coupes + [total] if c >= f1 - 1]
+            sans_coupe = not (suite and min(suite) - f1 <= AIMANT_COUPE * fps)
+            if not sans_coupe: f1 = min(suite)
+            f1 = min(f1, total, f0 + int(MOMENT_MAX * fps))
+            if (f1 - f0) / fps < TENU_MIN["suivi"]:
+                fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, le moment clé dure {(f1 - f0) / fps:.2f} s : il faut {TENU_MIN['suivi']} s au moins (« fin » plus loin).")
+            dernier = max([a] + [i for i in range(a, len(ws)) if float(ws[i]["end"]) * fps <= f1 + 1])
+            phrase = " ".join(str(m["text"]) for m in ws[a:dernier + 1]).strip()
+            zooms.append(dict(n=n, type=typ, s=s, duree=duree, t0=t0, f0=f0, f1=f1, mot=a, cadrage=None, phrase=phrase, sans_coupe=sans_coupe,
+                              fps=fps, suivre=True, moment=True))
+            continue
         if c1 / fps - t0 < TENU_MIN[typ]:
             fail(13, f"ZOOMS_ILLISIBLE : zoom n°{n}, une coupe arrive {c1 / fps - t0:.2f} s après « {ws[a]['text']} » : trop tôt pour un {typ} (il faut {TENU_MIN[typ]} s). Prends un mot plus tôt.")
         # Où il finit : toujours à la coupe qui suit (le retour au plan large se lit comme la coupe), jamais au-delà.
@@ -380,7 +410,7 @@ def cmd_preparer(w):
     say(f"PRÊT zooms={len(zooms)} plafond={round(plafond * 100)}% apercu={apercu}")
     for z in zooms:
         ancre = {"yeux": "entre ses yeux", "cadrage": "cadrage demandé", "defaut": "VISAGE INTROUVABLE, point par défaut : vérifie l'aperçu"}[z["source_ancre"]]
-        say(f"  n°{z['n']} {z['type']} {round(z['s'] * 100)} % : de {z['t0']:.2f} s à {z['f1'] / fps:.2f} s (images {z['f0']} à {z['f1']}), "
+        say(f"  n°{z['n']} {z['type']}{' (moment clé)' if z.get('moment') else ''} {round(z['s'] * 100)} % : de {z['t0']:.2f} s à {z['f1'] / fps:.2f} s (images {z['f0']} à {z['f1']}), "
             f"{ancre} ({z['ax']:.0f}, {z['ay']:.0f}) : « {z['phrase']} »"
             + (" [retour au plan large sans coupe : pas de coupe dans les 4 s]" if z["sans_coupe"] else "")
             + (f" ; le cadre suit sa tête (jusqu'à {z['suivi']['amplitude'][0]:.0f} px de côté, {z['suivi']['amplitude'][1]:.0f} px en hauteur, "
@@ -411,6 +441,7 @@ def ecrit_donnees(w, zooms, txt, fps, W, H):
              zooms=[dict(type=z["type"], echelle=round(z["s"], 6), ancre=[round(z["ax"] / W, 6), round(z["ay"] / H, 6)],
                          t0=round(z["t0"], 6), duree=round(z["duree"], 6), f0=z["f0"], f1=z["f1"],
                          fixe=z["f1"] if z["type"] == "ouverture" else image_fixe(z, fps),
+                         **({"moment": True} if z.get("moment") else {}),
                          courbe={"eclair": "power2.out", "rapprochement": "power2.inOut", "suivi": "power2.inOut"}.get(z["type"], "lineaire"),
                          **({"suivi": {"images": z["suivi"]["images"],
                                        "decalage": [[round(d[0] / W, 6), round(d[1] / H, 6)] for d in z["suivi"]["decalage"]]}}

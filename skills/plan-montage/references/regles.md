@@ -43,10 +43,19 @@ ce moment-là**. Avant de choisir quoi que ce soit, lis chaque phrase et demande
 | Deux exemples (ou trois) qui servent le même propos, dits de la même façon (« X en A. Y en B. ») | une **substitution** : le premier exemple s'affiche, puis le second **prend sa place**, élément par élément, au même endroit (le mot fort remplace le mot fort, le pavé remplace le pavé). On sent que ce sont deux cas de la même chose. Dans l'accroche : `type: substitution` |
 | Une opposition (« pas X, mais Y », « tout le monde fait X, toi fais Y ») | les deux côtés se voient, l'un après l'autre ou l'un contre l'autre ; le second l'emporte (il arrive plus fort, ou le premier se barre) |
 | Une énumération (deux à quatre éléments) | chaque élément apparaît **sur son mot**, l'un sous l'autre, avec sa petite figure (courbe qui monte, cases qui se cochent, barre qui se remplit) |
-| Une multitude (« on voit ça partout », « tout le monde dit », « tu l'as lu cent fois ») | **la multitude** : plein de pages, de captures, qui défilent autour du mot fixe (geste `partout`) |
+| Une multitude **affirmée** : il dit qu'une chose se voit, se dit, se vend partout ou tout le temps (« on voit ça partout », « tout le monde dit », « tu l'as lu cent fois ») | **la multitude** : plein de pages, de captures, qui défilent autour du mot fixe (geste `partout`). Les pages sont la **preuve** de ce qu'il affirme : sans affirmation de fréquence, elles ne prouvent rien |
+| Une connivence, un constat partagé : il prend le spectateur à témoin d'une expérience commune, d'un « toi aussi tu connais » | **lui**, sur sa caméra : c'est un regard échangé, pas une preuve à montrer. Ni multitude ni plein écran |
+| Une question qu'il pose au spectateur | **toujours une animation sur lui** (geste `texte-sur-lui`, forme `question`) : ses mots apparaissent au-dessus de sa tête sur sa voix, il reste à l'image (contrôle `QUESTION_SUR_LUI`) |
 | Une chose concrète qu'on peut voir (un exercice, un geste, un aliment, un objet, un écran, une scène de la vie) | **la chose**, filmée par lui ; s'il ne l'a pas filmée, l'écran « B-ROLL » qui dit quoi filmer (geste `plan-a-filmer`), jamais escamoté |
 | La phrase à retenir (le renversement, la promesse, le chiffre qui compte) | le **plein écran qui commence sur lui** (geste `plein-ecran-visage`) |
 | Une confidence, une émotion, une adresse directe au spectateur | lui, de près : le zoom qui suit sa tête |
+
+**Un effet a un lien logique avec le sens de la phrase** (Yoan, 2026-11-20 : une multitude posée sur une phrase de
+connivence « ne colle pas », alors que sur une affirmation d'omniprésence elle marche « parce que les captures sont une
+preuve »). Un effet montre, prouve ou joue ce que la phrase **dit**, pas ce qu'elle évoque, et jamais pour remplir un
+temps fort. Avant de poser un effet, complète « on voit X **parce qu'il dit** Y » avec le sens exact de sa phrase (pas
+un mot qu'elle contient) : si la phrase complétée sonne faux, ou si X marcherait aussi bien sur la phrase d'à côté,
+reste sur lui. Écris ce lien dans la lecture des phrases (`remarques-plan.md`).
 
 **2. Qu'est-ce que le spectateur doit en retenir ou ressentir ?** L'absurdité d'une promesse, la surprise d'un chiffre,
 le soulagement d'une solution, le « c'est moi » d'une scène vécue. L'effet sert ça, et rien d'autre ; s'il ne sert rien,
@@ -70,6 +79,32 @@ Et toujours :
   dit ce qu'il faut filmer ; Romain le filme, le clip prend la place.
 - **Pas de recette.** Ces formes sont des réponses à des phrases ; une vidéo sans exemples parallèles n'a pas de
   substitution, une vidéo sans liste n'a pas de figures. Ce qui ne colle à aucune phrase ne se pose pas.
+
+## Le moment clé : ce que la vidéo veut, mis en avant
+
+Toute vidéo a une intention : ce qu'elle veut que le spectateur fasse ou ressente en partant (se lancer, essayer,
+arrêter quelque chose, se sentir compris). Il y a presque toujours **un moment où il la dit au spectateur** : la
+bascule de l'explication vers lui (« alors toi… », la question qui l'engage, l'appel à agir, l'élan final). C'est le
+temps fort le plus accentué de la fin (Yoan, 2026-11-20 : le moment qui porte l'intention de la vidéo doit être mis en
+avant).
+- **Trouve-le seul** : lis la vidéo en entier, écris son intention en une phrase, puis cherche la phrase où il la
+  tourne vers le spectateur. Ce n'est pas forcément la dernière (la fin est souvent une conclusion ou un au revoir), ni
+  la phrase la plus forte du corps (celle-là, c'est la phrase à retenir, en plein écran).
+- **Ce qu'on voit** : lui, à l'image, de plus près que partout ailleurs : le **zoom le plus serré de la vidéo**, qui
+  **suit sa tête** et tient tout le moment, coupes comprises (zoom `"moment": true`) ; et **une animation sur lui**
+  (`texte-sur-lui` : les mots qui portent l'intention, sur sa voix, en pavé s'ils poussent à agir). Jamais de plein
+  écran dessus : c'est son visage qui convainc.
+- Écris-le dans le plan (`moment_cle` : `de`, `a`, `pourquoi`) ; le calage le contrôle (`MOMENT_CLE`, vidéo de 30 s et
+  plus) : zoom le plus serré qui suit sa tête, animation sur lui, rien qui le cache.
+
+## Lui à l'image, au début comme à la fin
+
+- **Une vidéo finit toujours sur son visage** (Yoan, 2026-11-20) : sa dernière phrase se dit les yeux dans les yeux, et
+  rien qui le cache (plein écran, multitude, écran « B-ROLL », plan filmé) ne va jusqu'à son dernier mot (contrôle
+  `FIN_SUR_LUI`).
+- **Jamais deux écrans qui le cachent l'un après l'autre** : entre deux, au moins une seconde de lui (contrôle
+  `PLEINS_DE_SUITE`). Si deux phrases de suite en demandent un, garde celui qui a le lien le plus fort avec sa phrase.
+- **Une question qu'il pose au spectateur est toujours animée sur lui** (contrôle `QUESTION_SUR_LUI`).
 
 ## Densité
 
@@ -204,7 +239,7 @@ Plus court (20 à 30 s) : divise par deux, garde l'accroche et la fin.
 Par défaut, **on reste sur lui**. Le plein écran sert :
 1. **La phrase la plus importante de la vidéo** (celle qu'on doit retenir, le renversement, « ce n'est pas le sport,
    c'est ce que tu manges »), **en commençant sur lui** : `plein-ecran-visage` (le mot clé en craie au-dessus de sa tête,
-   puis un flash sur tout l'écran sauf ce mot, puis le fond uni orange ou charbon ; le mot ne bouge pas et reste craie ;
+   puis un flash sur tout l'écran sauf les lettres de ce mot (rendu sous lui), puis le fond uni orange ou charbon ; le mot ne bouge pas et reste craie ;
    une à trois choses qu'il dit ensuite, chacune sur son mot avec sa figure, en craie elles aussi ; sortie par un flash et
    un clic, déjà dans l'effet). Le titre se lit au moins 0,8 s sur lui avant le fond ; 5,5 s au plus sans le voir. Sans mot clé
    à poser sur lui : `plein-ecran-fond` en `charbon` ou `orange`, ses mots en grand sur deux lignes, jamais sur sa vidéo
@@ -410,6 +445,7 @@ La fin suit ce qu'il dit dans la vidéo : tu la lis dans la transcription.
 - **Il ne demande pas de commenter un mot** (fin en message privé, fin d'encouragement) : aucun
   geste de fin. Un zoom ou un sous-titre enrichi sur sa dernière phrase utile suffit. Ne jamais
   inventer un mot en commentaire.
+- **Elle finit sur lui**, toujours : voir « Lui à l'image ».
 - **Il dit « commente MOT »** : l'élément arrive sur le mot, avec le geste « champ Instagram » (le
   mot se tape) ou « mot derrière lui ». Le mot affiché est exactement celui qu'il dit.
 - Pas de fin qui traîne : la vidéo s'arrête après son dernier mot.

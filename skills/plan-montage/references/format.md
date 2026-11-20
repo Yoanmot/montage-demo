@@ -39,7 +39,8 @@ texte (l'orthographe se corrige dans les sous-titres, pas dans l'ancre).
 | `notes` | facultatif | le niveau choisi, ce qui compte le plus. Pas de consigne de style : aucune brique ne l'exécute |
 | `coupes` | `serre` | `{ "rythme": "normal" \| "serre" \| "tres-serre" }` : le rythme utilisé aux coupes |
 | `sous_titres` | ses sous-titres (un seul style) | `{ "masquer", "vocabulaire", "citations" }` (ci-dessous) |
-| `zooms` | quelques zooms avec retenue | `[{ "type": "suivi" \| "eclair" \| "rapprochement" \| "ouverture", "sur": ancre, "suivre"?, "echelle"?, "pourquoi"? }]` ; `[]` = aucun zoom |
+| `zooms` | quelques zooms avec retenue | `[{ "type": "suivi" \| "eclair" \| "rapprochement" \| "ouverture", "sur": ancre, "a"?, "moment"?, "suivre"?, "echelle"?, "pourquoi"? }]` ; `[]` = aucun zoom |
+| `moment_cle` | obligatoire à partir de 30 s | `{ "de": ancre, "a": ancre, "pourquoi": "..." }` : la phrase qui porte l'intention de la vidéo (ci-dessous) |
 | `b_roll` | aucun B-roll | `[{ "id", "clip", "quoi", "de", "a"?, "depart"?, "vitesse"? }]` (ci-dessous) |
 | `animations` | aucune animation | liste de demandes (ci-dessous) |
 
@@ -60,6 +61,13 @@ Pas de clé `sons` : tu les places à l'étape sons (skill sound-design).
   mot qui claque) ; rapprochement = l'ancre est le début de la phrase qui monte ; ouverture = le dézoom
   de l'accroche (`echelle` 1.12 conseillée, 1.2 au plus, vers 100 % depuis l'image 0), l'ancre est le mot
   fort où il s'arrête net. `"suivre": true` donne le suivi de sa tête à un éclair ou un rapprochement.
+  `"moment": true` (un seul, `type` `suivi`) : le zoom du moment clé, le plus serré de la vidéo (125 % par défaut, au-delà
+  du plafond des autres), qui suit sa tête et tient de `sur` à `a` (son dernier mot), à travers les coupes. Dans
+  `zooms.json` : `"moment": true` et `"fin"` (le numéro de son dernier mot).
+- `moment_cle` : la phrase où la vidéo bascule vers le spectateur pour lui faire faire ou ressentir ce qu'elle veut
+  (l'appel à agir, la question qui l'engage, l'élan final). `de` / `a` couvrent le moment entier ; `pourquoi` dit
+  l'intention de la vidéo et pourquoi ce moment la porte. Le calage exige dessus : le zoom `moment` (le plus serré de la
+  vidéo, aucun autre zoom aussi serré), une animation sur lui (`texte-sur-lui`) et rien qui le cache (`MOMENT_CLE`).
 - `b_roll` : un clip **filmé par Romain**, ou toute vidéo qu'il donne, même hors du brief (enregistrement d'écran,
   vidéo du dossier). Pas de B-roll généré par IA, sauf s'il le demande expressément.
   `{ "id": "b01", "clip": "<chemin complet du clip reçu>", "quoi": "<ce que montre le clip, vérifié
@@ -127,21 +135,24 @@ puis le fond uni qui monte sous le titre resté à sa place, puis les points sur
 - `composition.fond` : `orange` ou `charbon` (deux pleins écrans qui se suivent changent de fond). `fond_sur`
   (facultatif) : l'ancre où le fond monte ; par défaut, juste avant le premier point. Le titre se lit seul 0,8 s au
   moins sur lui (`TROP_TOT` sinon) ; 5,5 s au plus sans le voir (`TROP_LONG`).
-- Entrée : un flash sur tout l'écran sauf le titre, puis le fond ; sortie : un flash et un clic sur ses deux dernières
+- Entrée : un flash sur tout l'écran sauf les lettres du titre (rendu sous lui, à la forme exacte des lettres), puis le fond ; sortie : un flash et un clic sur ses deux dernières
   images. Les deux sont dans l'effet : pas de `transition-flash` autour. Le titre et les points restent en craie. Les
   sous-titres s'effacent pendant tout l'effet ; il s'arrête avant la phrase suivante.
 - Commande : `node "$SK/animations/scripts/plein-ecran-visage.mjs" "<nom>-montage" a06 --video "<vidéo coupée>"`.
 
 ### La multitude (`partout`)
 Composée par `../../animations/scripts/partout.mjs` (format exact et exemple : `../../animations/bibliotheque/partout/README.md`).
-Quand il dit qu'une chose se voit, se dit, se lit partout : le mot fixe (le sien, dit dans le passage ou juste avant)
+Quand il **affirme** qu'une chose se voit, se dit, se lit partout (une fréquence, une omniprésence que les pages
+prouvent) : le mot fixe (le sien, dit dans le passage ou juste avant)
 reste au même endroit, surligné, pendant que des captures d'articles sur téléphone défilent autour.
 ```json
 { "id": "a03", "geste": "partout", "intention": "Il dit qu'on lit ce conseil partout : la multitude.",
   "de": "on le lit partout", "a": "partout",
   "elements": [ { "texte": "à jeun", "sur": "on le lit partout" } ],
-  "composition": { "pages": [ { "titre": "Courir le matin : le conseil qui revient", "avant": "Beaucoup de coachs conseillent de courir", "apres": "pour brûler plus de graisses." } ] } }
+  "composition": { "preuve": "il affirme que ce conseil se lit partout", "pages": [ { "titre": "Courir le matin : le conseil qui revient", "avant": "Beaucoup de coachs conseillent de courir", "apres": "pour brûler plus de graisses." } ] } }
 ```
+- `preuve` (obligatoire, `PREUVE` sinon) : l'affirmation de fréquence qu'il fait et que les pages prouvent. S'il ne
+  l'affirme pas (il prend le spectateur à témoin, un constat partagé), pas de multitude : on reste sur lui.
 - `pages` : 6 à 12 pages (titre d'article, début et fin de la phrase qui contient le mot fixe), écrites pour la vidéo :
   sites inventés, rien de réel, aucun chiffre sauf celui du mot fixe.
 
@@ -154,15 +165,25 @@ Composée par `../../animations/scripts/texte-sur-lui.mjs`. Sur une phrase d'enj
   "elements": [ { "texte": "tu crois que c'est dur", "sur": "tu crois que c'est dur", "barre": true },
                 { "texte": "c'est une habitude", "sur": "c'est une habitude", "pave": true } ] }
 ```
-- `forme` : `condition`, `opposition`, `projection`, `adresse`. `place` : `haut` (au-dessus de sa tête, par défaut) ou
+- `forme` : `condition`, `opposition`, `projection`, `adresse`, `question` (une question qu'il pose au spectateur). `place` : `haut` (au-dessus de sa tête, par défaut) ou
   `bas` (sous son visage, au-dessus des sous-titres). 1 à 3 lignes, ses mots exacts (« ? » permis), tout en capitales ;
   `taille` `normale` ou `grande` ; `pave: true` (pavé craie) ; `barre: true` (opposition : la ligne se barre quand la
   suivante arrive). Refus : `PLACE` (pas la place au-dessus de sa tête : moins de lignes, ou `bas`), `VISAGE`, `TAILLE`,
-  `LECTURE`, `OPPOSITION`. Ses sous-titres restent ; les mots affichés en sortent.
+  `LECTURE`, `OPPOSITION`. Ses sous-titres restent ; les mots affichés en sortent. Un zoom en même temps (le moment clé)
+  est compté : sa tête grossie doit laisser la place.
 
 ### Densité (contrôlée au calage)
 Plus de 15 s sans temps fort hors accroche, ou aucune animation sur la caméra dans le dernier tiers : refus `DENSITE`.
 Une histoire ou une émotion où son visage porte tout : `"densite_derogation": "<la raison>"` à la racine du plan.
+
+### Lui à l'image (contrôlé au calage, sans dérogation)
+- `FIN_SUR_LUI` : rien qui le cache (plein écran, multitude, écran « B-ROLL », plan filmé) ne va jusqu'à moins d'1 s de
+  son dernier mot : la vidéo finit sur son visage.
+- `PLEINS_DE_SUITE` : deux écrans qui le cachent séparés par moins d'1 s de lui (le titre sur lui d'un plein écran qui
+  commence sur lui compte comme lui).
+- `QUESTION_SUR_LUI` : une phrase qui finit par « ? » et parle au spectateur (tu, te, toi, vous…) a une animation sur
+  lui qui la couvre (`texte-sur-lui`, forme `question`, ou l'accroche), et rien qui le cache.
+- `MOMENT_CLE` : voir `moment_cle`.
 
 ### L'écran « B-ROLL » d'un plan filmé qui manque (`plan-a-filmer`)
 Composé par `../../animations/scripts/plan-a-filmer.mjs` : un écran charbon sur toute la phrase, « B-ROLL » et ce qu'il

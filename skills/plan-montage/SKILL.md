@@ -67,9 +67,12 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 3. **Lis la forme de chaque phrase** (`regles.md`, « Comment penser chaque moment ») et écris-la, une ligne
    par phrase, dans `<nom>-montage/remarques-plan.md` (section « Lecture des phrases », avant toute décision) :
    exemples parallèles, opposition, énumération, multitude (« partout », « tout le monde »), chose concrète qu'on
-   peut voir (même citée pour s'en moquer), phrase à retenir, confidence, ou rien de particulier. Pour chacune :
-   ce que le spectateur doit comprendre ou ressentir. Puis découpe en temps : l'accroche (les 5 premières
-   secondes), le corps, la phrase à retenir, la fin, et repère les passages de plus de 15 s sans temps fort.
+   peut voir (même citée pour s'en moquer), phrase à retenir, question au spectateur, connivence, confidence, ou
+   rien de particulier. Pour chacune : ce que le spectateur doit comprendre ou ressentir, et pour chaque effet son
+   **lien** avec le sens de la phrase (« on voit X parce qu'il dit Y »). Écris aussi **l'intention de la vidéo** (ce
+   qu'elle veut que le spectateur fasse ou ressente en partant) et **le moment clé** qui la porte (la bascule vers
+   lui). Puis découpe en temps : l'accroche (les 5 premières secondes), le corps, la phrase à retenir, le moment
+   clé, la fin, et repère les passages de plus de 15 s sans temps fort.
 4. **Compose l'accroche** (`regles.md`, « L'accroche ») :
    1. lis le registre : `node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les
       deux dernières accroches, ce qu'il ne faut pas reprendre) ;
@@ -84,13 +87,16 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
       clip, l'écran « B-ROLL » (`plan-a-filmer`) avec ce qu'il faut filmer ;
    2. la phrase à retenir en plein écran qui commence sur lui (`plein-ecran-visage`), flash et clic à la
       sortie ;
-   3. la multitude (`partout`) s'il dit qu'une chose se voit ou se dit partout ;
-   4. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
-      sur un mot qui claque ;
-   5. les animations sur la caméra (`texte-sur-lui`) sur les phrases d'enjeu ou de contraste (condition, opposition,
-      projection, adresse), au moins une dans le dernier tiers, et partout où la densité manque (plus de 15 s sans
-      temps fort) ;
-   6. la fin.
+   3. la multitude (`partout`) s'il **affirme** qu'une chose se voit ou se dit partout (les pages en sont la
+      preuve) ; jamais sur une connivence ou un constat partagé avec le spectateur ;
+   4. le moment clé (`moment_cle`) : le zoom le plus serré de la vidéo, qui suit sa tête (`"moment": true`), et
+      une animation sur lui (`texte-sur-lui`) ;
+   5. les zooms : le zoom qui suit sa tête sur les phrases qui comptent et les passages longs, un éclair
+      sur un mot qui claque, tous moins serrés que celui du moment clé ;
+   6. les animations sur la caméra (`texte-sur-lui`) : chaque question qu'il pose au spectateur (forme
+      `question`), les phrases d'enjeu ou de contraste (condition, opposition, projection, adresse), au moins une
+      dans le dernier tiers, et partout où la densité manque (plus de 15 s sans temps fort) ;
+   7. la fin, sur lui : rien qui le cache sur sa dernière phrase, jamais deux écrans sans lui de suite.
    À chaque élément, demande-toi : qu'est-ce que le spectateur doit comprendre ou ressentir ici, et est-ce
    que ça le garde avec Romain ? Un effet qui ne répond à aucune phrase se retire.
 6. **Vérifie le dosage** (`regles.md`, « Dosage », « Densité ») : un seul accent à la fois, lui à l'écran au
@@ -157,6 +163,11 @@ une simple trace dans le dossier de montage.
   quand c'est possible ; l'`intention` cite la phrase de lui d'où il vient.
 - [ ] L'accroche commence sur son premier mot et n'en saute aucun jusqu'à son dernier élément ; une phrase courte
   est en entier (petits mots, « ? ») ; tout en capitales, des tailles proches (1,6 fois au plus entre voisins).
+- [ ] Le moment clé est nommé (`moment_cle`) : le zoom `moment` (le plus serré, qui suit sa tête) et une animation
+  sur lui. Chaque question posée au spectateur est animée sur lui. La vidéo finit sur lui ; jamais deux écrans
+  sans lui de suite (le calage contrôle `MOMENT_CLE`, `QUESTION_SUR_LUI`, `FIN_SUR_LUI`, `PLEINS_DE_SUITE`).
+- [ ] Chaque effet a un lien logique avec le sens de sa phrase (il montre, prouve ou joue ce qu'elle dit) ; la
+  multitude prouve une fréquence qu'il affirme (`preuve`), jamais une connivence.
 - [ ] Au moins une animation sur la caméra (`texte-sur-lui`) dans le dernier tiers, sur une phrase d'enjeu ou de
   contraste ; 15 s au plus sans temps fort, fin comprise (le calage le contrôle).
 - [ ] Le plein écran qui commence sur lui n'a pas de `transition-flash` autour (entrée et sortie sont dans l'effet).

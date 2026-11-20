@@ -65,6 +65,11 @@ for (let i = 0; cherche.length && i + cherche.length <= finPassage + 1; i++) {
   if (cherche.every((c, j) => dits[i + j] === c)) { ditAvant = true; break; }
 }
 if (MOT && !ditAvant && !E.titre_reformule) R('MOT_NON_DIT', `« ${MOT} » n'est pas dit dans le passage ni dans les ${PT.ditAvantMax} s avant : le mot fixe est le sien (ou « titre_reformule » avec sa raison)`);
+// La multitude est une preuve (Yoan, 2026-11-20) : les pages qui défilent montrent qu'une chose se voit, se dit ou se vend
+// partout, parce qu'il AFFIRME cette fréquence. Sur une phrase de connivence (il prend le spectateur à témoin d'une
+// expérience commune), elle ne prouve rien : c'est un regard échangé, on reste sur lui. Le plan écrit l'affirmation prouvée.
+const preuve = String((d.composition && d.composition.preuve) || '').trim();
+if (preuve.length < 20) R('PREUVE', '« composition.preuve » : l\'affirmation de fréquence ou d\'omniprésence qu\'il fait dans cette phrase (ce qui se voit, se dit ou se vend partout) et que les pages prouvent ; s\'il ne l\'affirme pas (connivence, constat partagé avec le spectateur), pas de multitude : reste sur lui');
 const pages = (d.composition && d.composition.pages) || [];
 if (pages.length < PT.pagesMin || pages.length > PT.pagesMax) R('PAGES', `${pages.length} page(s) : ${PT.pagesMin} à ${PT.pagesMax} (« composition.pages » : titre, avant, apres)`);
 for (const [k, p] of pages.entries()) {

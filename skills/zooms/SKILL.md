@@ -68,6 +68,10 @@ zoom toutes les 15 à 20 secondes, jamais deux phrases de suite.
   coupe dans les 4 s, il finit au bout de la phrase (ou du mot `fin`, facultatif), calé sur une coupe proche si possible.
 - `suivre` (facultatif, `true`) : le même suivi de sa tête pour un éclair ou un rapprochement, pendant qu'il est tenu.
   Un `cadrage` donné à la main l'annule (le cadre reste où on l'a mis).
+- `moment` (facultatif, `true`, un seul par vidéo) : le zoom du **moment clé** du plan (`moment_cle`), la phrase qui
+  porte l'intention de la vidéo. Le plus serré de la vidéo : `1.25` par défaut, plafond `1.25` jusqu'au 1080p (`1.8` en
+  4K) ; il suit toujours sa tête et tient **du mot `mot` au mot `fin` (obligatoire), à travers les coupes**, jusqu'à la
+  coupe qui suit son dernier mot (8 s au plus).
 - `echelle` (facultatif) : par défaut `1.15` (éclair), `1.1` (rapprochement, suivi). Ne la change pas sans demande. Plafond :
   `1.15` pour une vidéo jusqu'au 1080p, `1.8` pour une 4K.
 - `cadrage` (facultatif) : `[x, y]` de `0` à `1`, le point fixe du zoom. Par défaut, le script le trouve tout seul
