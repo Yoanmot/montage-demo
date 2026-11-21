@@ -481,6 +481,13 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   function apresGalerie({ slug = null } = {}) {
     try { for (const id of aDecrire(config)) file.ajouterDescription(id); } catch (e) { journal("galerie_illisible", { erreur: String(e.message || e) }); }
     diffuser("galerie", { le: isoZurich(), ...(slug ? { slug } : {}) });
+    copieGaleriePlusTard();
+    // La Galerie peut naître après le démarrage (premier fichier ajouté) : sa surveillance se branche aussitôt.
+    if (!veilleGalerie) brancherVeilleurs();
+  }
+  // La copie du head of content porte aussi la règle des 3 vidéos : elle se refait quand un agent change la Galerie
+  // (le monteur pose un plan) et quand le registre des publications change (une vidéo sort).
+  function copieGaleriePlusTard() {
     if (exportGalerie) return;
     exportGalerie = setTimeout(() => { exportGalerie = null; copierGalerie().catch(() => {}); }, 1500);
     exportGalerie.unref?.();
@@ -496,12 +503,16 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   const actionsFile = () => file.liste();
 
   function brancherVeilleurs() {
-    if (!veilleDepot) veilleDepot = surveiller(config.depot, (n) => !n.startsWith(".git"));
+    if (!veilleDepot) veilleDepot = surveiller(config.depot, (n) => {
+      if (n.startsWith(".git")) return false;
+      if (n === path.join("publications", "registre.json")) copieGaleriePlusTard();
+      return true;
+    });
     if (!veilleMedia) veilleMedia = surveiller(config.media, (n) => !path.basename(n).startsWith("."));
     // La Galerie (lot 15) : un changement fait par un agent ou un script (index refait) se voit sans recharger.
     if (!veilleGalerie && existe(config.galerie)) {
       try {
-        veilleGalerie = fs.watch(config.galerie, (_t, nom) => { if (String(nom || "") === "index.json") { diffuser("galerie", { le: isoZurich() }); plusTard(); } });
+        veilleGalerie = fs.watch(config.galerie, (_t, nom) => { if (String(nom || "") === "index.json") { apresGalerie(); plusTard(); } });
         veilleGalerie.on("error", () => {});
         veilleurs.push(veilleGalerie);
       } catch { /* surveillé au prochain branchement */ }

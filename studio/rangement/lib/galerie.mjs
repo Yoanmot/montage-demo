@@ -85,8 +85,12 @@ export function validerDescription(brut, { type, duree_s = null } = {}) {
     r[k] = v;
   }
   if (r.titre.length < 3) return { ok: false, pourquoi: 'titre trop court' };
-  if (typeof d.personne_a_l_image !== 'boolean') return { ok: false, pourquoi: 'personne_a_l_image doit être vrai ou faux' };
-  r.personne_a_l_image = d.personne_a_l_image;
+  // Le modèle écrit parfois « "true" » entre guillemets (vu en essai réel, deux fois de suite) : le sens est sûr, on le lit.
+  const personne = typeof d.personne_a_l_image === 'string'
+    ? ({ true: true, vrai: true, oui: true, false: false, faux: false, non: false })[d.personne_a_l_image.trim().toLowerCase()]
+    : d.personne_a_l_image;
+  if (typeof personne !== 'boolean') return { ok: false, pourquoi: 'personne_a_l_image doit être vrai ou faux' };
+  r.personne_a_l_image = personne;
   const mots = Array.isArray(d.mots_cles) ? d.mots_cles.map((m) => propre(m, 40).toLowerCase()).filter(Boolean) : [];
   if (!mots.length) return { ok: false, pourquoi: 'mots_cles vide' };
   r.mots_cles = [...new Set(mots)].slice(0, 12);
@@ -97,7 +101,9 @@ export function validerDescription(brut, { type, duree_s = null } = {}) {
     const L = Number(duree_s) || null;
     r.passages = [];
     for (const p of passages) {
-      const debut = Math.round(Number(p?.debut) * 10) / 10, fin = Math.round(Number(p?.fin) * 10) / 10;
+      // Des secondes écrites « 0,8 » entre guillemets (vu en essai réel) : la virgule française se lit comme un point.
+      const nombre = (v) => Number(typeof v === 'string' ? v.trim().replace(',', '.') : v);
+      const debut = Math.round(nombre(p?.debut) * 10) / 10, fin = Math.round(nombre(p?.fin) * 10) / 10;
       if (!Number.isFinite(debut) || !Number.isFinite(fin) || debut < 0 || fin <= debut) return { ok: false, pourquoi: 'passage illisible' };
       if (L && fin > L + 0.5) return { ok: false, pourquoi: 'passage après la fin du clip' };
       r.passages.push({ debut, fin: L ? Math.min(fin, Math.round(L * 10) / 10) : fin, ...(propre(p?.note, 200) ? { note: propre(p.note, 200) } : {}) });
@@ -126,11 +132,12 @@ export function consigneDescription(fiche, { prenom = 'la personne' } = {}) {
     action: video ? 'ce qui bouge ou se passe, en deux phrases au plus (« Personne ne bouge : la caméra glisse... »)' : '« Aucune : photo. » ou ce que fait la personne',
     lieu: 'le lieu (« Ta salle, zone des racks. »)',
     cadrage: 'vertical ou horizontal, plan large, moyen ou serré, angle, place libre pour un texte',
-    personne_a_l_image: 'true si une personne est visible, sinon false',
-    passages: video ? [{ debut: 'secondes', fin: 'secondes', note: 'pourquoi ce passage est bon (net, stable)' }] : [],
+    personne_a_l_image: true,
+    passages: video ? [{ debut: 1.5, fin: 4, note: 'pourquoi ce passage est bon (net, stable)' }] : [],
     mots_cles: ['5 à 10 mots simples pour la recherche'],
   }, null, 1));
-  if (video) l.push('« passages » : les moments propres et utilisables (image nette, sans à-coup), au moins un.');
+  l.push('« personne_a_l_image » : true si une personne est visible, sinon false (sans guillemets).');
+  if (video) l.push('« passages » : les moments propres et utilisables (image nette, sans à-coup), au moins un ; « debut » et « fin » en secondes, des nombres (1.5, pas « 1,5 »).');
   l.push('Aucun tiret long.');
   return l.join('\n');
 }

@@ -8,6 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { demarrer } from "../studio.mjs";
 import { monde, attendreQue } from "./aide.mjs";
 import { outil } from "../../rangement/lib/commun.mjs";
@@ -97,7 +98,13 @@ test("description : le schéma valide, nettoie, et refuse ce qui manque", () => 
   const base = { titre: "Bol", ce_qu_on_voit: "Un bol.", action: "Aucune.", lieu: "Cuisine.", cadrage: "Dessus.", personne_a_l_image: false, passages: [], mots_cles: ["bol"] };
   assert.equal(validerDescription(base, { type: "photo" }).ok, true);
   assert.equal(validerDescription({ ...base, lieu: "" }, { type: "photo" }).ok, false);
-  assert.equal(validerDescription({ ...base, personne_a_l_image: "non" }, { type: "photo" }).ok, false);
+  // « "true" » entre guillemets (vu en essai réel) : lu comme vrai ; un texte qui ne dit ni oui ni non reste refusé.
+  assert.equal(validerDescription({ ...base, personne_a_l_image: "true" }, { type: "photo" }).description.personne_a_l_image, true);
+  assert.equal(validerDescription({ ...base, personne_a_l_image: "non" }, { type: "photo" }).description.personne_a_l_image, false);
+  assert.equal(validerDescription({ ...base, personne_a_l_image: "peut-être" }, { type: "photo" }).ok, false);
+  // Secondes écrites en texte avec une virgule (vu en essai réel) : lues.
+  assert.deepEqual(validerDescription({ ...base, passages: [{ debut: "0,8", fin: "2,5" }] }, { type: "b-roll", duree_s: 5 }).description.passages, [{ debut: 0.8, fin: 2.5 }]);
+  assert.equal(validerDescription({ ...base, passages: [{ debut: "début", fin: "2" }] }, { type: "b-roll", duree_s: 5 }).ok, false);
   assert.equal(validerDescription({ ...base, mots_cles: [] }, { type: "photo" }).ok, false);
   assert.equal(validerDescription(base, { type: "b-roll", duree_s: 10 }).ok, false, "un b-roll a au moins un passage");
   assert.equal(validerDescription({ ...base, passages: [{ debut: 3, fin: 30 }] }, { type: "b-roll", duree_s: 10 }).ok, false, "passage après la fin");
@@ -362,6 +369,16 @@ test("phase 2 : le monteur reçoit les plans pris dans la Galerie ; des plans ch
   assert.ok(msg.includes(`plan 1, pour « tu prépares ton bol » : ${path.join(m.media, REEL, "b-roll", `${bol}.mov`)}, passage proposé de 0.5 à 2 s`), msg);
   assert.match(msg, /Ce qu'il doit montrer : toi ; tu prépares un bol ; détail qui peut différer : plan large\./);
   assert.match(msg, /STUDIO_CODE\/rangement\/galerie\.mjs" montrer/);
+  // Un agent pose un plan de la Galerie par l'outil : la copie du head of content le voit (règle des 3 vidéos à jour).
+  const autre = (await envoyer(api, video(path.join(m.racine, "SAC.MOV")))).json.id;
+  m.contenu("un-autre-reel", { titre: "Autre" });
+  const copie = () => { try { return JSON.parse(fs.readFileSync(path.join(m.depot, "galerie", "index.json"), "utf8")); } catch { return null; } };
+  await attendreQue(() => copie()?.fichiers.some((f) => f.id === autre), { delaiMs: 8000 });
+  await new Promise((r) => setTimeout(r, 1800)); // la copie d'après l'envoi est faite : seul l'outil peut la changer ensuite
+  const r0 = spawnSync(process.execPath, [fileURLToPath(new URL("../../rangement/galerie.mjs", import.meta.url)),
+    "poser", "un-autre-reel", autre, "--config", s.config.fichier], { env: { ...process.env, ...m.env }, encoding: "utf8" });
+  assert.equal(r0.status, 0, r0.stdout + r0.stderr);
+  await attendreQue(() => (copie()?.fichiers.find((f) => f.id === autre)?.ecart.reserve || []).includes("un-autre-reel"), { delaiMs: 8000 });
   // Le client retouche ses plans : la comparaison ne vaut plus (brief comme avant, lien du stock retiré au montage suivant).
   m.ecrire(`depot/contenus/${REEL}/script.md`, script.replace("Vidéo, 8 s : ton bol", "Vidéo, 8 s : ton bol de skyr"));
   d = (await api("GET", `/api/cartes/${REEL}`)).json;
