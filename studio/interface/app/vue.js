@@ -1364,7 +1364,9 @@ export class Vue {
     const groupes = Object.entries(ETATS_RESSOURCE)
       .map(([etat, e]) => [e.groupe, liste.filter((r) => r.etat === etat)]).filter(([, l]) => l.length);
     if (liste.some((r) => r.etat === "mise_a_jour")) this.relireRessources(jeton);
-    return el("article", { class: "vue" }, ...this.entete("Ressources gratuites", "Les pages que reçoivent ceux qui commentent ton mot. Tu choisis laquelle offrir quand tu prépares un post à poster."),
+    return el("article", { class: "vue" }, ...this.entete("Ressources gratuites", s.config.ressources_mot === "serveur"
+      ? "Les pages que reçoivent ceux qui commentent ton mot. Le lien part tout seul sous la vidéo qui annonce le mot, d'où que tu la postes."
+      : "Les pages que reçoivent ceux qui commentent ton mot. Tu choisis laquelle offrir quand tu prépares un post à poster."),
       groupes.length ? groupes.map(([titre, l]) => this.bloc(titre, el("div", { class: "res-grille" }, ...l.map(ligne)), { aide: pluriel(l.length, "ressource", "ressources") }))
         : el("p", { class: "vide-doux" }, "Pas encore de ressource. Demande-en une à ton head of content dans le chat : il la met en ligne dès qu'elle est prête et te donne le lien."));
   }
@@ -1473,7 +1475,10 @@ export class Vue {
     const champs = [
       el("dt", {}, "Mot à commenter"), el("dd", {}, r.mot ? el("strong", { class: "mot-com" }, r.mot) : el("span", { class: "doux" }, "Pas encore choisi")),
       el("dt", {}, "Message envoyé"), el("dd", {}, r.message ? el("div", { class: "res-message" }, el("p", {}, r.message), r.bouton ? el("span", { class: "res-bouton" }, r.bouton) : null) : el("span", { class: "doux" }, "Pas encore écrit")),
-      el("dt", {}, "Pour un post"), el("dd", {}, r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en préparant un post.")
+      el("dt", {}, r.mot_serveur ? "Envoi du lien" : "Pour un post"), el("dd", {}, r.mot_serveur
+        // Mot posé par le serveur (Romain) : rien à choisir en postant, l'état vient du fichier des mots.
+        ? el("span", { class: r.mot_serveur.etat === "branche" || r.mot_serveur.etat === "en_attente" ? "res-ok" : "doux" }, r.mot_serveur.texte)
+        : r.prete ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en préparant un post.")
         : surLeSite && r.repond && r.mot && !(r.bloquants || []).length ? el("span", { class: "res-ok" }, "Prête : tu peux la choisir en préparant un post. Ton clic pour le poster validera son message, que tu pourras encore retoucher.")
         // La vraie raison d'abord : une page envoyée qui ne répond pas encore n'a pas un « message incomplet »
         // (test de bout en bout du 18/11) ; la liste ne garde que ce qui bloque vraiment.
@@ -1487,8 +1492,8 @@ export class Vue {
     // 4. Les posts qui l'offrent (registre des publications).
     blocs.push(this.bloc("Posts reliés", r.posts.length ? el("div", { class: "accueil-liste" }, ...r.posts.map((p) => {
       const c = s.cartes.get(p.slug);
-      const quand = p.quand ? `${p.statut === "publié" ? "sorti" : "part"} ${quandLisible(String(p.quand).replace("T", " ").slice(0, 16))}` : p.statut || "";
-      const mot = p.regle === "posee" ? `mot ${p.mot || r.mot} branché` : p.regle === "erreur" ? "mot pas branché" : null;
+      const quand = p.quand ? `${p.statut === "publié" || p.statut === "branché" ? "sorti" : "part"} ${quandLisible(String(p.quand).replace("T", " ").slice(0, 16))}` : p.libelle ? "" : p.statut || "";
+      const mot = p.regle === "posee" ? `mot ${p.mot || r.mot} branché` : p.regle === "erreur" ? "mot pas branché" : p.libelle || null;
       return el("button", { class: `accueil-ligne${c ? ` f-${c.format}` : ""}`, type: "button", disabled: c ? null : true, onclick: c ? () => s.selectionner({ genre: "dossier", cle: cle(c) }) : null },
         el("span", { class: "ligne-corps" }, el("strong", {}, p.titre), el("span", { class: "ligne-meta" }, [quand, mot].filter(Boolean).join(" · "))),
         c ? el("span", { html: icone("fleche") }) : null);

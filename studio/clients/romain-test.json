@@ -24,7 +24,8 @@
     "compte": "romain"
   },
   "ressources": {
-    "site": null
+    "site": "https://ressources.fitavecromain.com",
+    "mot": "serveur"
   },
   "skill_carrousel": "carrousel",
   "reels_essai": false,

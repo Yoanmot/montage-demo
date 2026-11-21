@@ -54,9 +54,14 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   const d = defautsDuClient(r);
   for (const k of Object.keys(d)) {
     if (k === "claude") continue; // Romain passe sur opus par son fichier de client (lot 12)
+    if (k === "apercu_ressources") continue; // son site des ressources est branché (21/11/2026)
     assert.deepEqual(d[k], exemple[k], k);
   }
   assert.deepEqual(d.claude, { modele: "opus", modele_sous_agents: "opus" });
+  // Ressources gratuites de Romain : son site, le mot posé par son serveur, pas de compteur de visites.
+  assert.equal(d.apercu_ressources, "https://ressources.fitavecromain.com");
+  assert.deepEqual(r.ressources, { site: "https://ressources.fitavecromain.com", mot: "serveur" });
+  assert.equal(d.stats, undefined);
   assert.equal(r.racine, "~/.montage-yoan");
   assert.equal(r.config_claude, null);
   assert.equal(y.contact, "Yoan");

@@ -30,7 +30,7 @@ import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
 import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible, planEffectif } from "./tournage.mjs";
 import { arriveesPertinentes, typeFichier, verrouPris, voixAttendues } from "../rangement/lib/commun.mjs";
-import { Ressources, ressourcesActives } from "./ressources.mjs";
+import { Ressources, ressourcesActives, motParLeServeur } from "./ressources.mjs";
 import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
@@ -822,6 +822,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           // Ressources gratuites (site réglé pour ce client) : entrée du menu, fichier du dossier, choix au
           // récapitulatif. Faux = rien de tout ça n'apparaît.
           ressources: ressourcesActives(config),
+          // Qui pose le mot en commentaire : « studio » (choix au récapitulatif) ou « serveur » (Romain : rien à
+          // choisir au moment de poster, le serveur le branche sur la vidéo qui l'annonce). Null sans ressources.
+          ressources_mot: ressourcesActives(config) ? (motParLeServeur(config) ? "serveur" : "studio") : null,
           jours_par_defaut: config.publication?.jours_par_defaut || [],
           heures_par_defaut: config.publication?.heures_par_defaut || {},
         },

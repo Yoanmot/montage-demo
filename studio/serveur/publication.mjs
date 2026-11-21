@@ -4,7 +4,7 @@
 import * as pub from "../publication/publication.mjs";
 import { construireCartes } from "./lecture.mjs";
 import { ErreurStudio, MESSAGE_GENERIQUE } from "./depot-outils.mjs";
-import { ressourcesActives } from "./ressources.mjs";
+import { motParLeStudio } from "./ressources.mjs";
 
 const STATUT_HTTP = { RESSOURCES_ABSENTES: 404, RIEN_A_POSER: 400, RIEN_A_REESSAYER: 400, PAS_DE_POST: 409, REFUS: 409, ARRET: 409, REESSAI_IMPOSSIBLE: 409, RIEN_A_PUBLIER: 409, DATE_ILLISIBLE: 400, RECAP_INCONNU: 409, RECAP_EXPIRE: 409, RECAP_DEJA_UTILISE: 409 };
 
@@ -20,8 +20,9 @@ export function configBrute(config) {
     skills: config.skills,
     // Le client (compte Zernio du garde-fou d'écriture) : jamais écrit dans un fichier.
     client: config.client,
-    // Ressources gratuites réglées pour ce client : choix de la ressource au récapitulatif (--ressource).
-    ressources: ressourcesActives(config),
+    // Ressources gratuites dont le studio pose le mot : choix de la ressource au récapitulatif (--ressource).
+    // Chez un client dont le serveur pose le mot (Romain), rien : ni liste, ni --ressource, ni règle depuis le Mac.
+    ressources: motParLeStudio(config),
     publication: { ...(config.brut.publication || {}), simulation: config.simulation },
   };
 }
@@ -55,7 +56,7 @@ export class Publication {
   // La liste des ressources du récapitulatif (offrables ou non, avec la raison) et la phrase qui dit
   // pourquoi elle est vide. Jamais une liste vide sans explication.
   async choixRessources() {
-    if (!this.ressources?.actif()) return { ressources: null, note: null };
+    if (!configBrute(this.config).ressources || !this.ressources?.actif()) return { ressources: null, note: null };
     try { return await this.ressources.pourUnPost(); } catch {
       return { ressources: [], note: "Je n'arrive pas à lire tes ressources gratuites pour l'instant : revérifie dans un moment." };
     }

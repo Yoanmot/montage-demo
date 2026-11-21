@@ -20,7 +20,8 @@
     "tiktok": null
   },
   "ressources": {
-    "site": null
+    "site": "https://ressources.fitavecromain.com",
+    "mot": "serveur"
   },
   "appareil": "iPhone",
   "skill_carrousel": "carrousel",

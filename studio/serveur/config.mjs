@@ -29,7 +29,8 @@ export function defautsDuClient(client) {
     apercu_ressources: client.ressources?.site || null,
     // Lot 11 : le compteur des visites des ressources gratuites (site du client), lu par stats.mjs. Clé de lecture hors
     // du dépôt : <racine>/ressources.env (ligne VISITES_RESSOURCES_CLE=...), illisible par les sessions (*.env).
-    ...(client.ressources?.site ? {
+    // Seulement chez un client dont le site a le compteur (« compteur_depuis ») : Romain n'en a pas.
+    ...(client.ressources?.site && client.ressources?.compteur_depuis ? {
       stats: {
         visites_ressources: {
           url: `${String(client.ressources.site).replace(/\/+$/, "")}/api/visites/`,
@@ -129,7 +130,13 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
     // Variable prioritaire (contrat, section 7) : STUDIO_SIMULATION=1 => jamais --envoyer.
     simulation: env.STUDIO_SIMULATION === "1" || brut.publication?.simulation === true,
     // Adresse d'aperçu des ressources gratuites (contrat, section 7) : ressource_url = <apercu>/<slug>/.
-    apercuRessources: brut.apercu_ressources || null,
+    // Celle de studio.config.json, sinon le site du client : un studio installé avant que le site soit
+    // branché garde « apercu_ressources: null » dans son fichier, le fichier du client le rattrape.
+    apercuRessources: brut.apercu_ressources || client.ressources?.site || null,
+    // Qui pose le mot en commentaire (clients/<id>.json, « ressources.mot ») : « studio » (défaut : la
+    // ressource se choisit au moment de poster et le clic pose la règle chez Zernio) ou « serveur » (Romain :
+    // son serveur branche le mot sur la publication qui l'annonce ; le studio n'écrit jamais de règle).
+    ressourcesMot: client.ressources?.mot === "serveur" ? "serveur" : "studio",
     // Chiffres Instagram de la vue d'ensemble (contrat, sections 7 et 15) : fichier local (tests, bac à
     // sable) ou lecture par zernio.py hors simulation, au plus toutes les `heures` heures.
     stats: {

@@ -25,6 +25,11 @@ import { VARIABLES_ECRITURE, contact } from "./client.mjs";
 import { pageRessource } from "./vignettes.mjs";
 
 export const ressourcesActives = (config) => Boolean(config?.apercuRessources);
+// Le studio pose-t-il lui-même le mot en commentaire (choix de la ressource au moment de poster, règle
+// Zernio attachée au post) ? Non chez un client dont le serveur s'en charge (Romain, « ressources.mot » :
+// « serveur ») : là, rien au moment de poster, aucun appel d'écriture chez Zernio depuis le Mac.
+export const motParLeServeur = (config) => ressourcesActives(config) && config?.ressourcesMot === "serveur";
+export const motParLeStudio = (config) => ressourcesActives(config) && !motParLeServeur(config);
 
 function environnement(config) {
   const env = { ...process.env, HOC_DEPOT: config.depot, PYTHONIOENCODING: "utf-8" };
@@ -115,17 +120,52 @@ export function etatEnLigne(reel) {
 
 // Un post qui offre encore la ressource : son mot en commentaire (règle attachée au post) enverrait le
 // lien. Seul un envoi raté ne compte plus (même règle que outils/ressource.py supprimer).
-const STATUTS_RELIES = ["programmé", "envoyé", "publié"];
+// Chez un client dont le serveur pose le mot (publications/a-brancher.json) : « en attente » (il attend la
+// vidéo qui l'annonce) et « branché » (la règle est posée) retiennent aussi la ressource.
+const STATUTS_RELIES = ["programmé", "envoyé", "publié", "en attente", "branché"];
 export const postActif = (p) => STATUTS_RELIES.includes(p?.statut);
 
 const listeTitres = (l) => (l.length === 1 ? l[0] : `${l.slice(0, -1).join(", ")} et ${l[l.length - 1]}`);
 
 // Pourquoi on garde une ressource qu'on voudrait supprimer, ou null si rien ne la retient.
+// Le lien d'un mot du serveur mène-t-il à cette ressource (<site>/<slug>/) ?
+const lienVers = (lien, slug) => new RegExp(`/${slug}/?$`).test(String(lien || ""));
+
+// Les contenus dont le mot (posé par le serveur) envoie le lien de la ressource, au format des posts reliés.
+export function postsDuServeur(mots, cartes) {
+  return (mots || []).filter((x) => x && x.contenu).map((x) => ({
+    slug: x.contenu,
+    titre: cartes.get(x.contenu)?.titre || x.contenu,
+    statut: x.statut || null,
+    quand: null, // branche_le est en UTC : pas d'heure plutôt qu'une heure fausse
+    lien: x.video || null,
+    mot: x.mot || null,
+    regle: x.statut === "branché" ? "posee" : null,
+    libelle: x.statut === "en attente" ? `mot ${x.mot || ""} en attente de la vidéo qui l'annonce`.replace("  ", " ")
+      : x.statut === "branché" ? null : x.statut === "coupé" ? `mot ${x.mot || ""} coupé`.replace("  ", " ") : x.statut || null,
+  }));
+}
+
+// Où en est le mot de cette ressource chez le serveur, en une phrase pour le client.
+function etatMotServeur(r, mots) {
+  const actifs = (mots || []).filter((x) => postActif(x));
+  if (actifs.some((x) => x.statut === "branché")) return { etat: "branche", texte: "Branché : ceux qui commentent le mot sous ta vidéo reçoivent le lien." };
+  if (actifs.length) return { etat: "en_attente", texte: "En attente : il se branchera tout seul sur ta vidéo qui annonce le mot, quelques minutes après sa sortie, d'où que tu la postes." };
+  if (!r.en_ligne) return { etat: "sans_page", texte: "Pas encore : elle doit d'abord être en ligne." };
+  if (!r.valide) return { etat: "a_valider", texte: "Pas encore : valide d'abord la page, puis le message, avec ton head of content." };
+  return { etat: "libre", texte: "Pas encore relié à une vidéo : ton head of content met le mot en attente quand tu valides le message de la vidéo qui l'offre." };
+}
+
 export function raisonDeGarder(posts, mot) {
   const actifs = (posts || []).filter(postActif);
   if (!actifs.length) return null;
   mot = mot || actifs.find((p) => p.mot)?.mot || null;
   const titres = actifs.map((p) => `« ${p.titre} »`);
+  // Mot posé par le serveur, qui attend encore sa vidéo : personne ne l'a reçu, mais il l'enverra.
+  if (actifs.every((p) => p.statut === "en attente")) {
+    const ta = actifs.length === 1 ? `ta vidéo ${titres[0]}` : `tes vidéos ${listeTitres(titres)}`;
+    return `Je la garde : ${mot ? `le mot ${mot}` : "son mot"} attend ${ta} pour envoyer son lien. Sans elle, ceux qui le commenteront tomberaient sur une page qui n'existe plus.`;
+  }
   const ceux = mot ? `ceux qui commentent ${mot} sous ` : "ceux qui commentent sous ";
   const ou = actifs.length === 1 ? `ton post ${titres[0]}` : `tes posts ${listeTitres(titres)}`;
   return `Je la garde : ${ceux}${ou} reçoivent son lien. Sans elle, ils tomberaient sur une page qui n'existe plus.`;
@@ -147,9 +187,13 @@ export class Ressources {
   // La liste complète : pages, état en ligne lu à l'adresse, fiches, mots, posts reliés.
   async lister() {
     if (!this.actif()) return { actif: false, ressources: [] };
+    // Un dépôt du head of content qui n'a pas encore l'outil des ressources : la liste est vide, sans erreur.
+    if (!existe(path.join(this.config.depot, "outils", "ressource.py"))) return { actif: true, site: this.config.apercuRessources, ressources: [] };
+    const serveur = motParLeServeur(this.config);
     const [pages, fiches] = await Promise.all([
       outilJson(this.config, "ressource.py", ["lister", "--format", "json", "--en-ligne"], 90000),
-      outilJson(this.config, "zernio.py", ["ressources", "--format", "json"]),
+      // Mot posé par le serveur : la fiche du mot vient de ressource.py (mot, message, mot chez le serveur).
+      serveur ? null : outilJson(this.config, "zernio.py", ["ressources", "--format", "json"]),
     ]);
     if (!pages && !fiches) {
       throw new ErreurStudio("RESSOURCES_ILLISIBLES", `Je n'arrive pas à lire tes ressources gratuites pour l'instant. Réessaie, et si ça recommence, préviens ${contact()}.`, 503);
@@ -162,7 +206,7 @@ export class Ressources {
     const ressources = [];
     for (const [slug, { page, fiche }] of parSlug) {
       if (!SLUG_RE.test(slug)) continue;
-      ressources.push(this.fusion(slug, page, fiche, cartes, registre));
+      ressources.push(serveur ? this.fusionServeur(slug, page, cartes) : this.fusion(slug, page, fiche, cartes, registre));
     }
     // En erreur d'abord (à régler), puis en cours, en ligne, en préparation ; par titre.
     const rang = { erreur: 0, mise_a_jour: 1, en_ligne: 2, injoignable: 3, en_preparation: 4, sans_page: 5 };
@@ -226,11 +270,31 @@ export class Ressources {
     };
   }
 
+  // Client dont le serveur pose le mot (Romain) : tout vient de ressource.py (page, fiche, mot, message, et
+  // les mots de publications/a-brancher.json qui envoient son lien). Rien ne se choisit au moment de poster.
+  fusionServeur(slug, page, cartes) {
+    const r = this.fusion(slug, page, null, cartes, {});
+    const mots = Array.isArray(page?.mot_serveur) ? page.mot_serveur : [];
+    r.mot_par = "serveur";
+    r.valide = Boolean(page?.valide);
+    r.mot = page?.mot || null;
+    r.bouton = page?.bouton || null;
+    r.message = page?.message ? page.message.replace(/\{\{\s*first_name\s*\}\}/g, "[son prénom]") : null;
+    r.prete = false;
+    r.problemes = [];
+    r.bloquants = [];
+    r.posts = postsDuServeur(mots, cartes);
+    r.garder = raisonDeGarder(r.posts, r.mot);
+    // Ce que le serveur fera du mot, en une phrase (lue dans les fichiers, jamais supposée).
+    r.mot_serveur = etatMotServeur(r, mots);
+    return r;
+  }
+
   // La liste déroulante du récapitulatif : chaque ressource du site, offrable ou non (avec la raison).
   // Un message pas encore validé ne l'empêche pas : le clic sur Programmer le valide (18/11/2026).
   // `note` dit pourquoi la liste est vide, ou qu'aucune ne peut être offerte.
   async pourUnPost() {
-    if (!this.actif()) return { ressources: [], note: null };
+    if (!this.actif() || motParLeServeur(this.config)) return { ressources: [], note: null };
     const l = await this.lister();
     const ressources = [];
     let enPreparation = 0;
@@ -257,6 +321,12 @@ export class Ressources {
 
   // Les posts du registre qui offrent cette ressource (titres des cartes), lus dans les fichiers.
   postsRelies(slug) {
+    if (motParLeServeur(this.config)) {
+      const d = lireJson(path.join(this.config.depot, "publications", "a-brancher.json"), {})?.mots || {};
+      const cartes = new Map(this.cartes().filter((c) => c.slug).map((c) => [c.slug, c]));
+      return postsDuServeur(Object.entries(d).filter(([, e]) => e && lienVers(e.lien, slug))
+        .map(([contenu, e]) => ({ contenu, mot: e.mot, statut: e.statut, prevu_le: e.prevu_le, branche_le: e.branche_le, video: e.video })), cartes);
+    }
     const registre = lireJson(path.join(this.config.depot, "publications", "registre.json"), {})?.publications || {};
     const cartes = new Map(this.cartes().filter((c) => c.slug).map((c) => [c.slug, c]));
     return Object.entries(registre).filter(([, e]) => e && e.ressource === slug)
