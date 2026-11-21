@@ -376,3 +376,9 @@ test("sovo.sh installer : version publiée vérifiée (sha256, signature), posé
   assert.match(r.sortie, /^ECHEC sovo : fichier téléchargé différent de la version publiée/m);
   assert.ok(!fs.existsSync(app));
 });
+
+test("arrivees.sh : sans service (essai) ou sans node, la question de Téléchargements est remise à plus tard, rien de chargé", () => {
+  const t = tmp();
+  const r = lance(path.join(INST, "arrivees.sh"), [], envDe(t));
+  assert.match(r.sortie, /^ARRIVEES_PLUS_TARD essai sans service$/m);
+});
