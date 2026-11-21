@@ -37,7 +37,7 @@ main() {
   D="$(mktemp -d "${TMPDIR:-/tmp}/livraison.XXXXXX")"; chmod 700 "$D"
 
   # ------------------------------------------------------------------ le code collé, décodé dans le dossier privé
-  local essai=0 res="" texte="" msg="Colle ici le message que $CLIENT_CONTACT t'a envoyé sur WhatsApp (le long code qui commence par STUDIO), puis clique sur OK."
+  local essai=0 res="" texte="" msg="Colle ici le code du lien secret que $CLIENT_CONTACT t'a envoyé : tout le texte, en entier, mot STUDIO du début compris. Puis clique sur OK."
   while :; do
     essai=$((essai + 1))
     if [ -n "$DEPUIS_STDIN" ]; then
@@ -68,7 +68,7 @@ OSA
     if [ -n "$DEPUIS_STDIN" ] || [ "$essai" -ge 3 ]; then
       echo "LIVRAISON_ABANDON code illisible ($(echo "$res" | head -1 | cut -d' ' -f2-)), rien n'a été posé"; return 0
     fi
-    msg="Le code n'est pas arrivé en entier. Dans WhatsApp, copie le message de $CLIENT_CONTACT en entier (clic droit sur le message, Copier), puis colle-le ici et clique sur OK."
+    msg="Le code n'est pas arrivé en entier. Recopie tout le texte de la page du lien secret, du mot STUDIO jusqu'au dernier caractère (bouton Copier de la page, ou Cmd + A dans le cadre du texte puis Cmd + C), colle-le ici et clique sur OK."
   done
   echo "$res" | grep '^LIVRAISON_MANQUE'
   local manque; manque="$(echo "$res" | sed -n 's/^LIVRAISON_MANQUE //p' | tr '\n' ',' | sed 's/,$//')"
