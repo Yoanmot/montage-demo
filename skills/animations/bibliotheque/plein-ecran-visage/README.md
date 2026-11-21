@@ -8,7 +8,8 @@ voir sa tête ; Yoan aime qu'un effet commence à l'écran par le texte sur lui 
 1. Le **titre** (le mot clé, ses mots, en capitales, aussi grand que la place au-dessus de sa tête le permet) apparaît
    sur son image filmée, au-dessus de sa tête (haut du crâne mesuré sur la vidéo), avec le voile du haut.
 2. Un **flash** craie couvre tout l'écran **sauf les lettres du titre**, à leur forme exacte : il est rendu sous le
-   titre, qui reste au-dessus avec son ombre (plus de cadre rectangulaire où l'on voyait la vidéo autour du mot),
+   titre, qui reste au-dessus avec son ombre et un **contour charbon fin** (4 px sous le remplissage, 2 px visibles, le
+   même du début à la fin : il garde le mot lisible sur le flash craie ; plus de cadre rectangulaire autour du mot),
    puis le **fond uni** (orange ou charbon) est là. Le titre ne bouge pas et garde sa taille et sa couleur (craie), même
    sur l'orange (Yoan, 2026-11-20 : le mot clé en blanc doit rester intact). Un clic sur le flash.
 3. Les **points** (1 à 3 : ce qu'on y gagne, les étapes) apparaissent l'un sous l'autre, chacun sur son mot : sa petite

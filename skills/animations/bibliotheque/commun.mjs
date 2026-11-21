@@ -427,7 +427,9 @@ export const PLAN_A_FILMER = { titre: 120, texte: 54, opaciteTexte: 0.72, ecart:
 // tête, sur une phrase d'enjeu ou de contraste ; capitales de 64 ou 84 px, 1 à 3 lignes, une opposition se barre.
 export const TEXTE_SUR_LUI = { formes: ['condition', 'opposition', 'projection', 'adresse', 'question'], cap: { normale: 64, grande: 84 }, lignesMax: 3,
   ecart: 22, margeTete: 24, tenue: 0.5, aimant: 0.5, dureeMax: 6, voile: 0.25 };
-export const PLEIN_VISAGE = { ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
+// contour du titre (Yoan, 2026-11-20, tour 5) : un trait charbon fin tout autour des lettres, posé sous le remplissage
+// (seule la moitié extérieure se voit), le même du début à la fin : il garde le titre lisible pendant le flash craie.
+export const PLEIN_VISAGE = { contour: { ep: 4, couleur: 'rgba(26,22,18,.85)' }, ecartTete: 40, titreCapMin: 110, titreSeul: 0.8, sansLuiMax: 5.5, tenue: 0.8, aimant: 0.6,
   fond: { d: 0.32, courbe: 'power2.inOut', avance: 0.1, avant: 0.45, couleur: 0.14, voile: 0.25 },
   ecartTitre: 90, ecartFigure: 28, ecartPoints: 70, libelle: 96, pointsMax: 3,
   figures: ['courbe', 'cases', 'barre', 'aucune'],

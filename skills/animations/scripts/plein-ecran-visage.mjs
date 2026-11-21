@@ -142,7 +142,7 @@ const EP = PV.figure.trait;
 c.css = `#voile{inset:0;${voileCss('standard')}}
 #fd{inset:0;background:${K[fond]};visibility:hidden;}
 #fl,#fs{inset:0;background:${K.craie};opacity:0;}
-#t{left:${xT.toFixed(2)}px;top:${topT.toFixed(2)}px;font-size:${F.toFixed(2)}px;color:${K.craie};}
+#t{left:${xT.toFixed(2)}px;top:${topT.toFixed(2)}px;font-size:${F.toFixed(2)}px;color:${K.craie};-webkit-text-stroke:${PV.contour.ep}px ${PV.contour.couleur};paint-order:stroke fill;}
 .lb{font-size:${TL}px;color:${couleurTexte};}
 .cs{position:absolute;box-sizing:border-box;border:${EP}px solid ${couleurTexte};border-radius:${S.RAYONS.vignette}px;}
 .cs svg{position:absolute;overflow:visible;}
@@ -150,7 +150,8 @@ c.css = `#voile{inset:0;${voileCss('standard')}}
 const coche = `M ${PV.figure.case * 0.22} ${PV.figure.case * 0.52} L ${PV.figure.case * 0.42} ${PV.figure.case * 0.72} L ${PV.figure.case * 0.80} ${PV.figure.case * 0.28}`;
 // flash d'entrée : il couvre tout l'écran sauf les lettres du titre, à leur forme exacte (Yoan, 2026-11-20 : un trou
 // rectangulaire autour du mot laissait voir la vidéo dans un cadre). Le flash est rendu SOUS le titre, qui reste
-// au-dessus avec son ombre : chaque lettre garde sa forme, sa place et sa couleur, et rien d'autre ne passe à travers.
+// au-dessus avec son ombre et son contour fin (PV.contour, le même avant, pendant et après le flash : sans lui, craie sur
+// craie, le titre ne se lisait plus que par son ombre) : chaque lettre garde sa forme, sa place et sa couleur.
 let html = `  <div class="a fd" id="voile"></div>\n  <div class="a fd" id="fd"></div>\n  <div class="a fd" id="fl"></div>\n  <div class="a ti douce" id="t">${texteT}</div>\n`;
 for (const l of lignes) {
   const fx = l.x, fy = l.haut, FW = PV.figure.l, FH = PV.figure.h;

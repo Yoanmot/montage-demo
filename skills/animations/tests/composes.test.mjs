@@ -62,6 +62,9 @@ test('plein écran qui commence sur son visage : titre au-dessus de sa tête, pu
   const corps = html.slice(html.indexOf('<body>'));
   assert.ok(corps.indexOf('id="fl"') >= 0 && corps.indexOf('id="fl"') < corps.indexOf('id="t"'), 'le flash est sous le titre');
   assert.doesNotMatch(html, /tl\.to\('#t', \{ color/, 'le titre garde sa couleur à travers la transition');
+  // un contour fin et fixe autour des lettres, posé sous le remplissage, jamais animé : lisible pendant le flash craie
+  assert.match(html, /#t\{[^}]*-webkit-text-stroke:4px rgba\(26,22,18,\.85\);paint-order:stroke fill;\}/);
+  assert.doesNotMatch(html, /tl\.(to|set)\('#t', \{[^}]*(Stroke|stroke)/, 'le contour ne change pas pendant la transition');
   assert.match(html, /\.lb\{font-size:[\d.]+px;color:#F6F0E7;\}/, 'les points prennent la couleur du titre (craie)');
   assert.match(html, /tl\.set\('#fs', \{ opacity: 1 \}/, 'flash de sortie');
   const top = +html.match(/#t\{left:[\d.]+px;top:([\d.-]+)px/)[1];
