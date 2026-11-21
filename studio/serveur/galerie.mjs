@@ -7,13 +7,13 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { CODE } from "./config.mjs";
-import { lireJson, existe } from "./outils.mjs";
+import { lireJson, existe, isoZurich } from "./outils.mjs";
 import { executer, lireVerdict } from "./commandes.mjs";
 import { ErreurStudio, MESSAGE_GENERIQUE } from "./depot-outils.mjs";
 import { contact, clientActif } from "./client.mjs";
 import {
   Galerie, dossierGalerie, ID_GALERIE, ecart, postes, plansEffectifs, photosDesSlides, validerDescription, consigneDescription,
-  bloquantsSuppression,
+  bloquantsSuppression, reservationsStock,
 } from "../rangement/lib/galerie.mjs";
 import { outil } from "../rangement/lib/commun.mjs";
 
@@ -48,8 +48,9 @@ function texteRecherche(f) {
     f.origine?.ligne, f.origine?.vu].filter(Boolean).join(" ");
 }
 
-function resume(f, enFile) {
-  const slugs = [...new Set((f.utilisations || []).map((u) => u.slug))];
+function resume(f, enFile, reservations = null) {
+  // Un brief qui compte dessus (plan pris dans la Galerie, lien posé seulement avant le montage) l'utilise déjà.
+  const slugs = [...new Set([...(f.utilisations || []).map((u) => u.slug), ...((reservations?.get(f.id)) || []).map((r) => r.slug)])];
   return {
     id: f.id, type: f.type, titre: f.description?.titre || null, taille: f.taille || 0, duree_s: f.duree_s ?? null,
     orientation: f.orientation || null, pris_le: f.pris_le || null, ajoute_le: f.ajoute_le || null,
@@ -64,11 +65,12 @@ export function vueGalerie(config, { actions = [], pour = null } = {}) {
   const g = galerieDe(config);
   const enFile = descriptions(actions);
   const sorties = pour ? postes(config.depot) : null;
+  const reservations = reservationsStock(config.depot);
   // Pour un contenu (sélecteur du brief, du montage, d'une slide) : ce qui peut y resservir, et sinon pourquoi.
   const fichiers = g.index().fichiers.map((f) => {
-    const r = resume(f, enFile);
+    const r = resume(f, enFile, reservations);
     if (!pour) return r;
-    const e = ecart(f, config.depot, { pour, sorties });
+    const e = ecart(f, config.depot, { pour, sorties, reservations });
     return { ...r, reutilisable: e.reutilisable, raison: e.raison, attendre: e.attendre };
   });
   return {
@@ -103,7 +105,16 @@ export function ficheGalerie(config, id, { actions = [], cartes = [] } = {}) {
       existe: Boolean(c),
     });
   }
-  const bloquants = bloquantsSuppression(f, config.depot);
+  // Les briefs qui comptent dessus sans l'avoir encore reçu (plan pris dans la Galerie) : montrés comme prévus.
+  const reservations = reservationsStock(config.depot);
+  for (const r of reservations.get(f.id) || []) {
+    if (vus.has(r.slug)) continue;
+    vus.add(r.slug);
+    const c = parSlug.get(r.slug);
+    utilisations.push({ slug: r.slug, titre: c?.titre || r.slug, format: c?.format || null, stade: c?.stade || null, libelle: c?.libelle || null,
+      poste_le: sortis.has(r.slug) ? new Date(sortis.get(r.slug).quand).toISOString() : null, le: r.le || null, slides: [], existe: Boolean(c), prevu: true });
+  }
+  const bloquants = bloquantsSuppression(f, config.depot, { reservations });
   const b = bloquants[0] ? parSlug.get(bloquants[0]) : null;
   let tournage = null;
   if (f.origine?.tournage) {
@@ -111,14 +122,14 @@ export function ficheGalerie(config, id, { actions = [], cartes = [] } = {}) {
     tournage = t ? { id: f.origine.tournage, cree_le: t.cree_le || null } : { id: f.origine.tournage, cree_le: null };
   }
   return {
-    ...resume(f, descriptions(actions)),
+    ...resume(f, descriptions(actions), reservations),
     description_detail: f.description || null,
     description_erreur: f.description_erreur?.message || null,
     nom_origine: f.nom_origine || null,
     origine: { genre: f.origine?.genre || "ajout", ligne: f.origine?.ligne || null, tournage },
     utilisations,
     supprimable: bloquants.length ? { ok: false, slug: bloquants[0], titre: b?.titre || bloquants[0], format: b?.format || null } : { ok: true },
-    ecart: ecart(f, config.depot, { sorties }),
+    ecart: ecart(f, config.depot, { sorties, reservations }),
   };
 }
 
@@ -168,12 +179,13 @@ export function galerieSansChemins(config) {
   const g = galerieDe(config);
   if (!existe(g.racine)) return null;
   const sorties = postes(config.depot);
+  const reservations = reservationsStock(config.depot);
   return {
     version: 1,
     regle: { ecart_min_videos: 3 },
     fichiers: g.index().fichiers.map((f) => {
       const { fichier, vignettes, nom_origine, ...reste } = f;
-      return { ...reste, ecart: ecart(f, config.depot, { sorties }) };
+      return { ...reste, ecart: ecart(f, config.depot, { sorties, reservations }) };
     }),
   };
 }
@@ -265,14 +277,32 @@ export function messageDescription(config, id) {
 }
 
 // La réponse d'une session de description : validée par le schéma, puis écrite dans la fiche (sous le verrou).
-export function ecrireDescriptionDeSession(config, id, texte, actionId) {
+export function ecrireDescriptionDeSession(config, id, texte, actionId, { action = null } = {}) {
   const g = galerieDe(config);
   const f = g.fiche(id);
   if (!f) return { ok: false, pourquoi: "fichier absent", absent: true };
+  // Le client a écrit sa description pendant que la session tournait : la sienne reste (jamais écrasée par une
+  // réponse arrivée après). « Redécrire » demandé après sa retouche crée une action plus récente : elle remplace.
+  if (retoucheApres(f, action)) return { ok: true, garde: true };
   const v = validerDescription(texte, { type: f.type, duree_s: f.duree_s });
   if (!v.ok) return v;
-  g.decrire(id, v.description, { par: "studio", action: actionId });
+  try {
+    g.sousVerrou(() => {
+      const x = g.fiche(id);
+      if (!x) return;
+      if (retoucheApres(x, action)) return;
+      x.description = { ...v.description, ecrite_le: isoZurich(), par: "studio", ...(actionId ? { action_id: actionId } : {}) };
+      x.description_erreur = null;
+      g.ecrireFiche(x);
+    });
+  } catch (e) { if (e.code !== "OCCUPE") throw e; return { ok: false, pourquoi: "galerie occupée" }; }
   return { ok: true };
+}
+function retoucheApres(f, action) {
+  if (f.description?.par !== "toi") return false;
+  const quand = Date.parse(f.description.ecrite_le || "");
+  const depuis = Date.parse(action?.cree_le || "");
+  return !Number.isFinite(depuis) || !Number.isFinite(quand) || quand >= depuis;
 }
 
 export function noterEchecDescription(config, id) {
@@ -300,5 +330,5 @@ export function aDecrire(config) {
 export function descriptionFaitePar(config, id, actionId) {
   const f = galerieDe(config).fiche(id);
   if (!f) return true;
-  return Boolean(f.description && f.description.action_id === actionId);
+  return Boolean(f.description && (f.description.action_id === actionId || f.description.par === "toi"));
 }

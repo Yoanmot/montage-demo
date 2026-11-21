@@ -303,7 +303,7 @@ test("supprimer : refusé tant qu'un contenu pas posté s'en sert, accepté ensu
 test("plans du brief : déjà en stock ou à tourner (stock.json + choix du client), liens posés et retirés, règle des 3 vidéos", { skip: SKIP }, async () => {
   const { m, g, api } = await studio();
   const bol = (await envoyer(api, video(path.join(m.racine, "BOL.MOV")))).json.id;
-  const barre = (await envoyer(api, video(path.join(m.racine, "BARRE.MOV")))).json.id;
+  const barre = (await envoyer(api, video(path.join(m.racine, "BARRE.MOV"), 4))).json.id;   // un autre clip (un clip identique serait un doublon)
   // la barre vient de passer dans la dernière vidéo postée
   m.contenu("derniere-video", { titre: "Dernière" });
   await api("POST", `/api/cartes/derniere-video/galerie/poser`, { json: { id: barre } });
@@ -370,7 +370,7 @@ test("phase 2 : le monteur reçoit les plans pris dans la Galerie ; des plans ch
   assert.match(msg, /Ce qu'il doit montrer : toi ; tu prépares un bol ; détail qui peut différer : plan large\./);
   assert.match(msg, /STUDIO_CODE\/rangement\/galerie\.mjs" montrer/);
   // Un agent pose un plan de la Galerie par l'outil : la copie du head of content le voit (règle des 3 vidéos à jour).
-  const autre = (await envoyer(api, video(path.join(m.racine, "SAC.MOV")))).json.id;
+  const autre = (await envoyer(api, video(path.join(m.racine, "SAC.MOV"), 4))).json.id;   // un autre clip que le bol
   m.contenu("un-autre-reel", { titre: "Autre" });
   const copie = () => { try { return JSON.parse(fs.readFileSync(path.join(m.depot, "galerie", "index.json"), "utf8")); } catch { return null; } };
   await attendreQue(() => copie()?.fichiers.some((f) => f.id === autre), { delaiMs: 8000 });

@@ -538,7 +538,10 @@ export class Vue {
       regarder.addEventListener("click", () => {
         const debut = p.stock.debut ?? 0;
         const src = p.type === "photo" ? null : `${f.url}#t=${debut}${p.stock.fin != null ? `,${p.stock.fin}` : ""}`;
-        vignette.replaceChildren(p.type === "photo" ? el("img", { src: f.url, alt: "" }) : el("video", { src, controls: true, autoplay: true, playsinline: true }));
+        // Une photo HEIC ne s'affiche pas dans le navigateur : son image réduite reste.
+        const img = p.type === "photo" ? el("img", { src: f.url, alt: "" }) : null;
+        img?.addEventListener("error", () => { if (f.vignette_url) img.src = f.vignette_url; }, { once: true });
+        vignette.replaceChildren(img || el("video", { src, controls: true, autoplay: true, playsinline: true }));
         regarder.disabled = true;
       });
       actions.append(regarder);
@@ -1251,7 +1254,9 @@ export class Vue {
         el("label", { class: "prise-tete" }, caseC || el("span", { class: "prise-sans-case", "aria-hidden": "true" }),
           el("span", { class: "prise-idee" }, titres.join(" · ") || b.titre),
           sauter ? el("span", { class: "prise-outils" }, sauter) : null),
-        b.deja ? el("p", { class: "prise-etat" }, "Déjà filmé : rien à refaire.") : sautee ? el("p", { class: "prise-etat" }, "Tu ne la fais pas.") : null,
+        b.galerie ? el("p", { class: "prise-etat" }, "Pris dans ta Galerie : rien à tourner.")
+          : b.deja ? el("p", { class: "prise-etat" }, "Déjà filmé : rien à refaire.") : sautee ? el("p", { class: "prise-etat" }, "Tu ne la fais pas.")
+            : b.ajoutee ? el("p", { class: "prise-etat" }, "Ajouté après coup : tu as choisi d'en tourner un nouveau.") : null,
         corps.length ? el("div", { class: "prise-corps" }, ...corps) : null);
     };
     const toutes = t.bulles || [];

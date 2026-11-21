@@ -27,6 +27,19 @@ export function lienVersId(nom) {
 
 const dormir = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+function lectureSeule(p) { try { fs.chmodSync(p, 0o444); } catch { /* disque qui ne le permet pas : rien de plus */ } }
+
+// L'empreinte d'un fichier (sha256 de tout le fichier, lu par morceaux) : sert à reconnaître un doublon.
+export function empreinteFichier(p) {
+  const h = crypto.createHash('sha256');
+  const fd = fs.openSync(p, 'r');
+  try {
+    const buf = Buffer.allocUnsafe(4 * 1024 * 1024);
+    for (let n; (n = fs.readSync(fd, buf, 0, buf.length, null)) > 0;) h.update(buf.subarray(0, n));
+  } finally { fs.closeSync(fd); }
+  return `sha256:${h.digest('hex')}`;
+}
+
 // ---------------------------------------------------------------- le verrou
 
 function vivant(pid) {
@@ -189,6 +202,13 @@ export class Galerie {
   // infos : { type, nom_origine, date, duree_s, orientation, origine }. Renvoie la fiche.
   ajouter(source, infos, { copier = false, media = null, vignettes = null } = {}) {
     return this.sousVerrou(() => {
+      // Le même fichier envoyé deux fois (AirDrop refait, deux « Ajouter ») : il n'entre qu'une fois, la fiche qui
+      // existe sert (même taille, même contenu octet par octet). Le doublon ne reste pas où il était (sauf copie).
+      const deja = this.memeFichier(source);
+      if (deja) {
+        if (!copier) { fs.rmSync(source, { force: true }); media?.noter({ op: 'galerie_doublon', id: deja.id, nom: path.basename(source) }); }
+        return { ...deja, doublon: true };
+      }
       const date = infos.date instanceof Date ? infos.date : (lireDate(infos.date) || new Date());
       let id;
       do { id = clipId(date); } while (fs.existsSync(path.join(this.fichesD, `${id}.json`)));
@@ -198,6 +218,9 @@ export class Galerie {
       if (copier) fs.copyFileSync(source, dest, fs.constants.COPYFILE_EXCL);
       else if (media) media.deplacer(source, dest, 'galerie');
       else deplacer(source, dest);
+      // Lecture seule : un contenu le reçoit par lien physique (même fichier) ; un outil qui écrirait dans le lien
+      // (recadrage d'une photo, réencodage sur place) changerait la Galerie et tous les autres contenus.
+      lectureSeule(dest);
       const vigs = [];
       if (vignettes) {
         try {
@@ -211,7 +234,7 @@ export class Galerie {
       }
       const f = {
         version: 1, id, type: infos.type, fichier: path.relative(this.racine, dest),
-        nom_origine: infos.nom_origine || path.basename(source), taille: fs.statSync(dest).size,
+        nom_origine: infos.nom_origine || path.basename(source), taille: fs.statSync(dest).size, empreinte: empreinteFichier(dest),
         duree_s: infos.type === 'b-roll' ? (infos.duree_s ?? null) : null,
         orientation: infos.orientation || null,
         pris_le: isoZurich(date), ajoute_le: isoZurich(),
@@ -222,6 +245,16 @@ export class Galerie {
       media?.noter({ op: 'galerie_ajout', id, fichier: dest, vignettes: vigs.map((v) => path.join(this.racine, v)) });
       return f;
     });
+  }
+
+  // Une fiche dont le fichier est identique à `source` (taille, puis contenu), ou null.
+  memeFichier(source) {
+    let taille;
+    try { taille = fs.statSync(source).size; } catch { return null; }
+    const memes = this.fiches().filter((f) => f.taille === taille && fs.existsSync(this.chemin(f)));
+    if (!memes.length) return null;
+    const e = empreinteFichier(source);
+    return memes.find((f) => (f.empreinte || empreinteFichier(this.chemin(f))) === e) || null;
   }
 
   // Pose le lien d'un fichier dans un contenu : <media>/<slug>/b-roll/<id>.<ext> ou photos/[slide-NN-]<id>.<ext>.
@@ -289,6 +322,7 @@ export class Galerie {
       const f = this.fiche(id);
       if (!f) return null;
       if (media) media.deplacer(this.chemin(f), vers, 'galerie_sortie'); else deplacer(this.chemin(f), vers);
+      try { fs.chmodSync(vers, 0o644); } catch { /* il redevient un fichier ordinaire du contenu */ }
       for (const v of f.vignettes || []) fs.rmSync(path.join(this.racine, v), { force: true });
       fs.rmSync(path.join(this.fichesD, `${id}.json`), { force: true });
       media?.noter({ op: 'galerie_retrait', id, fiche: f });
@@ -368,18 +402,75 @@ function misDeCote(depot, slug) {
   return Boolean(lireJson(path.join(depot, 'contenus', slug, 'etat.json'), null)?.refuse);
 }
 
-// Les contenus pas encore postés (ni mis de côté) qui se servent de ce fichier : ils empêchent la suppression.
-export function bloquantsSuppression(f, depot, { maintenant = Date.now() } = {}) {
+// Les contenus pas encore postés (ni mis de côté) qui se servent de ce fichier : ils empêchent la suppression. Un brief
+// qui compte dessus sans l'avoir encore reçu (plan pris dans la Galerie, lien posé seulement avant le montage) aussi.
+export function bloquantsSuppression(f, depot, { maintenant = Date.now(), reservations = null } = {}) {
   const sortis = new Set(postes(depot, { maintenant }).map((p) => p.slug));
-  return [...new Set((f.utilisations || []).map((u) => u.slug))]
+  const parStock = ((reservations || reservationsStock(depot)).get(f.id) || []).map((r) => r.slug);
+  return [...new Set([...(f.utilisations || []).map((u) => u.slug), ...parStock])]
     .filter((s) => !sortis.has(s) && existeContenu(depot, s) && !misDeCote(depot, s));
+}
+
+// Les plans des briefs qui comptent sur un fichier de la Galerie (stock.json à jour du brief, choix du client) sans
+// l'avoir encore reçu : id -> [{ slug, le }]. Le lien n'est posé qu'avant le montage ; sans ceci, deux briefs comparés
+// l'un après l'autre prenaient le même plan, et le second partait au tournage sans lui au moment du montage.
+export function reservationsStock(depot) {
+  const r = new Map();
+  let slugs = [];
+  try { slugs = fs.readdirSync(path.join(depot, 'contenus')); } catch { return r; }
+  for (const slug of slugs) {
+    if (!SLUG.test(slug)) continue;
+    const st = stockAJour(depot, slug);
+    if (!st) continue;
+    const choix = lireJson(path.join(depot, 'contenus', slug, 'stock-choix.json'), null)?.plans || {};
+    const le0 = st.comparaison?.fait_le || st.essentiel_fixe_le || null;
+    for (const p of st.plans) {
+      if (!p || !Number.isInteger(Number(p.n))) continue;
+      const c = choixDuPlan(choix, p);
+      if (c?.choix === 'tourner') continue;
+      const id = c?.choix === 'stock' ? c.id : p.stock?.id;
+      if (!ID_GALERIE.test(String(id || ''))) continue;
+      const le = c?.choix === 'stock' ? c.le || le0 : le0;
+      r.set(id, [...(r.get(id) || []), { slug, le }]);
+    }
+  }
+  return r;
+}
+
+// stock.json d'un reel s'il est à jour de son brief (même empreinte des plans), sinon null.
+function stockAJour(depot, slug) {
+  const dossier = path.join(depot, 'contenus', slug);
+  const stock = lireJson(path.join(dossier, 'stock.json'), null);
+  if (!stock || !Array.isArray(stock.plans)) return null;
+  if (stock.plans_empreinte) {
+    let script = '';
+    try { script = fs.readFileSync(path.join(dossier, 'script.md'), 'utf8'); } catch { /* pas de brief : rien à comparer */ }
+    if (empreintePlans(script) !== stock.plans_empreinte) return null;
+  }
+  return stock;
+}
+
+// Le choix du client pour ce plan, s'il porte bien sur lui : il est rangé par numéro, et un brief retouché (plan inséré
+// ou retiré) donne ce numéro à un autre plan. Un choix qui garde le texte de son plan ne vaut que pour ce texte.
+const sansEspaces = (t) => String(t || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+function choixDuPlan(choix, p) {
+  const c = choix?.[String(Number(p.n))] || null;
+  if (!c) return null;
+  if (c.texte != null && sansEspaces(c.texte) !== sansEspaces(p.texte)) return null;
+  return c;
+}
+
+// Avant ou après : deux dates ISO (fuseaux différents possibles), puis le nom du contenu pour départager.
+function avant(a, b) {
+  const ta = lireDate(a.le)?.getTime() ?? Infinity, tb = lireDate(b.le)?.getTime() ?? Infinity;
+  return ta < tb || (ta === tb && a.slug < b.slug);
 }
 
 // La règle des 3 vidéos, calculée sur le registre des publications (jamais de mémoire) : pour chaque fichier,
 // sa dernière vidéo postée (il_y_a = 1 pour la dernière vidéo sortie du compte), les contenus pas encore postés
 // qui le réservent, et s'il peut resservir à `pour` (un slug, facultatif). Les photos de carrousel resservent sans
 // limite ; la règle vaut pour les b-rolls.
-export function ecart(f, depot, { pour = null, maintenant = Date.now(), sorties = null } = {}) {
+export function ecart(f, depot, { pour = null, maintenant = Date.now(), sorties = null, reservations = null } = {}) {
   const liste = sorties || postes(depot, { maintenant });
   const videos = liste.filter((p) => p.format === 'reel');
   const slugs = [...new Set((f.utilisations || []).map((u) => u.slug))];
@@ -387,13 +478,20 @@ export function ecart(f, depot, { pour = null, maintenant = Date.now(), sorties 
   let derniere = null;
   videos.forEach((p, i) => { if (slugs.includes(p.slug)) derniere = { slug: p.slug, le: isoZurich(new Date(p.quand)), il_y_a: videos.length - i }; });
   const postees = videos.filter((p) => slugs.includes(p.slug)).length;
-  const reserve = slugs.filter((s) => s !== pour && !sortis.has(s) && existeContenu(depot, s) && !misDeCote(depot, s));
+  const libre = (s) => s !== pour && !sortis.has(s) && existeContenu(depot, s) && !misDeCote(depot, s);
+  const reserveLiens = slugs.filter(libre);
+  // Les briefs qui comptent dessus sans l'avoir reçu : le premier qui l'a pris le garde (date de sa comparaison ou du
+  // choix du client) ; pour un contenu qui ne l'a pas pris, tous comptent.
+  const prises = f.type === 'b-roll' ? ((reservations || reservationsStock(depot)).get(f.id) || []) : [];
+  const mien = prises.filter((x) => x.slug === pour).sort((a, b) => (avant(a, b) ? -1 : 1))[0] || null;
+  const parStock = prises.filter((x) => libre(x.slug) && (!mien || avant(x, mien))).map((x) => x.slug);
+  const reserve = [...new Set([...reserveLiens, ...parStock])];
   let reutilisable = true, raison = null;
   if (f.type === 'b-roll') {
     if (reserve.length) { reutilisable = false; raison = 'reserve'; }
     else if (derniere && derniere.il_y_a < ECART_MIN && derniere.slug !== pour) { reutilisable = false; raison = 'recent'; }
   }
-  return { videos_postees: postees, derniere, reserve, reutilisable, raison, attendre: raison === 'recent' ? ECART_MIN - derniere.il_y_a : 0 };
+  return { videos_postees: postees, derniere, reserve, reserve_liens: reserveLiens, reutilisable, raison, attendre: raison === 'recent' ? ECART_MIN - derniere.il_y_a : 0 };
 }
 
 // ---------------------------------------------------------------- le stock d'un brief (format de la phase 2)
@@ -420,20 +518,16 @@ export function empreintePlans(texte) {
   return `sha256:${crypto.createHash('sha256').update(lignes.join('\n')).digest('hex').slice(0, 16)}`;
 }
 
-export function plansEffectifs(config, slug, { galerie = new Galerie(dossierGalerie(config)), maintenant = Date.now() } = {}) {
+export function plansEffectifs(config, slug, { galerie = new Galerie(dossierGalerie(config)), maintenant = Date.now(), reservations = null } = {}) {
   const dossier = path.join(config.depot, 'contenus', slug);
-  const stock = lireJson(path.join(dossier, 'stock.json'), null);
-  if (!stock || !Array.isArray(stock.plans)) return null;
-  if (stock.plans_empreinte) {
-    let script = '';
-    try { script = fs.readFileSync(path.join(dossier, 'script.md'), 'utf8'); } catch { /* pas de brief : rien à comparer */ }
-    if (empreintePlans(script) !== stock.plans_empreinte) return null;
-  }
+  const stock = stockAJour(config.depot, slug);
+  if (!stock) return null;
   const choix = lireJson(path.join(dossier, 'stock-choix.json'), null)?.plans || {};
   const sorties = postes(config.depot, { maintenant });
+  const resa = reservations || reservationsStock(config.depot);
   return stock.plans.filter((p) => p && Number.isInteger(Number(p.n))).map((p) => {
     const n = Number(p.n);
-    const c = choix[String(n)] || null;
+    const c = choixDuPlan(choix, p);
     const base = { n, type: p.type === 'photo' ? 'photo' : 'b-roll', texte: String(p.texte || ''), phrase: p.phrase || null,
       essentiel: p.essentiel || null, detail: p.detail || null, duree_s: Number(p.duree_s) || null };
     if (c?.choix === 'tourner') return { ...base, etat: 'a_tourner', par: 'toi', note: p.manque || null, proposition: p.stock?.id || null };
@@ -442,7 +536,9 @@ export function plansEffectifs(config, slug, { galerie = new Galerie(dossierGale
     const f = pris ? galerie.fiche(pris.id) : null;
     if (!pris) return { ...base, etat: 'a_tourner', note: p.manque || null };
     if (!f) return { ...base, etat: 'a_tourner', note: "Le fichier prévu n'est plus dans ta Galerie : celui-là, il faut le faire." };
-    const e = ecart(f, config.depot, { pour: slug, sorties });
+    const e = ecart(f, config.depot, { pour: slug, sorties, reservations: resa });
+    // Le choix du client ne prend qu'un fichier du bon genre (un choix d'avant pour un plan changé depuis).
+    if (f.type !== base.type) return { ...base, etat: 'a_tourner', note: p.manque || null };
     if (!e.reutilisable && pris.par === 'proposition') {
       return { ...base, etat: 'a_tourner', note: e.raison === 'reserve' ? 'Le plan prévu sert déjà à un autre contenu pas encore posté : celui-là, il faut le faire.'
         : `Le plan prévu est passé dans une vidéo trop récente : celui-là, il faut le faire.` };
@@ -474,13 +570,87 @@ export function relierStock(config, slug, { galerie = new Galerie(dossierGalerie
   return faits;
 }
 
+// ---------------------------------------------------------------- le plan de tournage face au stock
+
+// Même règle que tournage.py (meme_phrase) : deux phrases égales sans accents ni ponctuation, ou l'une dans l'autre.
+function normPhrase(t) {
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+export function memePhrase(a, b) {
+  const x = normPhrase(a), y = normPhrase(b);
+  if (!x || !y) return false;
+  return x === y || (Math.min(x.length, y.length) >= 8 && (x.includes(y) || y.includes(x)));
+}
+
+// Ce que montre un plan du brief, sans « Vidéo, 3 s : » devant ni « Pour « ... » » derrière.
+function sujetDuPlan(texte) {
+  return String(texte || '').replace(/^\s*(?:vid[ée]o|photo)\b[^:]*:\s*/i, '').replace(/\s*[.,;]?\s*Pour\s*[«"“].*$/i, '').trim() || String(texte || '').trim();
+}
+
+// Les prises d'un plan de tournage telles qu'elles valent maintenant (lot 15) : le plan de tournage est écrit une fois,
+// mais le client peut encore choisir dans la Galerie. Une prise dont tous les plans sont désormais pris dans la Galerie
+// n'est plus à tourner (en_galerie) ; un plan passé « à tourner » après coup (« J'en tourne un nouveau ») qu'aucune prise
+// ne couvre devient une prise ajoutée (ajoutee, numéro stable : 1000 + 100 x rang du contenu + numéro du plan).
+// B-rolls : par la phrase du plan (comme tournage.py verifier) ; photos : par leur nombre. Sans stock.json : rien ne change.
+export function prisesEffectives(config, t, { galerie = null } = {}) {
+  const prises = (t?.prises || []).map((p) => ({ ...p }));
+  const contenus = Array.isArray(t?.contenus) ? t.contenus : [];
+  const g = galerie || new Galerie(dossierGalerie(config));
+  let resa = null;
+  const couverts = new Map();   // n -> slugs pour lesquels la prise n'a plus rien à montrer
+  const ajoutees = [];
+  contenus.forEach((slug, k) => {
+    if (!SLUG.test(String(slug || ''))) return;
+    let plans = null;
+    try { plans = plansEffectifs(config, slug, { galerie: g, reservations: resa ||= reservationsStock(config.depot) }); } catch { plans = null; }
+    if (!plans) return;
+    const phrasesDe = (p) => (p.contenus || []).filter((c) => c.slug === slug).flatMap((c) => (c.usages || []).map((u) => u.phrase).filter(Boolean));
+    const ajouter = (plan, type) => ajoutees.push({
+      n: 1000 + 100 * k + plan.n, type, contenus: [{ slug, usages: plan.phrase ? [{ phrase: plan.phrase, mouvement: 1 }] : [] }],
+      lieu: null, materiel: [], ce_qu_on_voit: sujetDuPlan(plan.texte), mouvements: type === 'b-roll' ? [sujetDuPlan(plan.texte)] : [],
+      duree_s: plan.duree_s || null, deja_en_bibliotheque: null, ajoutee: true,
+    });
+    // B-rolls : par la phrase.
+    const bp = plans.filter((x) => x.type === 'b-roll');
+    const enStock = bp.filter((x) => x.etat === 'stock'), aTourner = bp.filter((x) => x.etat === 'a_tourner');
+    const pb = prises.filter((p) => p.type === 'b-roll' && (p.contenus || []).some((c) => c.slug === slug));
+    for (const p of pb) {
+      const ph = phrasesDe(p);
+      if (!ph.length) continue;
+      if (ph.every((x) => enStock.some((s) => memePhrase(s.phrase, x)) && !aTourner.some((a) => memePhrase(a.phrase, x)))) {
+        couverts.set(p.n, new Set([...(couverts.get(p.n) || []), slug]));
+      }
+    }
+    for (const a of aTourner) {
+      if (!a.phrase || pb.some((p) => phrasesDe(p).some((x) => memePhrase(a.phrase, x)))) continue;
+      ajouter(a, 'b-roll');
+    }
+    // Photos : autant de prises que de photos à prendre (tournage.py verifier compte les photos).
+    const photosATourner = plans.filter((x) => x.type === 'photo' && x.etat === 'a_tourner');
+    const pp = prises.filter((p) => p.type === 'photo' && !p.deja_en_bibliotheque && (p.contenus || []).length === 1 && p.contenus[0].slug === slug);
+    if (pp.length > photosATourner.length) {
+      for (const p of pp.slice(photosATourner.length)) couverts.set(p.n, new Set([slug]));
+    } else if (photosATourner.length > pp.length) {
+      for (const a of photosATourner.slice(pp.length)) ajouter(a, 'photo');
+    }
+  });
+  for (const p of prises) {
+    const c = couverts.get(p.n);
+    if (c && (p.contenus || []).every((x) => c.has(x.slug))) p.en_galerie = true;
+  }
+  const nums = new Set(prises.map((p) => p.n));
+  return [...prises, ...ajoutees.filter((p) => !nums.has(p.n))];
+}
+
 // Écrit le choix du client pour un plan (« J'en tourne un nouveau », « Prends plutôt celui-là »).
-export function ecrireChoixPlan(config, slug, n, choix) {
+export function ecrireChoixPlan(config, slug, n, choix, { texte = null } = {}) {
   const p = path.join(config.depot, 'contenus', slug, 'stock-choix.json');
   const d = lireJson(p, null) || { version: 1, plans: {} };
   d.plans = d.plans || {};
+  // Le texte du plan est gardé avec le choix : un brief retouché qui renumérote les plans ne le reporte pas sur un autre.
   if (choix === null) delete d.plans[String(n)];
-  else d.plans[String(n)] = { ...choix, le: isoZurich() };
+  else d.plans[String(n)] = { ...choix, ...(texte ? { texte } : {}), le: isoZurich() };
   ecrireJson(p, d);
   return d;
 }

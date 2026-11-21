@@ -115,7 +115,7 @@ export class AjoutGalerie {
       if (l.etat === "envoi") fin = el("span", { class: "ajout-progres" }, el("progress", { max: "100", value: String(l.n), "aria-label": `Envoi de ${l.f.name}` }),
         el("span", { class: "ajout-pct" }, l.n >= 100 ? "Je le garde..." : `${l.n} %`));
       else if (l.etat === "pret") fin = el("span", { class: "ajout-etat" }, "En attente");
-      else if (l.etat === "fait") fin = el("span", { class: "ajout-etat ajout-ok", html: `${icone("coche")}<span>Dans ta Galerie</span>` });
+      else if (l.etat === "fait") fin = el("span", { class: "ajout-etat ajout-ok", html: `${icone("coche")}<span>${l.doublon ? "Déjà dans ta Galerie" : "Dans ta Galerie"}</span>` });
       else fin = el("span", { class: "ajout-etat ajout-erreur" }, l.message || "Pas gardé.");
       return el("li", { class: `ajout-ligne ajout-${l.etat}`, dataset: { i: String(i) } },
         el("span", { class: "ajout-fichier" }, el("span", { class: "ajout-nom", title: l.f.name }, l.f.name), el("span", { class: "ajout-poids" }, poids(l.f.size))), fin);
@@ -148,13 +148,15 @@ export class AjoutGalerie {
       const tache = this.api.envoyerGalerie(l.f, { slug: this.slug, slide: this.slide }, maj);
       this.envoi = { arreter: () => { arrete = true; tache.arreter(); } };
       this.dessiner();
-      try { await tache.fin; l.etat = "fait"; faits++; }
+      try { const r = await tache.fin; l.etat = "fait"; if (r?.doublon) l.doublon = true; else faits++; }
       catch (e) { l.etat = e.code === "ARRETE" ? "arrete" : "erreur"; l.message = e.code === "ARRETE" ? "Envoi arrêté : rien n'est gardé." : e.message; }
       this.envoi = null;
       this.dessiner();
     }
+    const doublons = this.lignes.filter((l) => l.etat === "fait" && l.doublon).length;
     if (faits) annoncer(faits > 1 ? `${faits} fichiers dans ta Galerie : je les décris un par un.` : "C'est dans ta Galerie : je le décris.");
-    if (this.lignes.every((l) => l.etat === "fait")) this.lignes = [];
+    else if (doublons) annoncer(doublons > 1 ? "Ces fichiers sont déjà dans ta Galerie : je ne les garde pas deux fois." : "Ce fichier est déjà dans ta Galerie : je ne le garde pas deux fois.");
+    if (this.lignes.every((l) => l.etat === "fait" && !l.doublon)) this.lignes = [];
     this.dessiner();
     this.apres?.();
   }
@@ -468,7 +470,7 @@ export class VueGalerie {
     const s = this.studio;
     const lignes = f.utilisations.map((u) => {
       const meta = u.poste_le ? `posté le ${jour(u.poste_le)}` : !u.existe ? "ce contenu n'existe plus"
-        : u.stade === "abandonne" ? "mis de côté" : `pas encore posté${u.libelle ? `, ${u.libelle}` : ""}`;
+        : u.stade === "abandonne" ? "mis de côté" : u.prevu ? "prévu par son brief, pas encore posté" : `pas encore posté${u.libelle ? `, ${u.libelle}` : ""}`;
       const b = el("button", { class: "accueil-ligne", type: "button" },
         el("span", { class: `pastille pastille-${u.format || "reel"}`, "aria-hidden": "true" }),
         el("span", { class: "ligne-corps" }, el("span", { class: "ligne-titre" }, u.titre),

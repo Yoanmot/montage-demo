@@ -27,7 +27,7 @@ import { alertes as lireAlertes } from "./alertes.mjs";
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
-import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible } from "./tournage.mjs";
+import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible, planEffectif } from "./tournage.mjs";
 import { arriveesPertinentes, typeFichier, verrouPris, voixAttendues } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser, clientActif } from "./client.mjs";
@@ -726,10 +726,12 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     if (!recu) return undefined;
     try {
       const r = await outilGalerie(config, ["ajouter", recu.chemin, "--envoi", ...(slug ? ["--slug", slug] : []), ...(slide ? ["--slide", slide] : [])]);
-      journal("galerie_ajout", { type: r.champs.type, taille, slug: slug || undefined });
-      file.ajouterDescription(r.champs.id);
+      const doublon = r.champs.doublon === "1";
+      journal("galerie_ajout", { type: r.champs.type, taille, slug: slug || undefined, ...(doublon ? { doublon } : {}) });
+      // Un fichier déjà dans la Galerie (envoyé deux fois) : il n'entre pas une deuxième fois, sa description reste.
+      if (!doublon) file.ajouterDescription(r.champs.id);
       apresGalerie({ slug });
-      return envoyerJson(res, 200, { id: r.champs.id, type: r.champs.type });
+      return envoyerJson(res, 200, { id: r.champs.id, type: r.champs.type, ...(doublon ? { doublon: true } : {}) });
     } finally {
       fs.rmSync(recu.dossier, { recursive: true, force: true });
     }
@@ -1047,8 +1049,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       const t = lireTournage(config, id);
       if (!t) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce plan de tournage.", 404);
       const { brut, titres, ...lisible } = t;
-      const plan = { ...brut, id };
-      const nums = new Set((brut.prises || []).map((x) => x.n));
+      // Lot 15 : les prises telles qu'elles valent maintenant (plan pris dans la Galerie ou ajouté après coup).
+      const plan = planEffectif(config, { ...brut, id });
+      const nums = new Set((plan.prises || []).map((x) => x.n));
       const reponse = (suivi) => {
         const pub = suiviPublic(suivi, rangementsTournage.has(id));
         // Ce qui arrive en ce moment, quand l'écran doit le montrer : envoi coché pas encore validé, ou plan à finir.
@@ -1374,7 +1377,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
         const r = await outilGalerie(config, ["ajouter", chemin, "--a-ranger"]);
         fs.rmSync(path.join(config.media, "_a-ranger", ".vignettes", `${nom}.jpg`), { force: true });
-        file.ajouterDescription(r.champs.id);
+        if (r.champs.doublon !== "1") file.ajouterDescription(r.champs.id);
         apresGalerie();
         majARanger({ frais: true });
         return envoyerJson(res, 200, { id: r.champs.id });

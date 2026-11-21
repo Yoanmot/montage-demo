@@ -14,6 +14,7 @@ import { estOriginale } from "./stades.mjs";
 import { arriveesPertinentes, voixAttendues } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
 import { contact } from "./client.mjs";
+import { Galerie, dossierGalerie, lienVersId, prisesEffectives } from "../rangement/lib/galerie.mjs";
 
 const VIDE = { version: 1, coches: [], sautees: [], envoi: false, verification: null, valide_le: null, rangement: null };
 
@@ -39,10 +40,19 @@ export function ecrireSuivi(config, id, suivi) {
 
 const pluriel = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
 
-// Prises qu'il faut filmer : ni « déjà en bibliothèque », ni sautées par Romain.
-function aFilmer(t, suivi) {
+// Le plan tel qu'il vaut maintenant (lot 15) : une prise dont le plan a été pris dans la Galerie après coup n'est plus
+// à tourner, un plan passé « à tourner » après coup y est ajouté (rangement/lib/galerie.mjs, prisesEffectives).
+export function planEffectif(config, t) {
+  if (!t || t.effectif) return t;
+  let prises = t.prises || [];
+  try { prises = prisesEffectives(config, t); } catch { /* Galerie illisible : le plan tel qu'il est écrit */ }
+  return { ...t, prises, effectif: true };
+}
+
+// Prises qu'il faut filmer : ni « déjà en bibliothèque », ni déjà dans la Galerie, ni sautées par Romain.
+function aFilmer(config, t, suivi) {
   const sautees = new Set(suivi.sautees);
-  return (t.prises || []).filter((p) => ["face", "b-roll", "photo"].includes(p.type) && !p.deja_en_bibliotheque && !sautees.has(p.n));
+  return (planEffectif(config, t).prises || []).filter((p) => ["face", "b-roll", "photo"].includes(p.type) && !p.deja_en_bibliotheque && !p.en_galerie && !sautees.has(p.n));
 }
 
 // Ce qui est déjà rangé pour ce plan (plans d'avant le lot 12, rangés à l'arrivée) : ces prises ne sont
@@ -51,8 +61,16 @@ function dejaRangees(config, t) {
   const r = new Set();
   const index = lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {};
   const clipsDuPlan = Object.values(index).filter((c) => c.tournage === t.id && c.prise != null).map((c) => c.prise);
+  // Lot 15 : les b-rolls d'un tournage sont rangés dans la Galerie (fiche : tournage et prise), plus dans la bibliothèque.
+  const g = new Galerie(dossierGalerie(config));
+  const fiches = g.index().fichiers;
+  for (const f of fiches) if (f.origine?.tournage === t.id && f.origine.prise != null) clipsDuPlan.push(f.origine.prise);
+  const parId = new Map(fiches.map((f) => [f.id, f]));
+  // Une photo du contenu compte pour ce plan si elle n'est pas un fichier de la Galerie venu d'ailleurs (un plan pris
+  // dans la Galerie, une photo de slide) : seulement celles arrivées par ce tournage, ou d'avant la Galerie.
+  const dePlan = (nom) => { const l = lienVersId(nom); const f = l ? parId.get(l.id) : null; return !f || f.origine?.tournage === t.id; };
   const photosPar = new Map();
-  for (const p of t.prises || []) {
+  for (const p of planEffectif(config, t).prises || []) {
     const slugs = (p.contenus || []).map((c) => c.slug);
     if (p.type === "face") {
       if (slugs.some((s) => lister(path.join(config.media, s, "face")).some((e) => !e.isDirectory() && estOriginale(e.name)))) r.add(p.n);
@@ -61,7 +79,7 @@ function dejaRangees(config, t) {
     } else if (p.type === "photo" && slugs[0]) {
       const s = slugs[0];
       if (!photosPar.has(s)) {
-        photosPar.set(s, lister(path.join(config.media, s, "photos")).filter((e) => !e.name.startsWith(".") && EXT_IMAGE.has(path.extname(e.name).toLowerCase())).length);
+        photosPar.set(s, lister(path.join(config.media, s, "photos")).filter((e) => !e.name.startsWith(".") && EXT_IMAGE.has(path.extname(e.name).toLowerCase()) && dePlan(e.name)).length);
       }
       if (photosPar.get(s) > 0) { r.add(p.n); photosPar.set(s, photosPar.get(s) - 1); }
     }
@@ -93,7 +111,7 @@ export function receptionDuPlan(config, t) {
 // sa voix (plans filmés avec sa voix).
 export function verifierArrivees(config, t, suivi) {
   const rangees = dejaRangees(config, t);
-  const attendues = aFilmer(t, suivi).filter((p) => !rangees.has(p.n));
+  const attendues = aFilmer(config, t, suivi).filter((p) => !rangees.has(p.n));
   const attendu = { videos: attendues.filter((p) => p.type !== "photo").length, photos: attendues.filter((p) => p.type === "photo").length };
   const { fichiers, partiels, en_cours: enCours } = arriveesPertinentes(config.arrivees, lireDate(t.cree_le) || new Date(0),
     { audio: voixAttendues(config, t).length > 0 });
@@ -128,7 +146,7 @@ export function verifierArrivees(config, t, suivi) {
 // posées dans « À ranger »). Tant qu'il en reste, le plan reste « à finir » et propose de ranger à nouveau.
 export function resteARanger(config, t, suivi) {
   const rangees = dejaRangees(config, t);
-  const attendues = aFilmer(t, suivi).filter((p) => !rangees.has(p.n));
+  const attendues = aFilmer(config, t, suivi).filter((p) => !rangees.has(p.n));
   const j = lireJson(path.join(config.media, "_a-ranger", "a-ranger.json"), null);
   const liste = Array.isArray(j?.fichiers) ? j.fichiers : j?.fichiers && typeof j.fichiers === "object"
     ? Object.entries(j.fichiers).map(([nom, v]) => ({ nom, ...v })) : [];
@@ -165,12 +183,14 @@ export function bulles(config, t, titres = new Map()) {
     return textes.get(slug);
   };
   const contenusDe = (p) => (p.contenus || []).map((c) => ({ slug: c.slug, titre: titres.get(c.slug) || c.slug }));
-  const prises = (t.prises || []).filter((p) => ORDRE_TYPES.includes(p.type))
+  const prises = (planEffectif(config, t).prises || []).filter((p) => ORDRE_TYPES.includes(p.type))
     .map((p, i) => ({ p, i })).sort((a, b) => ORDRE_TYPES.indexOf(a.p.type) - ORDRE_TYPES.indexOf(b.p.type) || a.i - b.i)
     .map((x) => x.p);
   return prises.map((p) => {
     const b = { n: p.n, type: p.type, lieu: p.lieu || null, materiel: Array.isArray(p.materiel) ? p.materiel : [],
-      duree_s: Number(p.duree_s) || null, deja: Boolean(p.deja_en_bibliotheque), contenus: contenusDe(p) };
+      duree_s: Number(p.duree_s) || null, deja: Boolean(p.deja_en_bibliotheque || p.en_galerie), contenus: contenusDe(p),
+      // Lot 15 : pris dans la Galerie après le plan (rien à tourner), ou ajouté après le plan (« J'en tourne un nouveau »).
+      ...(p.en_galerie ? { galerie: true } : {}), ...(p.ajoutee ? { ajoutee: true } : {}) };
     if (p.type === "face") {
       b.titre = "Face caméra";
       // Un reel en plans filmés avec sa voix : la prise face caméra est sa voix seule (2026-11-20).

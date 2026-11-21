@@ -30,7 +30,7 @@ import { lireConfig, lireJson, isoZurich, sonder, typeFichier, clipId, nomLibre,
 import { racines, texteDuScript, reconnaitreFace, apparier, validerVue, genreDe, principauxSansParole } from './lib/reconnaitre.mjs';
 import { transcrire, vignettes, imagePhoto, regarder, promptVue } from './lib/sens.mjs';
 import { Media } from './lib/media.mjs';
-import { Galerie, dossierGalerie, lienVersId } from './lib/galerie.mjs';
+import { Galerie, dossierGalerie, lienVersId, prisesEffectives } from './lib/galerie.mjs';
 
 const RAISONS = {
   partiel: "ce fichier n'est pas encore arrivé en entier",
@@ -170,6 +170,9 @@ async function ranger(o) {
     note(o.tournage ? `tournage ${o.tournage} introuvable` : 'aucun tournage en cours');
     say('FIN places=0 a_ranger=0'); return 0;
   }
+  // Lot 15 : le plan tel qu'il vaut maintenant. Une prise dont le plan a été pris dans la Galerie après coup n'est plus
+  // attendue (un fichier filmé quand même entre dans la Galerie) ; un plan passé « à tourner » après coup est attendu.
+  try { t.prises = prisesEffectives(config, t); } catch (e) { note(`plans du brief illisibles : ${e.message}`); }
   note(`tournage ${t.id} (${t.contenus?.length || 0} contenus)`);
   if (!simulation) media.ouvrir('ranger', t.id);
   const travail = fs.mkdtempSync(path.join(os.tmpdir(), 'rangement-'));
@@ -242,7 +245,7 @@ async function ranger(o) {
     }
 
     // 4. B-rolls et photos : ordre de tournage et durée, puis confirmation par l'image.
-    const aFilmer = (type) => t.prises.filter((p) => p.type === type && !p.deja_en_bibliotheque);
+    const aFilmer = (type) => t.prises.filter((p) => p.type === type && !p.deja_en_bibliotheque && !p.en_galerie);
     for (const [type, liste] of [['b-roll', sansParole], ['photo', photos]]) {
       if (!liste.length) continue;
       const prises = aFilmer(type);

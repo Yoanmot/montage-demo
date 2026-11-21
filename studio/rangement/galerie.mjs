@@ -25,7 +25,7 @@ import { lireConfig, lireJson, prendreVerrou, SLUG, typeFichier, isoZurich } fro
 import { vignettes, imagePhoto } from './lib/sens.mjs';
 import { Media } from './lib/media.mjs';
 import { Galerie, dossierGalerie, ID_GALERIE, validerDescription, ecart, postes, plansEffectifs, relierStock, ecrireChoixPlan,
-  infosEntree, lienVersId } from './lib/galerie.mjs';
+  infosEntree, lienVersId, reservationsStock } from './lib/galerie.mjs';
 
 const say = (l) => process.stdout.write(l + '\n');
 const bloque = (code, phrase) => { say(`BLOQUE ${code} ${phrase}`); return 2; };
@@ -61,10 +61,11 @@ const contenuExiste = (slug) => SLUG.test(slug) && fs.existsSync(path.join(confi
 
 function lister() {
   const sorties = postes(config.depot);
+  const reservations = reservationsStock(config.depot);
   const pour = o.pour && SLUG.test(o.pour) ? o.pour : null;
   const fichiers = galerie.index().fichiers.map((f) => {
     const { fichier, vignettes: v, ...reste } = f;
-    return { ...reste, ecart: ecart(f, config.depot, { pour, sorties }) };
+    return { ...reste, ecart: ecart(f, config.depot, { pour, sorties, reservations }) };
   });
   say(JSON.stringify({ version: 1, regle: { ecart_min_videos: 3 }, fichiers }, null, 2));
   return 0;
@@ -102,14 +103,14 @@ function ajouter() {
             : vignettes(fichier, infos.duree, path.join(galerie.vignettesD, id));
         },
       });
-      say(`AJOUTE ${fiche.id} ${fiche.type}`);
+      say(fiche.doublon ? `DOUBLON ${fiche.id} ${fiche.type} déjà dans la Galerie` : `AJOUTE ${fiche.id} ${fiche.type}`);
       if (o.slug) {
         if (slide()) for (const autre of photosDeLaSlide(o.slug, slide())) if (autre !== fiche.id) galerie.delier(config.media, o.slug, autre, { slide: slide(), media });
         galerie.lier(config.media, o.slug, fiche.id, { slide: slide(), source: 'toi', media });
         say(`POSE ${fiche.id} -> ${o.slug}/${fiche.type === 'photo' ? 'photos' : 'b-roll'}`);
       }
     } finally { media.fermer(); }
-    say(`OK id=${fiche.id} type=${fiche.type}`);
+    say(`OK id=${fiche.id} type=${fiche.type}${fiche.doublon ? ' doublon=1' : ''}`);
     return 0;
   });
 }
@@ -216,7 +217,7 @@ function plan() {
     ecrit = { choix: 'stock', id, debut: Number.isFinite(debut) ? debut : null, fin: Number.isFinite(fin) ? fin : null };
   }
   return avecVerrouMedia(() => {
-    ecrireChoixPlan(config, slug, n, ecrit);
+    ecrireChoixPlan(config, slug, n, ecrit, { texte: p.texte });
     for (const l of relierStock(config, slug, { galerie })) say(l);
     const apres = plansEffectifs(config, slug, { galerie }).find((x) => x.n === n);
     say(`PLAN ${slug} ${n} ${apres.etat}`);
@@ -261,6 +262,8 @@ try {
 } catch (e) {
   process.stderr.write(`erreur : ${e.stack || e.message}\n`);
   if (e.code === 'OCCUPE') code = bloque('OCCUPE', 'la Galerie est occupée, réessaie dans un instant');
+  // Supprimé entre la vérification et l'écriture (une suppression passée juste avant) : un refus clair, pas un plantage.
+  else if (e.code === 'INCONNU') code = bloque('INCONNU', "ce fichier n'est plus dans ta Galerie");
   else code = 1;
 }
 process.exitCode = code;

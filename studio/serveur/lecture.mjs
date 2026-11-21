@@ -13,7 +13,7 @@ import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./re
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 import { autresFichiers } from "./autres.mjs";
 import { listePlateformes } from "../publication/plateformes.mjs";
-import { Galerie, dossierGalerie, lienVersId } from "../rangement/lib/galerie.mjs";
+import { Galerie, dossierGalerie, lienVersId, prisesEffectives } from "../rangement/lib/galerie.mjs";
 import { stockDuBrief, photosDuCarrousel, urlVignette } from "./galerie.mjs";
 
 export function urlMedia(...segments) {
@@ -802,8 +802,12 @@ export function montageDe(config, slug, lu, tournage) {
   // Les prises que le client a sautées dans son plan (« Je ne la fais pas ») ne sont plus attendues.
   const idPlan = tournage ? tournage.id || String(tournage.fichier || "").replace(/\.json$/, "") : null;
   const sautees = new Set(idPlan && config.home ? lireJson(path.join(config.home, "tournages", `${idPlan}.json`), null)?.sautees || [] : []);
-  const prises = (tournage?.prises || []).filter((p) => (p.contenus || []).some((c) => c.slug === slug) && !sautees.has(p.n));
-  const servies = new Set();
+  // Lot 15 : les prises telles qu'elles valent maintenant (plan pris dans la Galerie après le tournage : servi par son
+  // lien, plus attendu ; plan passé « à tourner » après coup : attendu).
+  let prisesPlan = tournage?.prises || [];
+  try { if (tournage) prisesPlan = prisesEffectives(config, tournage); } catch { /* Galerie illisible */ }
+  const prises = prisesPlan.filter((p) => (p.contenus || []).some((c) => c.slug === slug) && !sautees.has(p.n));
+  const servies = new Set(prises.filter((p) => p.en_galerie).map((p) => p.n));
   // Le plan principal d'un reel sans parole est arrivé quand sa vidéo du reel est là (rangement, principauxSansParole).
   if (genre === "plans-texte" && faces.length) {
     const principale = prises.filter((p) => p.type === "b-roll" && !p.deja_en_bibliotheque && (p.contenus || []).length === 1)

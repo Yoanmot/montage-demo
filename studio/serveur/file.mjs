@@ -414,7 +414,7 @@ export class File extends EventEmitter {
     let debut = -1;
     h.forEach((m, i) => { if (m.type === "etat" && m.etat === "en_cours") debut = i; });
     const texte = h.slice(debut + 1).filter((m) => m.type === "texte" && m.role === "studio").map((m) => m.texte).at(-1) || "";
-    const r = ecrireDescriptionDeSession(this.config, a.galerie, texte, a.id);
+    const r = ecrireDescriptionDeSession(this.config, a.galerie, texte, a.id, { action: a });
     if (r.ok || r.absent) return "fini";
     this.journal("description_refusee", { id: a.id, pourquoi: r.pourquoi });
     if (!a.refaite) { a.refaite = true; a.aRefaire = true; return "erreur"; }
