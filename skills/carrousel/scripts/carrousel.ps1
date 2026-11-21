@@ -101,10 +101,36 @@ function Photo($src, $nom, $i) {
   if (-not (Exists $src)) { Fail 2 "PHOTO_INTROUVABLE (slide $i) : $src" }
   $ext = [IO.Path]::GetExtension($src).ToLower()
   if (@(".heic", ".heif") -contains $ext) {
-    $dst = [IO.Path]::Combine($w, "$nom.jpg")
     $ffmpeg = Tool "ffmpeg"
-    & $ffmpeg -nostdin -v error -y -i $src -frames:v 1 -q:v 2 $dst
-    if ($LASTEXITCODE -ne 0 -or -not (Exists $dst)) { Fail 11 "PHOTO_ILLISIBLE (slide $i) : $src. Demande la photo en JPEG." }
+    $sips = "/usr/bin/sips"
+    if (Exists $sips) {
+      # Mac : sans perte et dans les vraies couleurs. ffmpeg seul lit l'image entière dans le bon sens mais
+      # oublie son profil de couleur (Display P3 sur iPhone) : les couleurs sortaient plus ternes. sips (le
+      # décodeur du Mac) convertit en sRGB ; ffmpeg pose ensuite l'image dans le bon sens, en PNG sans perte.
+      # Contrôle : le sens doit être celui que ffmpeg lit seul, sinon on garde la lecture de ffmpeg.
+      $dst = [IO.Path]::Combine($w, "$nom.png")
+      $ref = [IO.Path]::Combine($w, "$nom.ffmpeg.png")
+      $srgb = [IO.Path]::Combine($w, "$nom.srgb.png")
+      & $ffmpeg -nostdin -v error -y -i $src -frames:v 1 $ref
+      if ($LASTEXITCODE -ne 0 -or -not (Exists $ref)) { Fail 11 "PHOTO_ILLISIBLE (slide $i) : $src. Demande la photo en JPEG." }
+      & $sips -s format png -m "/System/Library/ColorSync/Profiles/sRGB Profile.icc" $src --out $srgb *> $null
+      $bon = $false
+      if ($LASTEXITCODE -eq 0 -and (Exists $srgb)) {
+        & $ffmpeg -nostdin -v error -y -i $srgb -frames:v 1 $dst
+        if ($LASTEXITCODE -eq 0 -and (Exists $dst)) {
+          $ffprobe = Tool "ffprobe"
+          $t1 = (& $ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 $ref) -join ""
+          $t2 = (& $ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 $dst) -join ""
+          $bon = ($t1 -and $t1 -eq $t2)
+        }
+      }
+      if (-not $bon) { [IO.File]::Copy($ref, $dst, $true) }
+      foreach ($f in $ref, $srgb) { if (Exists $f) { [IO.File]::Delete($f) } }
+    } else {
+      $dst = [IO.Path]::Combine($w, "$nom.jpg")
+      & $ffmpeg -nostdin -v error -y -i $src -frames:v 1 -q:v 2 $dst
+      if ($LASTEXITCODE -ne 0 -or -not (Exists $dst)) { Fail 11 "PHOTO_ILLISIBLE (slide $i) : $src. Demande la photo en JPEG." }
+    }
   } elseif (@(".jpg", ".jpeg", ".png", ".webp") -contains $ext) {
     $dst = [IO.Path]::Combine($w, "$nom$ext")
     [IO.File]::Copy($src, $dst, $true)

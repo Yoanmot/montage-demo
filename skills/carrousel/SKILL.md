@@ -56,7 +56,7 @@ Crée un dossier `carrousel-<sujet en deux ou trois mots>` (sans `#` ni `%`) :
 - à côté de ses photos s'il en a donné ;
 - sinon dans `%USERPROFILE%\Pictures\Carrousels\` (sur Mac : `~/Pictures/Carrousels/`).
 
-Regarde chaque photo (les JPEG et PNG se lisent directement ; les HEIC d'iPhone, tu les verras après le premier rendu, convertis dans `<dossier>\_rendu\photo-NN.jpg`). Repère où est son visage et où il reste de la place pour le texte.
+Regarde chaque photo (les JPEG et PNG se lisent directement ; les HEIC d'iPhone, tu les verras après le premier rendu, convertis dans `<dossier>\_rendu\photo-NN.png` sur Mac, `photo-NN.jpg` sur Windows). Repère où est son visage et où il reste de la place pour le texte.
 
 ### 4. Écrire `<dossier>\carrousel.json`
 
