@@ -46,6 +46,10 @@ claude -p --input-format stream-json --output-format stream-json --verbose --inc
   - le monteur écrit aussi dans `DEPOT/contenus/**` (`--add-dir` aussi) : un brief changé à sa
     demande, enregistré ensuite comme le fait le head of content (pull, commit, push) ;
   - variables `STUDIO_MEDIA` et `STUDIO_DEPOT` pour que l'agent sache où ranger.
+  - (lot 15) variables `STUDIO_CODE` (le code du studio) et `STUDIO_CONFIG` (son `studio.config.json`) : l'outil de
+    la Galerie, `node "$STUDIO_CODE/rangement/galerie.mjs" <commande> --config "$STUDIO_CONFIG"` (le monteur y
+    cherche un plan qui manque et l'y pose ; la mise en page pose une photo proposée). L'outil prend lui-même les
+    verrous du rangement et de la Galerie.
   La consigne du studio et la tête de chaque agent posent le principe (« le déroulé dit ce que tu
   fais quand on ne demande rien, jamais une limite ») et la liste de ce qui reste fermé.
 - **Modèle** (2026-11-19) : `--model` vient de `claude.modele` de `studio.config.json`, sinon de

@@ -46,7 +46,7 @@ ce moment-là**. Avant de choisir quoi que ce soit, lis chaque phrase et demande
 | Une multitude **affirmée** : il dit qu'une chose se voit, se dit, se vend partout ou tout le temps (« on voit ça partout », « tout le monde dit », « tu l'as lu cent fois ») | **la multitude** : plein de pages, de captures, qui défilent autour du mot fixe (geste `partout`). Les pages sont la **preuve** de ce qu'il affirme : sans affirmation de fréquence, elles ne prouvent rien |
 | Une connivence, un constat partagé : il prend le spectateur à témoin d'une expérience commune, d'un « toi aussi tu connais » | **lui**, sur sa caméra : c'est un regard échangé, pas une preuve à montrer. Ni multitude ni plein écran |
 | Une question qu'il pose au spectateur | **toujours une animation sur lui** (geste `texte-sur-lui`, forme `question`) : ses mots apparaissent au-dessus de sa tête sur sa voix, il reste à l'image (contrôle `QUESTION_SUR_LUI`) |
-| Une chose concrète qu'on peut voir (un exercice, un geste, un aliment, un objet, un écran, une scène de la vie) | **la chose**, filmée par lui ; s'il ne l'a pas filmée, l'écran « B-ROLL » qui dit quoi filmer (geste `plan-a-filmer`), jamais escamoté |
+| Une chose concrète qu'on peut voir (un exercice, un geste, un aliment, un objet, un écran, une scène de la vie) | **la chose**, filmée par lui (pour cette vidéo ou déjà dans sa Galerie) ; sinon, l'écran « B-ROLL » qui dit quoi filmer (geste `plan-a-filmer`), jamais escamoté |
 | La phrase à retenir (le renversement, la promesse, le chiffre qui compte) | le **plein écran qui commence sur lui** (geste `plein-ecran-visage`) |
 | Une confidence, une émotion, une adresse directe au spectateur | lui, de près : le zoom qui suit sa tête |
 
@@ -75,8 +75,10 @@ Et toujours :
   arrive ensuite prend sa couleur. Chaque transition (entrée et sortie) a son flash et son clic.
 - **Le texte à l'écran remplace les sous-titres, jamais les deux.** Pendant l'accroche, pendant un plein écran, pendant
   la multitude : pas de sous-titres dessous (ni pavé orange, ni pavé craie). Les briques le font.
-- **Le manque se voit.** Un plan filmé qui manque n'est jamais remplacé par rien : l'écran « B-ROLL » prend sa place et
-  dit ce qu'il faut filmer ; Romain le filme, le clip prend la place.
+- **Le manque se voit.** Un plan filmé qui manque n'est jamais remplacé par rien. D'abord sa Galerie : un plan qu'il a
+  déjà filmé et qui montre tout ce que la phrase doit montrer, sans rien de contraire, prend la place (le détail peut
+  différer ; règle des 3 vidéos respectée ; agent, « Sa Galerie »). Sinon l'écran « B-ROLL » prend sa place et dit ce
+  qu'il faut filmer ; Romain le filme, le clip prend la place.
 - **Pas de recette.** Ces formes sont des réponses à des phrases ; une vidéo sans exemples parallèles n'a pas de
   substitution, une vidéo sans liste n'a pas de figures. Ce qui ne colle à aucune phrase ne se pose pas.
 

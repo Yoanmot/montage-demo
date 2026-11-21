@@ -89,7 +89,8 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 5. **Pose le reste, dans cet ordre** :
    1. ce qu'il montre : chaque chose concrète qu'il cite et qu'on peut voir a son plan filmé, sur la phrase
       qui la cite, en coupe sèche (un flash avec clic seulement à un changement de lieu ou de partie) ; sans
-      clip, l'écran « B-ROLL » (`plan-a-filmer`) avec ce qu'il faut filmer ;
+      clip, un plan de sa Galerie qui la montre (agent, « Sa Galerie »), sinon l'écran « B-ROLL »
+      (`plan-a-filmer`) avec ce qu'il faut filmer ;
    2. la phrase à retenir en plein écran qui commence sur lui (`plein-ecran-visage`), flash et clic à la
       sortie ;
    3. la multitude (`partout`) s'il **affirme** qu'une chose se voit ou se dit partout (les pages en sont la
@@ -188,8 +189,10 @@ une simple trace dans le dossier de montage.
 - [ ] Aucun effet « sur sa demande » (sous-titres enrichis, mème, carte, demi-écran, format connu,
   animation qui illustre) qu'il n'a pas demandé, pour cette vidéo ou dans ta mémoire.
 - [ ] Ses clips sont posés sur la phrase qu'ils jouent, chacun vérifié sur sa vignette ; jamais un
-  clip qui montre autre chose que ce qu'il dit ; une chose concrète citée sans clip (exercice, geste,
-  aliment, scène de vie, même citée pour s'en moquer) a son écran « B-ROLL » qui dit quoi filmer.
+  clip qui montre autre chose que ce qu'il dit (un plan pris dans sa Galerie aussi, revérifié sur ses
+  images) ; une chose concrète citée sans clip (exercice, geste, aliment, scène de vie, même citée pour
+  s'en moquer) a un plan de sa Galerie qui la montre (règle des 3 vidéos), sinon son écran « B-ROLL » qui
+  dit quoi filmer.
 - [ ] Aucun B-roll généré par IA qu'il n'a pas demandé, aucune image de lui prise ailleurs.
 - [ ] Plein écran : il commence sur lui (`plein-ecran-visage` : le mot clé au-dessus de sa tête, puis le fond),
   jamais sur sa vidéo floutée, sa raison écrite dans l'`intention` ; 5,5 s au plus sans le voir ; sortie par un

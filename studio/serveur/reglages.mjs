@@ -3,6 +3,7 @@
 import path from "node:path";
 import { SLUG_RE } from "./outils.mjs";
 import { clientActif, VARIABLES_ECRITURE } from "./client.mjs";
+import { CODE } from "./config.mjs";
 
 // Outils toujours permis (lecture, recherche, skills, sous-agents). Les écritures de fichiers
 // sont bornées par des règles Edit(...) ajoutées selon le dossier de la session.
@@ -157,6 +158,10 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   // Où sont les médias et le dépôt du head of content, pour qu'un agent y range ce qu'on lui demande.
   if (config.media) env.STUDIO_MEDIA = config.media;
   if (config.depot) env.STUDIO_DEPOT = config.depot;
+  // La Galerie (lot 15) : l'outil du studio pour la lire et y poser un fichier (le monteur, le head of content sur le
+  // Mac) : node "$STUDIO_CODE/rangement/galerie.mjs" <commande> --config "$STUDIO_CONFIG".
+  env.STUDIO_CODE = CODE;
+  if (config.fichier) env.STUDIO_CONFIG = config.fichier;
   if (config.home) env.STUDIO_STATS = config.stats?.fichier || path.join(config.home, "stats", "cache.json");
   // Modèle des sous-agents (fichier du client, « claude.modele_sous_agents ») : sans lui, un sous-agent intégré
   // peut tourner sur un modèle plus petit que la session.

@@ -20,6 +20,9 @@ Variables :
                 vide pour une face caméra.
   {{tournage}}  « Plan de tournage groupé : <chemin absolu> » pour chaque DEPOT/tournages/*.json dont
                 `contenus` contient le slug (une ligne chacun, le plus récent d'abord) ; vide s'il n'y en a pas.
+  {{stock}}     (lot 15) les plans du brief pris dans la Galerie : une ligne par plan effectif « stock »
+                (plan, phrase, chemin du lien dans MEDIA/<slug>/b-roll/ ou photos/, passage proposé, ce que le
+                plan doit montrer et le détail qui peut différer) ; vide s'il n'y en a pas.
 
 Pour une reprise (Romain répond dans le chat, une note sur l'aperçu, « Fabrique la vidéo »), le serveur n'utilise pas ce gabarit : il envoie le texte
 de Romain tel quel avec --resume.
@@ -28,9 +31,9 @@ Monte la vidéo du contenu {{slug}} : « {{titre}} » (mode studio).
 
 Vidéo face caméra : {{video}}{{genre}}
 
-Ses clips filmés en plus pour ce contenu (liens vers sa bibliothèque) :
+Ses clips filmés en plus pour ce contenu (liens vers sa bibliothèque et sa Galerie) :
 {{clips}}
-
+{{stock}}
 Son script : {{script}}
 {{tournage}}
 
@@ -38,7 +41,9 @@ Lis toi-même son script : ce qu'il voulait dire, la section « Plans à tourner
 les photos prévues ; dans un script plus ancien : « À filmer en plus » et « Photos à envoyer »). Il a pu retoucher son
 texte lui-même dans son studio : c'est le fichier qui fait foi. S'il y a un plan de tournage groupé ci-dessus, lis-le aussi : les prises de ce contenu disent
 quel mouvement de quel clip sert quelle phrase. Ce que montre chaque clip est décrit dans
-`../_bibliotheque/index.json`.
+`../_bibliotheque/index.json`, ou, pour un clip de sa Galerie, par `node "$STUDIO_CODE/rangement/galerie.mjs" montrer
+<id> --config "$STUDIO_CONFIG"`. Un plan pris dans sa Galerie se revérifie sur ses images, et un plan qui manque se
+cherche d'abord dans sa Galerie (ton agent, « Sa Galerie »).
 
 Montage complet, jusqu'à l'aperçu (sons compris). Regarde toi-même les moments clés sur une planche, lance l'aperçu,
 puis écris-lui ton message et arrête-toi : l'aperçu s'affiche dans son dossier. Ses corrections t'arriveront en notes

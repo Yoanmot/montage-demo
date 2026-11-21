@@ -11,7 +11,8 @@ import { spawnSync } from "node:child_process";
 import { demarrer } from "../studio.mjs";
 import { monde, attendreQue } from "./aide.mjs";
 import { outil } from "../../rangement/lib/commun.mjs";
-import { Galerie, validerDescription, ecart, postes, plansEffectifs, lienVersId } from "../../rangement/lib/galerie.mjs";
+import { Galerie, validerDescription, ecart, postes, plansEffectifs, lienVersId, empreintePlans } from "../../rangement/lib/galerie.mjs";
+import { reglagesChat } from "../reglages.mjs";
 import { messageAction } from "../file.mjs";
 
 const SKIP = process.platform !== "darwin" && "macOS seulement";
@@ -342,6 +343,35 @@ test("plans du brief : déjà en stock ou à tourner (stock.json + choix du clie
   const v = (await api("GET", `/api/galerie?pour=${REEL}`)).json.fichiers;
   assert.deepEqual([v.find((f) => f.id === barre).reutilisable, v.find((f) => f.id === barre).raison], [false, "recent"]);
   assert.equal(v.find((f) => f.id === bol).reutilisable, true);
+});
+
+test("phase 2 : le monteur reçoit les plans pris dans la Galerie ; des plans changés depuis la comparaison la rendent caduque ; l'outil de la Galerie est donné aux sessions", { skip: SKIP }, async () => {
+  const { m, g, s, api } = await studio();
+  const bol = (await envoyer(api, video(path.join(m.racine, "BOL.MOV")))).json.id;
+  const script = fs.readFileSync(path.join(m.depot, "contenus", REEL, "script.md"), "utf8");
+  m.json(`depot/contenus/${REEL}/stock.json`, { version: 1, plans_empreinte: empreintePlans(script), plans: [
+    { n: 1, type: "b-roll", texte: "Vidéo, 8 s : ton bol", essentiel: "toi ; tu prépares un bol", detail: "plan large", phrase: "tu prépares ton bol",
+      stock: { id: bol, debut: 0.5, fin: 2, pourquoi: "même geste" } },
+    { n: 2, type: "photo", texte: "Photo : toi en pompe", stock: null, manque: "Rien ne te montre en pompe." },
+  ] });
+  let d = (await api("GET", `/api/cartes/${REEL}`)).json;
+  assert.deepEqual(d.stock.map((p) => p.etat), ["stock", "a_tourner"]);
+  await api("POST", `/api/cartes/${REEL}/plans/1`, { json: { choix: "proposition" } });
+  const msg = messageAction({ type: "montage", slug: REEL }, s.config);
+  assert.match(msg, /Plans de son brief pris dans sa Galerie/);
+  assert.ok(msg.includes(`plan 1, pour « tu prépares ton bol » : ${path.join(m.media, REEL, "b-roll", `${bol}.mov`)}, passage proposé de 0.5 à 2 s`), msg);
+  assert.match(msg, /Ce qu'il doit montrer : toi ; tu prépares un bol ; détail qui peut différer : plan large\./);
+  assert.match(msg, /STUDIO_CODE\/rangement\/galerie\.mjs" montrer/);
+  // Le client retouche ses plans : la comparaison ne vaut plus (brief comme avant, lien du stock retiré au montage suivant).
+  m.ecrire(`depot/contenus/${REEL}/script.md`, script.replace("Vidéo, 8 s : ton bol", "Vidéo, 8 s : ton bol de skyr"));
+  d = (await api("GET", `/api/cartes/${REEL}`)).json;
+  assert.equal(d.stock, undefined);
+  assert.equal(plansEffectifs({ depot: m.depot, media: m.media }, REEL, { galerie: g }), null);
+  assert.doesNotMatch(messageAction({ type: "montage", slug: REEL }, s.config), /Plans de son brief pris dans sa Galerie/);
+  // Toutes les sessions savent où est l'outil de la Galerie et la configuration du studio.
+  const r = reglagesChat(`${REEL}:monteur`, s.config);
+  assert.ok(fs.existsSync(path.join(r.env.STUDIO_CODE, "rangement", "galerie.mjs")));
+  assert.equal(r.env.STUDIO_CONFIG, s.config.fichier);
 });
 
 test("arrivé dans « À ranger » avant la Galerie : un clic le fait entrer dans la Galerie", { skip: SKIP }, async () => {

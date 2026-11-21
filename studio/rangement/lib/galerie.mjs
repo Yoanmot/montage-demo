@@ -393,10 +393,35 @@ export function ecart(f, depot, { pour = null, maintenant = Date.now(), sorties 
 
 // DEPOT/contenus/<slug>/stock.json (écrit par le head of content) et stock-choix.json (écrit par le studio, les
 // boutons du client) : les plans effectifs, déjà en stock ou à tourner. Déterministe, lu sur les fichiers.
+// L'empreinte des plans d'un brief, calculée comme outils/stock.py du head of content : la section « Plans à tourner »
+// de script.md, lignes sans espaces autour ni lignes vides. stock.json la garde : des plans changés depuis (retouche
+// du client) rendent sa comparaison caduque, le brief se montre alors comme avant jusqu'à la nouvelle comparaison.
+export function empreintePlans(texte) {
+  const sansAccents = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/’/g, "'").toLowerCase();
+  const lignes = [];
+  let dans = false, code = false;
+  for (const l of String(texte || '').replace(/\r\n/g, '\n').split('\n')) {
+    if (l.startsWith('```')) code = !code;
+    const m = code ? null : /^##\s+(.+?)\s*$/.exec(l);
+    if (m) {
+      if (dans) break;
+      dans = sansAccents(m[1]).replace(/\s+/g, ' ').trim().startsWith('plans a tourner');
+      continue;
+    }
+    if (dans && l.trim()) lignes.push(l.trim());
+  }
+  return `sha256:${crypto.createHash('sha256').update(lignes.join('\n')).digest('hex').slice(0, 16)}`;
+}
+
 export function plansEffectifs(config, slug, { galerie = new Galerie(dossierGalerie(config)), maintenant = Date.now() } = {}) {
   const dossier = path.join(config.depot, 'contenus', slug);
   const stock = lireJson(path.join(dossier, 'stock.json'), null);
   if (!stock || !Array.isArray(stock.plans)) return null;
+  if (stock.plans_empreinte) {
+    let script = '';
+    try { script = fs.readFileSync(path.join(dossier, 'script.md'), 'utf8'); } catch { /* pas de brief : rien à comparer */ }
+    if (empreintePlans(script) !== stock.plans_empreinte) return null;
+  }
   const choix = lireJson(path.join(dossier, 'stock-choix.json'), null)?.plans || {};
   const sorties = postes(config.depot, { maintenant });
   return stock.plans.filter((p) => p && Number.isInteger(Number(p.n))).map((p) => {

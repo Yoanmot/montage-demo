@@ -10,6 +10,7 @@ import { lireDepot, videoFace, videosFace, brolls, genreDuContenu } from "./lect
 import { contact, clientActif } from "./client.mjs";
 import { quandReprise, PHRASE_CONNEXION } from "./normalisation.mjs";
 import { messageDescription, ecrireDescriptionDeSession, noterEchecDescription } from "./galerie.mjs";
+import { plansEffectifs, Galerie, dossierGalerie } from "../rangement/lib/galerie.mjs";
 
 const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page", "description"]);
 const GARDER_TERMINEES = 300;
@@ -51,6 +52,24 @@ function titreDe(config, slug) {
   return e?.titre || slug;
 }
 
+// Lot 15 : les plans du brief pris dans la Galerie (plans effectifs, liens posés par relier-stock avant le montage),
+// pour que le monteur sache quel clip sert quelle phrase et ce qu'il doit revérifier sur les images.
+function stockDuMontage(config, slug) {
+  let plans = null, g = null;
+  try { g = new Galerie(dossierGalerie(config)); plans = plansEffectifs(config, slug, { galerie: g }); } catch { return ""; }
+  const pris = (plans || []).filter((p) => p.etat === "stock");
+  if (!pris.length) return "";
+  const lignes = pris.map((p) => {
+    const f = g.fiche(p.stock.id);
+    const ext = f?.fichier ? path.extname(f.fichier) : "";
+    const lien = path.join(config.media, slug, p.type === "photo" ? "photos" : "b-roll", `${p.stock.id}${ext}`);
+    const passage = p.stock.debut != null && p.stock.fin != null ? `, passage proposé de ${p.stock.debut} à ${p.stock.fin} s` : "";
+    return `- plan ${p.n}${p.phrase ? `, pour « ${p.phrase} »` : ""} : ${lien}${passage}. Ce qu'il doit montrer : ${p.essentiel || "(non précisé)"}`
+      + `${p.detail ? ` ; détail qui peut différer : ${p.detail}` : ""}.`;
+  });
+  return `\nPlans de son brief pris dans sa Galerie (déjà parmi ses clips ci-dessus) :\n${lignes.join("\n")}\n`;
+}
+
 // Le premier message d'une action (gabarits/).
 export function messageAction(a, config) {
   // La description d'un fichier de la Galerie (lot 15) : la consigne et les images (null : le fichier est parti).
@@ -85,6 +104,7 @@ export function messageAction(a, config) {
       script: path.join(config.depot, "contenus", a.slug, "script.md"),
       tournage: tournages.map((t) => `Plan de tournage groupé : ${path.join(config.depot, "tournages", t.fichier)}`).join("\n"),
       genre: GENRE_MONTAGE[genreDuContenu(config, a.slug)] ? `\n${GENRE_MONTAGE[genreDuContenu(config, a.slug)]}` : "",
+      stock: stockDuMontage(config, a.slug),
     });
   }
   if (a.type === "mise_en_page") {

@@ -72,6 +72,27 @@ t'ouvre dans le dossier du contenu et affiche ce que tu écris dans son chat « 
 - **Tu lis toi-même son script** avant les coupes : l'intention, l'ordre des idées, les plans à tourner, le CTA, la
   légende. Il improvise : le plan s'écrit toujours sur ce qu'il a **vraiment dit**. Si le message cite un plan de
   tournage groupé, lis-le aussi. La description de ses clips est dans `../_bibliotheque/index.json`.
+- **Sa Galerie** (ses photos et ses plans filmés gardés pour resservir) :
+  - **Les plans de son brief pris dans sa Galerie** sont listés dans le premier message (« Plans de son brief pris
+    dans sa Galerie ») : déjà parmi ses clips, avec la phrase, le passage proposé, ce que le plan doit montrer et le
+    détail qui peut différer. Ce sont ses clips comme les autres : tu choisis toi-même le passage utilisable (net,
+    stable, sans à-coup, assez long pour la phrase), en partant de celui proposé.
+  - **Tu le revérifies sur les images** (ses vignettes à l'étape des clips, puis une image au passage choisi) : il
+    colle quand on y voit tout ce que le plan doit montrer et rien qui contredise la phrase ; le détail peut différer.
+    Il ne colle pas : tu ne le poses pas, tu le traites comme un plan qui manque (point suivant), et ton compte rendu
+    dit en une phrase lequel et ce qui n'allait pas.
+  - **Un plan qui manque** (une chose concrète citée sans clip, ou un clip de sa Galerie qui ne colle pas) : avant
+    l'écran « B-ROLL », cherche dans sa Galerie : `node "$STUDIO_CODE/rangement/galerie.mjs" lister --pour <slug du contenu>
+    --config "$STUDIO_CONFIG"` (JSON : la description de chaque fichier et son `ecart`). Jamais un fichier dont
+    `ecart.reutilisable` est faux : c'est la règle des 3 vidéos (un plan filmé ne revient pas à moins de 3 vidéos
+    postées d'écart, ni s'il sert déjà à un autre contenu pas encore posté). Même test que pour un plan du brief :
+    tout ce que la phrase doit montrer se lit dans sa description et rien ne la contredit, puis tu regardes ses
+    images. Il colle : `node "$STUDIO_CODE/rangement/galerie.mjs" poser <slug du contenu> <id> --config "$STUDIO_CONFIG"` (il
+    arrive dans `b-roll/` et son usage est noté dans sa fiche ; `BLOQUE` : prends-en un autre ou garde l'écran), puis
+    tu le prépares comme ses autres clips. Rien ne colle : l'écran « B-ROLL ».
+  - Un fichier de sa Galerie n'entre dans la vidéo que par `poser`, jamais copié à la main : c'est ce qui tient la
+    règle des 3 vidéos.
+  - Compte rendu : « pris dans ta Galerie » pour chaque plan qui en vient (une demi-ligne chacun).
 - **Les autres fichiers du contenu** (images, icônes, textes qu'il a demandés à son head of content) sont dans le
   même dossier que son script, sous-dossiers compris (par exemple `icones/`). Regarde ce qu'il y a avant de préparer
   le montage, et utilise-les quand le script ou Yoan y fait référence (des icônes à poser à l'image, par exemple).
@@ -130,7 +151,9 @@ montage simple avec ses mots exacts.
 ### 3. Ses plans filmés en plus (`b-roll`, étape « vignettes »)
 Fais les vignettes de ses clips et **regarde chaque image**. Avec le script, chaque plan filmé a sa phrase. Pas de clip :
 on avance sans. Une vidéo qu'il ajoute hors du brief (un enregistrement d'écran, une vidéo du dossier, un clip de sa
-bibliothèque) est un de ses plans comme les autres : vignettes, puis sur la phrase qu'il dit. De toi-même, pas d'image
+bibliothèque, un fichier de sa Galerie) est un de ses plans comme les autres : vignettes, puis sur la phrase qu'il dit.
+Un plan de sa Galerie se revérifie sur ses images, et un plan qui manque se cherche d'abord dans sa Galerie (« Mode
+studio », « Sa Galerie »). De toi-même, pas d'image
 générée ni d'image de lui prise ailleurs ; une image générée qu'il demande expressément, oui (jamais son visage).
 
 ### 4. Le plan (`plan-montage-yoan`)

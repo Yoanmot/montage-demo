@@ -66,8 +66,12 @@ Suis le skill des carrousels en attente ({{skills}}/carrousels-en-attente/SKILL.
      question du style.
 4. Les photos : prends celles de la liste ci-dessus, en suivant les `PHOTO slide=N` du script (regarde chaque photo
    pour savoir laquelle va où). Une photo marquée « choisie par {{prenom}} pour la slide N » va sur cette slide-là, sans
-   discuter : il l'a choisie dans sa Galerie. S'il en manque une, ou si tu ne sais pas laquelle va sur une slide, demande-la-lui
-   en un seul message (ce que chaque photo doit montrer) et arrête-toi : il répondra dans la carte.
+   discuter : il l'a choisie dans sa Galerie. Une slide qui attend une photo et n'en a pas : si son head of content lui
+   en a proposé dans sa Galerie (`contenus/{{slug}}/stock.json`, « slides », la meilleure d'abord avec sa raison),
+   pose la première avec `node "$STUDIO_CODE/rangement/galerie.mjs" poser {{slug}} <id> --slide <n> --config "$STUDIO_CONFIG"`
+   (elle arrive dans ses photos), regarde-la, sers-t'en, et dis-lui en une demi-phrase laquelle tu as prise et qu'il peut
+   en choisir une autre sous la slide. S'il en manque une sans proposition, ou si tu ne sais pas laquelle va sur une
+   slide, demande-la-lui en un seul message (ce que chaque photo doit montrer) et arrête-toi : il répondra dans la carte.
 5. Mets en page avec le skill carrousel ({{skills}}/carrousel/SKILL.md, à partir de son étape « Rendre »), dans le
    dossier donné par `prepare`, puis vérifie toi-même chaque slide comme il le demande. Ne lance jamais `open` et ne
    lui demande pas d'ouvrir un dossier ou une page : les slides s'affichent dans sa carte.
