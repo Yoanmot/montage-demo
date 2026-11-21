@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { Pont } from "../pont.mjs";
 import { File, MONTAGES_MAX } from "../file.mjs";
 import { Conso, lireInfo } from "../conso.mjs";
@@ -143,6 +144,16 @@ test("conso : la session du rangement (regard sur les vignettes, hors du pont) m
   // Le serveur relit le fichier changé par le rangement.
   const v = serveur.vue(t0);
   assert.match(v.phrase, /^Claude : 63 % de ta limite de la semaine/);
+});
+
+test("conso : l'interface écoute l'événement « conso » (et tous ceux que le serveur diffuse)", () => {
+  const ici = path.dirname(fileURLToPath(import.meta.url));
+  const serveur = fs.readFileSync(path.join(ici, "..", "serveur.mjs"), "utf8");
+  const api = fs.readFileSync(path.join(ici, "..", "..", "interface", "app", "api.js"), "utf8");
+  const ecoutes = JSON.parse(/const TYPES = (\[[^\]]*\]);/.exec(api)[1]);
+  const diffuses = [...new Set([...serveur.matchAll(/diffuser\("([a-z_]+)"/g)].map((m) => m[1]))];
+  assert.ok(diffuses.includes("conso"));
+  assert.deepEqual(diffuses.filter((t) => !ecoutes.includes(t)), [], "un événement diffusé que l'interface n'écoute pas");
 });
 
 // ------------------------------------------------------------------ 2. montages en lot

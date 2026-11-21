@@ -158,7 +158,7 @@ function envoyerGalerie(fichier, { slug = null, slide = null } = {}, onProgres =
 // Flux d'événements : reconnexion automatique avec attente croissante.
 // À chaque reconnexion, l'appli recharge l'état complet (onConnexion("ok")) pour ne rien rater.
 function ecouterServeur({ onEvenement, onConnexion }) {
-  const TYPES = ["carte", "carte_retiree", "chat", "chat_reinitialise", "file", "alertes", "a_ranger", "sync", "stats", "tournages", "galerie", "ping"];
+  const TYPES = ["carte", "carte_retiree", "chat", "chat_reinitialise", "file", "alertes", "a_ranger", "sync", "stats", "tournages", "galerie", "conso", "ping"];
   let source = null; let attente = 1000; let minuteur = null; let ferme = false; let dernierSignal = Date.now();
   let veille = null;
 
