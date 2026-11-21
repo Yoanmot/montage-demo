@@ -66,7 +66,8 @@ ROMAIN = {
     "label_launchd": "com.montage-yoan.studio", "appli": {"nom": "Studio", "icone": "romain"},
     "port": 4747, "theme": "romain",
     "head_of_content": {"depot": "git@github.com:Yoanmot/head-of-content-romain.git",
-                        "cle_ssh": "~/.ssh/fitavecromain_head_of_content"},
+                        "cle_ssh": "~/.ssh/fitavecromain_head_of_content",
+                        "email_commits": "213199010+Yoanmot@users.noreply.github.com"},
     "zernio": {"compte": "fitavecromain", "profil": None}, "ressources": {"site": None},
     "branche_mise_a_jour": "main", "config_claude": None, "skill_carrousel": "carrousel",
 }

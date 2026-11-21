@@ -206,6 +206,25 @@ connexion_rattraper() {
   date_connexion date-du-fichier "$m"
 }
 
+# L'adresse des commits faits sur ce Mac (copies du head of content du studio et de l'installation) : celle du client.
+# Vercel bloque la mise en ligne d'un commit dont l'adresse n'est reliée à aucun compte GitHub ; une installation
+# faite avant le changement d'adresse est réalignée ici à chaque mise à jour. Le nom (« Mac de ... ») n'est pas touché.
+# Rend RIEN (aucune copie), DEJA, ou CHANGE <copies>.
+identite_git() {
+  [ -n "$CLIENT_GIT_EMAIL" ] || { echo RIEN; return 0; }
+  local d vus="" changes="" trouve=""
+  for d in "$(studio_chemin "$(studio_conf depot_hoc "$STUDIO_HOME/head-of-content")")" "$BASE/head-of-content"; do
+    [ -d "$d/.git" ] || continue
+    case " $vus " in *" $d "*) continue;; esac
+    vus="$vus $d"; trouve=1
+    if [ "$(git -C "$d" config --local user.email 2>/dev/null)" != "$CLIENT_GIT_EMAIL" ]; then
+      git -C "$d" config user.email "$CLIENT_GIT_EMAIL" && changes="$changes ${d#"$BASE"/}"
+    fi
+  done
+  [ -n "$trouve" ] || { echo RIEN; return 0; }
+  if [ -n "$changes" ]; then echo "CHANGE${changes}"; else echo DEJA; fi
+}
+
 # Le garde (installation/garde.sh) : sa copie hors du dépôt (<racine>/garde/garde.sh), ses réglages (garde.env) et
 # son service launchd <label>.garde (au démarrage de session, puis toutes les 5 minutes). $1 installer | rattraper.
 # Installer remplace la copie si elle a changé ; rattraper ne la pose que si elle manque (ensuite, le garde ne se
@@ -320,6 +339,12 @@ cmd_rattraper() {
     POSEE*) echo "RATTRAPAGE connexion-claude : date de pose notée (${r#POSEE }, d'après le fichier du jeton)";;
     DEJA|RIEN) ;;
     *) echo "RATTRAPAGE_IMPOSSIBLE connexion-claude : $(echo "$r" | tail -1 | cut -c1-120)";;
+  esac
+  r="$(identite_git 2>&1)"
+  case "$r" in
+    CHANGE*) echo "RATTRAPAGE commits : adresse $CLIENT_GIT_EMAIL (${r#CHANGE })";;
+    DEJA|RIEN) ;;
+    *) echo "RATTRAPAGE_IMPOSSIBLE commits : $(echo "$r" | tail -1 | cut -c1-120)";;
   esac
   # Le garde : seulement sur un studio installé (service posé).
   if [ -d "$STUDIO_HOME" ] && { [ -f "$STUDIO_PLIST" ] || [ -n "${STUDIO_SANS_SERVICE:-}" ]; }; then

@@ -209,7 +209,8 @@ test("studio.sh installer : Romain identique à avant le multi-clients (service,
   assert.match(execFileSync(path.join(app, "MacOS/Studio"), ["--verifier"], { encoding: "utf8" }), /^OK appli /);
   const git = (m, k) => execFileSync("git", ["-C", path.join(m, ".montage-yoan/studio/head-of-content"), "config", k], { encoding: "utf8" }).trim();
   assert.equal(git(copies.nouveau.maison, "user.name"), "Mac de Romain");
-  assert.equal(git(copies.nouveau.maison, "user.email"), "mac-romain@users.noreply.github.com");
+  // Adresse reliée au compte GitHub de Yoan : sans elle, Vercel bloque la mise en ligne des ressources gratuites.
+  assert.equal(git(copies.nouveau.maison, "user.email"), "213199010+Yoanmot@users.noreply.github.com");
   assert.match(fs.readFileSync(path.join(copies.nouveau.maison, ".ssh/fitavecromain_head_of_content.pub"), "utf8"), /mac-romain-head-of-content/);
   fs.rmSync(t, { recursive: true, force: true });
 });

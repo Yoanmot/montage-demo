@@ -26,7 +26,8 @@ STUDIO_DOMAINE="gui/$(id -u)"
 # Une valeur simple de la config (plutil lit le JSON), ou la valeur par défaut.
 studio_conf() { # $1 clé, $2 défaut
   local v
-  v="$(/usr/bin/plutil -extract "$1" raw -o - "$STUDIO_CONF" 2>/dev/null)"
+  # plutil écrit son erreur sur la sortie normale quand la clé manque : on prend alors le défaut.
+  v="$(/usr/bin/plutil -extract "$1" raw -o - "$STUDIO_CONF" 2>/dev/null)" || v=""
   if [ -z "$v" ] || [ "$v" = "null" ]; then v="$2"; fi
   printf '%s' "$v"
 }

@@ -12,7 +12,8 @@
   "theme": "romain",
   "head_of_content": {
     "depot": "git@github.com:Yoanmot/head-of-content-romain.git",
-    "cle_ssh": "~/.ssh/fitavecromain_head_of_content"
+    "cle_ssh": "~/.ssh/fitavecromain_head_of_content",
+    "email_commits": "213199010+Yoanmot@users.noreply.github.com"
   },
   "zernio": {
     "compte": "fitavecromain",

@@ -326,6 +326,32 @@ test("rattrapage : Romain (non isolé) garde ses carrousels et son claude à mis
   assert.equal(JSON.parse(fs.readFileSync(path.join(maison, ".montage-yoan/studio/studio.config.json"), "utf8")).carrousels, "~/Pictures/Carrousels");
 });
 
+test("rattrapage : adresse des commits réalignée sur une installation faite avant le changement ; idempotent ; nom gardé", () => {
+  const t = tmp();
+  const maison = path.join(t, "maison");
+  const hoc = path.join(maison, ".montage-yoan/studio/head-of-content");
+  const copie = path.join(maison, ".montage-yoan/head-of-content");
+  for (const d of [hoc, copie]) {
+    fs.mkdirSync(d, { recursive: true });
+    g(d, ["init", "-q"]);
+    g(d, ["config", "user.name", "Mac de Romain"]);
+    g(d, ["config", "user.email", "mac-romain@users.noreply.github.com"]);
+  }
+  fs.writeFileSync(path.join(maison, ".montage-yoan/studio/studio.config.json"), JSON.stringify({ carrousels: "~/Pictures/Carrousels" }));
+  const passer = () => spawnSync("/bin/bash", [path.join(DEPOT, "installation/studio.sh"), "rattraper"], {
+    env: { HOME: maison, PATH: "/usr/bin:/bin:/usr/sbin:/sbin", STUDIO_SANS_SERVICE: "1", STUDIO_SERVICES_DOSSIER: path.join(t, "services") },
+    encoding: "utf8",
+  });
+  const r1 = passer();
+  assert.match(r1.stdout, /^RATTRAPAGE commits : adresse 213199010\+Yoanmot@users\.noreply\.github\.com \(studio\/head-of-content head-of-content\)$/m, r1.stdout + r1.stderr);
+  for (const d of [hoc, copie]) {
+    assert.equal(g(d, ["config", "user.email"]), "213199010+Yoanmot@users.noreply.github.com");
+    assert.equal(g(d, ["config", "user.name"]), "Mac de Romain");
+  }
+  const r2 = passer();
+  assert.doesNotMatch(r2.stdout, /commits/, r2.stdout);
+});
+
 test("clients : Romain et son essai sur opus (session et sous-agents), rangement inchangé", () => {
   for (const id of ["romain", "romain-test"]) {
     const c = JSON.parse(fs.readFileSync(path.join(DEPOT, `studio/clients/${id}.json`), "utf8"));
