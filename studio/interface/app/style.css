@@ -445,6 +445,13 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .res-demande-champ { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; font: inherit; line-height: 1.45; }
 .res-reutiliser { display: grid; gap: 10px; }
 .res-choix { height: 36px; max-width: min(100%, 420px); }
+.res-supprimer { display: grid; gap: 10px; max-width: 70ch; }
+.res-supprimer p { margin: 0; }
+.res-confirmer { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--rayon); border: 1px solid var(--rouge); background: var(--fond); }
+.res-confirmer p { margin: 0; font-size: 14px; color: var(--encre-2); }
+.res-confirmer .programmer-ligne { margin-top: 4px; }
+.bouton-danger { background: var(--rouge); border-color: var(--rouge); color: var(--fond); }
+.bouton-danger:hover:not(:disabled) { filter: brightness(0.92); }
 
 /* accueil et vues transverses */
 .accueil-liste { display: grid; gap: 8px; }

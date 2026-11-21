@@ -1152,8 +1152,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
     }
 
-    // Ressources gratuites (studio de Yoan) : 404 pour un client sans site de ressources. Lecture seule :
-    // la mise en ligne est faite par le head of content dès qu'une ressource est prête (18/11/2026).
+    // Ressources gratuites (studio de Yoan) : 404 pour un client sans site de ressources. La mise en ligne
+    // est faite par le head of content dès qu'une ressource est prête (18/11/2026) ; le studio ne fait que
+    // la supprimer, au clic (21/11/2026).
     if (p[0] === "ressources") {
       ressources.exiger();
       if (m === "GET" && p.length === 1) return envoyerJson(res, 200, await ressources.lister());
@@ -1163,6 +1164,16 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const f = await apercuRessource(config, exigerSlug(decodeURIComponent(p[1])));
         if (!f) throw new ErreurStudio("INTROUVABLE", "Pas d'aperçu pour cette page.", 404);
         return servirFichier(req, res, f, { cache: "private, max-age=86400" });
+      }
+      // Le bouton « Supprimer » (21/11/2026) : la page quitte le site par le push, la ressource disparaît
+      // du studio ; refusé tant qu'un post programmé ou publié l'offre.
+      if (m === "POST" && p.length === 3 && p[2] === "supprimer") {
+        // Le slug se vérifie dans ressources.supprimer : une ressource seule n'est pas un contenu.
+        const slug = decodeURIComponent(p[1]);
+        await avantAction();
+        const r = await ressources.supprimer(slug);
+        rafraichir();
+        return envoyerJson(res, 200, r);
       }
     }
 

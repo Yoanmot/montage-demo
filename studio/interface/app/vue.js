@@ -1304,7 +1304,57 @@ export class Vue {
           el("div", { class: "programmer-ligne" }, choix, go))));
       }
     }
+
+    // 6. La supprimer pour de bon (21/11/2026), sur le modèle de « Supprimer » d'une idée : la confirmation
+    // se fait ici, en place. Tant qu'un post l'offre, le bouton reste visible, grisé, avec sa raison.
+    blocs.push(this.bloc("Supprimer cette ressource", this.supprimerRessource(r, surLeSite)));
     return blocs;
+  }
+
+  supprimerRessource(r, surLeSite) {
+    const s = this.studio;
+    const zone = el("div", { class: "res-supprimer" });
+    const depart = () => {
+      const b = el("button", { class: "bouton", type: "button", disabled: r.garder ? true : null, html: `${icone("croix")}<span>Supprimer</span>` });
+      b.addEventListener("click", confirmer);
+      zone.replaceChildren(
+        el("p", { class: "vide-doux" }, r.garder || (surLeSite
+          ? "Sa page quitte le site et elle disparaît de ton studio."
+          : "Elle disparaît de ton studio.")),
+        el("div", { class: "programmer-ligne" }, b));
+      return b;
+    };
+    const confirmer = () => {
+      const oui = el("button", { class: "bouton bouton-danger", type: "button", html: `${icone("croix")}<span>Oui, la supprimer</span>` });
+      const non = el("button", { class: "bouton bouton-discret", type: "button" }, "Annuler");
+      const annuler = () => depart().focus();
+      oui.addEventListener("click", async () => {
+        oui.disabled = true; non.disabled = true;
+        oui.querySelector("span").textContent = "Je la supprime";
+        try {
+          await this.api.supprimerRessource(r.slug);
+          annoncer(surLeSite ? "C'est supprimé. Sa page quitte le site d'ici une minute ou deux." : "C'est supprimé.");
+          if (r.contenu) s.selectionner({ genre: "dossier", cle: r.contenu.slug });
+          else s.selectionner({ genre: "transverse", quoi: "ressources" });
+        } catch (e) {
+          annoncer(e.message, "erreur");
+          oui.disabled = false; non.disabled = false; oui.querySelector("span").textContent = "Oui, la supprimer";
+        }
+      });
+      non.addEventListener("click", annuler);
+      const boite = el("div", { class: "res-confirmer", role: "group", "aria-label": `Supprimer « ${r.titre} »` },
+        el("strong", {}, `Supprimer « ${r.titre} » pour de bon ?`),
+        el("p", {}, surLeSite
+          ? "Sa page quitte le site d'ici une minute ou deux : son lien ne mènera plus nulle part. Elle disparaît aussi de ton studio, et ça ne se défait pas."
+          : "Elle disparaît de ton studio, et ça ne se défait pas."),
+        r.contenu ? el("p", {}, `Le contenu « ${r.contenu.titre} » reste là : seule sa ressource part.`) : null,
+        el("div", { class: "programmer-ligne" }, oui, non));
+      boite.addEventListener("keydown", (e) => { if (e.key === "Escape" && !oui.disabled) { e.preventDefault(); e.stopPropagation(); annuler(); } });
+      zone.replaceChildren(boite);
+      non.focus();
+    };
+    depart();
+    return zone;
   }
 
   // ---------- Poster (« Publier sur Instagram » jusqu'au lot 13 ; refait au lot 10 des deux studios) ----------
