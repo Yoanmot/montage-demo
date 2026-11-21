@@ -22,6 +22,7 @@
   "ressources": {
     "site": null
   },
+  "appareil": "iPhone",
   "skill_carrousel": "carrousel",
   "monteur": "monteur",
   "reels_essai": false,

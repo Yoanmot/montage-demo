@@ -125,8 +125,9 @@ OSA
     esac
   }
 
-  verifier_claude() {
-    local v cl="" c d r pid i=0
+  verifier_claude() { # $1 « sans-redemarrage » : simple contrôle d'un jeton déjà posé (connexion-claude.sh)
+    local v cl="" c d r pid i=0 redemarrer=1
+    [ "${1:-}" = "sans-redemarrage" ] && redemarrer=""
     v="$(sed -n 's/^CLAUDE_CODE_OAUTH_TOKEN=//p' "$ENV_CL" | tail -1 | tr -d "\"' ")"
     case "$v" in sk-ant-*) ;; *) echo "CLE_REFUSEE claude (ce n'est pas un code de connexion de Claude)"; return;; esac
     for c in "$BASE/bin/claude" "$HOME/.local/bin/claude" /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.claude/local/claude" "$(command -v claude 2>/dev/null)"; do
@@ -145,7 +146,7 @@ OSA
       *PRET*)
         echo "CLE_OK claude"
         # Le studio relit la connexion à son prochain démarrage : demandé, fait dès qu'il est au repos.
-        if [ -d "$BASE/studio" ] && [ -f "$CLONE/installation/studio.sh" ]; then
+        if [ -n "$redemarrer" ] && [ -d "$BASE/studio" ] && [ -f "$CLONE/installation/studio.sh" ]; then
           date '+%Y-%m-%d %H:%M:%S connexion' > "$BASE/studio/redemarrage-demande"
           /bin/bash "$CLONE/installation/studio.sh" redemarrer-si-libre >/dev/null 2>&1 || true
         fi;;
@@ -192,6 +193,11 @@ OSA
     v=""
   }
 
+  # Contrôle seul du jeton posé (connexion-claude.sh) : rien n'est demandé ni réécrit.
+  if [ "${1:-}" = "claude-verifier" ]; then
+    if grep -qs '^CLAUDE_CODE_OAUTH_TOKEN=..*' "$ENV_CL"; then verifier_claude sans-redemarrage; else echo "CLE_ABSENTE claude"; fi
+    return 0
+  fi
   if [ $# -gt 0 ]; then
     for n in "$@"; do poser "$n"; done
     return 0

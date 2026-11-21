@@ -12,6 +12,8 @@ main() {
   # Rien ici ne lit le Terminal : un rendu lancé dans son propre groupe y resterait figé.
   exec </dev/null
   export GIT_TERMINAL_PROMPT=0
+  # Un jeton venu de la conversation qui lance la vérification ne compte pas : on vérifie celui du studio.
+  unset CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY
   # shellcheck source=../studio/lancement/client.sh
   . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../studio/lancement/client.sh"
   studio_client_charger || { echo "VERIF_ECHEC client : $CLIENT_ERREUR"; echo "A_REGARDER 1"; return 1; }

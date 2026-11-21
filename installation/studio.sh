@@ -394,6 +394,14 @@ PYEOF
     esac
   fi
 
+  # Appareil et disque externe, sans question (réglables plus tard).
+  local lr
+  while IFS= read -r lr; do
+    case "$lr" in "OK "*) ok "${lr#OK }";; "INSTALLE "*) installe "${lr#INSTALLE }";; esac
+  done <<EOF_REG
+$(reglages_par_defaut)
+EOF_REG
+
   # Client isolé : ses carrousels sous sa racine, pas dans le dossier Images de l'utilisateur du Mac.
   local rc_car; rc_car="$(carrousels_racine 2>&1)"
   case "$rc_car" in
@@ -706,16 +714,58 @@ cmd_verifier() {
 
 # ------------------------------------------------------------------ réglages posés à l'installation
 
+# Les disques externes branchés, où ranger les anciennes vidéos : ni le disque du Mac, ni une image disque (un
+# installeur ouvert), ni un disque en lecture seule, ni un disque de sauvegarde Time Machine. Une ligne DISQUE par
+# disque retenu. STUDIO_VOLUMES (essais seulement) : dossier à lire à la place de /Volumes, chaque disque y décrit
+# par un fichier <nom>.disque (« externe » ou « image » ou « interne » ou « sauvegarde » ou « lecture-seule »).
 cmd_disques() {
-  local v racine
+  local v racine nom
   racine="$(stat -f %d /)"
-  for v in /Volumes/*; do
+  for v in "${STUDIO_VOLUMES:-/Volumes}"/*; do
     [ -d "$v" ] || continue
-    [ "$(stat -f %d "$v" 2>/dev/null)" = "$racine" ] && continue
-    case "$(basename "$v")" in com.apple.*|"Recovery"|"Preboot"|"VM"|"Update") continue;; esac
-    echo "DISQUE $(basename "$v") libre=$(df -h "$v" 2>/dev/null | awk 'NR==2 {print $4}')"
+    nom="$(basename "$v")"
+    case "$nom" in com.apple.*|"Recovery"|"Preboot"|"VM"|"Update"|.*) continue;; esac
+    if [ -n "${STUDIO_VOLUMES:-}" ]; then
+      [ "$(cat "$v.disque" 2>/dev/null)" = "externe" ] || continue
+    else
+      [ "$(stat -f %d "$v" 2>/dev/null)" = "$racine" ] && continue
+      local info; info="$(diskutil info -plist "$v" 2>/dev/null | plutil -convert json -o - - 2>/dev/null)"
+      [ -n "$info" ] || continue
+      "$PY" -c '
+import json, sys
+d = json.loads(sys.argv[1])
+ok = d.get("Internal") is False and d.get("BusProtocol") != "Disk Image" and d.get("WritableVolume") is True \
+     and "Backup" not in " ".join(d.get("APFSVolumeRoles") or [])
+sys.exit(0 if ok else 1)' "$info" || continue
+      [ -d "$v/Backups.backupdb" ] && continue
+    fi
+    echo "DISQUE $nom libre=$(df -h "$v" 2>/dev/null | awk 'NR==2 {print $4}')"
   done
   echo "FIN_DISQUES"
+}
+
+# Réglages posés sans question à l'installation (le client peut les changer plus tard dans le studio) :
+#   appareil : celui du fichier du client (« appareil », iPhone chez Romain), si la config n'en a pas ;
+#   disque_externe : s'il y a exactement un disque externe branché, il est retenu ; sinon rien (les anciennes vidéos
+#   restent sur le Mac). Jamais un réglage déjà posé n'est remplacé. Une ligne par point (OK | INSTALLE).
+reglages_par_defaut() {
+  [ -f "$STUDIO_CONF" ] || return 0
+  local app_conf app_client disque_conf
+  app_conf="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("appareil") or "")' "$STUDIO_CONF" 2>/dev/null)"
+  app_client="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("appareil") or "")' "$CLIENT_FICHIER" 2>/dev/null)"
+  if [ -n "$app_conf" ]; then echo "OK studio-appareil $app_conf"
+  elif [ -n "$app_client" ]; then cmd_reglage appareil "$app_client" >/dev/null && echo "INSTALLE studio-appareil $app_client (par défaut)"; fi
+  disque_conf="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("disque_externe") or "")' "$STUDIO_CONF" 2>/dev/null)"
+  if [ -n "$disque_conf" ]; then echo "OK studio-disque $(basename "$disque_conf")"; return 0; fi
+  local liste n
+  liste="$(cmd_disques | sed -n 's/^DISQUE \(.*\) libre=.*$/\1/p')"
+  n="$(printf '%s' "$liste" | grep -c .)"
+  if [ "$n" = "1" ]; then
+    local vol="${STUDIO_VOLUMES:-/Volumes}/$liste"
+    cmd_reglage disque_externe "$vol" >/dev/null && echo "INSTALLE studio-disque disque externe retenu : $liste"
+  elif [ "$n" = "0" ]; then echo "OK studio-disque aucun disque externe branché : anciennes vidéos gardées sur le Mac (réglable plus tard)"
+  else echo "OK studio-disque $n disques externes branchés, aucun choisi d'office (réglable plus tard)"; fi
+  return 0
 }
 
 cmd_reglage() { # $1 clé, $2 valeur
@@ -723,8 +773,8 @@ cmd_reglage() { # $1 clé, $2 valeur
   case "$cle" in
     disque_externe)
       [ -n "$val" ] || { echo "REGLAGE_REFUSE disque_externe vide"; return 2; }
-      case "$val" in /Volumes/*) ;; *) val="/Volumes/$val";; esac
-      [ -d "$val" ] || echo "ATTENTION disque $val pas branché en ce moment (réglage gardé quand même)";;
+      case "$val" in /*) ;; *) val="/Volumes/$val";; esac
+      [ -d "$val" ] || [ -d "/Volumes/$(basename "$val")" ] || echo "ATTENTION disque $val pas branché en ce moment (réglage gardé quand même)";;
     appareil)
       [ -n "$val" ] || { echo "REGLAGE_REFUSE appareil vide"; return 2; };;
     *) echo "REGLAGE_REFUSE $cle (réglages permis : disque_externe, appareil)"; return 2;;

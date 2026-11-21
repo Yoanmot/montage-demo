@@ -187,9 +187,12 @@ test("studio.sh installer : Romain identique à avant le multi-clients (service,
   }
   const norm = (s, { c, maison }) => s.split(c).join("<CODE>").split(maison).join("<HOME>");
   const lire = (k, f) => norm(fs.readFileSync(path.join(copies[k].maison, f), "utf8"), copies[k]);
-  for (const f of ["Library/LaunchAgents/com.montage-yoan.studio.plist", ".montage-yoan/studio/studio.config.json"]) {
-    assert.equal(lire("nouveau", f), lire("ancien", f), f);
-  }
+  assert.equal(lire("nouveau", "Library/LaunchAgents/com.montage-yoan.studio.plist"), lire("ancien", "Library/LaunchAgents/com.montage-yoan.studio.plist"));
+  // Seul changement voulu (livraison du 21/11) : l'appareil posé d'office (iPhone), sans question à l'installation.
+  const confNouv = JSON.parse(lire("nouveau", ".montage-yoan/studio/studio.config.json"));
+  assert.equal(confNouv.appareil, "iPhone");
+  confNouv.appareil = null;
+  assert.deepEqual(confNouv, JSON.parse(lire("ancien", ".montage-yoan/studio/studio.config.json")));
   for (const f of ["Applications/Studio.app/Contents/Info.plist", "Applications/Studio.app/Contents/MacOS/Studio"]) {
     assert.equal(lire("repli", f), lire("ancien", f), `repli ${f}`);
   }

@@ -50,6 +50,7 @@ charger_client() {
 
 main() {
   set -u
+  local MODE="${1:-}"
   export GIT_TERMINAL_PROMPT=0 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
   if ! charger_client; then echo "ECHEC client : $CLIENT_ERREUR"; echo "FIN ok=0 a_faire=0 echecs=1"; return 1; fi
   local BASE="$CLIENT_RACINE"
@@ -94,6 +95,48 @@ main() {
   fi
   ok "outils-apple $("$PY" --version 2>&1) $(git --version 2>/dev/null)"
 
+  # ------------------------------------------------------------ le dépôt du monteur (copie alignée sur la branche du client)
+  poser_depot() {
+    if [ -e "$CLONE" ] && [ ! -d "$CLONE/.git" ]; then mv "$CLONE" "$CLONE.ancien-$(date +%Y%m%d-%H%M%S)"; fi
+    if [ -d "$CLONE/.git" ]; then
+      git -C "$CLONE" remote set-url origin "$DEPOT_URL"
+      if git -C "$CLONE" fetch -q origin "$BRANCHE" && git -C "$CLONE" checkout -q -f -B "$BRANCHE" "origin/$BRANCHE" 2>/dev/null; then ok "depot-monteur $(git -C "$CLONE" rev-parse --short HEAD) ($BRANCHE)"
+      else echec "depot-monteur : mise à jour impossible (connexion ?)"; fi
+    else
+      if git clone -q --branch "$BRANCHE" "$DEPOT_URL" "$CLONE"; then installe "depot-monteur $(git -C "$CLONE" rev-parse --short HEAD) ($BRANCHE)"
+      else echec "depot-monteur : téléchargement impossible ($DEPOT_URL, branche $BRANCHE)"; return 1; fi
+    fi
+    # Le client de cette installation, recopié dans la racine : les scripts lancés sans STUDIO_CLIENT
+    # (service, hook, sessions) le retrouvent par là (studio/lancement/client.sh). Romain : rien à poser.
+    if [ "$CLIENT_ID" != "romain" ] && [ -f "$CLIENT_FICHIER" ]; then
+      if [ -n "${STUDIO_CLIENT_FICHIER:-}" ] && [ ! -f "$CLONE/studio/clients/$CLIENT_ID.json" ]; then
+        cp "$CLIENT_FICHIER" "$CLONE/studio/clients/$CLIENT_ID.json"   # test : client hors du dépôt
+      fi
+      if ! cmp -s "$CLIENT_FICHIER" "$BASE/client.json"; then cp "$CLIENT_FICHIER" "$BASE/client.json"; installe "client $CLIENT_ID posé ($BASE/client.json)"
+      else ok "client $CLIENT_ID"; fi
+    fi
+    return 0
+  }
+
+  # ------------------------------------------------------------ début de l'installation (--debut) : seulement le dépôt
+  # Les gestes du client se font au début (prompt d'installation) : il faut les scripts du dépôt tout de suite, et
+  # savoir si Homebrew devra être installé (le seul cas où le mot de passe du Mac est demandé).
+  if [ "$MODE" = "--debut" ]; then
+    poser_depot || { fin; return 1; }
+    local brew_ici="" outils_manquants=""
+    for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && brew_ici=1; done
+    local nv0; nv0="$(node -v 2>/dev/null | sed 's/^v//')"
+    { [ -n "$nv0" ] && [ "${nv0%%.*}" -ge 24 ]; } || outils_manquants="$outils_manquants node"
+    { [ -x /opt/homebrew/bin/ffmpeg ] || [ -x /usr/local/bin/ffmpeg ]; } || outils_manquants="$outils_manquants ffmpeg"
+    { [ -d "/Applications/Google Chrome.app" ] || [ -d "/Applications/Microsoft Edge.app" ]; } || outils_manquants="$outils_manquants chrome"
+    if [ -n "$brew_ici" ]; then ok "homebrew présent"
+    elif [ -n "$outils_manquants" ]; then a_faire "HOMEBREW_MOT_DE_PASSE il manque$outils_manquants : Homebrew sera installé (installation/homebrew.sh), le Mac demande son mot de passe une fois"
+    else ok "homebrew inutile (outils déjà là)"; fi
+    fin
+    [ "$nb_echec" -eq 0 ] || return 1
+    return 0
+  fi
+
   # ------------------------------------------------------------ Homebrew (seulement si un outil manque)
   local BREW=""
   for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && { BREW="$b"; break; }; done
@@ -107,8 +150,14 @@ main() {
   fi
   export PATH="$BASE/bin:$PATH"
   besoin_brew() {
+    if [ -z "$BREW" ] && [ -f "$BASE/homebrew/pid" ]; then
+      # Une installation de Homebrew lancée au début (installation/homebrew.sh) : attendue ici, 20 min au plus.
+      local hp i=0; hp="$(cat "$BASE/homebrew/pid" 2>/dev/null)"
+      while [ -n "$hp" ] && kill -0 "$hp" 2>/dev/null && [ "$i" -lt 600 ]; do sleep 2; i=$((i + 1)); done
+      for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && { BREW="$b"; eval "$("$BREW" shellenv)"; break; }; done
+    fi
     if [ -z "$BREW" ]; then
-      a_faire "HOMEBREW il manque $1 et Homebrew n'est pas sur ce Mac : $QUI colle dans l'app Terminal la commande d'installation de https://brew.sh (elle demande le mot de passe du Mac), suit les 2 lignes « Next steps » qu'elle affiche, puis on relance ce script"
+      a_faire "HOMEBREW il manque $1 et Homebrew n'est pas sur ce Mac (installation/homebrew.sh : mot de passe du Mac refusé ou installation en échec, journal $BASE/homebrew/journal.log)"
       return 1
     fi
     return 0
@@ -207,24 +256,7 @@ main() {
   fi
 
   # ------------------------------------------------------------ le dépôt du monteur, ses skills et son agent
-  if [ -e "$CLONE" ] && [ ! -d "$CLONE/.git" ]; then mv "$CLONE" "$CLONE.ancien-$(date +%Y%m%d-%H%M%S)"; fi
-  if [ -d "$CLONE/.git" ]; then
-    git -C "$CLONE" remote set-url origin "$DEPOT_URL"
-    if git -C "$CLONE" fetch -q origin "$BRANCHE" && git -C "$CLONE" checkout -q -f -B "$BRANCHE" "origin/$BRANCHE" 2>/dev/null; then ok "depot-monteur $(git -C "$CLONE" rev-parse --short HEAD) ($BRANCHE)"
-    else echec "depot-monteur : mise à jour impossible (connexion ?)"; fi
-  else
-    if git clone -q --branch "$BRANCHE" "$DEPOT_URL" "$CLONE"; then installe "depot-monteur $(git -C "$CLONE" rev-parse --short HEAD) ($BRANCHE)"
-    else echec "depot-monteur : téléchargement impossible ($DEPOT_URL, branche $BRANCHE)"; fin; return 1; fi
-  fi
-  # Le client de cette installation, recopié dans la racine : les scripts lancés sans STUDIO_CLIENT
-  # (service, hook, sessions) le retrouvent par là (studio/lancement/client.sh). Romain : rien à poser.
-  if [ "$CLIENT_ID" != "romain" ] && [ -f "$CLIENT_FICHIER" ]; then
-    if [ -n "${STUDIO_CLIENT_FICHIER:-}" ] && [ ! -f "$CLONE/studio/clients/$CLIENT_ID.json" ]; then
-      cp "$CLIENT_FICHIER" "$CLONE/studio/clients/$CLIENT_ID.json"   # test : client hors du dépôt
-    fi
-    if ! cmp -s "$CLIENT_FICHIER" "$BASE/client.json"; then cp "$CLIENT_FICHIER" "$BASE/client.json"; installe "client $CLIENT_ID posé ($BASE/client.json)"
-    else ok "client $CLIENT_ID"; fi
-  fi
+  poser_depot || { fin; return 1; }
 
   # Les polices du client que le dépôt public ne peut pas contenir (polices_locales, lot 10) : copiées depuis son
   # fichier à lui dans <racine>/studio/polices ; absente : le thème retombe sur sa police de repli.
