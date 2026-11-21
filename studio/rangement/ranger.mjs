@@ -48,6 +48,7 @@ const RAISONS = {
   photo_aucune: 'je ne sais pas pour quel contenu est cette photo',
   biblio_absent: "ce clip n'est plus dans ta bibliothèque, il faudra le refilmer",
   pendant: "arrivé pendant que je rangeais, il t'attend dans ta Galerie, à placer",
+  quelques_mots: "j'entends quelques mots sans reconnaître ton texte : si c'est ta face caméra, mets-la dans son reel ; sinon, mets-la dans ta Galerie",
   audio_illisible: "je n'arrive pas à lire ce mémo vocal, il n'est peut-être pas arrivé en entier",
   voix_ecoute: "je n'ai pas pu écouter ce mémo vocal, il t'attend dans ta Galerie, à placer",
   voix_aucune: "je n'ai pas reconnu le texte d'un de tes reels dans ce mémo vocal, il t'attend dans ta Galerie, à placer",
@@ -294,7 +295,7 @@ async function ranger(o) {
         // face et photo : un fichier réel dans un seul contenu (le premier) ; b-roll : un lien par contenu servi
         for (const s of d.type === 'b-roll' ? slugsValides : slugsValides.slice(0, 1)) say(`PLACE ${d.f.nom} -> ${s}/${d.type}`);
         places++;
-      } else if (d.f.type === 'photo' || (d.f.type === 'video' && d.f.reconnaissance?.decision === 'sans_parole')) {
+      } else if (d.f.type === 'photo' || (d.f.type === 'video' && d.f.reconnaissance?.decision === 'sans_parole' && !quelquesMots(d.f))) {
         // Une photo ou un b-roll rattaché à rien (lot 15) : il entre dans la Galerie, où il resservira.
         const type = d.f.type === 'photo' ? 'photo' : 'b-roll';
         if (!simulation) {
@@ -303,11 +304,14 @@ async function ranger(o) {
         } else say(`GALERIE ${d.f.nom} simulation`);
         enGalerie++;
       } else {
-        const raison = RAISONS[d.raison] || RAISONS.vue_aucune;
+        // Une vidéo où l'on entend quelques mots, rattachée à rien : peut-être une face caméra courte (jamais dans la
+        // Galerie) ; elle attend dans « Arrivés, à placer », où Romain dit si c'est une face caméra ou un plan.
+        const peutEtreFace = d.f.type === 'video' && d.f.reconnaissance?.decision === 'sans_parole' && quelquesMots(d.f);
+        const raison = peutEtreFace ? RAISONS.quelques_mots : (RAISONS[d.raison] || RAISONS.vue_aucune);
         if (!simulation) {
           const nom = media.mettreDeCote(d.f.chemin, {
-            raison, code: d.raison, candidats: d.candidats || [], tournage: t.id,
-            type_probable: d.f.type === 'photo' ? 'photo' : (d.f.reconnaissance?.decision === 'sans_parole' ? 'b-roll' : 'face'),
+            raison, code: peutEtreFace ? 'quelques_mots' : d.raison, candidats: d.candidats || [], tournage: t.id,
+            type_probable: d.f.type === 'photo' ? 'photo' : peutEtreFace ? null : (d.f.reconnaissance?.decision === 'sans_parole' ? 'b-roll' : 'face'),
             pris_le: isoZurich(d.f.date), duree_s: d.f.duree_s || null, vu: d.vu || null,
             vignette: vignetteARanger(media, config, d.f),
           });
@@ -333,6 +337,12 @@ async function ranger(o) {
     liberer();
   }
 }
+
+// Une vidéo sans assez de mots pour être reconnue, mais où l'on parle un peu (5 mots pleins ou plus, sans les petits
+// mots) : une face caméra courte ou ratée est possible. Un vrai plan filmé en plus n'a pas de parole (ou un ou deux mots
+// entendus dans le bruit).
+const MOTS_FACE_POSSIBLE = 5;
+function quelquesMots(f) { return (Number(f.reconnaissance?.mots) || 0) >= MOTS_FACE_POSSIBLE; }
 
 // Une image du milieu du clip, pour que Romain reconnaisse un fichier à ranger.
 function vignetteARanger(media, config, f) {

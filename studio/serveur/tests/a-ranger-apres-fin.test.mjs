@@ -151,7 +151,9 @@ test("rangement à la main d'une arrivée, jusqu'au dossier du contenu ; un fich
 });
 
 test("« Ranger maintenant » sur un plan fini : la vidéo sans parole pas attendue entre dans la Galerie, puis se pose dans le reel", { skip: SKIP }, async () => {
-  const { m, arrivees, api } = await studio(preparer({ valideIlYA: 60 }));
+  // Vraiment sans parole (chasse aux bugs du 21/11 : une vidéo où l'on entend quelques phrases attend « à placer »,
+  // jamais de face caméra possible dans la Galerie ; rangement/tests/chasse.test.mjs).
+  const { m, arrivees, api } = await studio(preparer({ valideIlYA: 60 }), { texte: "" });
   video(path.join(arrivees, "ecran.mov"));
   assert.equal((await api("POST", `/api/tournages/${ID}/valider`, {})).statut, 200);
   // Lot 15 : rattachée à rien, elle n'attend plus dans « À ranger » : elle entre dans la Galerie (le bilan le compte).
