@@ -15,6 +15,7 @@ export const NOMS_ACTION = {
   script: ["brief", "briefs"], tournage: ["plan de tournage", "plans de tournage"], montage: ["montage", "montages"],
   mise_en_page: ["mise en page", "mises en page"], idees: ["recherche d'idées", "recherches d'idées"],
   rangement: ["rangement", "rangements"], publication: ["programmation", "programmations"], archivage: ["archivage", "archivages"],
+  description: ["description", "descriptions"],
 };
 export const NOMS_FICHIERS = { idee: "Idée", brief: "Brief", montage: "Montage", video: "Vidéo montée", slides: "Images", ressource: "Ressource gratuite", autres: "Autres fichiers" };
 export const ICONES_FICHIERS = { idee: "idee", brief: "brief", montage: "ciseaux", video: "video", slides: "slides", ressource: "cadeau", autres: "dossier" };

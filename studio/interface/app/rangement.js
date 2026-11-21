@@ -29,9 +29,9 @@ export class Rangement {
     const blocs = [];
     if (attente.length) blocs.push(this.dessinerAttente(attente));
     if (fs.length) {
-      const relancer = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("synchro")}<span>Réessayer de tout ranger</span>` });
+      const relancer = el("button", { class: "bouton bouton-discret bouton-petit ranger-relancer", type: "button", html: `${icone("synchro")}<span>Réessayer de tout ranger</span>` });
       relancer.addEventListener("click", async () => { relancer.disabled = true; try { await this.api.relancerRangement(); annoncer("Je réessaie."); } catch (e) { annoncer(e.message, "erreur"); } finally { relancer.disabled = false; } });
-      blocs.push(el("div", { class: "ranger-liste" }, ...fs.map((f) => this.dessinerFichier(f))), el("div", { class: "bloc-pied" }, relancer));
+      blocs.push(el("div", { class: "ranger-liste" }, ...fs.map((f) => this.dessinerFichier(f))), el("div", { class: "bloc-pied ranger-relancer-pied" }, relancer));
     }
     this.racine.replaceChildren(...blocs);
   }
@@ -63,7 +63,7 @@ export class Rangement {
               f.en_cours
                 ? el("p", { class: "recap-charge", role: "status" }, el("span", { class: "points", "aria-hidden": "true" }, el("i"), el("i"), el("i")), `En cours de réception : ${f.taille_lisible} reçus pour l'instant`)
                 : el("p", { class: "ranger-raison" }, `${String(f.raison || "arrivée en entier, pas encore rangée").replace(/^./, (x) => x.toUpperCase())} (${f.taille_lisible}).`),
-              f.en_cours ? null : ch ? this.confirmation(f, ch) : this.menu(f)));
+              f.en_cours ? null : ch ? this.confirmation(f, ch) : el("div", { class: "ranger-actions" }, this.menu(f))));
           if (!f.en_cours) this.glissable(n, f);
           return n;
         }),
@@ -73,8 +73,17 @@ export class Rangement {
     }));
   }
 
+  // Une face caméra pas reconnue (lot 15, bandeau « Arrivés, à placer » de la Galerie) : son jour et sa durée.
+  nomFace(f) {
+    const jour = f.pris_le ? new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "short" }).format(new Date(f.pris_le)) : null;
+    const d = Number(f.duree_s);
+    const duree = d > 0 ? ` (${Math.floor(d / 60)}:${String(Math.round(d % 60)).padStart(2, "0")})` : "";
+    return `Vidéo face caméra${jour ? ` du ${jour}` : ""}${duree}`;
+  }
+
   dessinerFichier(f) {
-    const nom = this.nomLisible(f);
+    const face = f.type === "face";
+    const nom = face ? this.nomFace(f) : this.nomLisible(f);
     const apercu = f.vignette_url
       ? el("img", { class: "ranger-vignette", src: f.vignette_url, alt: "", width: "72", height: "128", draggable: "false" })
       : el("div", { class: "ranger-vignette ranger-vignette-vide", html: icone("film") });
@@ -85,10 +94,21 @@ export class Rangement {
       media.replaceChildren(v);
     });
     const ch = this.choix.get(f.nom);
+    // Une photo ou un plan d'avant la Galerie, mis de côté par le rangement : il peut entrer dans la Galerie d'un clic.
+    let versGalerie = null;
+    if (!face) {
+      versGalerie = el("button", { class: "bouton bouton-petit", type: "button", html: `${icone("galerie")}<span>Mettre dans la Galerie</span>` });
+      versGalerie.addEventListener("click", async () => {
+        versGalerie.disabled = true;
+        try { await this.api.versGalerie(f.nom); annoncer("C'est dans ta Galerie : je le décris."); }
+        catch (e) { annoncer(e.message, "erreur"); versGalerie.disabled = false; }
+      });
+    }
+    const raison = face ? `${String(f.raison || "je ne retrouve pas à quel reel elle appartient").replace(/^./, (x) => x.toUpperCase())} : dis-moi dans quel reel elle va. Les vidéos face caméra ne restent pas dans la Galerie.` : f.raison;
     const corps = el("div", { class: "ranger-corps" },
       el("p", { class: "ranger-nom" }, nom.replace(/^./, (x) => x.toUpperCase())),
-      el("p", { class: "ranger-raison" }, f.raison),
-      ch ? this.confirmation(f, ch) : this.menu(f));
+      el("p", { class: "ranger-raison" }, raison),
+      ch ? this.confirmation(f, ch) : el("div", { class: "ranger-actions" }, this.menu(f), versGalerie));
     const n = el("article", { class: "ranger-fichier", draggable: "true", "aria-label": nom }, el("span", { class: "poignee", "aria-hidden": "true", html: icone("poignee") }), media, corps);
     this.glissable(n, f);
     return n;
@@ -111,18 +131,21 @@ export class Rangement {
   }
 
   menu(f) {
-    const { cands, autres } = this.candidatsDe(f);
-    const sel = el("select", { class: "champ", "aria-label": "Mettre dans quel contenu" },
-      el("option", { value: "" }, "Mettre dans..."),
+    let { cands, autres } = this.candidatsDe(f);
+    // Une face caméra ne va que dans un reel.
+    const face = f.type === "face";
+    if (face) { cands = cands.filter((x) => x.carte.format === "reel"); autres = autres.filter((c) => c.format === "reel"); }
+    const sel = el("select", { class: "champ", "aria-label": face ? "Mettre dans quel reel" : "Mettre dans quel contenu" },
+      el("option", { value: "" }, face ? "Mettre dans le reel..." : "Mettre dans..."),
       cands.length ? el("optgroup", { label: "Le plus probable" }, ...cands.map((x) => el("option", { value: x.slug }, x.carte.titre))) : null,
       autres.length ? el("optgroup", { label: "Les autres contenus" }, ...autres.map((c) => el("option", { value: c.slug }, c.titre))) : null);
     sel.addEventListener("change", () => { if (sel.value) this.proposer(f, sel.value); });
-    return el("div", { class: "ranger-actions" }, sel);
+    return sel;
   }
 
   proposer(f, slug) {
     const cand = (f.candidats || []).find((x) => x.slug === slug);
-    const type = cand?.type || (/\.(jpe?g|heic|png)$/i.test(f.nom) ? "photo" : "b-roll");
+    const type = cand?.type || (f.type === "face" ? "face" : /\.(jpe?g|heic|png)$/i.test(f.nom) ? "photo" : "b-roll");
     this.choix.set(f.nom, { slug, type });
     this.dessiner();
   }
@@ -157,7 +180,7 @@ export class Rangement {
       e.preventDefault(); noeud.classList.remove("cible-on");
       const f = this.glisse; this.glisse = null; document.body.classList.remove("glisse-clip");
       this.proposer(f, carte.slug);
-      if (this.studio.sel.genre !== "transverse" || this.studio.sel.quoi !== "ranger") this.studio.selectionner({ genre: "transverse", quoi: "ranger" });
+      if (this.studio.sel.genre !== "transverse" || this.studio.sel.quoi !== "galerie" || this.studio.sel.id) this.studio.selectionner({ genre: "transverse", quoi: "galerie" });
     });
   }
 }

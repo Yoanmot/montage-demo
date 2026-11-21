@@ -183,6 +183,7 @@ class Studio {
     else if (type === "a_ranger") { this.a_ranger = d.fichiers || []; this.arbre.dessiner(); this.vue.transverseChangee(); }
     else if (type === "sync") { this.sync = syncHonnete(d); this.dessinerSync(); }
     else if (type === "tournages") { this.tournages = d.tournages || []; this.arbre.dessiner(); this.vue.transverseChangee(); }
+    else if (type === "galerie") { this.vue.galerieChangee(d); }
     else if (type === "stats") { this.stats = d; if (this.sel.genre === "accueil") this.vue.transverseChangee(); }
   }
 
@@ -206,7 +207,7 @@ class Studio {
     const m = /^#\/(d|t)\/([^/]+)(?:\/([^/]*))?$/.exec(location.hash);
     let sel = { genre: "accueil" };
     if (m && m[1] === "d") sel = { genre: "dossier", cle: decodeURIComponent(m[2]), fichier: m[3] || null };
-    if (m && m[1] === "t") sel = { genre: "transverse", quoi: m[2], id: m[3] ? decodeURIComponent(m[3]) : null };
+    if (m && m[1] === "t") sel = { genre: "transverse", quoi: m[2] === "ranger" ? "galerie" : m[2], id: m[3] ? decodeURIComponent(m[3]) : null };
     const avant = JSON.stringify(this.sel);
     this.sel = sel;
     if (sel.genre === "dossier") this.ouverts.add(sel.cle);
@@ -289,8 +290,12 @@ class Studio {
     const cours = actives.filter((a) => a.statut === "en_cours");
     const parType = {};
     for (const a of cours) parType[a.type] = (parType[a.type] || 0) + 1;
+    // Les descriptions de la Galerie (lot 15) se comptent à part : « 2 fichiers à décrire » (en cours ou en attente).
+    delete parType.description;
     const morceaux = Object.entries(parType).map(([t, n]) => `${pluriel(n, NOMS_ACTION[t]?.[0] || "action", NOMS_ACTION[t]?.[1] || "actions")} en cours`);
-    const attente = actives.filter((a) => a.statut === "en_file").length;
+    const aDecrire = actives.filter((a) => a.type === "description" && ["en_cours", "en_file"].includes(a.statut)).length;
+    if (aDecrire) morceaux.push(pluriel(aDecrire, "fichier à décrire", "fichiers à décrire"));
+    const attente = actives.filter((a) => a.statut === "en_file" && a.type !== "description").length;
     if (attente) morceaux.push(`${attente} en attente`);
     const atoi = actives.filter((a) => a.statut === "a_toi").length;
     if (atoi) morceaux.push(`${atoi} attend${atoi > 1 ? "ent" : ""} ta réponse`);
@@ -303,7 +308,7 @@ class Studio {
     b.classList.toggle("travaille", cours.length > 0);
     const liste = this.q("#file-liste");
     if (liste.hidden) return;
-    const SANS_CONTENU = { rangement: "tes vidéos", archivage: "ton disque externe", publication: "ta publication" };
+    const SANS_CONTENU = { rangement: "tes vidéos", archivage: "ton disque externe", publication: "ta publication", description: "un fichier de ta Galerie" };
     const titre = (a) => (a.slugs || [a.slug]).filter(Boolean).map((s) => this.cartes.get(s)?.titre || "un contenu").join(", ") || SANS_CONTENU[a.type] || "le chat";
     const STATUT = { en_cours: "en cours", en_file: "en attente", a_toi: "attend ta réponse", erreur: "souci" };
     const bouton = (texteB, faire) => {
@@ -313,7 +318,7 @@ class Studio {
     };
     // Relancer : seulement un travail fait par Claude (script, plan de tournage, montage, mise en page) ; les autres
     // se relancent depuis leur bouton, dans le dossier du contenu.
-    const RELANCABLES = new Set(["script", "tournage", "montage", "mise_en_page"]);
+    const RELANCABLES = new Set(["script", "tournage", "montage", "mise_en_page", "description"]);
     liste.replaceChildren(el("p", { class: "file-tete" }, "Ce qui tourne"),
       ...(pause ? [el("p", { class: "file-pause" }, pause.phrase)] : []),
       ...actives.map((a) => {

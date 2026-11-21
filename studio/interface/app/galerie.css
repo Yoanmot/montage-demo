@@ -1,0 +1,195 @@
+/* La Galerie (lot 15, maquette validée par Yoan le 2026-11-21). N'utilise que les variables du thème et les composants
+   de style.css ; préfixe gal- partout (aucune classe partagée avec un autre écran). */
+
+/* Arrivés, à placer : même carte que l'ancien « À ranger », sur fond orange pâle (ça attend Romain). */
+.gal-arrives { padding: 14px 16px 16px; margin-bottom: 22px; border-radius: var(--rayon); background: var(--orange-pale); border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent); }
+.gal-arrives .bloc-tete { border-color: color-mix(in srgb, var(--orange) 30%, transparent); }
+.gal-arrives .bloc-tete h3 { color: var(--encre); }
+.gal-arrives .ranger-fichier { background: var(--surface); cursor: default; max-width: 520px; }
+
+/* Barre d'outils : filtres, recherche, tri. */
+.gal-outils { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.gal-recherche { position: relative; flex: 1 1 220px; min-width: 0; max-width: 460px; }
+.gal-recherche .ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--encre-3); pointer-events: none; }
+.gal-recherche .champ { width: 100%; padding-left: 34px; }
+.gal-tri { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--encre-3); font-weight: 600; }
+.gal-tri .champ { height: 34px; font-size: 13.5px; }
+.gal-bascule { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: var(--rayon-petit); border: 1px solid var(--trait-fort); background: transparent; color: var(--encre-2); font-weight: 600; font-size: 13px; }
+.gal-bascule[aria-pressed="true"] { background: var(--encre); border-color: var(--encre); color: var(--inverse); }
+.gal-bascule .ico { width: 15px; height: 15px; }
+.segment .gal-nb { font-size: 11.5px; font-weight: 700; color: var(--encre-3); font-variant-numeric: tabular-nums; }
+.segment button[aria-pressed="true"] .gal-nb { color: var(--encre-2); }
+
+.gal-resume { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13px; color: var(--encre-3); margin-bottom: 14px; }
+.gal-resume strong { color: var(--encre); font-weight: 750; font-variant-numeric: tabular-nums; }
+
+/* Glisser-déposer : une bande fine, toujours là. */
+.gal-depot { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border: 1.5px dashed var(--trait-fort); border-radius: var(--rayon); color: var(--encre-2); font-size: 14px; }
+.gal-depot .ico { width: 20px; height: 20px; color: var(--encre-3); }
+.gal-depot p { flex: 1; min-width: 0; }
+.gal-depot strong { color: var(--encre); }
+
+/* La grille. */
+.gal-grille { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+.gal-carte { display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); overflow: hidden; }
+.gal-carte:hover { border-color: var(--trait-fort); }
+.gal-media { position: relative; aspect-ratio: 4 / 5; background: var(--fond-3); overflow: hidden; }
+.gal-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gal-pastille, .gal-duree { position: absolute; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--rayon-mini); background: rgb(0 0 0 / .66); color: #fff; font-size: 11.5px; font-weight: 750; letter-spacing: .01em; }
+.gal-pastille { left: 8px; top: 8px; }
+.gal-duree { right: 8px; bottom: 8px; font-variant-numeric: tabular-nums; }
+.gal-duree .ico { width: 11px; height: 11px; }
+.gal-corps { display: grid; gap: 3px; align-content: start; padding: 9px 11px 11px; }
+.gal-titre { font-size: 13.5px; font-weight: 700; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gal-meta { font-size: 12px; color: var(--encre-3); font-variant-numeric: tabular-nums; }
+.gal-carte.gal-encours .gal-media img { opacity: .45; filter: grayscale(.4); }
+.gal-attente { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; padding: 12px; color: #fff; font-size: 13px; font-weight: 700; background: rgb(0 0 0 / .35); }
+.gal-attente .tag-cours { box-shadow: 0 0 0 1px rgb(255 255 255 / .25); }
+.gal-encours .gal-titre { color: var(--encre-2); font-weight: 600; }
+
+/* Galerie vide. */
+.gal-vide { display: grid; justify-items: center; text-align: center; gap: 14px; padding: 48px 28px; border: 1.5px dashed var(--trait-fort); border-radius: var(--rayon); }
+.gal-vide-ico { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: var(--fond-2); color: var(--encre-2); }
+.gal-vide-ico .ico { width: 26px; height: 26px; }
+.gal-vide h2 { font-size: 20px; font-weight: 800; line-height: 1.25; max-width: 30ch; text-wrap: balance; }
+.gal-vide p { color: var(--encre-2); max-width: 58ch; font-size: 15px; line-height: 1.6; text-wrap: pretty; }
+.gal-vide-idees { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 62ch; }
+.gal-vide-idees span { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 99px; background: var(--fond-2); color: var(--encre-2); font-size: 13.5px; font-weight: 650; }
+.gal-vide .doux { font-size: 13px; color: var(--encre-3); }
+
+/* Fiche d'un fichier. */
+.gal-fiche { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; align-items: start; }
+.gal-apercu { display: grid; gap: 10px; position: sticky; top: 0; }
+.gal-apercu-cadre { position: relative; aspect-ratio: 9 / 16; border-radius: var(--rayon); overflow: hidden; background: #000; }
+.gal-apercu-cadre.photo { aspect-ratio: 4 / 5; }
+.gal-apercu-cadre img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gal-lire { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 56px; height: 56px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgb(0 0 0 / .6); color: #fff; }
+.gal-lire .ico { width: 22px; height: 22px; }
+.gal-frise { display: grid; gap: 5px; }
+.gal-frise-barre { position: relative; height: 10px; border-radius: 99px; background: var(--fond-3); overflow: hidden; }
+.gal-frise-barre i { position: absolute; top: 0; bottom: 0; background: var(--vert); border-radius: 99px; }
+.gal-frise-legende { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--encre-3); font-variant-numeric: tabular-nums; }
+.gal-frise-note { font-size: 12.5px; color: var(--encre-2); display: flex; align-items: center; gap: 6px; }
+.gal-frise-note::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--vert); flex: none; }
+
+.gal-desc { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 0; margin: 0; border-top: 1px solid var(--trait); }
+.gal-desc dt, .gal-desc dd { padding: 10px 0; border-bottom: 1px solid var(--trait); margin: 0; }
+.gal-desc dt { font-size: 13px; font-weight: 700; color: var(--encre-3); padding-right: 14px; }
+.gal-desc dd { font-size: 15px; line-height: 1.55; text-wrap: pretty; }
+.gal-desc .doux { color: var(--encre-3); }
+.gal-origine { margin-top: 12px; font-size: 13.5px; color: var(--encre-2); display: flex; gap: 8px; align-items: flex-start; }
+.gal-origine .ico { width: 16px; height: 16px; margin-top: 2px; color: var(--encre-3); }
+
+.gal-refus { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--rayon); background: var(--ambre-pale); border: 1px solid color-mix(in srgb, var(--ambre) 35%, transparent); }
+.gal-refus p { margin: 0; font-size: 14px; color: var(--encre); line-height: 1.5; }
+.gal-refus .titre { display: flex; gap: 8px; align-items: center; font-weight: 750; color: var(--ambre); }
+.gal-refus .titre .ico { width: 17px; height: 17px; }
+.gal-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Choisir une photo pour une slide (carrousel). */
+.gal-slide-photos { margin-top: 12px; display: grid; gap: 10px; }
+.gal-slide-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.gal-slide-tete .segment button { height: 30px; }
+.gal-propositions { display: flex; flex-wrap: wrap; gap: 10px; }
+.gal-proposee { position: relative; width: 112px; display: grid; gap: 5px; padding: 0; border: 0; background: none; text-align: left; color: inherit; }
+.gal-proposee .gal-media { border-radius: var(--rayon-petit); border: 2px solid transparent; outline: 1px solid var(--trait); }
+.gal-proposee[aria-pressed="true"] .gal-media { border-color: var(--encre); outline-color: transparent; }
+.gal-coche { position: absolute; right: 6px; top: 6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--encre); color: var(--inverse); }
+.gal-coche .ico { width: 14px; height: 14px; }
+.gal-proposee .gal-legende { font-size: 12px; color: var(--encre-2); line-height: 1.35; }
+.gal-pourquoi { font-size: 13px; color: var(--encre-2); line-height: 1.5; max-width: 62ch; }
+.gal-pourquoi strong { color: var(--encre); }
+.gal-choisir { display: grid; gap: 10px; padding: 12px; border-radius: var(--rayon-petit); background: var(--fond-2); }
+.gal-choisir .gal-outils { margin-bottom: 0; }
+.gal-mini { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.gal-mini .gal-media { border-radius: var(--rayon-mini); }
+.gal-mini li { display: grid; gap: 4px; font-size: 11.5px; color: var(--encre-2); line-height: 1.3; }
+.gal-mini li.choisie .gal-media { outline: 2px solid var(--encre); outline-offset: 1px; }
+.gal-mini-pied { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--encre-3); }
+.gal-mini-pied .bouton { margin-left: auto; }
+
+/* Plans à tourner : déjà en stock / à tourner. */
+.gal-plans-groupe { margin-top: 4px; }
+.gal-plans-groupe + .gal-plans-groupe { margin-top: 18px; }
+.gal-plans-titre { display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+.gal-plans-titre .aide { font-weight: 600; font-size: 13px; color: var(--encre-3); }
+.gal-plans-titre .rond { background: var(--vert); width: 8px; height: 8px; align-self: center; }
+.gal-plans-titre .rond.a-tourner { background: var(--encre-3); }
+.gal-plan { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; padding: 12px; border: 1px solid var(--trait); border-radius: var(--rayon); background: var(--fond); }
+.gal-plan + .gal-plan { margin-top: 8px; }
+.gal-plan .gal-media { aspect-ratio: 9 / 16; border-radius: var(--rayon-mini); }
+.gal-plan-corps { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.gal-plan-texte { font-size: 15px; line-height: 1.5; }
+.gal-plan-stock { font-size: 13.5px; color: var(--encre-2); line-height: 1.5; }
+.gal-plan-stock strong { color: var(--encre); font-weight: 700; }
+.gal-plan-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.gal-plan.sans-stock { grid-template-columns: minmax(0, 1fr); }
+.gal-plan-note { font-size: 13px; color: var(--encre-3); margin-top: 10px; }
+
+@media (max-width: 1280px) { .gal-fiche { grid-template-columns: 220px minmax(0, 1fr); gap: 20px; } }
+@media (max-width: 860px) {
+  .gal-fiche { grid-template-columns: minmax(0, 1fr); }
+  .gal-apercu { position: static; max-width: 260px; }
+  .gal-desc { grid-template-columns: minmax(0, 1fr); }
+  .gal-desc dt { border-bottom: 0; padding-bottom: 0; }
+  .gal-tri { margin-left: 0; }
+  .gal-recherche { max-width: none; flex-basis: 100%; }
+  .gal-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .gal-depot { flex-wrap: wrap; }
+  .gal-bascule, .gal-tri .champ { min-height: 44px; }
+  .gal-arrives .ranger-fichier { max-width: none; }
+}
+
+/* Ce que la maquette ne montrait pas (vrais boutons, états, formulaire). */
+.gal-intro { margin-top: 8px; }
+.gal-ouvrir { all: unset; box-sizing: border-box; display: grid; grid-template-rows: auto 1fr; min-width: 0; cursor: pointer; border-radius: var(--rayon); }
+.gal-ouvrir:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+.gal-carte > .gal-ouvrir .gal-titre, .gal-carte > .gal-ouvrir .gal-meta { display: block; }
+.gal-carte > .gal-ouvrir .gal-titre { display: -webkit-box; }
+.gal-media { display: block; }
+.gal-media-vide { position: absolute; inset: 0; display: grid; place-items: center; color: var(--encre-3); }
+.gal-media-vide .ico { width: 28px; height: 28px; }
+.gal-proposee .gal-media, .gal-mini .gal-media, .gal-plan .gal-media { position: relative; }
+.gal-attente .tag-cours .rond-cours { display: none; }
+.gal-centre { justify-content: center; margin-top: 6px; }
+.gal-compte { font-size: 13px; }
+.gal-grille-zone { min-width: 0; }
+.vue-galerie.ajout-survol .gal-depot, .gal-vide.ajout-survol, .gal-depot.ajout-survol { border-color: var(--encre); background: var(--fond-2); }
+.gal-ajout:empty { display: none; }
+.gal-ajout { margin-bottom: 16px; }
+.gal-depot-petit { margin: 0; font-size: 13.5px; }
+.gal-depot-petit .bouton { flex: none; }
+.gal-montage { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
+.gal-montage .gal-choisir { justify-self: stretch; }
+.gal-sans-photo { margin-top: 8px; }
+.gal-sup-titre { color: var(--encre); }
+.gal-sup .gal-boutons { margin-top: 4px; }
+.gal-sup > .vide-doux { margin-bottom: 8px; }
+
+/* Le sélecteur : chaque vignette est un bouton ; ce qui ne peut pas être pris reste visible, grisé, avec sa raison. */
+.gal-mini-choix { all: unset; box-sizing: border-box; display: grid; gap: 4px; cursor: pointer; font-size: 11.5px; color: var(--encre-2); line-height: 1.3; border-radius: var(--rayon-mini); }
+.gal-mini-choix:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+.gal-mini-choix .gal-media { aspect-ratio: 4 / 5; }
+.gal-mini-choix[disabled] { cursor: not-allowed; opacity: .55; }
+.gal-mini-raison { font-size: 11px; color: var(--encre-3); }
+.gal-proposee:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; border-radius: var(--rayon-petit); }
+.gal-proposee[disabled] { opacity: .55; }
+
+/* Retoucher une description. */
+.gal-form { display: grid; gap: 10px; }
+.gal-champ { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--encre-3); }
+.gal-champ .champ { font-weight: 500; color: var(--encre); }
+.gal-champ .note { font-weight: 500; }
+
+@media (max-width: 860px) {
+  .gal-mini { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+  .gal-plan { grid-template-columns: 64px minmax(0, 1fr); }
+  .gal-depot-petit { align-items: flex-start; }
+}
+
+/* Le bandeau dans la Galerie : la carte d'un fichier à placer garde sa largeur de lecture, sans poignée ni « Réessayer de
+   tout ranger » (le rangement d'un plan se relance depuis son plan de tournage). */
+.gal-arrives .ranger-liste { grid-template-columns: minmax(0, 520px); }
+.gal-arrives .poignee, .gal-arrives .ranger-relancer-pied { display: none; }
+.vue-galerie .vue-etiquettes .rond { background: var(--encre-2); }
+.gal-mini li, .gal-mini-choix { align-content: start; align-self: start; }

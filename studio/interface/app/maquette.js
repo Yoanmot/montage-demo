@@ -561,6 +561,12 @@ export function creerApiMaquette() {
       });
       return { resultats };
     },
+    // La Galerie (lot 15) : vide dans les données d'exemple.
+    galerie: async () => ({ fichiers: [], total: 0, photos: 0, brolls: 0, pas_utilises: 0, taille_totale: 0, en_description: 0 }),
+    ficheGalerie: async () => { throw Object.assign(new Error("Ce fichier n'est plus dans ta Galerie."), { code: "INCONNU" }); },
+    decrireGalerie: async () => ({}), redecrireGalerie: async () => ({}), supprimerGalerie: async () => ({}), versGalerie: async () => ({}),
+    poserGalerie: async () => ({}), retirerGalerie: async () => ({}), choixPlan: async () => ({}),
+    envoyerGalerie: () => ({ fin: Promise.resolve({}), arreter: () => {} }),
     ecouter(h) { ecouteurs = h; setTimeout(() => h.onConnexion("ok"), 50); return () => { ecouteurs = null; }; },
     // pour les captures
     _demoRepondre: (id, texte) => repondre(id, texte),

@@ -186,6 +186,10 @@ const P = {
   brief: '<path d="M5.5 3h6.5L15 6v10.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-13A.5.5 0 0 1 5.5 3z"/><path d="M12 3v3h3M7.5 9.5h5M7.5 12h5M7.5 14.5h3"/>',
   video: '<rect x="3.5" y="4.5" width="13" height="11" rx="2"/><path d="M8.5 7.8l4 2.2-4 2.2z"/>',
   photo: '<path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h1.8l1.2-1.8h4l1.2 1.8H15a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5z"/><circle cx="10" cy="10.8" r="2.7"/>',
+  // Lot 15 : la Galerie (une image), chercher (une loupe), supprimer (une corbeille).
+  galerie: '<rect x="3.5" y="4.5" width="13" height="11" rx="2"/><path d="M3.5 13l4-3.5 3.5 3 2.5-2 3 2.6"/><circle cx="13" cy="8.2" r="1.3"/>',
+  chercher: '<circle cx="9" cy="9" r="5"/><path d="M13 13l3.5 3.5"/>',
+  corbeille: '<path d="M4 6.5h12M8 6.5V4.5h4v2M5.5 6.5l.8 9a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-9"/>',
   maison: '<path d="M3.5 9.5L10 4l6.5 5.5"/><path d="M5.5 8v8h9V8"/>',
   ecarter: '<path d="M4 6.5h12M8 6.5V4.5h4v2M5.5 6.5l.8 9a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-9"/>',
 };

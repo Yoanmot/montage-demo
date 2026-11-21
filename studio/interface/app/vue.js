@@ -12,6 +12,7 @@ import { barresSemaines, etapesFormat, nombreFr } from "./graphiques.js";
 import { PERIODES, periode, resumer } from "./tableau.js";
 import { comptesParFormat } from "./etapes.js";
 import { AjoutVideos } from "./ajout.js";
+import { VueGalerie, Selecteur, AjoutGalerie, phraseEcart, minutes } from "./galerie.js";
 
 // Réglages de cet écran retenus par ce Mac (la période du tableau de bord) : le navigateur seulement, rien d'écrit
 // ailleurs ; sans stockage possible, la valeur par défaut.
@@ -44,6 +45,10 @@ export class Vue {
     this.studio = studio; this.api = studio.api; this.racine = racine;
     this.detail = null; this.edition = null; this.aRecharger = false; this._minuteur = null; this.jeton = 0;
     this.ajouts = new Map();   // slug -> AjoutVideos (un envoi continue quand la vue se recharge)
+    // La Galerie (lot 15) : sa vue, et ce qui reste ouvert d'un affichage à l'autre (sélecteurs, envois d'une slide).
+    this.galerie = new VueGalerie(this);
+    this.ouvertsGalerie = new Map();   // clé (slide ou plan) -> "selecteur" | "ajout"
+    this.ajoutsSlides = new Map();     // `${slug}:${n}` -> AjoutGalerie
   }
 
   // ---------- Afficher ce qui est sélectionné ----------
@@ -56,7 +61,15 @@ export class Vue {
     if (this.apercu && (sel.genre !== "dossier" || s.carteSel()?.slug !== this.apercu.slug)) { this.apercu.detruire(); this.apercu = null; }
     if (sel.genre === "accueil") return this.poser(this.vueAccueil());
     if (sel.genre === "transverse") {
-      if (sel.quoi === "ranger") return this.poser(this.vueRanger());
+      // « À ranger » est devenu la Galerie (lot 15) : son bandeau « Arrivés, à placer » en haut.
+      if (sel.quoi === "galerie" || sel.quoi === "ranger") {
+        if (!meme) this.poser(el("article", { class: "vue" }, ...this.entete("Galerie"), attente("J'ouvre ta Galerie")));
+        const vue = sel.id ? await this.galerie.fiche(sel.id, jeton) : await this.galerie.page(jeton);
+        if (!vue || jeton !== this.jeton) return undefined;
+        this.poser(vue);
+        if (meme) this.racine.scrollTop = garde;
+        return undefined;
+      }
       if (sel.quoi === "tournage" && sel.id) {
         const vue = await this.vuePlan(jeton);
         if (jeton !== this.jeton) return undefined;
@@ -157,8 +170,22 @@ export class Vue {
     // Les ressources se relisent par leurs outils (et l'aperçu se recharge) : seulement à l'ouverture et
     // après une action, pas à chaque mouvement d'un dossier.
     if (s.sel.quoi === "ressources") return;
+    // La Galerie : pas de rechargement pendant une recherche ou un choix en cours (le texte tapé resterait, mais pas
+    // le curseur) ; elle se relit au prochain changement.
+    if ((s.sel.quoi === "galerie" || s.sel.quoi === "ranger") && this.racine.contains(document.activeElement) && document.activeElement.matches("input, textarea, select")) return;
     clearTimeout(this._minuteur);
     this._minuteur = setTimeout(() => this.afficher(), 250);
+  }
+
+  // La Galerie a changé (lot 15) : sa vue se relit ; un dossier ouvert qui s'en sert aussi (photos des slides, plans).
+  galerieChangee(d) {
+    const s = this.studio;
+    if (s.sel.genre === "transverse" && (s.sel.quoi === "galerie" || s.sel.quoi === "ranger")) return this.transverseChangee();
+    if (s.sel.genre === "dossier" && !this.edition && (!d?.slug || d.slug === s.sel.cle) && ["brief", "montage"].includes(s.sel.fichier)) {
+      clearTimeout(this._minuteur);
+      this._minuteur = setTimeout(() => this.afficher(), 250);
+    }
+    return undefined;
   }
 
   // ---------- Le cadre d'un fichier : chemin, titre, étiquettes, réglages ----------
@@ -367,10 +394,14 @@ export class Vue {
       v.addEventListener("click", async () => { v.disabled = true; try { await this.api.valider(d.slug); annoncer("C'est validé."); } catch (e) { annoncer(e.message, "erreur"); v.disabled = false; } });
       r.push(this.etape(`<strong>À relire.</strong> Retouche ce que tu veux directement ici, ou demande dans le chat ${ouChat()}. Puis valide.`, v, { aToi: !enCours(d) }));
     } else if (d.stade === "valide" && reel) {
-      r.push(this.etape("<strong>Brief validé.</strong> Quand tu veux filmer, fais un plan de tournage : tu choisis ce que tu tournes ensemble, je fais un seul plan.",
+      const st = (d.stock || []).filter((p) => p.etat === "stock").length;
+      r.push(this.etape(st ? `<strong>Brief validé.</strong> ${st > 1 ? `${st} plans sont` : "Un plan est"} déjà dans ta Galerie : il ne te reste que ${this.resteATourner(d)} à faire.`
+        : "<strong>Brief validé.</strong> Quand tu veux filmer, fais un plan de tournage : tu choisis ce que tu tournes ensemble, je fais un seul plan.",
         el("button", { class: "bouton", type: "button", html: `${icone("camera")}<span>Faire un plan de tournage</span>`, onclick: () => this.studio.selectionner({ genre: "transverse", quoi: "tournage", slugs: [d.slug] }) })));
     } else if (d.stade === "valide") {
-      r.push(this.etape("<strong>Texte validé.</strong> Je peux mettre tes images en page.", this.boutonAction("mise_en_page", "Mettre en page", "mise", d)));
+      const posees = Object.values(d.photos_slides?.choisies || {}).some((x) => x.length);
+      r.push(this.etape(posees ? "<strong>Texte validé.</strong> Ta photo est choisie slide par slide dans ta Galerie. Change ce qui ne va pas, puis je mets en page."
+        : "<strong>Texte validé.</strong> Je peux mettre tes images en page. Si une slide demande une photo, choisis-la d'abord dans ta Galerie.", this.boutonAction("mise_en_page", "Mettre en page", "mise", d)));
       r.push(this.enLot(d, "mise_en_page"));
     } else if (d.stade === "tournage_prevu") {
       const t = this.studio.tournages.find((x) => x.id === d.tournage_id);
@@ -382,7 +413,8 @@ export class Vue {
       if (b.accroches?.length) r.push(this.accroches(d));
       r.push(this.sectionModifiable(d, "texte", "Ton texte", b.texte, { aide: b.duree || null, classe: "bloc-texte", prose: "prose prose-texte", lignes: 14,
         debut: b.accroche ? b.accroches.find((a) => a.n === b.accroche)?.texte : null }));
-      r.push(this.sectionModifiable(d, "plans", "Plans à tourner", b.plans, { aide: "en plus de ta vidéo face caméra", vide: "Rien à filmer en plus.", lignes: 6 }));
+      r.push(this.sectionModifiable(d, "plans", "Plans à tourner", b.plans, { aide: "en plus de ta vidéo face caméra", vide: "Rien à filmer en plus.", lignes: 6,
+        contenu: d.stock?.length ? this.plansStock(d) : null }));
       r.push(this.sectionModifiable(d, "legende", "Légende", b.legende, { lignes: 8 }));
       if (b.message_auto) r.push(this.bloc("Mot en commentaire", el("div", { class: "prose", html: markdown(b.message_auto) })));
     } else {
@@ -420,12 +452,12 @@ export class Vue {
   }
 
   // Une section du brief : lue, ou retouchée (enregistrement explicite, écrit par l'outil du dépôt).
-  sectionModifiable(d, cleSection, titre, valeur, { aide, vide, classe = "", prose = "prose", lignes = 8, debut = null } = {}) {
+  sectionModifiable(d, cleSection, titre, valeur, { aide, vide, classe = "", prose = "prose", lignes = 8, debut = null, contenu = null } = {}) {
     const libre = !enCours(d) && !["programme", "publie", "abandonne"].includes(d.stade);
     const modifier = el("button", { class: "bouton bouton-discret bouton-petit bouton-modifier", type: "button", disabled: libre ? null : true, html: `${icone("crayon")}<span>Retoucher</span>` });
     // L'accroche choisie ouvre le texte : on la montre en tête, mise en avant.
     const ouvre = valeur && debut && valeur.trimStart().startsWith(debut) ? debut : null;
-    const lecture = !valeur ? el("p", { class: "vide-doux" }, vide || "Rien d'écrit.")
+    const lecture = contenu || !valeur ? contenu || el("p", { class: "vide-doux" }, vide || "Rien d'écrit.")
       : ouvre ? el("div", { class: prose }, el("p", { class: "debut-accroche" }, ouvre), el("div", { html: markdown(valeur.trimStart().slice(ouvre.length).trim()) }))
         : el("div", { class: prose, html: markdown(valeur) });
     const outils = [valeur ? this.boutonCopier(valeur) : null, modifier].filter(Boolean);
@@ -459,6 +491,164 @@ export class Vue {
     return sec;
   }
 
+  // ---------- Lot 15 : les plans du brief, déjà en stock ou à tourner ----------
+  resteATourner(d) {
+    const a = (d.stock || []).filter((p) => p.etat === "a_tourner");
+    const v = a.filter((p) => p.type !== "photo").length, ph = a.length - v;
+    const morceaux = [d.genre === "plans-texte" ? "ta vidéo du reel" : d.genre === "plans-voix" ? "ta voix" : "ta vidéo face caméra",
+      v ? (v > 1 ? `${v} plans filmés` : "un plan filmé") : null, ph ? (ph > 1 ? `${ph} photos` : "une photo") : null].filter(Boolean);
+    return morceaux.length > 1 ? `${morceaux.slice(0, -1).join(", ")} et ${morceaux.at(-1)}` : morceaux[0];
+  }
+
+  // Le choix du client écrit par l'outil (jamais de mémoire) : « J'en tourne un nouveau », « Prends plutôt celui-là ».
+  async choisirPlan(d, n, corps, message) {
+    try { await this.api.choixPlan(d.slug, n, corps); annoncer(message); this.ouvertsGalerie.delete(`plan:${d.slug}:${n}`); this.afficher(); }
+    catch (e) { annoncer(e.message, "erreur"); this.afficher(); }
+  }
+
+  plansStock(d) {
+    const libre = !enCours(d) && ["script_ecrit", "valide", "tournage_prevu", "rushs_recus"].includes(d.stade);
+    const stock = d.stock.filter((p) => p.etat === "stock");
+    const aTourner = d.stock.filter((p) => p.etat === "a_tourner");
+    const groupes = [];
+    if (stock.length) {
+      groupes.push(el("div", { class: "gal-plans-groupe" },
+        el("p", { class: "gal-plans-titre" }, el("span", { class: "rond", "aria-hidden": "true" }), "Déjà en stock",
+          el("span", { class: "aide" }, `${pluriel(stock.length, "plan", "plans")}, rien à tourner`)),
+        ...stock.map((p) => this.planStock(d, p, libre))));
+    }
+    if (aTourner.length) {
+      groupes.push(el("div", { class: "gal-plans-groupe" },
+        el("p", { class: "gal-plans-titre" }, el("span", { class: "rond a-tourner", "aria-hidden": "true" }), "À tourner",
+          el("span", { class: "aide" }, `${pluriel(aTourner.length, "plan", "plans")}, ${aTourner.length > 1 ? "ils vont" : "il va"} dans ton plan de tournage`)),
+        ...aTourner.map((p) => this.planATourner(d, p, libre))));
+    }
+    return el("div", {}, ...groupes);
+  }
+
+  planStock(d, p, libre) {
+    const f = p.fichier || {};
+    const passage = p.stock.debut != null && p.stock.fin != null ? `, le passage de ${minutes(p.stock.debut)} à ${minutes(p.stock.fin)}` : "";
+    const vignette = el("span", { class: "gal-media" }, f.vignette_url ? el("img", { src: f.vignette_url, alt: "" }) : el("span", { class: "gal-media-vide", html: icone(p.type === "photo" ? "photo" : "film") }));
+    const ecart = p.type !== "photo" ? phraseEcart(p.ecart) : null;
+    const pourquoi = p.stock.par === "toi" ? "tu l'as choisi toi-même." : p.stock.pourquoi;
+    const actions = el("div", { class: "gal-plan-actions" });
+    if (f.url) {
+      const regarder = el("button", { class: "bouton bouton-petit", type: "button", html: `${icone("lecture")}<span>Regarder</span>` });
+      regarder.addEventListener("click", () => {
+        const debut = p.stock.debut ?? 0;
+        const src = p.type === "photo" ? null : `${f.url}#t=${debut}${p.stock.fin != null ? `,${p.stock.fin}` : ""}`;
+        vignette.replaceChildren(p.type === "photo" ? el("img", { src: f.url, alt: "" }) : el("video", { src, controls: true, autoplay: true, playsinline: true }));
+        regarder.disabled = true;
+      });
+      actions.append(regarder);
+    }
+    if (libre) {
+      const nouveau = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("camera")}<span>J'en tourne un nouveau</span>` });
+      nouveau.addEventListener("click", () => { nouveau.disabled = true; this.choisirPlan(d, p.n, { choix: "tourner" }, "C'est noté : ce plan va dans ton plan de tournage."); });
+      actions.append(nouveau);
+    }
+    return el("article", { class: "gal-plan" }, vignette,
+      el("div", { class: "gal-plan-corps" },
+        el("p", { class: "gal-plan-texte" }, p.texte),
+        el("p", { class: "gal-plan-stock" }, el("strong", {}, "Pris dans ta Galerie : "), `« ${f.titre || "un fichier de ta Galerie"} »${f.duree_s ? ` (${minutes(f.duree_s)})` : ""}${passage}.`),
+        pourquoi || ecart ? el("p", { class: "gal-plan-stock" }, el("strong", {}, "Pourquoi il colle : "), [pourquoi, ecart].filter(Boolean).join(" ")) : null,
+        actions.childNodes.length ? actions : null));
+  }
+
+  planATourner(d, p, libre) {
+    const cle = `plan:${d.slug}:${p.n}`;
+    const corps = el("div", { class: "gal-plan-corps" }, el("p", { class: "gal-plan-texte" }, p.texte),
+      p.note ? el("p", { class: "gal-plan-stock" }, p.note) : p.par === "toi" ? el("p", { class: "gal-plan-stock" }, "Tu as choisi d'en tourner un nouveau.") : null);
+    if (libre) {
+      const actions = el("div", { class: "gal-plan-actions" });
+      const prendre = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", "aria-expanded": String(this.ouvertsGalerie.get(cle) === "selecteur"),
+        html: `${icone("galerie")}<span>Prends plutôt celui-là</span>` });
+      prendre.addEventListener("click", () => { if (this.ouvertsGalerie.get(cle)) this.ouvertsGalerie.delete(cle); else this.ouvertsGalerie.set(cle, "selecteur"); this.afficher(); });
+      actions.append(prendre);
+      if (p.par === "toi" && p.proposition) {
+        const revenir = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("fleche")}<span>Reprendre celui de ta Galerie</span>` });
+        revenir.addEventListener("click", () => { revenir.disabled = true; this.choisirPlan(d, p.n, { choix: "proposition" }, "C'est noté : je reprends celui de ta Galerie."); });
+        actions.append(revenir);
+      }
+      corps.append(actions);
+      if (this.ouvertsGalerie.get(cle) === "selecteur") {
+        const sel = new Selecteur({ api: this.api, type: p.type === "photo" ? "photo" : "b-roll", pour: d.slug,
+          prendre: (id) => this.choisirPlan(d, p.n, { choix: "stock", id }, "C'est noté : pris dans ta Galerie, il sort de ton plan de tournage.") });
+        corps.append(sel.racine);
+      }
+    }
+    return el("article", { class: "gal-plan sans-stock" }, corps);
+  }
+
+  // ---------- Lot 15 : la photo de chaque slide d'un carrousel, choisie dans la Galerie ----------
+  photoSlide(d, s, libre) {
+    const ps = d.photos_slides || { choisies: {}, propositions: {} };
+    const voulue = String(s.photo || "").trim();
+    if (!voulue) return null;
+    if (/^aucune\b/i.test(voulue)) return el("p", { class: "gal-pourquoi gal-sans-photo" }, "Pas de photo sur cette slide.");
+    const cle = `slide:${d.slug}:${s.n}`;
+    const choisies = ps.choisies?.[s.n] || [];
+    const prop = ps.propositions?.[s.n] || { propositions: [], note: null };
+    const mode = this.ouvertsGalerie.get(cle) || (!choisies.length && !prop.propositions.length ? "selecteur" : null);
+    const zone = el("div", { class: "gal-slide-photos" });
+    if (libre) {
+      const seg = el("div", { class: "segment", role: "group", "aria-label": "D'où vient la photo" },
+        el("button", { type: "button", "aria-pressed": String(mode !== "ajout"), html: `${icone("galerie")}Choisir dans la Galerie` }),
+        el("button", { type: "button", "aria-pressed": String(mode === "ajout"), html: `${icone("plus")}Ajouter de nouvelles photos` }));
+      const [bG, bA] = seg.querySelectorAll("button");
+      bG.addEventListener("click", () => { this.ouvertsGalerie.set(cle, mode === "selecteur" && (choisies.length || prop.propositions.length) ? "ferme" : "selecteur"); this.afficher(); });
+      bA.addEventListener("click", () => { this.ouvertsGalerie.set(cle, "ajout"); this.afficher(); });
+      zone.append(el("div", { class: "gal-slide-tete" }, seg));
+    }
+    // Les photos proposées par l'agent et celle qui est posée (cochée), une seule par slide.
+    const ids = new Set(choisies.map((x) => x.id));
+    const tuiles = [...choisies, ...prop.propositions.filter((x) => !ids.has(x.id))];
+    if (tuiles.length) {
+      zone.append(el("div", { class: "gal-propositions" }, ...tuiles.map((x) => {
+        const pris = ids.has(x.id);
+        const b = el("button", { class: "gal-proposee", type: "button", "aria-pressed": String(pris), disabled: !libre && !pris ? true : null,
+          "aria-label": `${x.titre || "Photo de ta Galerie"}${pris ? ", choisie" : ""}` },
+        el("span", { class: "gal-media" }, x.vignette_url ? el("img", { src: x.vignette_url, alt: "" }) : null),
+        pris ? el("span", { class: "gal-coche", html: icone("coche") }) : null,
+        el("span", { class: "gal-legende" }, x.titre || "Sans titre"));
+        if (libre && !pris) b.addEventListener("click", () => this.poserPhoto(d, s.n, x.id));
+        return b;
+      })));
+    }
+    const choisie = choisies[0];
+    const raison = (choisie && prop.propositions.find((x) => x.id === choisie.id)?.raison) || (!choisie && prop.propositions[0]?.raison) || null;
+    const textes = [];
+    if (choisie && raison) textes.push(el("strong", {}, `${choisie.titre || "Cette photo"} : `), raison, choisie.utilise > 1 ? ` Déjà utilisée dans ${pluriel(choisie.utilise, "contenu", "contenus")}.` : "");
+    else if (choisie) textes.push(el("strong", {}, choisie.titre || "Ta photo"), choisie.utilise > 1 ? ` : déjà dans ${pluriel(choisie.utilise, "contenu", "contenus")}.` : " : choisie pour cette slide.");
+    else if (raison) textes.push(raison);
+    if (prop.note) textes.push(textes.length ? ` ${prop.note}` : prop.note);
+    if (!textes.length && !choisie) textes.push(libre ? "Choisis une photo dans ta Galerie, ou ajoutes-en une nouvelle." : "Pas encore de photo pour cette slide.");
+    if (textes.length) zone.append(el("p", { class: "gal-pourquoi" }, ...textes));
+    if (libre && mode === "selecteur") {
+      const sel = new Selecteur({ api: this.api, type: "photo", pour: d.slug, choisie: choisie?.id || null,
+        prendre: (id) => this.poserPhoto(d, s.n, id) });
+      zone.append(sel.racine);
+    }
+    if (libre && mode === "ajout") {
+      const k = `${d.slug}:${s.n}`;
+      let a = this.ajoutsSlides.get(k);
+      if (!a) { a = new AjoutGalerie({ api: this.api, slug: d.slug, slide: s.n, photosSeulement: true, apres: () => { this.ouvertsGalerie.delete(cle); this.afficher(); } }); this.ajoutsSlides.set(k, a); }
+      const go = el("button", { class: "bouton bouton-petit", type: "button", html: `${icone("plus")}<span>Choisir une photo sur ton Mac</span>` });
+      go.addEventListener("click", () => a.choisir());
+      const depot = el("div", { class: "gal-depot gal-depot-petit" }, el("span", { html: icone("telecharger") }),
+        el("p", {}, el("strong", {}, "Glisse ta photo ici"), " : elle va sur cette slide et dans ta Galerie, je la décris à son arrivée."), go);
+      a.brancher(depot);
+      zone.append(depot, a.racine);
+    }
+    return zone;
+  }
+
+  async poserPhoto(d, n, id) {
+    try { await this.api.poserGalerie(d.slug, id, n); annoncer(`C'est noté : cette photo va sur la slide ${n}.`); this.ouvertsGalerie.delete(`slide:${d.slug}:${n}`); this.afficher(); }
+    catch (e) { annoncer(e.message, "erreur"); }
+  }
+
   // Les images d'un carrousel : titre et texte de chaque slide, retouchables ensemble.
   slides(d) {
     const b = d.brief;
@@ -468,12 +658,16 @@ export class Vue {
     }
     const libre = !enCours(d) && !["programme", "publie", "abandonne"].includes(d.stade);
     const modifier = el("button", { class: "bouton bouton-discret bouton-petit bouton-modifier", type: "button", disabled: libre ? null : true, html: `${icone("crayon")}<span>Retoucher</span>` });
+    // Lot 15 : la photo de chaque slide se choisit dans la Galerie (ou s'ajoute), slide par slide.
+    const photosLibres = libre && d.stade !== "script_ecrit";
     const lecture = el("div", { class: "slides-brief" }, ...b.slides.map((s) => el("div", { class: "slide-brief" },
       el("span", { class: "slide-n" }, String(s.n)),
       el("div", {}, s.titre ? el("p", { class: "slide-titre" }, s.titre.replace(/\*+|_{2}/g, "")) : null,
         ...String(s.texte || "").split(/\n\s*\n/).filter(Boolean).map((x) => el("p", { class: "slide-texte" }, x.replace(/\*+|_{2}/g, ""))),
-        s.photo ? el("p", { class: "slide-photo" }, el("span", { html: icone("photo") }), `Photo : ${s.photo}`) : null))));
-    const sec = this.bloc("Tes images", lecture, { aide: pluriel(b.slides.length, "image", "images"), outils: [modifier], classe: "bloc-texte" });
+        s.photo ? el("p", { class: "slide-photo" }, el("span", { html: icone("photo") }), `Photo voulue : ${s.photo}`) : null,
+        d.photos_slides ? this.photoSlide(d, s, photosLibres) : null))));
+    const nPhotos = Object.values(d.photos_slides?.choisies || {}).filter((x) => x.length).length;
+    const sec = this.bloc("Tes images", lecture, { aide: `${pluriel(b.slides.length, "slide", "slides")}${nPhotos ? `, ${pluriel(nPhotos, "photo", "photos")}` : ""}`, outils: [modifier], classe: "bloc-texte" });
     modifier.addEventListener("click", () => {
       this.edition = "slides";
       const champs = b.slides.map((s) => {
@@ -543,6 +737,17 @@ export class Vue {
       avecAjout ? ajout.racine : null),
       { aide: pluriel(m.rushs.length, "fichier", "fichiers"), classe: avecAjout ? "bloc-ajout" : "" });
     if (avecAjout) ajout.brancher(blocRushs);
+    // Lot 15 : un plan filmé en plus pris dans la Galerie (un plan arrivé sans contenu, ou déjà tourné pour un autre).
+    if (!montageLance && !enCours(d)) {
+      const cle = `montage:${d.slug}`;
+      const ouvert = this.ouvertsGalerie.get(cle) === "selecteur";
+      const bt = el("button", { class: "bouton bouton-petit", type: "button", "aria-expanded": String(ouvert), html: `${icone("galerie")}<span>Choisir dans la Galerie</span>` });
+      bt.addEventListener("click", () => { if (ouvert) this.ouvertsGalerie.delete(cle); else this.ouvertsGalerie.set(cle, "selecteur"); this.afficher(); });
+      const z = el("div", { class: "gal-montage" }, bt);
+      if (ouvert) z.append(new Selecteur({ api: this.api, type: "b-roll", pour: d.slug, libelleOk: "Le mettre dans cette vidéo",
+        prendre: async (id) => { await this.api.poserGalerie(d.slug, id); annoncer("C'est noté : ce plan est dans tes vidéos rangées."); this.ouvertsGalerie.delete(cle); this.afficher(); } }).racine);
+      blocRushs.append(z);
+    }
     if (d.medias?.apercu && montageLance) r.push(el("details", { class: "repli" }, el("summary", { html: `${icone("fleche")}<span>Tes vidéos rangées (${m.rushs.length})</span>` }), el("div", {}, grille)));
     else r.push(blocRushs);
     if (m.manquants?.length && !montageLance) {
@@ -584,10 +789,11 @@ export class Vue {
       pas.addEventListener("click", () => {
         const oui = el("button", { class: "bouton bouton-petit", type: "button" }, "La retirer");
         const non = el("button", { class: "bouton bouton-discret bouton-petit", type: "button" }, "Annuler");
-        const z = el("div", { class: "ranger-confirmer" }, el("p", { class: "rush-detail" }, "Elle repart dans « À ranger », où tu choisis son dossier."), el("div", { class: "ranger-actions" }, oui, non));
+        const z = el("div", { class: "ranger-confirmer" }, el("p", { class: "rush-detail" }, x.galerie
+          ? "Elle sort de ce contenu et reste dans ta Galerie." : "Elle repart dans ta Galerie, avec ce qui est à placer."), el("div", { class: "ranger-actions" }, oui, non));
         oui.addEventListener("click", async () => {
           oui.disabled = true;
-          try { await this.api.retirerRush(d.slug, x.id); annoncer("Retirée : elle t'attend dans « À ranger »."); this.afficher(); }
+          try { await this.api.retirerRush(d.slug, x.id); annoncer(x.galerie ? "Retirée de ce contenu : elle reste dans ta Galerie." : "Retirée : elle t'attend dans ta Galerie, à placer."); this.afficher(); }
           catch (e) { annoncer(e.message, "erreur"); oui.disabled = false; }
         });
         actions.replaceWith(z);
@@ -875,20 +1081,6 @@ export class Vue {
     el("header", { class: "vue-tete" }, el("div", {}, el("h1", { class: "vue-titre" }, titre), sous ? el("p", { class: "vide-doux", style: "margin-top:8px" }, sous) : null))];
   }
 
-  vueRanger() {
-    const s = this.studio;
-    s.rangement.dessiner();
-    const deCote = s.a_ranger.some((f) => !f.attente);
-    const sous = deCote ? `Je n'ai pas su où mettre ces fichiers. Choisis le dossier de chacun, ou glisse-le sur un dossier ${ouArbre()}.`
-      : s.a_ranger.length ? "Des fichiers sont arrivés sur ton Mac après ton tournage. Choisis leur contenu, ou clique sur « Ranger maintenant »."
-        : "Ce que je n'arrive pas à ranger tout seul arrive ici, et les fichiers envoyés après la fin d'un tournage.";
-    return el("article", { class: "vue" }, ...this.entete("À ranger", sous),
-      s.a_ranger.length ? s.rangement.racine : el("p", { class: "vide-doux" }, "Tout est rangé."));
-  }
-
-  // ---------- Tournages : sur demande seulement (lot 10) ----------
-  // Romain coche ce qu'il veut filmer ensemble, le head of content fait un nouveau plan daté ; les
-  // anciens plans restent dans la liste. Le stade « à tourner » se déduit des plans (contrat, 6).
   vueTournages() {
     const s = this.studio;
     const tournables = [...s.cartes.values()].filter((c) => c.slug && c.format === "reel" && ["script_ecrit", "valide", "tournage_prevu"].includes(c.stade))
@@ -1012,7 +1204,8 @@ export class Vue {
       etape = this.etape(`<strong>Tournage pas fini de ranger.</strong> ${quoi} ${suite}`, null, { aToi: true });
     } else if (fini) {
       const n = rangement?.places ?? null; const ar = rangement?.a_ranger ?? 0;
-      etape = this.etape(`<strong>Tournage terminé.</strong> ${n !== null ? `${n ? pluriel(n, "fichier rangé", "fichiers rangés") : "Aucun fichier rangé"} dans tes dossiers${ar ? `, ${pluriel(ar, "fichier", "fichiers")} dans « À ranger »` : ""}. ` : ""}Vérifie chaque vidéo dans le fichier « Montage » de ses contenus.`);
+      const ga = rangement?.galerie ?? 0;
+      etape = this.etape(`<strong>Tournage terminé.</strong> ${n !== null ? `${n ? pluriel(n, "fichier rangé", "fichiers rangés") : "Aucun fichier rangé"} dans tes dossiers${ga ? `, ${pluriel(ga, "fichier", "fichiers")} sans contenu dans ta Galerie` : ""}${ar ? `, ${pluriel(ar, "fichier", "fichiers")} à placer dans ta Galerie` : ""}. ` : ""}Vérifie chaque vidéo dans le fichier « Montage » de ses contenus.`);
     } else etape = this.etape(`<strong>Coche chaque prise quand tu l'as filmée.</strong> Une carte, c'est une fois le bouton rouge, puis tu coupes. Ce plan est aussi sur ton téléphone.`);
 
     const libre = !fini && !rangement?.en_cours;
@@ -1099,7 +1292,7 @@ export class Vue {
         ? "Le bouton s'active quand l'envoi est fini."
         : "Un fichier envoyé en retard ? Envoie-le par AirDrop, puis range-le d'ici."))))
       : el("div", { class: "bloc-pied plan-pied" }, valider, el("span", { class: "note" }, suivi.peut_valider
-        ? "Je range chaque fichier dans le dossier de son contenu. Ce que je ne reconnais pas va dans « À ranger »."
+        ? "Je range chaque fichier dans le dossier de son contenu, les photos et les plans en plus aussi dans ta Galerie. Ce que je ne reconnais pas t'attend dans ta Galerie."
         : "Le bouton s'active quand tout ce que tu as filmé est arrivé sur ton Mac."));
 
     return el("article", { class: "vue" }, chemin, tete, etape,

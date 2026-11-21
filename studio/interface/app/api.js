@@ -83,6 +83,17 @@ export function creerApiServeur() {
     poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
     ressources: () => appel("GET", "/api/ressources"),
     supprimerRessource: (slug) => appel("POST", `/api/ressources/${enc(slug)}/supprimer`, {}),
+    // La Galerie (lot 15).
+    galerie: (pour = null) => appel("GET", `/api/galerie${pour ? `?pour=${enc(pour)}` : ""}`),
+    ficheGalerie: (id) => appel("GET", `/api/galerie/${enc(id)}`),
+    decrireGalerie: (id, description) => appel("POST", `/api/galerie/${enc(id)}/description`, { description }),
+    redecrireGalerie: (id) => appel("POST", `/api/galerie/${enc(id)}/redecrire`, {}),
+    supprimerGalerie: (id) => appel("POST", `/api/galerie/${enc(id)}/supprimer`, {}),
+    versGalerie: (fichier) => appel("POST", "/api/galerie/a-ranger", { fichier }),
+    poserGalerie: (slug, id, slide = null) => appel("POST", `/api/cartes/${enc(slug)}/galerie/poser`, { id, ...(slide ? { slide } : {}) }),
+    retirerGalerie: (slug, id, slide = null) => appel("POST", `/api/cartes/${enc(slug)}/galerie/retirer`, { id, ...(slide ? { slide } : {}) }),
+    choixPlan: (slug, n, corps) => appel("POST", `/api/cartes/${enc(slug)}/plans/${enc(String(n))}`, corps),
+    envoyerGalerie,
     stats: () => appel("GET", "/api/stats"),
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),
     ecouter: ecouterServeur,
@@ -117,10 +128,37 @@ function envoyerFichier(slug, fichier, type, onProgres = () => {}) {
   return { fin, arreter: () => { arrete = true; xhr?.abort(); } };
 }
 
+// Un fichier du Mac vers la Galerie (lot 15) : mêmes contrôles d'abord, puis le fichier en flux, avec sa progression.
+function envoyerGalerie(fichier, { slug = null, slide = null } = {}, onProgres = () => {}) {
+  let xhr = null; let arrete = false;
+  const route = (q) => `/api/galerie/envoyer?${new URLSearchParams({ nom: fichier.name, ...(slug ? { slug } : {}), ...(slide ? { slide: String(slide) } : {}), ...q })}`;
+  const fin = (async () => {
+    await appel("POST", route({ verifier: "1", taille: String(fichier.size) }));
+    if (arrete) throw new ErreurStudio("ARRETE", "Envoi arrêté.", 0);
+    return new Promise((resolve, reject) => {
+      xhr = new XMLHttpRequest();
+      xhr.open("POST", route({}));
+      xhr.withCredentials = true;
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgres(Math.min(100, Math.floor((e.loaded / e.total) * 100))); };
+      xhr.onabort = () => reject(new ErreurStudio("ARRETE", "Envoi arrêté.", 0));
+      xhr.onerror = () => reject(new ErreurStudio("RESEAU", MESSAGE_RESEAU, 0));
+      xhr.onload = () => {
+        let d = null; try { d = JSON.parse(xhr.responseText); } catch { d = null; }
+        if (xhr.status === 401) window.dispatchEvent(new CustomEvent("studio-deconnecte"));
+        if (xhr.status >= 200 && xhr.status < 300) return resolve(d || {});
+        reject(new ErreurStudio(d?.erreur || "ERREUR", d?.message || `Ça n'a pas marché. Réessaie, et si ça recommence, ${previens()}.`, xhr.status));
+      };
+      xhr.send(fichier);
+    });
+  })();
+  return { fin, arreter: () => { arrete = true; xhr?.abort(); } };
+}
+
 // Flux d'événements : reconnexion automatique avec attente croissante.
 // À chaque reconnexion, l'appli recharge l'état complet (onConnexion("ok")) pour ne rien rater.
 function ecouterServeur({ onEvenement, onConnexion }) {
-  const TYPES = ["carte", "carte_retiree", "chat", "chat_reinitialise", "file", "alertes", "a_ranger", "sync", "stats", "tournages", "ping"];
+  const TYPES = ["carte", "carte_retiree", "chat", "chat_reinitialise", "file", "alertes", "a_ranger", "sync", "stats", "tournages", "galerie", "ping"];
   let source = null; let attente = 1000; let minuteur = null; let ferme = false; let dernierSignal = Date.now();
   let veille = null;
 

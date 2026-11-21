@@ -120,9 +120,11 @@ export class Arbre {
     entree("tournage", "Tournages", "camera", s.tournages.filter((t) => t.en_cours || t.a_finir).length || null);
     // Seulement pour un client qui a un site de ressources gratuites (studio de Yoan).
     if (s.config.ressources) entree("ressources", "Ressources gratuites", "cadeau");
-    // Toujours là (test de Yoan, AirDrop lent) : on doit pouvoir la trouver même vide ; compteur orange
-    // quand un fichier attend, y compris un rush arrivé sur le Mac après la fin d'un tournage.
-    entree("ranger", "À ranger", "ranger", s.a_ranger.length || null, s.a_ranger.length > 0);
+    // La Galerie (lot 15) remplace « À ranger » : toujours là. Compteur orange seulement pour une vidéo à placer (une
+    // face caméra pas reconnue, ou une vidéo arrivée après la fin d'un tournage) : les photos et les b-rolls entrent
+    // seuls dans la Galerie, ils n'attendent rien de lui.
+    const aPlacer = s.a_ranger.filter((f) => f.type !== "photo" && f.type !== "b-roll" && f.libelle !== "ta photo").length;
+    entree("galerie", "Galerie", "galerie", aPlacer || null, aPlacer > 0);
     return el("div", { class: "entrees", role: "group", "aria-label": "Vues d'ensemble" }, ...ent);
   }
 
