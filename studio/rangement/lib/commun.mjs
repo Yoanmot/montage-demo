@@ -57,6 +57,8 @@ export function lireConfig(fichier) {
     home: path.dirname(p),
     depot: deplier(c.depot_hoc),
     media: deplier(c.media || '~/Contenu'),
+    // La Galerie (lot 15) : à côté du dossier média sauf réglage contraire (`galerie`).
+    galerie: c.galerie ? deplier(c.galerie) : path.join(path.dirname(deplier(c.media || '~/Contenu')), 'Galerie'),
     arrivees: deplier(c.arrivees || '~/Downloads'),
     disque: c.disque_externe ? deplier(c.disque_externe) : null,
     skills: deplier(c.skills || path.join(CLIENT.dossierClaude, 'skills')),

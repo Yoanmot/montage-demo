@@ -154,6 +154,35 @@ export class Media {
           if (c && !(c.contenus || []).includes(op.slug)) { c.contenus = [...(c.contenus || []), op.slug]; this.ecrireIndex(ix); }
         } else if (op.op === 'index_retrait') {
           const ix = this.index(); if (!ix.clips[op.clip_id]) { ix.clips[op.clip_id] = op.entree; this.ecrireIndex(ix); }
+        } else if (op.op === 'galerie_ajout' && this.galerie) {
+          // L'entrée dans la Galerie : la fiche et les vignettes partent (le déplacement du fichier est défait à part).
+          this.galerie.sousVerrou(() => {
+            fs.rmSync(path.join(this.galerie.fichesD, `${op.id}.json`), { force: true });
+            for (const v of op.vignettes || []) fs.rmSync(v, { force: true });
+          });
+        } else if (op.op === 'lien_galerie') {
+          if (fs.existsSync(op.chemin) && !estLien(op.chemin)) fs.unlinkSync(op.chemin);
+        } else if (op.op === 'galerie_utilisation' && this.galerie) {
+          this.galerie.sousVerrou(() => {
+            const f = this.galerie.fiche(op.id);
+            if (!f) return;
+            f.utilisations = (f.utilisations || []).filter((u) => !(u.slug === op.slug && (u.slide || null) === (op.slide || null)));
+            this.galerie.ecrireFiche(f);
+          });
+        } else if (op.op === 'lien_galerie_retrait') {
+          if (op.source && fs.existsSync(op.source) && !fs.existsSync(op.chemin)) {
+            fs.mkdirSync(path.dirname(op.chemin), { recursive: true });
+            try { fs.linkSync(op.source, op.chemin); } catch { fs.copyFileSync(op.source, op.chemin); }
+          }
+        } else if (op.op === 'galerie_utilisation_retrait' && this.galerie) {
+          this.galerie.sousVerrou(() => {
+            const f = this.galerie.fiche(op.id);
+            if (!f || (f.utilisations || []).some((u) => u.slug === op.slug)) return;
+            f.utilisations = [...(f.utilisations || []), { slug: op.slug, type: f.type, le: isoZurich(), source: 'toi', ...(op.slide ? { slide: op.slide } : {}) }];
+            this.galerie.ecrireFiche(f);
+          });
+        } else if (op.op === 'galerie_retrait' && this.galerie) {
+          this.galerie.sousVerrou(() => { if (!this.galerie.fiche(op.id)) this.galerie.ecrireFiche(op.fiche); });
         } else if (op.op === 'a_ranger_retrait') {
           const a = this.aRanger(); if (!a.fichiers.some((f) => f.nom === op.nom)) a.fichiers.push(op.entree); this.ecrireARanger(a);
         }

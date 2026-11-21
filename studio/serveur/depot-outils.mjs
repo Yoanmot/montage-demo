@@ -80,13 +80,15 @@ export function cheminRanger() {
 }
 
 export function lireSortieRangement(sortie) {
-  const r = { places: [], a_ranger: [], ignores: [], fin: null };
+  const r = { places: [], a_ranger: [], ignores: [], galerie: [], fin: null };
   for (const l of String(sortie || "").split("\n")) {
     let m;
     if ((m = /^PLACE\s+(.+?)\s+->\s+([a-z0-9-]+)\/(\S+)\s*$/.exec(l))) r.places.push({ nom: m[1], slug: m[2], type: m[3] });
     else if ((m = /^A_RANGER\s+(\S+)\s*(.*)$/.exec(l))) r.a_ranger.push({ nom: m[1], raison: m[2] });
     else if ((m = /^IGNORE\s+(\S+)\s*(.*)$/.exec(l))) r.ignores.push({ nom: m[1], raison: m[2] });
-    else if ((m = /^FIN\s+places=(\d+)\s+a_ranger=(\d+)/.exec(l))) r.fin = { places: +m[1], a_ranger: +m[2] };
+    // Lot 15 : une photo ou un b-roll rattaché à rien entre dans la Galerie.
+    else if ((m = /^GALERIE\s+(\S+)\s+(\S+)/.exec(l))) r.galerie.push({ nom: m[1], id: m[2] });
+    else if ((m = /^FIN\s+places=(\d+)\s+a_ranger=(\d+)(?:\s+galerie=(\d+))?/.exec(l))) r.fin = { places: +m[1], a_ranger: +m[2], galerie: +(m[3] || 0) };
   }
   return r;
 }

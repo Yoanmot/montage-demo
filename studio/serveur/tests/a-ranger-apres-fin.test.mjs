@@ -140,28 +140,32 @@ test("rangement à la main d'une arrivée, jusqu'au dossier du contenu ; un fich
   assert.ok(!fs.existsSync(f), "parti des Téléchargements");
   const liens = fs.readdirSync(path.join(m.media, SLUG, "b-roll"));
   assert.equal(liens.length, 1);
-  const cible = fs.realpathSync(path.join(m.media, SLUG, "b-roll", liens[0]));
-  assert.ok(cible.startsWith(fs.realpathSync(path.join(m.media, "_bibliotheque", "b-roll"))), cible);
-  const ix = JSON.parse(fs.readFileSync(path.join(m.media, "_bibliotheque", "index.json"), "utf8"));
-  const clip = Object.values(ix.clips)[0];
-  assert.deepEqual([clip.origine, clip.tournage, clip.contenus], ["2026-11-19 16-35-03.mov", ID, [SLUG]]);
+  // Lot 15 : le plan entre dans la Galerie, le contenu en reçoit un lien physique.
+  const ix = JSON.parse(fs.readFileSync(path.join(m.racine, "Galerie", "index.json"), "utf8"));
+  const [fiche] = ix.fichiers;
+  assert.deepEqual([fiche.nom_origine, fiche.origine.tournage, fiche.utilisations.map((u) => u.slug)], ["2026-11-19 16-35-03.mov", ID, [SLUG]]);
+  assert.equal(liens[0], `${fiche.id}.mov`);
+  assert.equal(fs.statSync(path.join(m.media, SLUG, "b-roll", liens[0])).ino, fs.statSync(path.join(m.racine, "Galerie", fiche.fichier)).ino);
   const e = (await api("GET", "/api/etat")).json;
   assert.deepEqual(e.a_ranger, []);
 });
 
-test("« Ranger maintenant » sur un plan fini : le fichier pas attendu va dans « À ranger », puis se place à la main", { skip: SKIP }, async () => {
+test("« Ranger maintenant » sur un plan fini : la vidéo sans parole pas attendue entre dans la Galerie, puis se pose dans le reel", { skip: SKIP }, async () => {
   const { m, arrivees, api } = await studio(preparer({ valideIlYA: 60 }));
   video(path.join(arrivees, "ecran.mov"));
   assert.equal((await api("POST", `/api/tournages/${ID}/valider`, {})).statut, 200);
-  await attendreQue(() => lireSuivi(m.config, ID).rangement?.fini_le && !fs.existsSync(path.join(arrivees, "ecran.mov")), { delaiMs: 60000 });
-  await attendreQue(() => lireSuivi(m.config, ID).rangement?.reste, { delaiMs: 60000 });
-  assert.deepEqual([lireSuivi(m.config, ID).rangement.places, lireSuivi(m.config, ID).rangement.a_ranger], [0, 1]);
+  // Lot 15 : rattachée à rien, elle n'attend plus dans « À ranger » : elle entre dans la Galerie (le bilan le compte).
+  await attendreQue(() => lireSuivi(m.config, ID).rangement?.galerie === 1, { delaiMs: 60000 });
+  assert.deepEqual([lireSuivi(m.config, ID).rangement.places, lireSuivi(m.config, ID).rangement.a_ranger], [0, 0]);
+  assert.ok(!fs.existsSync(path.join(arrivees, "ecran.mov")));
   let e = (await api("GET", "/api/etat")).json;
-  const f = e.a_ranger.find((x) => !x.attente);
-  assert.ok(f, JSON.stringify(e.a_ranger));
-  assert.deepEqual(enAttente(e), []);
-  assert.equal((await api("POST", "/api/rangement/placer", { fichier: f.nom, slug: SLUG, type: "b-roll" })).statut, 200);
-  assert.equal(fs.readdirSync(path.join(m.media, SLUG, "b-roll")).length, 1);
+  assert.deepEqual(e.a_ranger, []);
+  const g = (await api("GET", "/api/galerie")).json;
+  assert.equal(g.total, 1);
+  const f = g.fichiers[0];
+  assert.deepEqual([f.type, f.utilise], ["b-roll", 0]);
+  assert.equal((await api("POST", `/api/cartes/${SLUG}/galerie/poser`, { id: f.id })).statut, 200);
+  assert.deepEqual(fs.readdirSync(path.join(m.media, SLUG, "b-roll")), [`${f.id}.mov`]);
   e = (await api("GET", "/api/etat")).json;
   assert.deepEqual(e.a_ranger, []);
 });
@@ -182,6 +186,6 @@ test("le rangement relit le dossier d'arrivée à la fin : une vidéo posée pen
   const code = await new Promise((ok) => p.on("close", ok));
   assert.equal(code, 0, out);
   assert.match(out, /^PLACE IMG_7879\.MOV -> je-classe-ce-que-les-coachs-confient\/face$/m);
-  assert.match(out, /^IGNORE pendant\.mov arrivé pendant que je rangeais, il t'attend dans « À ranger »$/m);
+  assert.match(out, /^IGNORE pendant\.mov arrivé pendant que je rangeais, il t'attend dans ta Galerie, à placer$/m);
   assert.ok(fs.existsSync(path.join(arrivees, "pendant.mov")), "laissé où il est");
 });

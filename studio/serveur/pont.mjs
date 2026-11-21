@@ -344,7 +344,9 @@ export class Pont extends EventEmitter {
     const consignes = consignesActuelles(r, this.envBase);
     const avaitSession = Boolean(this.sessions()[chatId]?.session_id);
     lignes = [...lignes];
-    if (!neuve && this.sessionVivante(chatId, r)) {
+    if (r.sansReprise) {
+      // Une session d'un seul tour (description d'un fichier de la Galerie) : jamais reprise, le message est complet.
+    } else if (!neuve && this.sessionVivante(chatId, r)) {
       args.push("--resume", this.sessions()[chatId].session_id);
       if (this.sessions()[chatId].consignes !== consignes.empreinte) {
         lignes[0] = joindreConsignes(lignes[0], consignes);

@@ -119,7 +119,7 @@ export function verifierArrivees(config, t, suivi) {
     const trop = [];
     if (en_trop.videos) trop.push(pluriel(en_trop.videos, "vidéo", "vidéos"));
     if (en_trop.photos) trop.push(pluriel(en_trop.photos, "photo", "photos"));
-    message = `Tout est arrivé${trop.length ? `, et même ${trop.join(" et ")} de plus que prévu : ce que je ne reconnais pas ira dans « À ranger »` : ""}. Tu peux valider la fin du tournage.`;
+    message = `Tout est arrivé${trop.length ? `, et même ${trop.join(" et ")} de plus que prévu : ce que je ne reconnais pas t'attendra dans ta Galerie` : ""}. Tu peux valider la fin du tournage.`;
   }
   return { le: isoZurich(), complet: complet && Boolean(config.arrivees), attendu, recu, manque, en_trop, en_reception, message };
 }

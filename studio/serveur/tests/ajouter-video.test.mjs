@@ -13,6 +13,7 @@ import { demarrer } from "../studio.mjs";
 import { monde, attendreQue } from "./aide.mjs";
 import { outil } from "../../rangement/lib/commun.mjs";
 import { nomEnvoi } from "../serveur.mjs";
+import { Galerie } from "../../rangement/lib/galerie.mjs";
 
 const SKIP = process.platform !== "darwin" && "macOS seulement";
 const SLUG = "je-classe-ce-que-les-coachs-confient";
@@ -95,11 +96,13 @@ test("une vidéo du Mac, envoyée en flux, se range en plan filmé en plus comme
   assert.ok(fs.existsSync(source), "le fichier du Mac n'est pas touché");
   const liens = fs.readdirSync(path.join(m.media, SLUG, "b-roll"));
   assert.equal(liens.length, 1);
-  const cible = fs.realpathSync(path.join(m.media, SLUG, "b-roll", liens[0]));
-  assert.ok(cible.startsWith(fs.realpathSync(path.join(m.media, "_bibliotheque", "b-roll"))), cible);
-  assert.equal(fs.statSync(cible).size, corps.length, "copie entière");
-  const clip = Object.values(json(path.join(m.media, "_bibliotheque", "index.json")).clips)[0];
-  assert.deepEqual([clip.origine, clip.contenus], ["Enregistrement 16-35.mov", [SLUG]]);
+  // Lot 15 : le plan entre dans la Galerie ; le contenu en a un lien physique (même fichier, pas de place en double).
+  const g = new Galerie(path.join(m.racine, "Galerie"));
+  const [fiche] = g.fiches();
+  assert.deepEqual([fiche.nom_origine, fiche.type, fiche.utilisations.map((u) => [u.slug, u.source])], ["Enregistrement 16-35.mov", "b-roll", [[SLUG, "toi"]]]);
+  assert.equal(liens[0], `${fiche.id}.mov`);
+  assert.equal(fs.statSync(path.join(m.media, SLUG, "b-roll", liens[0])).ino, fs.statSync(g.chemin(fiche)).ino);
+  assert.equal(fs.statSync(g.chemin(fiche)).size, corps.length, "copie entière");
   const j = json(path.join(m.media, "_journal-rangement.json")).rangements.at(-1);
   assert.equal(j.commande, "placer", "même trace qu'un placement à la main (annulable)");
   assert.ok(envoisVides(m), "le dossier d'envoi est vidé");
@@ -173,27 +176,31 @@ test("changer le type : face caméra en plan filmé en plus, puis retour ; monta
   assert.equal(r.statut, 200, JSON.stringify(r.json));
   assert.ok(!fs.existsSync(path.join(m.media, SLUG, "face", "2026-11-19 16-35-03.mov")));
   const [lien] = fs.readdirSync(path.join(m.media, SLUG, "b-roll"));
-  const ix = json(path.join(m.media, "_bibliotheque", "index.json"));
+  // Lot 15 : un plan filmé en plus entre dans la Galerie (fiche, vignettes), le contenu en a un lien physique.
+  const g = new Galerie(path.join(m.racine, "Galerie"));
   const id = lien.replace(/\.[^.]+$/, "");
-  assert.deepEqual([ix.clips[id].origine, ix.clips[id].contenus], ["2026-11-19 16-35-03.mov", [SLUG]]);
-  assert.ok(ix.clips[id].vignettes.length > 0, "vignettes faites");
+  let fiche = g.fiche(id);
+  assert.deepEqual([fiche.nom_origine, fiche.utilisations.map((u) => u.slug)], ["2026-11-19 16-35-03.mov", [SLUG]]);
+  assert.ok(fiche.vignettes.length > 0, "vignettes faites");
   let d = (await api("GET", `/api/cartes/${SLUG}`)).json;
-  assert.ok(d.montage.rushs.some((x) => x.id === `b-roll/${lien}` && x.changer?.vers === "face"));
+  assert.ok(d.montage.rushs.some((x) => x.id === `b-roll/${lien}` && x.changer?.vers === "face" && x.galerie));
   // Partagé avec un autre contenu : il ne peut pas devenir la face caméra de celui-ci (bouton grisé avec sa raison).
-  ix.clips[id].contenus.push("autre-contenu");
-  fs.writeFileSync(path.join(m.media, "_bibliotheque", "index.json"), JSON.stringify(ix));
+  fiche.utilisations.push({ slug: "autre-contenu", type: "b-roll", le: fiche.ajoute_le, source: "toi" });
+  g.sousVerrou(() => g.ecrireFiche(fiche));
   d = (await api("GET", `/api/cartes/${SLUG}`)).json;
   assert.equal(d.montage.rushs.find((x) => x.id === `b-roll/${lien}`).changer.impossible, "Ce plan sert aussi à un autre contenu.");
   r = await api("POST", `/api/cartes/${SLUG}/rushs/type`, { json: { id: `b-roll/${lien}`, type: "face" } });
   assert.deepEqual([r.statut, r.json.erreur], [409, "PARTAGE"]);
-  ix.clips[id].contenus = [SLUG];
-  fs.writeFileSync(path.join(m.media, "_bibliotheque", "index.json"), JSON.stringify(ix));
-  // Retour en face caméra, sous son nom d'origine ; il quitte la bibliothèque.
+  fiche = g.fiche(id);
+  fiche.utilisations = fiche.utilisations.filter((u) => u.slug === SLUG);
+  g.sousVerrou(() => g.ecrireFiche(fiche));
+  // Retour en face caméra, sous son nom d'origine ; il quitte la Galerie (jamais de face caméra dedans).
   r = await api("POST", `/api/cartes/${SLUG}/rushs/type`, { json: { id: `b-roll/${lien}`, type: "face" } });
   assert.equal(r.statut, 200, JSON.stringify(r.json));
   assert.ok(fs.existsSync(path.join(m.media, SLUG, "face", "2026-11-19 16-35-03.mov")));
   assert.deepEqual(fs.readdirSync(path.join(m.media, SLUG, "b-roll")), []);
-  assert.equal(json(path.join(m.media, "_bibliotheque", "index.json")).clips[id], undefined);
+  assert.equal(g.fiche(id), null);
+  assert.deepEqual(g.index().fichiers, []);
   d = (await api("GET", `/api/cartes/${SLUG}`)).json;
   const face = d.montage.rushs.find((x) => x.id === "face/2026-11-19 16-35-03.mov");
   assert.equal(face.detail, "Rangée ici par toi.");

@@ -67,6 +67,9 @@ export function typeDeChat(chatId) {
   if (m) return { genre: "tournage", id: m[1] };
   m = /^([a-z0-9-]+):(hoc|monteur)$/.exec(chatId);
   if (m && SLUG_RE.test(m[1])) return { genre: m[2], slug: m[1] };
+  // La description d'un fichier de la Galerie (lot 15) : une courte session sans outil, jamais montrée au client.
+  m = /^galerie:(\d{8}-\d{6}-[a-z0-9]{4})$/.exec(chatId);
+  if (m) return { genre: "galerie", id: m[1] };
   return null;
 }
 
@@ -83,7 +86,7 @@ export function consigneStudio(prenom = clientActif().prenom, contact = clientAc
     `Tu parles à ${prenom} dans son studio, une appli de son Mac. Son chat est une colonne étroite à droite.`,
     `Tu fais ce que ${prenom} te demande, comme un assistant qui travaille directement sur son Mac, même hors du déroulé prévu : un plan en plus de ceux du brief, un nouveau fichier ou des images dans le dossier du contenu, un brief changé, une étape refaite, une recherche, un petit outil fait pour l'occasion. Le déroulé de tes consignes dit ce que tu fais quand il ne demande rien ; ce n'est jamais une limite. Ne réponds jamais « ce n'est pas prévu » ou « ce n'est pas mon rôle » : fais-le, ou dis en une phrase ce qu'il te manque pour le faire.`,
     `Ce qui reste fermé, même s'il le demande : rien ne part sur Instagram ni sur TikTok depuis ce chat (la publication se fait par son clic sur le récapitulatif de « Poster ») ; ses clés restent secrètes ; rien n'est supprimé hors de ses dossiers de travail ; jamais de visage ni de voix de ${prenom} fabriqués (une autre image générée ou un visuel qu'il demande expressément, oui) ; tu ne modifies ni tes propres consignes, ni le studio lui-même (son interface, ses réglages) : s'il le demande, ${studioFerme}.`,
-    "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « À ranger », « Poster ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
+    "Tout ce que tu enregistres s'affiche déjà ailleurs dans le studio : à gauche dans ses dossiers (« Idées proposées », « Mis de côté », « En cours », « Tournages », « Galerie », « Poster ») et au milieu dans le fichier ouvert (« Idée », « Brief », plan de tournage, « Montage », vidéo, images).",
     "Règle du chat : ne recopie jamais dans le chat ce qui s'y affiche déjà. Ni les idées, ni leurs accroches, ni le brief, ni le script, ni les plans à tourner, ni la légende, ni le plan de tournage, ni le rangement, ni le détail du montage.",
     "Réponds en une ou deux phrases courtes : ce que tu as fait et où il le voit, par exemple « Les 3 idées sont prêtes, tu les vois dans Idées proposées. » ou « Ton brief est écrit, relis-le dans Brief. ». Puis ta question, s'il t'en faut une, en une phrase. Pas de liste, pas de titre, pas de récapitulatif.",
     "S'il te demande expressément de lui montrer ou de lui expliquer quelque chose dans le chat, fais-le, court. Quand tu n'enregistres rien (une question, un conseil), réponds normalement, court aussi.",
@@ -106,6 +109,7 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   const t = typeDeChat(chatId);
   if (!t) throw new Error(`chat inconnu : ${chatId}`);
   const client = config.client || clientActif();
+  if (t.genre === "galerie") return reglagesDescription(config, client);
   const memoire = client.configClaudeAbs ? `${absolu(client.configClaudeAbs)}/agent-memory/**` : "~/.claude/agent-memory/**";
   // Écritures dans le dossier de la session : par son chemin absolu, posé plus bas une fois le dossier choisi.
   // `./**` seul ne suffit pas (lot 12, essai du 2026-11-20) : Claude le résout depuis le dossier courant du shell,
@@ -185,6 +189,22 @@ export function reglagesChat(chatId, config, { besoin = {} } = {}) {
   for (const d of [...new Set(dossiersEnPlus)]) args.push("--add-dir", d);
   if (config.claude?.modele) args.push("--model", config.claude.modele);
   return { cwd, args, env, agent, genre: t.genre, slug: t.slug || null };
+}
+
+// La session qui décrit un fichier de la Galerie (lot 15) : les images sont dans le message, la réponse est un JSON
+// validé par un script avant écriture. Aucun outil, aucun réglage ni agent chargé, rien de gardé entre deux essais
+// (une description coupée se refait en entier), dossier de travail vide dans STUDIO_HOME.
+function reglagesDescription(config, client) {
+  const env = { STUDIO: "1" };
+  if (client.configClaudeAbs) env.CLAUDE_CONFIG_DIR = client.configClaudeAbs;
+  const args = [
+    "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+    "--tools", "", "--strict-mcp-config", "--disable-slash-commands", "--setting-sources", "", "--no-session-persistence",
+    "--settings", JSON.stringify({ permissions: { deny: refusCommuns(client, config) } }),
+  ];
+  const modele = config.claude?.modeleDescription || config.claude?.modele || null;
+  if (modele) args.push("--model", modele);
+  return { cwd: path.join(config.home, "galerie-travail"), args, env, agent: null, genre: "galerie", slug: null, sansReprise: true };
 }
 
 // Variables d'environnement d'une session : celles du serveur, sans clé d'API (la session tourne

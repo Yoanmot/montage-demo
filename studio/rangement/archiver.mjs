@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { lireConfig, lireJson, ecrireJson, lireDate, sha256, typeFichier, prendreVerrou, estLien, PHOTOS } from './lib/commun.mjs';
 import { Media } from './lib/media.mjs';
+import { Galerie, dossierGalerie, lienVersId } from './lib/galerie.mjs';
 
 const say = (l) => process.stdout.write(l + '\n');
 const note = (l) => process.stderr.write(l + '\n');
@@ -73,6 +74,8 @@ async function main() {
   const liberer = simulation ? () => {} : prendreVerrou(config.media);
   if (!liberer) { note('un rangement est en cours'); say('FIN archives=0 gardes=0'); return 0; }
   const media = new Media(config.media);
+  const galerie = new Galerie(dossierGalerie(config));
+  media.galerie = galerie;
   const cible = path.join(config.disque, 'Contenu');
   if (!simulation) media.ouvrir('archiver', null);
   try {
@@ -99,6 +102,13 @@ async function main() {
           const t = typeFichier(nom);
           if (sous === 'face' && (t !== 'video' || /-monte(-\d+)?\.mp4$/i.test(nom))) continue;   // la vidéo finale reste
           if (sous === 'photos' && !PHOTOS.has(path.extname(nom).toLowerCase())) continue;
+          // Une photo de la Galerie (lot 15) : seul le lien du contenu part, la Galerie garde le fichier (rien à copier).
+          const lg = sous === 'photos' ? lienVersId(nom) : null;
+          if (lg && galerie.fiche(lg.id)) {
+            if (!simulation) { fs.unlinkSync(f); media.noter({ op: 'lien_galerie_retrait', chemin: f, id: lg.id, source: galerie.chemin(galerie.fiche(lg.id)) }); }
+            say(`DELIE ${nom} la Galerie le garde`);
+            continue;
+          }
           await archiver(f, path.join(slug, sous, nom), nom);
         }
       }

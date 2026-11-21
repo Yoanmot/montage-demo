@@ -10,6 +10,7 @@ import { spawnSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fabriquer, TABLE_COULEURS } from './fabrique.mjs';
 import { sha256 } from '../lib/commun.mjs';
+import { Galerie } from '../lib/galerie.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const RANGER = path.join(ICI, '..', 'ranger.mjs');
@@ -28,6 +29,10 @@ const lancer = (script, args, env = {}) => {
 const ranger = (...a) => lancer(RANGER, ['--config', T.config, ...a]);
 const json = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 const M = (...p) => path.join(T.media, ...p);
+// La Galerie du faux tournage (lot 15) : à côté de son dossier média.
+const G = () => new Galerie(path.join(path.dirname(T.media), 'Galerie'));
+// L'id d'une entrée dans la Galerie change à chaque passage : remplacé par « * » pour comparer.
+const sansId = (lignes) => lignes.map((l) => l.replace(/^(GALERIE \S+) \S+$/, '$1 *'));
 
 before(() => { if (CODE) T = fabriquer(); });
 after(() => { if (T && !process.env.GARDER) fs.rmSync(T.racine, { recursive: true, force: true }); });
@@ -43,26 +48,28 @@ const ATTENDU = [
   'A_RANGER IMG_1005.MOV je n\'ai pas reconnu ce que tu dis dans cette vidéo',
   'PLACE IMG_1006.MOV -> faim-a-16h/b-roll',
   'PLACE IMG_1006.MOV -> proteines-au-petit-dej/b-roll',
-  'A_RANGER IMG_1007.MOV je n\'ai pas reconnu ce qu\'on voit dans ce clip',
+  // Lot 15 : un b-roll rattaché à rien entre dans la Galerie au lieu de « À ranger ».
+  'GALERIE IMG_1007.MOV *',
   'PLACE IMG_1008.MOV -> dos-qui-tire-au-bureau/b-roll',
   'PLACE IMG_1009.JPG -> proteines-au-petit-dej/photo',
-  'FIN places=6 a_ranger=3',
+  'FIN places=6 a_ranger=2 galerie=1',
 ];
 
 test('simulation : dit ce qu\'il ferait, ne déplace rien', { skip: !CODE && 'pas de code de transcription' }, () => {
   const avant = fs.readdirSync(T.arrivees).sort();
   const r = ranger('--simulation');
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual([...r.lignes].sort(), [...ATTENDU].sort());
-  assert.equal(r.lignes.at(-1), 'FIN places=6 a_ranger=3');
+  assert.deepEqual(sansId(r.lignes).sort(), [...ATTENDU].sort());
+  assert.equal(r.lignes.at(-1), 'FIN places=6 a_ranger=2 galerie=1');
+  assert.ok(!fs.existsSync(path.join(path.dirname(T.media), 'Galerie')), 'la simulation ne crée pas de Galerie');
   assert.deepEqual(fs.readdirSync(T.arrivees).sort(), avant);
   assert.ok(!fs.existsSync(M('faim-a-16h')) && !fs.existsSync(M('_a-ranger')) && !fs.existsSync(M('_journal-rangement.json')));
 });
 
-test('rangement : face, b-rolls en bibliothèque, liens, photo, à ranger, journal', { skip: !CODE && 'pas de code de transcription' }, () => {
+test('rangement : face, b-rolls et photo dans la Galerie, liens physiques, à ranger, journal', { skip: !CODE && 'pas de code de transcription' }, () => {
   const r = ranger();
   assert.equal(r.code, 0, r.err);
-  assert.deepEqual([...r.lignes].sort(), [...ATTENDU].sort());
+  assert.deepEqual(sansId(r.lignes).sort(), [...ATTENDU].sort());
 
   // Les autres fichiers du dossier d'arrivée (ses Téléchargements) sont restés tels quels (lot 12).
   for (const nom of ['facture.pdf', 'Capture d’écran.png', 'tuto-internet.mov', 'vieux-fichier.mov']) {
@@ -73,37 +80,50 @@ test('rangement : face, b-rolls en bibliothèque, liens, photo, à ranger, journ
   for (const [slug, nom] of [['faim-a-16h', 'IMG_1001.MOV'], ['proteines-au-petit-dej', 'IMG_1002.MOV'], ['dos-qui-tire-au-bureau', 'IMG_1003.MOV']]) {
     assert.ok(fs.lstatSync(M(slug, 'face', nom)).isFile(), `${slug}/face/${nom}`);
   }
-  assert.ok(fs.lstatSync(M('proteines-au-petit-dej', 'photos', 'IMG_1009.JPG')).isFile());
 
-  const ix = json(M('_bibliotheque', 'index.json'));
-  const clips = Object.entries(ix.clips);
-  assert.equal(clips.length, 3);
-  const [rougeId, rouge] = clips.find(([, c]) => c.origine === 'IMG_1006.MOV');
-  assert.match(rougeId, /^\d{8}-\d{6}-[a-z0-9]{4}$/);
-  assert.equal(rouge.fichier, `_bibliotheque/b-roll/${rougeId}.mov`);
-  assert.deepEqual(rouge.contenus.sort(), ['faim-a-16h', 'proteines-au-petit-dej']);
-  assert.equal(rouge.lieu, 'cuisine');
-  assert.equal(rouge.ce_qu_on_voit, 'un plan entièrement rouge');
+  // Lot 15 : les b-rolls et la photo sont dans la Galerie (un fichier, une fiche), jamais les face caméra.
+  const g = G();
+  const fiches = g.fiches();
+  assert.deepEqual(fiches.map((f) => f.nom_origine).sort(), ['IMG_1006.MOV', 'IMG_1007.MOV', 'IMG_1008.MOV', 'IMG_1009.JPG']);
+  assert.equal(g.index().fichiers.length, 4);
+  const rouge = fiches.find((f) => f.nom_origine === 'IMG_1006.MOV');
+  assert.match(rouge.id, /^\d{8}-\d{6}-[a-z0-9]{4}$/);
+  assert.equal(rouge.type, 'b-roll');
+  assert.equal(rouge.fichier, `fichiers/${rouge.id}.mov`);
+  assert.deepEqual(rouge.utilisations.map((u) => u.slug).sort(), ['faim-a-16h', 'proteines-au-petit-dej']);
+  assert.ok(rouge.utilisations.every((u) => u.source === 'tournage' && u.le));
+  assert.equal(rouge.origine.genre, 'tournage');
+  assert.equal(rouge.origine.tournage, T.tournage);
+  assert.ok(rouge.origine.ligne, 'la ligne du plan qui l\'a demandé');
   assert.equal(rouge.orientation, 'portrait');
   assert.equal(rouge.duree_s, 6);
-  assert.equal(rouge.tournage, T.tournage);
-  assert.match(rouge.pris_le, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/);
+  assert.equal(rouge.description, null, 'décrit ensuite, par la file du studio');
   assert.equal(rouge.vignettes.length, 3);
-  rouge.vignettes.forEach((v) => assert.ok(fs.existsSync(M(v)), v));
-  // une prise fusionnée = un fichier, deux liens
-  const vrai = fs.realpathSync(M(rouge.fichier));
-  for (const s of rouge.contenus) {
-    const lien = M(s, 'b-roll', `${rougeId}.mov`);
-    assert.ok(fs.lstatSync(lien).isSymbolicLink());
-    assert.equal(fs.realpathSync(lien), vrai);
+  rouge.vignettes.forEach((v) => assert.ok(fs.existsSync(path.join(g.racine, v)), v));
+  // une prise fusionnée = un fichier, deux liens physiques (même fichier sur le disque, pas de place en double)
+  const vrai = fs.statSync(g.chemin(rouge));
+  for (const s of ['faim-a-16h', 'proteines-au-petit-dej']) {
+    const lien = M(s, 'b-roll', `${rouge.id}.mov`);
+    assert.ok(fs.lstatSync(lien).isFile() && !fs.lstatSync(lien).isSymbolicLink());
+    assert.equal(fs.statSync(lien).ino, vrai.ino);
   }
-  // déjà en bibliothèque : lien posé, contenu ajouté à l'index
+  assert.equal(vrai.nlink, 3);
+  const photo = fiches.find((f) => f.nom_origine === 'IMG_1009.JPG');
+  assert.equal(photo.type, 'photo');
+  assert.equal(photo.passages, undefined);
+  assert.ok(fs.lstatSync(M('proteines-au-petit-dej', 'photos', `${photo.id}.jpg`)).isFile());
+  assert.equal(photo.vignettes.length, 1);
+  const libre = fiches.find((f) => f.nom_origine === 'IMG_1007.MOV');
+  assert.equal(libre.origine.genre, 'arrivee');
+  assert.deepEqual(libre.utilisations, []);
+  // déjà en bibliothèque (avant la Galerie) : lien posé, contenu ajouté à l'index
+  const ix = json(M('_bibliotheque', 'index.json'));
   assert.equal(fs.realpathSync(M('dos-qui-tire-au-bureau', 'b-roll', `${T.ancien}.mov`)), fs.realpathSync(M('_bibliotheque', 'b-roll', `${T.ancien}.mov`)));
   assert.deepEqual(ix.clips[T.ancien].contenus, ['un-ancien-contenu', 'dos-qui-tire-au-bureau']);
 
-  // à ranger : raison simple (sans chemin ni nom d'outil), candidats, vignette
+  // à ranger : seulement les face caméra pas reconnues, raison simple (sans chemin ni nom d'outil), candidats, vignette
   const ar = json(M('_a-ranger', 'a-ranger.json'));
-  assert.deepEqual(ar.fichiers.map((f) => f.nom).sort(), ['IMG_1004.MOV', 'IMG_1005.MOV', 'IMG_1007.MOV']);
+  assert.deepEqual(ar.fichiers.map((f) => f.nom).sort(), ['IMG_1004.MOV', 'IMG_1005.MOV']);
   for (const f of ar.fichiers) {
     assert.ok(fs.existsSync(M('_a-ranger', f.nom)));
     assert.doesNotMatch(f.raison, /\/|claude|ffmpeg|ffprobe|json|serveur|\u2014/i);
@@ -111,13 +131,14 @@ test('rangement : face, b-rolls en bibliothèque, liens, photo, à ranger, journ
   }
   const ambigu = ar.fichiers.find((f) => f.nom === 'IMG_1004.MOV');
   assert.deepEqual(ambigu.candidats.slice(0, 2).map((c) => c.slug).sort(), ['faim-a-16h', 'proteines-au-petit-dej']);
-  assert.equal(ar.fichiers.find((f) => f.nom === 'IMG_1007.MOV').type_probable, 'b-roll');
 
   // les pièges restent dans les arrivées
   assert.deepEqual(fs.readdirSync(T.arrivees).sort(), ['Capture d’écran.png', 'Dossier perso', 'IMG_1010.MOV', 'IMG_1011.MOV.download', 'facture.pdf', 'tuto-internet.mov', 'vieux-fichier.mov']);
   const j = json(M('_journal-rangement.json'));
   assert.equal(j.rangements.length, 1);
   assert.ok(j.rangements[0].ops.some((o) => o.op === 'deplacement'));
+  assert.ok(j.rangements[0].ops.some((o) => o.op === 'galerie_ajout'));
+  assert.ok(j.rangements[0].ops.some((o) => o.op === 'lien_galerie'));
 });
 
 test('deuxième passage : rien de neuf, rien de refait', { skip: !CODE && 'pas de code de transcription' }, () => {
@@ -128,23 +149,27 @@ test('deuxième passage : rien de neuf, rien de refait', { skip: !CODE && 'pas d
 
 test('placer à la main, puis annuler', { skip: !CODE && 'pas de code de transcription' }, () => {
   let r = lancer(RANGER, ['placer', 'IMG_1004.MOV', 'faim-a-16h', 'face', '--config', T.config]);
-  assert.deepEqual(r.lignes, ['PLACE IMG_1004.MOV -> faim-a-16h/face', 'FIN places=1 a_ranger=2']);
+  assert.deepEqual(r.lignes, ['PLACE IMG_1004.MOV -> faim-a-16h/face', 'FIN places=1 a_ranger=1']);
   assert.ok(fs.existsSync(M('faim-a-16h', 'face', 'IMG_1004.MOV')));
-  r = lancer(RANGER, ['placer', 'IMG_1007.MOV', 'dos-qui-tire-au-bureau', 'b-roll', '--config', T.config]);
-  assert.deepEqual(r.lignes, ['PLACE IMG_1007.MOV -> dos-qui-tire-au-bureau/b-roll', 'FIN places=1 a_ranger=1']);
-  const [id] = Object.entries(json(M('_bibliotheque', 'index.json')).clips).find(([, c]) => c.origine === 'IMG_1007.MOV');
-  // le même clip glissé sur une deuxième carte : un lien de plus, pas de fichier en plus
-  r = lancer(RANGER, ['placer', id, 'faim-a-16h', 'b-roll', '--config', T.config]);
-  assert.equal(r.lignes[0], `PLACE ${id}.mov -> faim-a-16h/b-roll`);
-  assert.ok(fs.lstatSync(M('faim-a-16h', 'b-roll', `${id}.mov`)).isSymbolicLink());
+  // Une vidéo d'« À ranger » rangée comme b-roll : elle entre dans la Galerie, avec un lien physique dans le contenu.
+  r = lancer(RANGER, ['placer', 'IMG_1005.MOV', 'dos-qui-tire-au-bureau', 'b-roll', '--config', T.config]);
+  assert.deepEqual(r.lignes, ['PLACE IMG_1005.MOV -> dos-qui-tire-au-bureau/b-roll', 'FIN places=1 a_ranger=0']);
+  const f = G().fiches().find((x) => x.nom_origine === 'IMG_1005.MOV');
+  assert.ok(f && fs.lstatSync(M('dos-qui-tire-au-bureau', 'b-roll', `${f.id}.mov`)).isFile());
+  assert.deepEqual(f.utilisations.map((u) => [u.slug, u.source]), [['dos-qui-tire-au-bureau', 'toi']]);
+  // un clip de la bibliothèque d'avant la Galerie, glissé sur une deuxième carte : un lien de plus, pas de fichier en plus
+  r = lancer(RANGER, ['placer', T.ancien, 'faim-a-16h', 'b-roll', '--config', T.config]);
+  assert.equal(r.lignes[0], `PLACE ${T.ancien}.mov -> faim-a-16h/b-roll`);
+  assert.ok(fs.lstatSync(M('faim-a-16h', 'b-roll', `${T.ancien}.mov`)).isSymbolicLink());
   // refus propres
   assert.match(lancer(RANGER, ['placer', '../x', 'faim-a-16h', 'face', '--config', T.config]).out, /^BLOQUE FICHIER/);
-  assert.match(lancer(RANGER, ['placer', 'IMG_1005.MOV', 'inconnu', 'face', '--config', T.config]).out, /^BLOQUE CONTENU/);
+  assert.match(lancer(RANGER, ['placer', 'IMG_1004.MOV', 'inconnu', 'face', '--config', T.config]).out, /^BLOQUE CONTENU/);
 
-  // annuler les trois placements, puis le rangement : tout revient comme avant
+  // annuler les trois placements, puis le rangement : tout revient comme avant, la Galerie est vide
   for (let k = 0; k < 3; k++) assert.equal(lancer(RANGER, ['annuler', 'dernier', '--config', T.config]).code, 0);
-  assert.ok(fs.existsSync(M('_a-ranger', 'IMG_1004.MOV')) && fs.existsSync(M('_a-ranger', 'IMG_1007.MOV')));
-  assert.equal(json(M('_a-ranger', 'a-ranger.json')).fichiers.length, 3);
+  assert.ok(fs.existsSync(M('_a-ranger', 'IMG_1004.MOV')) && fs.existsSync(M('_a-ranger', 'IMG_1005.MOV')));
+  assert.equal(json(M('_a-ranger', 'a-ranger.json')).fichiers.length, 2);
+  assert.ok(!G().fiches().some((x) => x.nom_origine === 'IMG_1005.MOV'));
   r = lancer(RANGER, ['annuler', 'dernier', '--config', T.config]);
   assert.equal(r.code, 0, r.out);
   assert.match(r.lignes.at(-1), /^FIN annule=/);
@@ -155,18 +180,23 @@ test('placer à la main, puis annuler', { skip: !CODE && 'pas de code de transcr
   assert.deepEqual(ix.clips[T.ancien].contenus, ['un-ancien-contenu']);
   assert.ok(!fs.existsSync(M('dos-qui-tire-au-bureau', 'b-roll', `${T.ancien}.mov`)));
   assert.deepEqual(json(M('_a-ranger', 'a-ranger.json')).fichiers, []);
-  assert.equal(fs.readdirSync(M('_bibliotheque', 'vignettes')).length, 0);
+  assert.deepEqual(G().fiches(), []);
+  assert.deepEqual(G().index().fichiers, []);
+  assert.deepEqual(fs.readdirSync(G().fichiersD), []);
+  assert.deepEqual(fs.readdirSync(G().vignettesD), []);
+  for (const s of ['faim-a-16h', 'proteines-au-petit-dej']) assert.deepEqual(fs.readdirSync(M(s, 'b-roll')), []);
 });
 
-test('réponse vide du modèle : refaite une fois, puis à ranger', { skip: !CODE && 'pas de code de transcription' }, () => {
+test('réponse vide du modèle : refaite une fois, puis dans la Galerie', { skip: !CODE && 'pas de code de transcription' }, () => {
   const r = lancer(RANGER, ['--config', T.config, '--simulation'], { FAUX_MODELE_MODE: 'vide' });
-  assert.ok(r.lignes.includes('A_RANGER IMG_1006.MOV je n\'ai pas pu regarder ce clip pour le reconnaître'), r.out);
-  assert.ok(r.lignes.includes('A_RANGER IMG_1009.JPG je n\'ai pas pu regarder ce clip pour le reconnaître'), r.out);
+  // Lot 15 : une photo ou un b-roll qu'il n'a pas pu regarder entre dans la Galerie (décrit plus tard), sans contenu.
+  assert.ok(r.lignes.includes('GALERIE IMG_1006.MOV simulation'), r.out);
+  assert.ok(r.lignes.includes('GALERIE IMG_1009.JPG simulation'), r.out);
   assert.equal((r.err.match(/champ_vide/g) || []).length, 8);   // 4 visuels x 2 essais
 });
 
 test('archivage : disque absent, puis copie vérifiée et original supprimé', { skip: !CODE && 'pas de code de transcription' }, async () => {
-  assert.equal(ranger().lignes.at(-1), 'FIN places=6 a_ranger=3');   // de nouveau rangé (transcriptions en cache)
+  assert.equal(ranger().lignes.at(-1), 'FIN places=6 a_ranger=2 galerie=1');   // de nouveau rangé (transcriptions en cache)
   fs.rmSync(T.disque, { recursive: true, force: true });
   let r = lancer(ARCHIVER, ['--config', T.config], { ARCHIVE_DISQUE_LOCAL: '1' });
   assert.deepEqual(r.lignes, ['DISQUE_ABSENT ton disque n\'est pas branché, j\'archiverai la prochaine fois qu\'il le sera', 'FIN archives=0 gardes=0']);
@@ -181,27 +211,35 @@ test('archivage : disque absent, puis copie vérifiée et original supprimé', {
   } }, null, 2));
   fs.writeFileSync(M('faim-a-16h', 'face', 'IMG_1001-monte.mp4'), 'video finale');
   const h1001 = await sha256(M('faim-a-16h', 'face', 'IMG_1001.MOV'));
+  const g = G();
+  const photo = g.fiches().find((f) => f.nom_origine === 'IMG_1009.JPG');
+  const rouge = g.fiches().find((f) => f.nom_origine === 'IMG_1006.MOV');
+  const tailleGalerie = fs.statSync(g.chemin(rouge)).size;
   r = lancer(ARCHIVER, ['--config', T.config, '--simulation'], { ARCHIVE_DISQUE_LOCAL: '1' });
-  assert.equal(r.lignes.at(-1), 'FIN archives=4 gardes=0');
+  assert.equal(r.lignes.at(-1), 'FIN archives=2 gardes=0');
   assert.ok(fs.existsSync(M('faim-a-16h', 'face', 'IMG_1001.MOV')));
+  assert.ok(fs.existsSync(M('proteines-au-petit-dej', 'photos', `${photo.id}.jpg`)), 'la simulation ne délie rien');
   r = lancer(ARCHIVER, ['--config', T.config], { ARCHIVE_DISQUE_LOCAL: '1' });
   assert.equal(r.code, 0, r.err);
-  const ix = json(M('_bibliotheque', 'index.json'));
-  const [rougeId, rouge] = Object.entries(ix.clips).find(([, c]) => c.origine === 'IMG_1006.MOV');
+  // Lot 15 : la photo de la Galerie n'est pas copiée sur le disque, seul son lien part du contenu ; les b-rolls de la
+  // Galerie ne bougent pas (le lien du contenu ne prend pas de place en plus).
   assert.deepEqual([...r.lignes].sort(), [
     'ARCHIVE IMG_1001.MOV -> faim-a-16h/face/IMG_1001.MOV',
     'ARCHIVE IMG_1002.MOV -> proteines-au-petit-dej/face/IMG_1002.MOV',
-    'ARCHIVE IMG_1009.JPG -> proteines-au-petit-dej/photos/IMG_1009.JPG',
-    `ARCHIVE ${rougeId}.mov -> _bibliotheque/b-roll/${rougeId}.mov`,
-    'FIN archives=4 gardes=0',
+    `DELIE ${photo.id}.jpg la Galerie le garde`,
+    'FIN archives=2 gardes=0',
   ].sort());
   const copie = path.join(T.disque, 'Contenu', 'faim-a-16h', 'face', 'IMG_1001.MOV');
   assert.equal(await sha256(copie), h1001);
   assert.ok(!fs.existsSync(M('faim-a-16h', 'face', 'IMG_1001.MOV')));
   assert.ok(fs.existsSync(M('faim-a-16h', 'face', 'IMG_1001-monte.mp4')), 'la vidéo finale reste sur le Mac');
   assert.ok(fs.existsSync(M('dos-qui-tire-au-bureau', 'face', 'IMG_1003.MOV')), 'programmé passé mais pas confirmé : reste');
-  assert.equal(rouge.archive, path.join(T.disque, 'Contenu', rouge.fichier));
-  assert.equal(fs.readlinkSync(M('faim-a-16h', 'b-roll', `${rougeId}.mov`)), rouge.archive);
+  // La Galerie n'a pas bougé : la photo et le b-roll y sont, avec leurs fiches et leurs utilisations.
+  assert.ok(!fs.existsSync(M('proteines-au-petit-dej', 'photos', `${photo.id}.jpg`)));
+  assert.ok(fs.existsSync(g.chemin(photo)) && fs.existsSync(g.chemin(rouge)));
+  assert.equal(fs.statSync(g.chemin(rouge)).size, tailleGalerie);
+  assert.deepEqual(g.fiche(photo.id).utilisations.map((u) => u.slug), ['proteines-au-petit-dej']);
+  assert.ok(!fs.existsSync(path.join(T.disque, 'Contenu', 'proteines-au-petit-dej', 'photos')));
   assert.equal(lancer(ARCHIVER, ['--config', T.config], { ARCHIVE_DISQUE_LOCAL: '1' }).lignes.at(-1), 'FIN archives=0 gardes=0');
 });
 

@@ -83,10 +83,35 @@ const REPONSE_LONGUE = [
 ].join("\n");
 
 let premier = true;
+// La description d'un fichier de la Galerie (lot 15) : un message avec des images. Le faux claude répond le JSON de
+// FAUX_CLAUDE_DESCRIPTION (« invalide » : du texte sans JSON), sinon une description valide ; FAUX_CLAUDE_ATTENTE_DESCRIPTION :
+// attente avant de répondre (ms).
+function descriptionFausse(texte) {
+  const voulu = process.env.FAUX_CLAUDE_DESCRIPTION;
+  if (voulu === "invalide") return "Je vois une salle de sport.";
+  if (voulu) return voulu;
+  const photo = !/clip vidéo/.test(texte);
+  return JSON.stringify({ titre: photo ? "Bol de flocons vu du dessus" : "Barre chargée sur le rack", ce_qu_on_voit: "Une scène de test.",
+    action: photo ? "Aucune : photo." : "La caméra glisse.", lieu: "Ta cuisine.", cadrage: "Vertical, plan moyen.",
+    personne_a_l_image: false, passages: photo ? [] : [{ debut: 0.2, fin: 1.0, note: "net" }], mots_cles: ["test", photo ? "bol" : "barre"] });
+}
+
 async function repondre(message) {
   const texte = typeof message?.content === "string" ? message.content
     : (message?.content || []).map((b) => b.text || "").join("");
-  noter({ evenement: "message", texte });
+  const images = Array.isArray(message?.content) ? message.content.filter((b) => b.type === "image").length : 0;
+  noter({ evenement: "message", texte, ...(images ? { images } : {}) });
+  if (images && /Galerie de/.test(texte) && scenario === "normal") {
+    if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
+    premier = false;
+    // FAUX_CLAUDE_ATTENTE_DESCRIPTION (ms) : la description tarde (captures de l'état « je le décris »).
+    if (process.env.FAUX_CLAUDE_ATTENTE_DESCRIPTION) await pause(Number(process.env.FAUX_CLAUDE_ATTENTE_DESCRIPTION));
+    const rep = descriptionFausse(texte);
+    const base = { session_id: session, parent_tool_use_id: null };
+    ecrire({ type: "assistant", message: { id: `msg_${crypto.randomUUID()}`, model: "claude-sonnet", role: "assistant", type: "message", content: [{ type: "text", text: rep }] }, ...base });
+    ecrire({ type: "result", subtype: "success", is_error: false, result: rep, ...base });
+    return;
+  }
   if ((scenario === "limite" || scenario === "surcharge") && echecRestant()) {
     if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
     premier = false;

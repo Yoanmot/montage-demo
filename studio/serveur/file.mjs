@@ -9,8 +9,9 @@ import { attenduPresent, formatDuContenu } from "./attendus.mjs";
 import { lireDepot, videoFace, videosFace, brolls, genreDuContenu } from "./lecture.mjs";
 import { contact, clientActif } from "./client.mjs";
 import { quandReprise, PHRASE_CONNEXION } from "./normalisation.mjs";
+import { messageDescription, ecrireDescriptionDeSession, noterEchecDescription } from "./galerie.mjs";
 
-const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page"]);
+const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page", "description"]);
 const GARDER_TERMINEES = 300;
 const DOSSIER_GABARITS = path.join(path.dirname(fileURLToPath(import.meta.url)), "gabarits");
 
@@ -23,6 +24,8 @@ export function chatDeAction(a) {
       return `${a.slug}:monteur`;
     case "tournage":
       return `tournage:${a.lot}`;
+    case "description":
+      return `galerie:${a.galerie}`;
     default:
       return null;
   }
@@ -50,6 +53,8 @@ function titreDe(config, slug) {
 
 // Le premier message d'une action (gabarits/).
 export function messageAction(a, config) {
+  // La description d'un fichier de la Galerie (lot 15) : la consigne et les images (null : le fichier est parti).
+  if (a.type === "description") return messageDescription(config, a.galerie);
   const titre = a.slug ? titreDe(config, a.slug) : "";
   // Le prénom du client dans les gabarits ({{prenom}}).
   const prenom = (config.client || clientActif()).prenom;
@@ -88,9 +93,11 @@ export function messageAction(a, config) {
       : path.join(config.depot, "rendus", "carrousels", `${a.slug}.md`);
     const dossierPhotos = path.join(config.media, a.slug, "photos");
     const photos = lister(dossierPhotos).filter((e) => !e.name.startsWith(".")).map((e) => path.join(dossierPhotos, e.name)).sort();
+    // Une photo choisie slide par slide dans le studio (lot 15) : son nom commence par slide-NN-.
+    const pourSlide = (f) => { const m = /^slide-(\d{2})-/.exec(path.basename(f)); return m ? ` (choisie par ${prenom} pour la slide ${Number(m[1])})` : ""; };
     return remplir(gabarit("mise-en-page.md"), { prenom,
       slug: a.slug, titre: titre.replace(/\*/g, ""), texte,
-      photos: photos.length ? photos.map((f) => `- ${f}`).join("\n") : "- aucune",
+      photos: photos.length ? photos.map((f) => `- ${f}${pourSlide(f)}`).join("\n") : "- aucune",
       skills: config.skills || "",
     });
   }
@@ -298,6 +305,18 @@ export class File extends EventEmitter {
     return { lot, actions: nouvelles };
   }
 
+  // La description d'un fichier de la Galerie (lot 15) : une par fichier, jamais deux en attente pour le même.
+  ajouterDescription(id) {
+    if (this.actions.some((a) => a.type === "description" && a.galerie === id && ["en_file", "en_cours"].includes(a.statut))) return null;
+    const a = { id: this.nouvelId("a"), type: "description", galerie: id, lot: `l-${horodatage()}-${++this.compteur}`,
+      statut: "en_file", cree_le: isoZurich(), debut: null, fin: null, session: null, erreur: null };
+    this.actions.push(a);
+    this.sauver();
+    this.journal("actions_ajoutees", { type: "description", lot: a.lot, n: 1 });
+    setImmediate(() => this.tick());
+    return a;
+  }
+
   // Action hors Claude (rangement, publication, archivage) suivie dans la file.
   async suivre(type, details, travail) {
     const a = {
@@ -361,10 +380,27 @@ export class File extends EventEmitter {
   async resoudreFin(chatId) {
     const a = this.actionDuChat(chatId, ["en_cours"]);
     if (!a) return "a_toi";
+    if (a.type === "description") return this.finDescription(a, chatId);
     if (a.type === "mise_en_page" && !attenduPresent(a, this.config)) {
       try { await this.avant(a); } catch { /* hors ligne */ }
     }
     return attenduPresent(a, this.config) ? "fini" : "a_toi";
+  }
+
+  // Fin d'une description (lot 15) : la réponse du tour (après son dernier « en cours ») passe le schéma, puis s'écrit
+  // dans la fiche. Une réponse refusée se refait une fois, puis la fiche dit « pas réussi » (le client peut relancer).
+  finDescription(a, chatId) {
+    const h = this.pont.historique(chatId);
+    let debut = -1;
+    h.forEach((m, i) => { if (m.type === "etat" && m.etat === "en_cours") debut = i; });
+    const texte = h.slice(debut + 1).filter((m) => m.type === "texte" && m.role === "studio").map((m) => m.texte).at(-1) || "";
+    const r = ecrireDescriptionDeSession(this.config, a.galerie, texte, a.id);
+    if (r.ok || r.absent) return "fini";
+    this.journal("description_refusee", { id: a.id, pourquoi: r.pourquoi });
+    if (!a.refaite) { a.refaite = true; a.aRefaire = true; return "erreur"; }
+    noterEchecDescription(this.config, a.galerie);
+    a.erreurDescription = "Je n'ai pas réussi à décrire ce fichier. Relance-le depuis sa fiche.";
+    return "erreur";
   }
 
   surFin({ chat_id: chatId, etat, erreur, motif, reprise }) {
@@ -386,7 +422,16 @@ export class File extends EventEmitter {
     if (["fini", "a_toi"].includes(etat) && this.pause) this.leverPause("tour_reussi");
     if (a && etat) {
       a.statut = etat;
-      if (etat === "erreur") a.erreur = erreur;
+      if (etat === "erreur") a.erreur = erreur || a.erreurDescription || null;
+      // Une description refusée par le schéma repart une fois, sur une session neuve.
+      if (etat === "erreur" && a.aRefaire && !erreur) {
+        delete a.aRefaire;
+        a.statut = "en_file"; a.erreur = null; a.debut = null; a.session = null;
+        this.sauver();
+        this.journal("description_refaite", { id: a.id });
+        setImmediate(() => this.tick());
+        return;
+      }
       if (["fini", "erreur", "arrete"].includes(etat)) a.fin = isoZurich();
       if (etat === "fini") {
         // Les essais précédents du même travail, restés en souci, sont clos avec lui.
@@ -434,7 +479,15 @@ export class File extends EventEmitter {
     const reprise = a.reprise && a.debut && this.pont.aUneSession(chat);
     let envoi;
     try {
-      envoi = reprise ? (REPRISES[a.reprise] || REPRISES.redemarrage) : messageAction(a, this.config);
+      // Une description se refait toujours en entier (session d'un seul tour, rien à reprendre).
+      envoi = reprise && a.type !== "description" ? (REPRISES[a.reprise] || REPRISES.redemarrage) : messageAction(a, this.config);
+      if (a.type === "description" && !envoi) {
+        // Le fichier est parti de la Galerie (supprimé) : rien à décrire.
+        a.statut = "efface"; a.fin = isoZurich();
+        this.sauver();
+        setImmediate(() => this.tick());
+        return;
+      }
     } catch (e) {
       a.statut = "erreur";
       a.erreur = `Je n'ai pas pu préparer ce travail. Préviens ${contact()}.`;

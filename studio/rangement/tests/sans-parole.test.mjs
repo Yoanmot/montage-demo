@@ -21,7 +21,7 @@ const clip = (f, couleur, duree, date) => {
   if (r.status !== 0) throw new Error(r.stderr);
 };
 
-test('plan principal sans parole : rangé comme la vidéo du reel, le plan en plus en bibliothèque', () => {
+test('plan principal sans parole : rangé comme la vidéo du reel, le plan en plus dans la Galerie', () => {
   const depot = path.join(R, 'depot'), media = path.join(R, 'Contenu'), arrivees = path.join(R, 'arrivees');
   fs.mkdirSync(arrivees, { recursive: true });
   ecrire(path.join(depot, 'contenus', 'le-plan-muet', 'etat.json'), JSON.stringify({ version: 1, titre: 'Muet', format: 'reel', genre: 'plans-texte' }));
@@ -45,6 +45,8 @@ test('plan principal sans parole : rangé comme la vidéo du reel, le plan en pl
   assert.ok(lignes.includes('PLACE IMG_3002.MOV -> le-plan-muet/b-roll'), r.stdout);
   assert.equal(lignes.at(-1), 'FIN places=2 a_ranger=0');
   assert.ok(fs.lstatSync(path.join(media, 'le-plan-muet', 'face', 'IMG_3001.MOV')).isFile());
-  const ix = JSON.parse(fs.readFileSync(path.join(media, '_bibliotheque', 'index.json'), 'utf8'));
-  assert.deepEqual(Object.values(ix.clips).map((c) => c.origine), ['IMG_3002.MOV']);
+  // Le plan en plus entre dans la Galerie (lot 15), avec un lien physique dans le reel.
+  const ix = JSON.parse(fs.readFileSync(path.join(R, 'Galerie', 'index.json'), 'utf8'));
+  assert.deepEqual(ix.fichiers.map((f) => f.nom_origine), ['IMG_3002.MOV']);
+  assert.ok(fs.lstatSync(path.join(media, 'le-plan-muet', 'b-roll', `${ix.fichiers[0].id}.mov`)).isFile());
 });

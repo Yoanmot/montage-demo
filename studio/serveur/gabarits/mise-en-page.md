@@ -65,7 +65,8 @@ Suis le skill des carrousels en attente ({{skills}}/carrousels-en-attente/SKILL.
      dépôt, puis `python3 outils/etat.py valider {{slug}} --pousser`. Puis reprends à l'étape 1, sans reposer la
      question du style.
 4. Les photos : prends celles de la liste ci-dessus, en suivant les `PHOTO slide=N` du script (regarde chaque photo
-   pour savoir laquelle va où). S'il en manque une, ou si tu ne sais pas laquelle va sur une slide, demande-la-lui
+   pour savoir laquelle va où). Une photo marquée « choisie par {{prenom}} pour la slide N » va sur cette slide-là, sans
+   discuter : il l'a choisie dans sa Galerie. S'il en manque une, ou si tu ne sais pas laquelle va sur une slide, demande-la-lui
    en un seul message (ce que chaque photo doit montrer) et arrête-toi : il répondra dans la carte.
 5. Mets en page avec le skill carrousel ({{skills}}/carrousel/SKILL.md, à partir de son étape « Rendre »), dans le
    dossier donné par `prepare`, puis vérifie toi-même chaque slide comme il le demande. Ne lance jamais `open` et ne

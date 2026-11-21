@@ -30,6 +30,7 @@ import { lireConfig, lireJson, isoZurich, sonder, typeFichier, clipId, nomLibre,
 import { racines, texteDuScript, reconnaitreFace, apparier, validerVue, genreDe, principauxSansParole } from './lib/reconnaitre.mjs';
 import { transcrire, vignettes, imagePhoto, regarder, promptVue } from './lib/sens.mjs';
 import { Media } from './lib/media.mjs';
+import { Galerie, dossierGalerie, lienVersId } from './lib/galerie.mjs';
 
 const RAISONS = {
   partiel: "ce fichier n'est pas encore arrivé en entier",
@@ -46,10 +47,10 @@ const RAISONS = {
   vue_desaccord: "l'image ne ressemble pas au plan que j'attendais à ce moment du tournage",
   photo_aucune: 'je ne sais pas pour quel contenu est cette photo',
   biblio_absent: "ce clip n'est plus dans ta bibliothèque, il faudra le refilmer",
-  pendant: "arrivé pendant que je rangeais, il t'attend dans « À ranger »",
+  pendant: "arrivé pendant que je rangeais, il t'attend dans ta Galerie, à placer",
   audio_illisible: "je n'arrive pas à lire ce mémo vocal, il n'est peut-être pas arrivé en entier",
-  voix_ecoute: "je n'ai pas pu écouter ce mémo vocal, il t'attend dans « À ranger »",
-  voix_aucune: "je n'ai pas reconnu le texte d'un de tes reels dans ce mémo vocal, il t'attend dans « À ranger »",
+  voix_ecoute: "je n'ai pas pu écouter ce mémo vocal, il t'attend dans ta Galerie, à placer",
+  voix_aucune: "je n'ai pas reconnu le texte d'un de tes reels dans ce mémo vocal, il t'attend dans ta Galerie, à placer",
 };
 
 const say = (l) => process.stdout.write(l + '\n');
@@ -160,7 +161,7 @@ async function ranger(o) {
   const config = lireConfig(o.config);
   const simulation = !!o.simulation;
   const media = new Media(config.media);
-  let places = 0, aRanger = 0;
+  let places = 0, aRanger = 0, enGalerie = 0;
   const liberer = simulation ? () => {} : prendreVerrou(config.media);
   if (!liberer) { note('un autre rangement est en cours'); say('FIN places=0 a_ranger=0'); return 0; }
 
@@ -290,6 +291,14 @@ async function ranger(o) {
         // face et photo : un fichier réel dans un seul contenu (le premier) ; b-roll : un lien par contenu servi
         for (const s of d.type === 'b-roll' ? slugsValides : slugsValides.slice(0, 1)) say(`PLACE ${d.f.nom} -> ${s}/${d.type}`);
         places++;
+      } else if (d.f.type === 'photo' || (d.f.type === 'video' && d.f.reconnaissance?.decision === 'sans_parole')) {
+        // Une photo ou un b-roll rattaché à rien (lot 15) : il entre dans la Galerie, où il resservira.
+        const type = d.f.type === 'photo' ? 'photo' : 'b-roll';
+        if (!simulation) {
+          const fiche = entrerGalerie(media, config, d.f, type, { genre: 'arrivee', tournage: t.id, ...(d.vu?.ce_qu_on_voit ? { vu: d.vu.ce_qu_on_voit } : {}) });
+          say(`GALERIE ${d.f.nom} ${fiche.id}`);
+        } else say(`GALERIE ${d.f.nom} simulation`);
+        enGalerie++;
       } else {
         const raison = RAISONS[d.raison] || RAISONS.vue_aucune;
         if (!simulation) {
@@ -317,7 +326,7 @@ async function ranger(o) {
         for (const f of [...r.fichiers, ...r.en_cours]) if (!vus.has(f.nom)) say(`IGNORE ${f.nom} ${RAISONS.pendant}`);
       } catch { /* dossier d'arrivée illisible : rien à signaler */ }
     }
-    say(`FIN places=${places} a_ranger=${aRanger}`);
+    say(`FIN places=${places} a_ranger=${aRanger}${enGalerie ? ` galerie=${enGalerie}` : ""}`);
     liberer();
   }
 }
@@ -342,10 +351,45 @@ function vignetteARanger(media, config, f) {
   } catch { return null; }
 }
 
-// Place un fichier : face et photo dans le dossier du contenu, b-roll en bibliothèque avec un lien par contenu.
-function placer(media, config, f, type, slugs, { tournage = null, prise = null, vu = null } = {}) {
-  if (type === 'face' || type === 'photo') {
-    const dossier = path.join(config.media, slugs[0], type === 'face' ? 'face' : 'photos');
+// La Galerie du client (lot 15), attachée au journal du rangement pour pouvoir annuler.
+function galerieDe(config, media) {
+  const g = new Galerie(dossierGalerie(config));
+  media.galerie = g;
+  return g;
+}
+
+// La ligne du plan qui a demandé ce fichier (jointe à sa fiche, et à la session qui le décrit).
+function ligneDePrise(prise) {
+  if (!prise) return null;
+  const m = (prise.mouvements || []).filter(Boolean);
+  return String(m.length ? m.join(' ; ') : prise.ce_qu_on_voit || '').trim() || null;
+}
+function phrasesDePrise(prise) {
+  return (prise?.contenus || []).flatMap((c) => (c.usages || []).map((u) => u.phrase)).filter(Boolean);
+}
+
+// Fait entrer une photo ou un b-roll dans la Galerie (déplacé, jamais copié) avec ses vignettes. Renvoie la fiche.
+function entrerGalerie(media, config, f, type, origine) {
+  const g = galerieDe(config, media);
+  return g.ajouter(f.chemin, {
+    type, nom_origine: f.nom, date: f.date, duree_s: f.duree_s || null, orientation: f.orientation || null, origine,
+  }, {
+    media,
+    vignettes: (fichier, id) => {
+      if (type === 'photo') return imagePhoto(fichier, path.join(g.vignettesD, `${id}.jpg`));
+      // Les images déjà extraites pour le regard du modèle resservent ; sinon on les fait.
+      if (f.images?.length) return f.images;
+      fs.mkdirSync(g.vignettesD, { recursive: true });
+      return vignettes(fichier, f.duree, path.join(g.vignettesD, id));
+    },
+  });
+}
+
+// Place un fichier : face dans le dossier du contenu ; photo et b-roll dans la Galerie (lot 15), avec un lien physique
+// dans le contenu (une photo : le premier contenu ; un b-roll : chaque contenu servi).
+function placer(media, config, f, type, slugs, { tournage = null, prise = null, vu = null, source = null } = {}) {
+  if (type === 'face') {
+    const dossier = path.join(config.media, slugs[0], 'face');
     fs.mkdirSync(dossier, { recursive: true });
     // Un mémo vocal : sa vidéo (fabriquée par le studio) va là où le monteur prend la voix, le mémo d'origine à côté.
     if (f.voix) {
@@ -353,42 +397,17 @@ function placer(media, config, f, type, slugs, { tournage = null, prise = null, 
       deplacer(f.chemin, video);
       media.creer(video);
       media.deplacer(f.voix, path.join(dossier, nomLibre(dossier, f.nom)), 'voix');
-      return;
+      return null;
     }
     media.deplacer(f.chemin, path.join(dossier, nomLibre(dossier, f.nom)), type);
-    return;
+    return null;
   }
-  const id = clipId(f.date);
-  const ext = path.extname(f.nom).toLowerCase();
-  const fichier = path.join(config.media, '_bibliotheque', 'b-roll', `${id}${ext}`);
-  media.deplacer(f.chemin, fichier, 'b-roll');
-  const vdir = path.join(config.media, '_bibliotheque', 'vignettes');
-  fs.mkdirSync(vdir, { recursive: true });
-  const vigs = [];
-  const sources = f.images?.length ? f.images : vignettes(fichier, f.duree, path.join(os.tmpdir(), `rangement-v-${id}`));
-  sources.forEach((src, i) => {
-    const v = path.join(vdir, `${id}-${i + 1}.jpg`);
-    fs.copyFileSync(src, v);
-    media.creer(v);
-    vigs.push(path.relative(config.media, v));
-  });
-  media.ajouterClip(id, {
-    fichier: path.relative(config.media, fichier),
-    origine: f.nom,
-    pris_le: isoZurich(f.date),
-    duree_s: f.duree_s,
-    orientation: f.orientation,
-    lieu: prise?.lieu || null,
-    materiel: prise?.materiel || [],
-    ce_qu_on_voit: vu?.ce_qu_on_voit || null,
-    mouvements: vu?.mouvements || [],
-    themes: [],
-    contenus: [],
-    tournage,
-    prise: prise?.n ?? null,
-    vignettes: vigs,
-  });
-  for (const s of slugs) { media.lier(s, fichier, 'b-roll'); media.ajouterContenu(id, s); }
+  const origine = tournage
+    ? { genre: 'tournage', tournage, prise: prise?.n ?? null, ligne: ligneDePrise(prise), phrases: phrasesDePrise(prise), ...(vu?.ce_qu_on_voit ? { vu: vu.ce_qu_on_voit } : {}) }
+    : { genre: 'ajout' };
+  const fiche = entrerGalerie(media, config, f, type, origine);
+  for (const s of type === 'b-roll' ? slugs : slugs.slice(0, 1)) media.galerie.lier(config.media, s, fiche.id, { media, source: source || (tournage ? 'tournage' : 'toi') });
+  return fiche;
 }
 
 // ---------- Placement à la main ----------
@@ -435,7 +454,7 @@ async function placerALaMain(o) {
       const d = { nom, chemin: f.chemin, type: f.type, date: m?.date || st.mtime,
         duree: m?.duree || 0, duree_s: m?.duree_s || 0, orientation: m?.orientation || null };
       media.ouvrir('placer', t.id);
-      placer(media, config, d, type, [slug], { tournage: t.id });
+      placer(media, config, d, type, [slug], { tournage: t.id, source: 'toi' });
       media.fermer();
       say(`PLACE ${nom} -> ${slug}/${type}`);
       say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
@@ -457,7 +476,7 @@ async function placerALaMain(o) {
       const d = { nom, chemin, type: genre, date: m?.date || st.mtime,
         duree: m?.duree || 0, duree_s: m?.duree_s || 0, orientation: m?.orientation || null };
       media.ouvrir('placer', null);
-      placer(media, config, d, type, [slug], {});
+      placer(media, config, d, type, [slug], { source: 'toi' });
       media.fermer();
       say(`PLACE ${nom} -> ${slug}/${type}`);
       say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
@@ -485,7 +504,7 @@ async function placerALaMain(o) {
       duree: m?.duree || 0, duree_s: m?.duree_s || 0, orientation: m?.orientation || null };
     media.ouvrir('placer', entree.tournage);
     media.retirerDeARanger(nom);
-    placer(media, config, f, type, [slug], { tournage: entree.tournage || null, vu: entree.vu || null });
+    placer(media, config, f, type, [slug], { tournage: entree.tournage || null, vu: entree.vu || null, source: 'toi' });
     media.fermer();
     say(`PLACE ${nom} -> ${slug}/${type}`);
     say(`FIN places=1 a_ranger=${media.aRanger().fichiers.length}`);
@@ -513,6 +532,17 @@ function retirer(o) {
   const liberer = prendreVerrou(config.media);
   if (!liberer) return bloque('OCCUPE', 'un rangement est déjà en cours, réessaie dans un instant');
   try {
+    // Un fichier de la Galerie (lot 15) : seul le lien du contenu part, le fichier reste dans la Galerie.
+    const lg = type !== 'face' && !estLien(chemin) && fs.existsSync(chemin) ? lienVersId(nom) : null;
+    const g = lg ? galerieDe(config, media) : null;
+    if (lg && g.fiche(lg.id)) {
+      media.ouvrir('retirer', null);
+      g.delier(config.media, slug, lg.id, { slide: lg.slide, media });
+      media.fermer();
+      say(`RETIRE ${nom} ${slug}/${type} galerie`);
+      say('FIN retires=1');
+      return 0;
+    }
     if (type === 'b-roll') {
       if (!estLien(chemin)) return bloque('FICHIER', 'je ne trouve pas ce fichier');
       const id = path.basename(nom, ext);
@@ -579,7 +609,21 @@ function changer(o) {
       if (!m) return bloque('FICHIER', "ce n'est pas une vidéo que je sais lire");
       media.ouvrir('placer', null);
       placer(media, config, { nom, chemin, type: 'video', date: m.date || fs.statSync(chemin).mtime,
-        duree: m.duree, duree_s: m.duree_s, orientation: m.orientation }, 'b-roll', [slug], {});
+        duree: m.duree, duree_s: m.duree_s, orientation: m.orientation }, 'b-roll', [slug], { source: 'toi' });
+      media.fermer();
+    } else if (lienVersId(nom) && !estLien(path.join(config.media, slug, 'b-roll', nom)) && galerieDe(config, media).fiche(lienVersId(nom).id)) {
+      // Un b-roll de la Galerie qui est en fait sa face caméra : il sort de la Galerie (jamais de face caméra dedans),
+      // seulement s'il ne sert à aucun autre contenu.
+      const g = media.galerie;
+      const id = lienVersId(nom).id;
+      const fiche = g.fiche(id);
+      if ((fiche.utilisations || []).some((u) => u.slug !== slug)) return bloque('PARTAGE', 'ce plan sert aussi à un autre contenu, je ne peux pas en faire ta face caméra');
+      const dossier = path.join(config.media, slug, 'face');
+      fs.mkdirSync(dossier, { recursive: true });
+      const origine = fiche.nom_origine && fiche.nom_origine === path.basename(fiche.nom_origine) && !fiche.nom_origine.startsWith('.') ? fiche.nom_origine : nom;
+      media.ouvrir('placer', fiche.origine?.tournage || null);
+      g.delier(config.media, slug, id, { media });
+      g.sortir(id, path.join(dossier, nomLibre(dossier, origine)), { media });
       media.fermer();
     } else {
       const lienP = path.join(config.media, slug, 'b-roll', nom);
@@ -618,6 +662,7 @@ function annuler(o) {
     const actifs = media.journal().rangements.filter((r) => !r.annule && r.ops.length && r.commande !== 'archiver');
     const e = quoi === 'dernier' ? actifs.at(-1) : (actifs.find((r) => r.id === quoi) || actifs.filter((r) => r.id.startsWith(quoi)).at(-1));
     if (!e) { say('BLOQUE INTROUVABLE je ne trouve pas ce rangement'); return 2; }
+    galerieDe(config, media);
     const lignes = media.annuler(e);
     lignes.forEach(say);
     say(`FIN annule=${e.id} fichiers=${e.ops.filter((x) => x.op === 'deplacement').length}`);

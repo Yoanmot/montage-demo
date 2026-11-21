@@ -34,6 +34,10 @@ import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
 import { telechargerVideo } from "./telecharger.mjs";
+import {
+  vueGalerie, ficheGalerie, galerieSansChemins, outilGalerie, aDecrire, retoucherDescription, galerieDe, cheminVignette, ID_GALERIE,
+} from "./galerie.mjs";
+import { lienVersId } from "../rangement/lib/galerie.mjs";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -407,6 +411,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   }
   let veilleDepot = null;
   let veilleMedia = null;
+  let veilleGalerie = null;
   let rangementEnCours = false;
   const rangementsTournage = new Set(); // plans dont le rangement tourne (lot 12)
 
@@ -435,6 +440,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     } finally {
       rangementEnCours = false;
       rangementsTournage.delete(id);
+      apresGalerie();
       rafraichir();
     }
   }
@@ -450,6 +456,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     // Ce qui n'a pas pu être rangé reste visible : fichiers laissés où ils étaient (encore en réception,
     // illisibles) et prises attendues qui ne sont ni rangées ni dans « À ranger ».
     s.rangement = { fini_le: isoZurich(), places: lu?.fin?.places ?? lu?.places?.length ?? 0, a_ranger: lu?.fin?.a_ranger ?? lu?.a_ranger?.length ?? 0,
+      galerie: lu?.fin?.galerie ?? lu?.galerie?.length ?? 0,
       en_attente: lu?.ignores?.length ?? 0, reste: resteARanger(config, { ...t.brut, id }, s) };
     ecrireSuivi(config, id, s);
     rafraichir();
@@ -466,9 +473,39 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     await synchro.pousserFichier("bibliotheque/index.json", "Studio : bibliothèque");
   }
 
+  // ------------------------------------------------------------ la Galerie (lot 15)
+
+  // Après tout changement de la Galerie : l'interface relit, les fichiers pas encore décrits partent dans la file, la
+  // copie sans chemins du head of content est refaite (un peu plus tard, une seule fois pour plusieurs changements).
+  let exportGalerie = null;
+  function apresGalerie({ slug = null } = {}) {
+    try { for (const id of aDecrire(config)) file.ajouterDescription(id); } catch (e) { journal("galerie_illisible", { erreur: String(e.message || e) }); }
+    diffuser("galerie", { le: isoZurich(), ...(slug ? { slug } : {}) });
+    if (exportGalerie) return;
+    exportGalerie = setTimeout(() => { exportGalerie = null; copierGalerie().catch(() => {}); }, 1500);
+    exportGalerie.unref?.();
+  }
+  async function copierGalerie() {
+    const idx = galerieSansChemins(config);
+    if (!idx || !existe(config.depot)) return;
+    const cible = path.join(config.depot, "galerie", "index.json");
+    if (JSON.stringify(lireJson(cible, null)) === JSON.stringify(idx)) return;
+    ecrireJson(cible, idx);
+    await synchro.pousserFichier("galerie/index.json", "Studio : galerie");
+  }
+  const actionsFile = () => file.liste();
+
   function brancherVeilleurs() {
     if (!veilleDepot) veilleDepot = surveiller(config.depot, (n) => !n.startsWith(".git"));
     if (!veilleMedia) veilleMedia = surveiller(config.media, (n) => !path.basename(n).startsWith("."));
+    // La Galerie (lot 15) : un changement fait par un agent ou un script (index refait) se voit sans recharger.
+    if (!veilleGalerie && existe(config.galerie)) {
+      try {
+        veilleGalerie = fs.watch(config.galerie, (_t, nom) => { if (String(nom || "") === "index.json") { diffuser("galerie", { le: isoZurich() }); plusTard(); } });
+        veilleGalerie.on("error", () => {});
+        veilleurs.push(veilleGalerie);
+      } catch { /* surveillé au prochain branchement */ }
+    }
     // Le dossier d'arrivée (ses Téléchargements) n'est pas surveillé (lot 12) : on ne le lit qu'au moment
     // où Romain coche « tout est envoyé » ou valide la fin d'un tournage, quand l'écran du plan suit un
     // envoi en cours, et toutes les 10 s tant qu'un plan validé n'est pas fini de ranger (ci-dessous).
@@ -583,6 +620,31 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     }
     if (verifier) return envoyerJson(res, 200, {});
 
+    const recu = await recevoirFlux(req, res, { nom, taille, refuser, slug });
+    if (!recu) return undefined;
+    try {
+      if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+      try {
+        await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier: nom, slug, type, envoi: recu.chemin }));
+      } catch (e) {
+        if (e.code === "OCCUPE") throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+        if (e.code === "FICHIER") throw new ErreurStudio("ILLISIBLE", "Je n'arrive pas à lire cette vidéo : rien n'est rangé. Essaie de l'exporter à nouveau.", 400);
+        throw e;
+      }
+      journal("envoi_range", { slug, type, taille });
+      await copierBibliotheque().catch(() => {});
+      apresGalerie();
+      rafraichir();
+      return envoyerJson(res, 200, { nom });
+    } finally {
+      fs.rmSync(recu.dossier, { recursive: true, force: true });
+    }
+  }
+
+  // Le fichier lui-même, lu en flux (jamais en entier en mémoire) dans STUDIO_HOME/envois/e-*/<nom>. Rend { dossier,
+  // chemin }, ou null quand la réponse est déjà partie (envoi coupé, trop gros, disque plein).
+  async function recevoirFlux(req, res, { nom, taille, refuser, slug = null }) {
+    const envois = path.join(config.home, "envois");
     // Les envois d'avant un arrêt brutal (plus d'un jour) partent.
     for (const e of fs.readdirSync(envois)) {
       const d = path.join(envois, e);
@@ -598,34 +660,67 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         suite(null, morceau);
       },
     });
+    const abandonner = (statut, code, message) => { fs.rmSync(dossier, { recursive: true, force: true }); refuser(statut, code, message); return null; };
     try {
-      try {
-        await pipeline(req, compteur, fs.createWriteStream(chemin, { flags: "wx" }));
-      } catch (e) {
-        if (e?.code === "ENOSPC") return refuser(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
-        if (e instanceof ErreurStudio) return refuser(e.statut, e.code, e.messageRomain);
-        if (req.destroyed || res.destroyed || e?.code === "ERR_STREAM_PREMATURE_CLOSE" || e?.code === "ECONNRESET") {
-          journal("envoi_annule", { slug, recu });
-          if (!res.headersSent && !res.destroyed) return refuser(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
-          return;
-        }
-        throw e;
+      await pipeline(req, compteur, fs.createWriteStream(chemin, { flags: "wx" }));
+    } catch (e) {
+      if (e?.code === "ENOSPC") return abandonner(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
+      if (e instanceof ErreurStudio) return abandonner(e.statut, e.code, e.messageRomain);
+      if (req.destroyed || res.destroyed || e?.code === "ERR_STREAM_PREMATURE_CLOSE" || e?.code === "ECONNRESET") {
+        journal("envoi_annule", { slug, recu });
+        if (!res.headersSent && !res.destroyed) return abandonner(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
+        fs.rmSync(dossier, { recursive: true, force: true });
+        return null;
       }
-      if (recu !== taille) return refuser(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
-      if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
-      try {
-        await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier: nom, slug, type, envoi: chemin }));
-      } catch (e) {
-        if (e.code === "OCCUPE") throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
-        if (e.code === "FICHIER") throw new ErreurStudio("ILLISIBLE", "Je n'arrive pas à lire cette vidéo : rien n'est rangé. Essaie de l'exporter à nouveau.", 400);
-        throw e;
-      }
-      journal("envoi_range", { slug, type, taille });
-      await copierBibliotheque().catch(() => {});
-      rafraichir();
-      return envoyerJson(res, 200, { nom });
-    } finally {
       fs.rmSync(dossier, { recursive: true, force: true });
+      throw e;
+    }
+    if (recu !== taille) return abandonner(400, "INCOMPLET", "L'envoi a été coupé : rien n'est rangé.");
+    return { dossier, chemin };
+  }
+
+  // POST /api/galerie/envoyer?nom=<nom>[&slug=<slug>&slide=<n>][&verifier=1&taille=<octets>] , corps = le fichier brut
+  // (lot 15) : une photo ou un b-roll qui entre dans la Galerie (bouton « Ajouter », glisser-déposer, « Ajouter de
+  // nouvelles photos » d'une slide), puis sa description part dans la file.
+  async function recevoirEnvoiGalerie(req, res, url) {
+    const verifier = url.searchParams.get("verifier") === "1";
+    const refuser = (statut, code, message) => {
+      res.setHeader("Connection", "close");
+      erreur(res, statut, code, message);
+      res.on("finish", () => req.destroy());
+    };
+    const nom = nomEnvoi(url.searchParams.get("nom"));
+    const genre = typeFichier(nom);
+    if (genre !== "video" && genre !== "photo") {
+      return refuser(415, "FORMAT", "Je ne sais garder que des vidéos (MOV, MP4) et des photos (JPG, HEIC, PNG).");
+    }
+    const slug = url.searchParams.get("slug") || null;
+    const slide = url.searchParams.get("slide") || null;
+    if (slug && !existe(path.join(config.depot, "contenus", String(slug)))) return refuser(404, "INTROUVABLE", "Je ne trouve pas ce contenu.");
+    if (slide && (!slug || !/^\d{1,2}$/.test(slide) || Number(slide) < 1)) return refuser(400, "SLIDE", "Je ne trouve pas cette slide.");
+    if (slide && genre !== "photo") return refuser(400, "TYPE", "Une slide prend une photo, pas une vidéo.");
+    const taille = Number(verifier ? url.searchParams.get("taille") : req.headers["content-length"]);
+    if (!Number.isSafeInteger(taille) || taille <= 0) return refuser(411, "TAILLE", MESSAGE_GENERIQUE);
+    if (taille > ENVOI_MAX) return refuser(413, "TROP_GROS", "Ce fichier est trop lourd : 20 Go au plus.");
+    if (rangementEnCours || verrouPris(config.media)) return refuser(409, "OCCUPE", RANGEMENT_OCCUPE);
+    const envois = path.join(config.home, "envois");
+    fs.mkdirSync(envois, { recursive: true });
+    fs.mkdirSync(config.galerie, { recursive: true });
+    const besoin = taille + ENVOI_MARGE;
+    if (placeLibre(envois) < besoin || placeLibre(config.galerie) < besoin) {
+      return refuser(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
+    }
+    if (verifier) return envoyerJson(res, 200, {});
+    const recu = await recevoirFlux(req, res, { nom, taille, refuser, slug });
+    if (!recu) return undefined;
+    try {
+      const r = await outilGalerie(config, ["ajouter", recu.chemin, "--envoi", ...(slug ? ["--slug", slug] : []), ...(slide ? ["--slide", slide] : [])]);
+      journal("galerie_ajout", { type: r.champs.type, taille, slug: slug || undefined });
+      file.ajouterDescription(r.champs.id);
+      apresGalerie({ slug });
+      return envoyerJson(res, 200, { id: r.champs.id, type: r.champs.type });
+    } finally {
+      fs.rmSync(recu.dossier, { recursive: true, force: true });
     }
   }
 
@@ -671,7 +766,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     const p = url.pathname.split("/").slice(2); // après /api/
     const m = req.method;
     // L'envoi d'une vidéo (plusieurs Go) se lit en flux : la limite de 1 Mo des routes JSON ne s'y applique pas.
-    const estEnvoi = m === "POST" && p[0] === "cartes" && p[2] === "rushs" && p[3] === "envoyer" && p.length === 4;
+    const estEnvoi = m === "POST" && ((p[0] === "cartes" && p[2] === "rushs" && p[3] === "envoyer" && p.length === 4)
+      || (p[0] === "galerie" && p[1] === "envoyer" && p.length === 2));
     const corps = m === "POST" && !estEnvoi ? await lireCorps(req) : {};
 
     if (m === "GET" && p[0] === "etat" && p.length === 1) {
@@ -805,6 +901,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         if (rangementEnCours || verrouPris(config.media)) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
         await file.suivre("rangement", { slug }, () => changerTypeRush(config, { slug, type: mm[1], nom: mm[2], nouveau }));
         await copierBibliotheque().catch(() => {});
+        apresGalerie({ slug });
         rafraichir();
         return envoyerJson(res, 200, {});
       }
@@ -821,10 +918,14 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           throw new ErreurStudio("TROP_TARD", "Le montage a déjà commencé avec ces vidéos : dis dans le chat du montage ce qui ne va pas.", 409);
         }
         const type = mm[1] === "photos" ? "photo" : mm[1];
+        // Un fichier de la Galerie (lot 15) : seul son lien part, il reste dans la Galerie (l'interface le dit).
+        const lg = type !== "face" ? lienVersId(mm[2]) : null;
+        const deGalerie = Boolean(lg && galerieDe(config).fiche(lg.id));
         await file.suivre("rangement", { slug }, () => retirerRush(config, { slug, type, nom: mm[2] }));
         await copierBibliotheque().catch(() => {});
+        if (deGalerie) apresGalerie({ slug });
         rafraichir();
-        return envoyerJson(res, 200, {});
+        return envoyerJson(res, 200, deGalerie ? { galerie: true } : {});
       }
       if (m === "POST" && p[2] === "jour") {
         const jour = corps.jour === null || corps.jour === undefined || corps.jour === "" ? "aucun" : exigerJour(corps.jour);
@@ -873,6 +974,41 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         pont.envoyer(chat, { texte, envoi: messagePourModele(chat, typeDeChat(chat), envoi), romain: true, besoin: { slug } });
         rafraichir();
         return envoyerJson(res, 200, {});
+      }
+      // Lot 15 : poser un fichier de la Galerie dans ce contenu (une photo sur une slide de carrousel, un b-roll dans un
+      // reel), ou l'en retirer. Le fichier reste dans la Galerie ; le contenu le reçoit par lien physique.
+      if (m === "POST" && p[2] === "galerie" && ["poser", "retirer"].includes(p[3]) && p.length === 4) {
+        const id = String(corps.id || "");
+        if (!ID_GALERIE.test(id)) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+        const slide = corps.slide == null ? null : Number(corps.slide);
+        if (slide != null && !(Number.isInteger(slide) && slide >= 1 && slide <= 99)) throw new ErreurStudio("SLIDE", "Je ne trouve pas cette slide.", 400);
+        if (p[3] === "poser") exigerMontageLibre(slug);
+        await outilGalerie(config, [p[3], slug, id, ...(slide ? ["--slide", String(slide)] : [])]);
+        journal(`galerie_${p[3]}`, { slug, slide: slide || undefined });
+        apresGalerie({ slug });
+        rafraichir();
+        return envoyerJson(res, 200, {});
+      }
+      // Lot 15, plans du brief : « J'en tourne un nouveau » (tourner), « Prends plutôt celui-là » (stock + id), ou
+      // revenir à la proposition. Écrit par l'outil (stock-choix.json), liens posés ou retirés, poussé.
+      if (m === "POST" && p[2] === "plans" && p.length === 4) {
+        const n = Number(p[3]);
+        const choix = String(corps.choix || "");
+        if (!Number.isInteger(n) || n < 1 || !["tourner", "stock", "proposition"].includes(choix)) throw new ErreurStudio("PLAN", "Je ne trouve plus ce plan dans ton brief : recharge.", 400);
+        if (choix === "stock" && !ID_GALERIE.test(String(corps.id || ""))) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+        exigerMontageLibre(slug);
+        const args = ["plan", slug, String(n), choix];
+        if (choix === "stock") {
+          args.push(String(corps.id));
+          for (const k of ["debut", "fin"]) if (Number.isFinite(Number(corps[k])) && corps[k] !== null && corps[k] !== "") args.push(`--${k}`, String(Number(corps[k])));
+        }
+        await avantAction();
+        const r = await outilGalerie(config, args);
+        await synchro.pousserFichier(`contenus/${slug}/stock-choix.json`, `Studio : plans de ${slug}`).catch(() => false);
+        journal("galerie_plan", { slug, n, choix });
+        apresGalerie({ slug });
+        rafraichir();
+        return envoyerJson(res, 200, { etat: r.champs.etat || null });
       }
       if (m === "POST" && p[2] === "abandonner") {
         const raison = texteCourt(corps.raison, 20000);
@@ -1050,6 +1186,14 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       const restants = type === "tournage" ? slugs
         : slugs.filter((s) => !deja.some((a) => a.slug === s));
       if (!restants.length) return envoyerJson(res, 200, { lot: deja[0]?.lot || null, actions: deja.filter((a) => slugs.includes(a.slug)) });
+      // Lot 15 : avant le montage, les plans pris dans la Galerie (brief) sont posés dans le reel, pour que le monteur
+      // les trouve avec ses autres plans filmés en plus.
+      if (type === "montage") {
+        for (const s of restants) {
+          if (!existe(path.join(config.depot, "contenus", s, "stock.json"))) continue;
+          try { await outilGalerie(config, ["relier-stock", s]); } catch (e) { journal("galerie_stock_impossible", { slug: s, code: e.code || null }); }
+        }
+      }
       const r = file.ajouter(type, restants);
       return envoyerJson(res, 200, r);
     }
@@ -1141,6 +1285,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         await file.suivre("rangement", { slug }, () => placerManuel(config, { fichier, slug, type: corps.type, arrivee }));
         if (arrivee) majARanger({ frais: true });
         await copierBibliotheque().catch(() => {});
+        if (corps.type !== "face") apresGalerie({ slug });
         rafraichir();
         return envoyerJson(res, 200, {});
       }
@@ -1200,6 +1345,77 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         return envoyerJson(res, 200, r);
       }
       if (p[1] === "semaine") return envoyerJson(res, 200, await publication.semaine(corps.lundi));
+    }
+
+    // ---------------------------------------------------------------- la Galerie (lot 15, contrat section 18)
+    if (p[0] === "galerie") {
+      if (m === "POST" && p[1] === "envoyer" && p.length === 2) return recevoirEnvoiGalerie(req, res, url);
+      if (m === "GET" && p.length === 1) {
+        const pour = url.searchParams.get("pour");
+        return envoyerJson(res, 200, vueGalerie(config, { actions: actionsFile(), pour: pour && SLUG_RE.test(pour) ? pour : null }));
+      }
+      // Un fichier mis de côté par le rangement (photo ou b-roll d'avant la Galerie) : il entre dans la Galerie.
+      if (m === "POST" && p[1] === "a-ranger" && p.length === 2) {
+        const nom = String(corps.fichier || "");
+        if (!nom || nom !== path.basename(nom) || nom.startsWith(".")) throw new ErreurStudio("FICHIER", "Je ne trouve plus ce fichier.", 404);
+        const chemin = path.join(config.media, "_a-ranger", nom);
+        if (!existe(chemin)) throw new ErreurStudio("FICHIER", "Je ne trouve plus ce fichier.", 404);
+        if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+        const r = await outilGalerie(config, ["ajouter", chemin, "--a-ranger"]);
+        fs.rmSync(path.join(config.media, "_a-ranger", ".vignettes", `${nom}.jpg`), { force: true });
+        file.ajouterDescription(r.champs.id);
+        apresGalerie();
+        majARanger({ frais: true });
+        return envoyerJson(res, 200, { id: r.champs.id });
+      }
+      const id = decodeURIComponent(p[1] || "");
+      if (!ID_GALERIE.test(id)) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+      const g = galerieDe(config);
+      if (m === "GET" && p.length === 2) {
+        const f = ficheGalerie(config, id, { actions: actionsFile(), cartes: [...cartes.values()] });
+        if (!f) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+        return envoyerJson(res, 200, f);
+      }
+      if (m === "GET" && p.length === 3 && ["fichier", "vignette"].includes(p[2])) {
+        const f = g.fiche(id);
+        const chemin = f ? (p[2] === "fichier" ? g.chemin(f) : cheminVignette(g, f)) : null;
+        if (!chemin || !dedans(g.racine, chemin)) return erreur(res, 404, "INTROUVABLE", "Je ne trouve pas ce fichier.");
+        return servirFichier(req, res, chemin, { cache: "private, max-age=300" });
+      }
+      if (m === "POST" && p[2] === "description" && p.length === 3) {
+        retoucherDescription(config, id, corps.description);
+        journal("galerie_description", { par: "toi" });
+        apresGalerie();
+        return envoyerJson(res, 200, ficheGalerie(config, id, { actions: actionsFile(), cartes: [...cartes.values()] }));
+      }
+      if (m === "POST" && p[2] === "redecrire" && p.length === 3) {
+        const f = g.fiche(id);
+        if (!f) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+        file.ajouterDescription(id);
+        diffuser("galerie", { le: isoZurich() });
+        return envoyerJson(res, 200, {});
+      }
+      if (m === "POST" && p[2] === "supprimer" && p.length === 3) {
+        if (!g.fiche(id)) throw new ErreurStudio("INCONNU", "Ce fichier n'est plus dans ta Galerie.", 404);
+        if (rangementEnCours) throw new ErreurStudio("OCCUPE", RANGEMENT_OCCUPE, 409);
+        try {
+          const r = await outilGalerie(config, ["supprimer", id]);
+          journal("galerie_suppression", { octets: Number(/octets=(\d+)/.exec(r.sortie)?.[1] || 0) });
+        } catch (e) {
+          if (e.code === "UTILISE") {
+            const c = cartes.get(e.detail);
+            const err = new ErreurStudio("UTILISE", `Il sert à « ${c?.titre || "un contenu"} », pas encore posté : tu pourras le supprimer une fois ce contenu posté.`, 409);
+            err.donnees = { slug: e.detail, titre: c?.titre || null, format: c?.format || null };
+            throw err;
+          }
+          throw e;
+        }
+        for (const a of file.liste()) if (a.type === "description" && a.galerie === id && a.statut === "en_file") file.arreter(a.id);
+        apresGalerie();
+        rafraichir();
+        return envoyerJson(res, 200, {});
+      }
+      throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas cette page.", 404);
     }
 
     if (m === "GET" && p[0] === "media" && p.length >= 3) {
@@ -1320,7 +1536,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       try {
         return await api(req, res, url);
       } catch (e) {
-        if (e instanceof ErreurStudio) return erreur(res, e.statut, e.code, e.messageRomain);
+        if (e instanceof ErreurStudio) return envoyerJson(res, e.statut, { erreur: e.code, message: e.messageRomain, ...(e.donnees || {}) });
         journal("erreur_route", { route: url.pathname, erreur: String(e?.message || e) });
         return erreur(res, 500, "ERREUR", MESSAGE_GENERIQUE);
       }
@@ -1343,6 +1559,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   function ecouter() {
     brancherVeilleurs();
     rafraichir();
+    // Reprise : un fichier entré dans la Galerie sans description (arrêt pendant un rangement) repart dans la file.
+    try { if (existe(config.galerie)) apresGalerie(); } catch { /* Galerie illisible */ }
     return new Promise((resolve, reject) => {
       serveur.once("error", reject);
       serveur.listen(port, "127.0.0.1", () => resolve(serveur.address()));

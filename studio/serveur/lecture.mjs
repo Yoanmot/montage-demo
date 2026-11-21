@@ -13,6 +13,8 @@ import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./re
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 import { autresFichiers } from "./autres.mjs";
 import { listePlateformes } from "../publication/plateformes.mjs";
+import { Galerie, dossierGalerie, lienVersId } from "../rangement/lib/galerie.mjs";
+import { stockDuBrief, photosDuCarrousel, urlVignette } from "./galerie.mjs";
 
 export function urlMedia(...segments) {
   return "/api/media/" + segments.flatMap((s) => String(s).split("/")).filter(Boolean)
@@ -514,7 +516,7 @@ export function detail(config, slug, etatLocal) {
     url: urlMedia(slug, "face", n), type: "face",
     libelle: faces.length > 1 ? `ta vidéo face caméra (prise ${i + 1})` : "ta vidéo face caméra",
   }));
-  const index = lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {};
+  const index = clipsConnus(config);
   for (const e of clipsBroll(path.join(base, "b-roll"))) {
     const clip = index[e.name.replace(/\.[^.]+$/, "")];
     medias.rushs.push({ url: urlMedia(slug, "b-roll", e.name), type: "b-roll", libelle: libelleClip(clip) });
@@ -532,6 +534,12 @@ export function detail(config, slug, etatLocal) {
   }
   const brief = briefDe(config, slug, carte.format);
   if (brief) r.brief = brief;
+  // Lot 15 : les plans du brief déjà en stock ou à tourner (stock.json du head of content, choix du client), et les
+  // photos d'un carrousel choisies slide par slide dans la Galerie (avec les propositions de l'agent s'il y en a).
+  try {
+    if (carte.format === "reel") { const st = stockDuBrief(config, slug); if (st) r.stock = st; }
+    else r.photos_slides = photosDuCarrousel(config, slug);
+  } catch { /* Galerie illisible : le brief s'affiche comme avant */ }
   if (carte.fichiers.includes("montage")) r.montage = montageDe(config, slug, lu, tournage);
   const pub = lu.pub[slug];
   if (pub) {
@@ -631,6 +639,8 @@ export function aRanger(config) {
       libelle: `${genre}${ceQuOnVoit(i.vu)}${duree(i.duree_s)}`,
       url: urlMedia("_a-ranger", e.name),
       raison: i.raison || "je n'ai pas su où le ranger",
+      // Lot 15 : ce que le bandeau « Arrivés, à placer » de la Galerie dit du fichier (genre, jour de prise, durée).
+      type: type || (video ? null : "photo"), pris_le: i.pris_le || null, duree_s: i.duree_s ?? null,
       candidats: Array.isArray(i.candidats) ? i.candidats.filter((c) => c && c.slug)
         .map((c) => ({ slug: c.slug, type: c.type || null, score: typeof c.score === "number" ? c.score : null })) : [],
     };
@@ -746,6 +756,26 @@ function origineRangement(config, chemin) {
   return origine;
 }
 
+// Les clips connus, par id : ceux de la bibliothèque d'avant la Galerie, puis les b-rolls de la Galerie (lot 15), sous
+// la même forme (tournage, prise, ce qu'on voit, lieu, durée, contenus), avec leur chemin et leur image.
+export function clipsConnus(config) {
+  const r = {};
+  for (const [id, c] of Object.entries(lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {})) {
+    r[id] = { ...c, fichierAbs: path.join(config.media, c.fichier || "") };
+  }
+  const g = new Galerie(dossierGalerie(config));
+  for (const f of g.index().fichiers) {
+    if (f.type !== "b-roll") continue;
+    r[f.id] = {
+      galerie: true, fichierAbs: g.chemin(f), tournage: f.origine?.tournage || null, prise: f.origine?.prise ?? null,
+      mouvements: [], ce_qu_on_voit: f.description?.titre || f.origine?.vu || null, lieu: f.description?.lieu || null,
+      duree_s: f.duree_s ?? null, contenus: [...new Set((f.utilisations || []).map((u) => u.slug))], utilisations: f.utilisations || [],
+      vignette_url: urlVignette(f),
+    };
+  }
+  return r;
+}
+
 export function montageDe(config, slug, lu, tournage) {
   const base = path.join(config.media, slug);
   const faceDir = path.join(base, "face");
@@ -768,7 +798,7 @@ export function montageDe(config, slug, lu, tournage) {
       ...(existe(path.join(faceDir, `${n.replace(/\.[^.]+$/, "")}-montage`)) ? {} : { changer: { vers: "b-roll" } }),
     });
   });
-  const index = lireJson(path.join(config.media, "_bibliotheque", "index.json"), null)?.clips || {};
+  const index = clipsConnus(config);
   // Les prises que le client a sautées dans son plan (« Je ne la fais pas ») ne sont plus attendues.
   const idPlan = tournage ? tournage.id || String(tournage.fichier || "").replace(/\.json$/, "") : null;
   const sautees = new Set(idPlan && config.home ? lireJson(path.join(config.home, "tournages", `${idPlan}.json`), null)?.sautees || [] : []);
@@ -808,15 +838,22 @@ export function montageDe(config, slug, lu, tournage) {
       r.changer = autres ? { vers: "face", impossible: "Ce plan sert aussi à un autre contenu." } : { vers: "face" };
     }
     // Rangé à la main (« À ranger », « Ajouter une vidéo », changement de type) : l'étape ne dit pas « toutes seules ».
-    if (clip && origineRangement(config, path.join(config.media, clip.fichier)) === "toi") r.range_par_toi = true;
+    if (clip?.galerie ? (clip.utilisations || []).some((u) => u.slug === slug && u.source === "toi")
+      : clip && origineRangement(config, clip.fichierAbs) === "toi") r.range_par_toi = true;
+    // Un b-roll de la Galerie (lot 15) : « Pas le bon » le retire de ce contenu seulement, il reste dans la Galerie.
+    if (clip?.galerie) r.galerie = true;
     const v = (clip?.vignettes || [])[1] || (clip?.vignettes || [])[0];
-    if (v && existe(path.join(config.media, v))) r.vignette_url = urlMedia(...v.split("/"));
+    if (clip?.vignette_url) r.vignette_url = clip.vignette_url;
+    else if (v && existe(path.join(config.media, v))) r.vignette_url = urlMedia(...v.split("/"));
     rushs.push(r);
   }
   const photos = imagesDe(path.join(base, "photos"));
   const prisesPhotos = prises.filter((p) => p.type === "photo");
+  const g = new Galerie(dossierGalerie(config));
   photos.forEach((n, i) => rushs.push({
     id: `photos/${n}`, url: urlMedia(slug, "photos", n), type: "photo",
+    // Une photo de la Galerie (lot 15) : « Pas la bonne » la retire de ce contenu seulement.
+    ...(lienVersId(n) && g.fiche(lienVersId(n).id) ? { galerie: true } : {}),
     titre: prisesPhotos[i] ? `Photo : ${String(sujetPrise(prisesPhotos[i]) || "").replace(/^./, (x) => x.toLowerCase())}` : (photos.length > 1 ? `Ta photo ${i + 1}` : "Ta photo"),
     detail: prisesPhotos[i] && phrasesPour(prisesPhotos[i], slug).length ? `Pour « ${phrasesPour(prisesPhotos[i], slug)[0]} »` : "",
   }));

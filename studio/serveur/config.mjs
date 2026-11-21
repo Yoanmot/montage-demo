@@ -102,6 +102,9 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
     // sur le dépôt en ligne, donc ils n'y tournent que là, jamais dans DEPOT (contrat, section 12).
     depotMac: etendre(brut.depot_mac || DEFAUTS.depot_mac, maison),
     media: etendre(brut.media, maison),
+    // La Galerie (lot 15, contrat section 18) : photos et b-rolls gardés pour resservir, à côté du dossier média
+    // (même disque : les contenus la reçoivent par lien physique) sauf réglage `galerie`.
+    galerie: brut.galerie ? etendre(brut.galerie, maison) : path.join(path.dirname(etendre(brut.media, maison)), "Galerie"),
     // Dossier où la mise en page écrit les slides (carrousel-<slug>/) : a-rendre.py le reçoit par
     // RENDUS_CARROUSELS, le lien MEDIA/<slug>/slides y mène (contrat, sections 2 et 7).
     carrousels: etendre(brut.carrousels || "~/Pictures/Carrousels", maison),
@@ -119,6 +122,9 @@ export function chargerConfig({ home = studioHome(), env = process.env } = {}) {
       binaire: env.STUDIO_CLAUDE || brut.claude?.binaire || "claude",
       modele: brut.claude?.modele || modelesDuClient(client)?.modele || null,
       modeleSousAgents: brut.claude?.modele_sous_agents || modelesDuClient(client)?.modele_sous_agents || null,
+      // La description des fichiers de la Galerie (lot 15) : le modèle du regard du rangement (sonnet par défaut).
+      modeleDescription: brut.claude?.modele_rangement || modelesDuClient(client)?.modele_rangement
+        || (brut.claude?.modele_rangement === undefined ? "sonnet" : null),
     },
     // Variable prioritaire (contrat, section 7) : STUDIO_SIMULATION=1 => jamais --envoyer.
     simulation: env.STUDIO_SIMULATION === "1" || brut.publication?.simulation === true,

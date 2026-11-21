@@ -4,6 +4,7 @@ import path from "node:path";
 import { lireJson, lister, stat, lireDate } from "./outils.mjs";
 import { estMonte } from "./stades.mjs";
 import { lireDepot, instantane } from "./lecture.mjs";
+import { descriptionFaitePar } from "./galerie.mjs";
 
 const MARGE_MS = 2000;
 
@@ -20,6 +21,9 @@ export function attenduPresent(action, config) {
   const debut = lireDate(action.debut)?.getTime() ?? 0;
   const d = config.depot;
   switch (action.type) {
+    // La description d'un fichier de la Galerie (lot 15) : la fiche porte une description écrite par cette action.
+    case "description":
+      return descriptionFaitePar(config, action.galerie, action.id);
     case "script": {
       const format = formatDuContenu(config, action.slug);
       const f = format === "carrousel"
