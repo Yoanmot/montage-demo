@@ -7,8 +7,9 @@ import path from "node:path";
 import { dedans } from "./outils.mjs";
 
 // Les fichiers du haut du dossier que le studio montre déjà (Idée, Brief, Ressource gratuite) ou qui
-// sont techniques (etat.json).
-export const FICHIERS_CONNUS = new Set(["idee.md", "etat.json", "script.md", "carrousel.md", "ressource.md"]);
+// sont techniques (etat.json ; reference.md, la vidéo d'origine lue par le head of content pour lui et le
+// monteur, 21/11).
+export const FICHIERS_CONNUS = new Set(["idee.md", "etat.json", "script.md", "carrousel.md", "ressource.md", "reference.md"]);
 const IMAGES = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]);
 const TEXTES = new Set([".md", ".txt"]);
 const PROFONDEUR = 6;

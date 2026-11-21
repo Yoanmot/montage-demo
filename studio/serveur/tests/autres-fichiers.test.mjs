@@ -39,6 +39,7 @@ before(async () => {
   m.ecrire("depot/contenus/tier-list/idee.md", "# Je classe dix usages\n");
   m.ecrire("depot/contenus/tier-list/script.md", "# Je classe\n\n## Texte complet\nBonjour\n");
   m.ecrire("depot/contenus/tier-list/ressource.md", "# Ressource\n");
+  m.ecrire("depot/contenus/tier-list/reference.md", "# Référence : pour les agents seulement\n");
   m.ecrire("depot/contenus/tier-list/.gitkeep", "");
   m.ecrire("depot/contenus/tier-list/.DS_Store", "x");
   m.ecrire("depot/contenus/tier-list/.cache/vieux.png", "x");
@@ -60,6 +61,7 @@ before(async () => {
   m.ecrire("depot/contenus/simple/idee.md", "# Simple\n");
   m.ecrire("depot/contenus/simple/script.md", "# Simple\n\n## Texte complet\nSalut\n");
   m.ecrire("depot/contenus/simple/.gitkeep", "");
+  m.ecrire("depot/contenus/simple/reference.md", "# Référence : pour les agents seulement\n");
   s = await demarrer({ env: { ...process.env, STUDIO_HOME: m.home, HOME: m.maison }, silencieux: true });
   port = s.config.port;
   const bon = await requete(`/?t=${s.jeton}`);

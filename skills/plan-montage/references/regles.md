@@ -405,6 +405,26 @@ couleurs ne servent qu'à ce qu'on invente. Dans l'`intention`, écris ce qu'on 
 premier coup d'œil (« la vraie page de recherche Google sur téléphone »). S'imprégner de l'original
 avant de le refaire, c'est le travail de l'étape animations ; le plan, lui, nomme l'original exact.
 
+## Une vidéo d'origine : s'en inspirer, jamais la recopier
+
+Un contenu peut venir d'une vidéo qui a marché chez un autre compte : son head of content en a gardé la mécanique
+(structure, procédés, format) et l'a écrit dans `reference.md`, à côté du script, avec une lecture de son montage et
+ses images. Le script de Romain suit déjà cette mécanique ; le montage doit la rendre visible, parce que c'est elle
+que le spectateur doit suivre.
+- **Ce que tu prends** : une idée de mise en scène qui sert la mécanique, pas la décoration de l'autre vidéo. Ce qui
+  se compare se voit comparé (côte à côte, ou à la même place l'un après l'autre, avec un repère qui dit qui est
+  qui) ; ce qui a un nom porte son nom à l'écran quand il revient ; ce qui se classe ou se compte se remplit sous
+  ses yeux au fil de sa voix ; ce qui évolue par étapes montre l'étape où on en est. Une seule idée qui porte toute
+  la vidéo vaut mieux que trois reprises éparses.
+- **Comment** : composée avec ta signature (accroche, sous-titres, Romain à l'image, densité) et dans ce que le style
+  permet, sur ses mots à lui. Une mise en scène qui serait « sur sa demande » (carte, demi-écran, format connu) est
+  permise ici sans qu'il la demande quand elle porte la mécanique reprise : une seule, son lien écrit dans
+  `intention`. Ce qu'aucune brique ne sait faire : au plus proche avec ce qui existe, et une ligne dans
+  `demandes-pour-yoan.md`.
+- **Ce que tu ne prends jamais** : la disposition exacte, les couleurs, la police, les textes ou les images de
+  l'autre vidéo. Quelqu'un qui a vu les deux doit reconnaître le principe, jamais le montage.
+- Pas de `reference.md` : rien de tout ça, le plan suit ses règles habituelles.
+
 ## Montrer plutôt que dire
 
 - Quand il raconte une scène de sa vie ou de celle du spectateur (hésiter, cuisiner, s'entraîner,

@@ -52,6 +52,9 @@ Lis avant d'écrire :
    vidéo coupée de contrôle, ou sur l'originale au temps du mot) pour savoir s'il compte sur ses
    doigts, pointe un côté, tient un objet, de quel côté il y a de la place.
 
+5. **La vidéo d'origine**, si le contenu en vient : `reference.md` à côté de son script, et ses images
+   (`regles.md`, « Une vidéo d'origine »).
+
 Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
 
 ## Le process
@@ -72,7 +75,9 @@ Pas de script à suivre : ce qu'il a dit fait foi, même s'il a improvisé.
    **lien** avec le sens de la phrase (« on voit X parce qu'il dit Y »). Écris aussi **l'intention de la vidéo** (ce
    qu'elle veut que le spectateur fasse ou ressente en partant) et **le moment clé** qui la porte (la bascule vers
    lui). Puis découpe en temps : l'accroche (les 5 premières secondes), le corps, la phrase à retenir, le moment
-   clé, la fin, et repère les passages de plus de 15 s sans temps fort.
+   clé, la fin, et repère les passages de plus de 15 s sans temps fort. Contenu tiré d'une vidéo d'origine :
+   écris aussi la mécanique reprise (« Ce qu'on reprend » de `reference.md`) et l'idée de mise en scène que tu en
+   prends, avec son lien à la mécanique, ou pourquoi tu n'en prends aucune.
 4. **Compose l'accroche** (`regles.md`, « L'accroche ») :
    1. lis le registre : `node "$SK/animations/scripts/registre-accroches.mjs" lire "<nom>-montage"` (les
       deux dernières accroches, ce qu'il ne faut pas reprendre) ;
@@ -177,6 +182,9 @@ une simple trace dans le dossier de montage.
 - [ ] Le corps est simple mais pas vide : ses sous-titres, ses plans filmés (ou écrans « B-ROLL ») sur leurs
   phrases, 3 à 6 zooms (le zoom qui suit sa tête d'abord), la phrase à retenir en plein écran qui commence sur lui,
   un temps fort toutes les 10 à 15 s.
+- [ ] Contenu tiré d'une vidéo d'origine : `reference.md` lu et ses images regardées ; la mécanique reprise se voit
+  (une idée de mise en scène qui la sert, écrite dans `remarques-plan.md`), composée dans son style, sans rien
+  recopier du montage d'origine.
 - [ ] Aucun effet « sur sa demande » (sous-titres enrichis, mème, carte, demi-écran, format connu,
   animation qui illustre) qu'il n'a pas demandé, pour cette vidéo ou dans ta mémoire.
 - [ ] Ses clips sont posés sur la phrase qu'ils jouent, chacun vérifié sur sa vignette ; jamais un

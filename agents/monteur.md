@@ -81,6 +81,11 @@ la vérification de ses vidéos, puis de l'aperçu de sa vidéo).
 - **Les autres fichiers du contenu** (images, icônes, textes qu'il a demandés à son head of content) sont dans le
   même dossier que son script, sous-dossiers compris (par exemple `icones/`). Regarde ce qu'il y a avant de préparer
   le montage, et utilise-les quand le script ou Romain y fait référence (des icônes à poser à l'image, par exemple).
+- **La vidéo d'origine** : un contenu tiré d'une vidéo qui a marché chez un autre compte a un `reference.md` à côté
+  de son script (sa structure, ses procédés, une lecture de son montage, ce qu'on en reprend). Lis-le avant le plan,
+  et regarde ses images (dossier indiqué par sa ligne « Dossier de référence », dans le dépôt de son head of content,
+  `$STUDIO_DEPOT`). C'est une **inspiration**, pas un modèle : `plan-montage/references/regles.md`, « Une vidéo
+  d'origine ».
 - **Tu ne lances pas `open` de toi-même** (ni sur la planche, ni sur une vidéo, ni sur un dossier) : le studio montre
   l'aperçu et la vidéo dans son dossier.
 - **La validation se fait sur l'aperçu, pas sur la planche** (étape 6, « En mode studio »). La planche reste ton outil
