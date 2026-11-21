@@ -42,16 +42,25 @@ main() {
 </dict>
 </plist>
 EOF
-  launchctl bootout "$dom/$label" 2>/dev/null
-  if ! launchctl bootstrap "$dom" "$D/a.plist" 2>/dev/null; then rm -rf "$D"; echo "ARRIVEES_PLUS_TARD launchctl a refusé le service d'essai"; return 0; fi
-  # Jusqu'à 3 minutes : le temps que le client lise la fenêtre de macOS et clique.
-  local i=0; while [ ! -f "$D/resultat" ] && [ "$i" -lt 360 ]; do sleep 0.5; i=$((i + 1)); done
-  launchctl bootout "$dom/$label" 2>/dev/null
-  local r; r="$(tail -1 "$D/resultat" 2>/dev/null)"; rm -rf "$D"
+  # Deux essais : un service du même nom qui finit de se retirer peut fausser le premier.
+  local essai r=""
+  for essai in 1 2; do
+    rm -f "$D/resultat"
+    launchctl bootout "$dom/$label" 2>/dev/null
+    local j=0; while launchctl print "$dom/$label" >/dev/null 2>&1 && [ "$j" -lt 20 ]; do sleep 0.25; j=$((j + 1)); done
+    if ! launchctl bootstrap "$dom" "$D/a.plist" 2>/dev/null; then r="LAUNCHCTL"; sleep 1; continue; fi
+    # Jusqu'à 3 minutes : le temps que le client lise la fenêtre de macOS et clique.
+    local i=0; while [ ! -f "$D/resultat" ] && [ "$i" -lt 360 ]; do sleep 0.5; i=$((i + 1)); done
+    launchctl bootout "$dom/$label" 2>/dev/null
+    r="$(tail -1 "$D/resultat" 2>/dev/null)"
+    [ "$r" = OK ] && break
+  done
+  rm -rf "$D"
+  [ "$r" = LAUNCHCTL ] && { echo "ARRIVEES_PLUS_TARD launchctl a refusé le service d'essai"; return 0; }
   case "$r" in
     OK) echo "ARRIVEES_OK";;
     "") echo "ARRIVEES_SANS_REPONSE";;
-    *) echo "ARRIVEES_REFUSEES $r";;
+    *) echo "ARRIVEES_REFUSEES $r ($dossier)";;
   esac
   return 0
 }
