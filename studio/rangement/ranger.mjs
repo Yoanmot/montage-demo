@@ -291,15 +291,18 @@ async function ranger(o) {
     for (const d of decisions) {
       const slugsValides = (d.slugs || []).filter((s) => SLUG.test(s));
       if (d.type && slugsValides.length) {
-        if (!simulation) placer(media, config, d.f, d.type, slugsValides, { tournage: t.id, prise: d.prise, vu: d.vu });
+        const fiche = simulation ? null : placer(media, config, d.f, d.type, slugsValides, { tournage: t.id, prise: d.prise, vu: d.vu });
         // face et photo : un fichier réel dans un seul contenu (le premier) ; b-roll : un lien par contenu servi
         for (const s of d.type === 'b-roll' ? slugsValides : slugsValides.slice(0, 1)) say(`PLACE ${d.f.nom} -> ${s}/${d.type}`);
-        places++;
+        // Le même fichier envoyé deux fois (AirDrop refait) : la fiche existante sert, il ne compte pas deux fois au bilan.
+        if (fiche?.doublon) say(`DOUBLON ${d.f.nom} ${fiche.id}`);
+        else places++;
       } else if (d.f.type === 'photo' || (d.f.type === 'video' && d.f.reconnaissance?.decision === 'sans_parole' && !quelquesMots(d.f))) {
         // Une photo ou un b-roll rattaché à rien (lot 15) : il entre dans la Galerie, où il resservira.
         const type = d.f.type === 'photo' ? 'photo' : 'b-roll';
         if (!simulation) {
           const fiche = entrerGalerie(media, config, d.f, type, { genre: 'arrivee', tournage: t.id, ...(d.vu?.ce_qu_on_voit ? { vu: d.vu.ce_qu_on_voit } : {}) });
+          if (fiche.doublon) { say(`DOUBLON ${d.f.nom} ${fiche.id}`); continue; }
           say(`GALERIE ${d.f.nom} ${fiche.id}`);
         } else say(`GALERIE ${d.f.nom} simulation`);
         enGalerie++;

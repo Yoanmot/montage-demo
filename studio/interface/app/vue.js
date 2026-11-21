@@ -518,9 +518,14 @@ export class Vue {
         ...stock.map((p) => this.planStock(d, p, libre))));
     }
     if (aTourner.length) {
+      // Avant le plan de tournage, ces plans y iront ; une fois le plan fait (et après le tournage, où un plan choisi
+      // après coup y est ajouté), ils y sont.
+      const plusieurs = aTourner.length > 1;
+      const ou = ["tournage_prevu", "rushs_recus"].includes(d.stade)
+        ? (plusieurs ? "ils sont" : "il est") : (plusieurs ? "ils vont" : "il va");
       groupes.push(el("div", { class: "gal-plans-groupe" },
         el("p", { class: "gal-plans-titre" }, el("span", { class: "rond a-tourner", "aria-hidden": "true" }), "À tourner",
-          el("span", { class: "aide" }, `${pluriel(aTourner.length, "plan", "plans")}, ${aTourner.length > 1 ? "ils vont" : "il va"} dans ton plan de tournage`)),
+          el("span", { class: "aide" }, `${pluriel(aTourner.length, "plan", "plans")}, ${ou} dans ton plan de tournage`)),
         ...aTourner.map((p) => this.planATourner(d, p, libre))));
     }
     return el("div", {}, ...groupes);

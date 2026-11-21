@@ -47,3 +47,32 @@ test('arrivée rattachée à rien : quelques mots entendus = « à placer », pa
   const ix = JSON.parse(fs.readFileSync(path.join(R, 'Galerie', 'index.json'), 'utf8'));
   assert.deepEqual(ix.fichiers.map((f) => f.nom_origine), ['IMG_5002.MOV']);
 });
+
+test('bilan : le même fichier envoyé deux fois (AirDrop refait) ne compte qu\'une fois, rangé à sa prise ou dans la Galerie', () => {
+  const B = path.join(R, 'doublon');
+  const depot = path.join(B, 'depot'), media = path.join(B, 'Contenu'), arrivees = path.join(B, 'arrivees');
+  fs.mkdirSync(arrivees, { recursive: true });
+  ecrire(path.join(depot, 'contenus', 'un-reel', 'etat.json'), JSON.stringify({ version: 1, titre: 'Un reel', format: 'reel' }));
+  ecrire(path.join(depot, 'contenus', 'un-reel', 'script.md'), "# Un reel\n\n## Texte complet\nAujourd'hui je te montre ta séance.\n\n## Légende\nTout.\n");
+  const creeLe = new Date(Math.floor(Date.now() / 1000) * 1000 - 120e3);
+  ecrire(path.join(depot, 'tournages', 't2.json'), JSON.stringify({ version: 1, id: 't2', cree_le: isoZurich(creeLe), contenus: ['un-reel'], duree_estimee_min: 5,
+    prises: [{ n: 2, type: 'b-roll', contenus: [{ slug: 'un-reel', usages: [{ mouvement: 1, phrase: 'ta séance' }] }], lieu: 'salle', materiel: [], ce_qu_on_voit: 'la salle', mouvements: ['la salle'], duree_s: 3, deja_en_bibliotheque: null }] }));
+  // Un b-roll de la prise 2 (rouge) et un plan rattaché à rien (bleu), chacun arrivé deux fois, octet pour octet.
+  clipSon(path.join(arrivees, 'IMG_7001.MOV'), 'red', new Date(creeLe.getTime() + 60e3));
+  fs.copyFileSync(path.join(arrivees, 'IMG_7001.MOV'), path.join(arrivees, 'IMG_7001 2.MOV'));
+  clipSon(path.join(arrivees, 'IMG_7002.MOV'), 'blue', new Date(creeLe.getTime() + 90e3));
+  fs.copyFileSync(path.join(arrivees, 'IMG_7002.MOV'), path.join(arrivees, 'IMG_7002 2.MOV'));
+  const config = path.join(B, 'studio.config.json');
+  ecrire(config, JSON.stringify({ version: 1, depot_hoc: depot, media, arrivees }));
+  const r = spawnSync(process.execPath, [path.join(ICI, '..', 'ranger.mjs'), '--config', config, '--tournage', 't2'], { encoding: 'utf8',
+    env: { ...process.env, RANGEMENT_ATTENTE_S: '0', ARRIVEES_CALME_S: '0', RANGEMENT_MODELE: path.join(ICI, 'faux-modele.mjs'),
+      FAUX_MODELE_TABLE: JSON.stringify({ rouge: { prise: 2, ce_qu_on_voit: 'la salle', mouvements: ['la salle'] } }),
+      RANGEMENT_COUPER: path.join(ICI, 'faux-couper.mjs'), FAUX_COUPER_TEXTES: JSON.stringify({ IMG_7001: 'ouais', 'IMG_7001 2': 'ouais', IMG_7002: 'ouais', 'IMG_7002 2': 'ouais' }) } });
+  assert.equal(r.status, 0, r.stderr);
+  const lignes = r.stdout.trim().split('\n');
+  assert.equal(lignes.filter((l) => /^DOUBLON /.test(l)).length, 2, r.stdout);
+  assert.match(lignes.at(-1), /^FIN places=1 a_ranger=0 galerie=1$/, r.stdout);
+  const ix = JSON.parse(fs.readFileSync(path.join(B, 'Galerie', 'index.json'), 'utf8'));
+  assert.equal(ix.fichiers.length, 2, 'deux fichiers distincts dans la Galerie');
+  assert.deepEqual(fs.readdirSync(arrivees).filter((f) => !f.startsWith('.')), [], 'les doublons ne restent pas dans les arrivées');
+});
