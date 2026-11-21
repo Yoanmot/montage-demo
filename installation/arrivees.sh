@@ -21,7 +21,7 @@ main() {
   for b in /opt/homebrew/bin/node /usr/local/bin/node "$(command -v node 2>/dev/null)"; do [ -n "$b" ] && [ -x "$b" ] && { node="$b"; break; }; done
   [ -n "$node" ] || { echo "ARRIVEES_PLUS_TARD node pas encore installé"; return 0; }
   local dossier="$HOME/Downloads" conf="$CLIENT_RACINE/studio/studio.config.json" v
-  v="$(/usr/bin/plutil -extract arrivees raw -o - "$conf" 2>/dev/null)"
+  v=""; [ -f "$conf" ] && v="$(/usr/bin/plutil -extract arrivees raw -o - "$conf" 2>/dev/null)"   # plutil écrit ses erreurs sur la sortie
   case "$v" in ""|null) ;; "~/"*) dossier="$HOME/${v#\~/}";; /*) dossier="$v";; esac
   local label="${STUDIO_LABEL:-$CLIENT_LABEL}.arrivees" D dom="gui/$(id -u)"
   D="$(mktemp -d "${TMPDIR:-/tmp}/arrivees.XXXXXX")"

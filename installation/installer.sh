@@ -309,7 +309,15 @@ PYEOF
   fi
 
   # Liens des skills et de l'agent (les anciennes copies sont rangées, leurs goûts appris gardés).
-  if /bin/bash "$CLONE/installation/mettre-a-jour.sh" --liens-installation > "$BASE/liens.log" 2>&1; then
+  # La mise à jour automatique peut tourner au même moment (hook de la conversation qui lance l'installation, garde) :
+  # elle tient le verrou (code 5, DEJA_EN_COURS) ; on attend qu'elle finisse, 5 minutes au plus.
+  local rl=0 essai_liens=0
+  while :; do
+    /bin/bash "$CLONE/installation/mettre-a-jour.sh" --liens-installation > "$BASE/liens.log" 2>&1; rl=$?
+    [ "$rl" -eq 5 ] && [ "$essai_liens" -lt 60 ] || break
+    essai_liens=$((essai_liens + 1)); sleep 5
+  done
+  if [ "$rl" -eq 0 ]; then
     local nl
     nl="$(ls -1 "$CLONE/skills" | wc -l | tr -d ' ')"
     ok "skills $nl skills reliés à $SKILLS, agent monteur relié ($(grep -c -E '^(AJOUTE|REMPLACE|LIEN_REFAIT|RETIRE)' "$BASE/liens.log") changements)"
