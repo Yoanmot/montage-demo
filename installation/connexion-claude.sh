@@ -15,7 +15,7 @@
 #   (et la ligne de cles.sh : CLE_OK claude | CLE_REFUSEE claude | CLE_NON_VERIFIEE claude ...)
 # Options : --forcer (refait la connexion même si un jeton marche), --delai <secondes> (défaut 540 : sous la limite
 # de 10 minutes d'une commande de Claude).
-# Variables pour les tests de Yoan seulement : CONNEXION_CLAUDE (programme lancé à la place de claude),
+# Variables pour les tests de Yoan seulement : CONNEXION_CLAUDE (programme lancé à la place de « claude setup-token »),
 # CONNEXION_NAVIGATEUR (programme qui reçoit l'adresse à ouvrir, au lieu du navigateur par défaut).
 
 # Arrête claude et efface le dossier privé, quoi qu'il arrive (D et pid globaux : le nettoyage tourne à la sortie).
@@ -58,7 +58,8 @@ main() {
     case "$r" in "CLE_OK claude"*) echo "CONNEXION_DEJA"; return 0;; esac
   fi
 
-  local cl="${CONNEXION_CLAUDE:-}" c
+  # Le vrai programme claude (installé s'il manque) : c'est lui qui vérifie le jeton ensuite (cles.sh).
+  local cl="" c
   if [ -z "$cl" ]; then
     for c in "$BASE/bin/claude" "$HOME/.local/bin/claude" /opt/homebrew/bin/claude /usr/local/bin/claude "$HOME/.claude/local/claude"; do
       [ -x "$c" ] && { cl="$c"; break; }
@@ -90,7 +91,7 @@ main() {
   [ -n "${CLIENT_CONFIG_CLAUDE:-}" ] && envs+=(CLAUDE_CONFIG_DIR="$CLIENT_CONFIG_CLAUDE")
   # Son propre groupe de processus (arrêté d'un coup) ; une largeur de 500 colonnes : le jeton tient sur une ligne.
   set -m
-  ( cd "$D" && exec env -i "${envs[@]}" /usr/bin/script -q -F "$LOG" /bin/bash -c 'stty cols 500 rows 60 2>/dev/null; exec "$0" setup-token' "$cl" ) </dev/null >/dev/null 2>&1 &
+  ( cd "$D" && exec env -i "${envs[@]}" /usr/bin/script -q -F "$LOG" /bin/bash -c 'stty cols 500 rows 60 2>/dev/null; exec "$0" setup-token' "${CONNEXION_CLAUDE:-$cl}" ) </dev/null >/dev/null 2>&1 &
   pid=$!
   disown "$pid" 2>/dev/null
   set +m

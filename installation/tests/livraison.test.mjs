@@ -352,7 +352,8 @@ test("sovo.sh installer : version publiée vérifiée (sha256, signature), posé
   fs.writeFileSync(path.join(bin, "osascript"), "#!/bin/bash\nexit 0\n", { mode: 0o755 });
   fs.writeFileSync(path.join(bin, "pgrep"), "#!/bin/bash\nexit 1\n", { mode: 0o755 });
   env.PATH = `${bin}:${env.PATH}`;
-  const s = fs.readFileSync(path.join(INST, "sovo.sh"), "utf8").replace(/\/usr\/bin\/open/g, "open");
+  env.SOVO_OUVRIR = path.join(bin, "open");
+  const s = fs.readFileSync(path.join(INST, "sovo.sh"), "utf8");
   const script = path.join(t, "sovo.sh");
   fs.writeFileSync(script, s);
   for (const f of ["sovo_etat.py"]) fs.copyFileSync(path.join(INST, f), path.join(t, f));

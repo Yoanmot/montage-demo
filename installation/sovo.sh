@@ -14,7 +14,8 @@
 # Variables pour les essais de Yoan seulement : SOVO_URL (adresse du zip), SOVO_SHA256, SOVO_APPLIS (dossier des
 # applis, défaut /Applications), SOVO_JOURNAL (défaut ~/Library/Logs/Sovo.log), SOVO_FN_DOMAINE (fichier de
 # réglages à la place de com.apple.HIToolbox), SOVO_SANS_LANCEMENT=1 (ne lance ni ne quitte Sovo, n'ouvre aucun
-# réglage), SOVO_LANCER (programme appelé à la place de open -a pour lancer Sovo).
+# réglage), SOVO_LANCER (programme appelé à la place de open -a pour lancer Sovo), SOVO_OUVRIR (programme qui reçoit
+# l'adresse d'un volet des Réglages, au lieu de open).
 
 SOVO_VERSION="1.1"
 SOVO_URL_DEFAUT="https://github.com/Yoanmot/montage-demo/releases/download/sovo-1.1/Sovo-1.1.zip"
@@ -34,7 +35,13 @@ PY=/usr/bin/python3
 
 signee_par_sovo() { codesign -d -r- "$1" 2>&1 | grep -qi "certificate leaf = H.$SOVO_CERT"; }
 version_de() { /usr/bin/defaults read "$1/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null; }
-sovo_pid() { pgrep -x Sovo 2>/dev/null | head -1; }
+# Le Sovo lancé depuis l'appli posée ici seulement (jamais un autre Sovo du Mac).
+sovo_pid() {
+  local p; for p in $(pgrep -x Sovo 2>/dev/null); do
+    case "$(ps -o comm= -p "$p" 2>/dev/null)" in "$APP/"*) echo "$p"; return 0;; esac
+  done
+  return 0
+}
 etat() { if [ -n "${1:-}" ]; then "$PY" -I "$ICI/sovo_etat.py" "$JOURNAL" "$1"; else "$PY" -I "$ICI/sovo_etat.py" "$JOURNAL"; fi; }
 
 lancer() {
@@ -51,7 +58,7 @@ quitter() {
 }
 ouvrir_reglage() { # $1 Privacy_Accessibility | Privacy_ListenEvent | Privacy_Microphone
   [ -n "${SOVO_SANS_LANCEMENT:-}" ] && { echo "  (essai) réglage ouvert : $1"; return 0; }
-  /usr/bin/open "$REGLAGE?$1" >/dev/null 2>&1
+  "${SOVO_OUVRIR:-/usr/bin/open}" "$REGLAGE?$1" >/dev/null 2>&1
 }
 
 # La touche Fn : « Ne rien faire » (Réglages Système > Clavier > « Appuyer sur la touche 🌐 pour »), valeur 0 de
