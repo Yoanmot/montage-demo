@@ -20,7 +20,7 @@
 #                 devant : le jeton d'un an affiché par « claude setup-token », lancé avant dans le Terminal ;
 #                 vérifié par une session d'essai, puis le studio redémarre dès qu'il est au repos ; la date de pose,
 #                 jamais la valeur, est notée dans <racine>/connexion-claude.json pour prévenir avant l'expiration)
-# Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
+# Sortie : CLE_OK <nom> | CLE_REFUSEE <nom> | CLE_LIMITEE zernio sans droit : <quoi> (reconnue, mais pas assez de droits) | CLE_ANNULEE <nom> | CLE_NON_VERIFIEE <nom> <raison> | DEJA <nom>
 #          | CLE_INTERDITE zernio (client à simulation forcée : installation d'essai, aucune clé de publication)
 #          | CLE_INTERDITE zernio-lecture (client sans stats_reelles ou sans simulation forcée)
 
@@ -85,18 +85,33 @@ OSA
 
   verifier_zernio() {
     local v; v="$(sed -n 's/^ZERNIO_API_KEY=//p' "$ENV_ZE" | tail -1 | tr -d "\"'")"
-    local compte=""
+    local compte="" api="https://zernio.com/api"
+    # Tests seulement : un faux Zernio local (même règle que zernio.py, variable ZERNIO_API_TEST).
+    case "${ZERNIO_API_TEST:-}" in http://127.0.0.1:*|http://localhost:*) api="${ZERNIO_API_TEST%/}";; esac
     if [ -f "$HOC/outils/zernio.py" ]; then
       compte="$("$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import zernio; print((getattr(zernio, "COMPTES", {}).get(sys.argv[2]) or {}).get("compte") or "")' "$HOC/outils" "$CLIENT_ID" 2>/dev/null)"
     fi
-    local url="https://zernio.com/api/v1/posts?limit=1"
-    [ -n "$compte" ] && url="https://zernio.com/api/v1/accounts/$compte/posts?limit=1"
+    local url="$api/v1/posts?limit=1"
+    [ -n "$compte" ] && url="$api/v1/accounts/$compte/posts?limit=1"
     local s; s="$(printf 'Authorization: Bearer %s\n' "$v" | statut_http "$url")"
     case "$s" in
-      200) echo "CLE_OK zernio";;
-      401) echo "CLE_REFUSEE zernio";;
-      *) echo "CLE_NON_VERIFIEE zernio http=$s";;
+      200) ;;
+      401) v=""; echo "CLE_REFUSEE zernio"; return;;
+      *) v=""; echo "CLE_NON_VERIFIEE zernio http=$s"; return;;
     esac
+    # Lire les publications ne suffit pas (21/11 : une clé sans « comptes » ni « statistiques » passait ici).
+    # Ce que le studio fait avec cette clé, vérifié sans rien publier ni rien créer : les comptes (GET /v1/accounts),
+    # les chiffres (GET /v1/analytics) et l'écriture (POST /v1/media/presign sans fichier : 400 « filename is
+    # required » pour une clé qui peut écrire, 403 « read-only » pour une clé de lecture).
+    local manque="" corps
+    s="$(printf 'Authorization: Bearer %s\n' "$v" | statut_http "$api/v1/accounts")"
+    case "$s" in 401|403) manque="comptes";; esac
+    s="$(printf 'Authorization: Bearer %s\n' "$v" | statut_http "$api/v1/analytics?limit=1${compte:+&accountId=$compte}")"
+    case "$s" in 401|403) manque="${manque:+$manque, }statistiques";; esac
+    corps="$(printf 'Authorization: Bearer %s\nContent-Type: application/json\n' "$v" | curl -s --max-time 20 -X POST -d '{}' -w '\n%{http_code}' -H @- "$api/v1/media/presign")"
+    v=""
+    case "${corps##*$'\n'}" in 401|403) echo "$corps" | grep -qi "read-only" && manque="${manque:+$manque, }publication (clé en lecture seule)";; esac
+    if [ -n "$manque" ]; then echo "CLE_LIMITEE zernio sans droit : $manque"; else echo "CLE_OK zernio"; fi
   }
 
   # La clé de lecture : un GET des publications du compte lu par le studio (COMPTES[stats_reelles.compte]).

@@ -382,3 +382,63 @@ test("arrivees.sh : sans service (essai) ou sans node, la question de Téléchar
   const r = lance(path.join(INST, "arrivees.sh"), [], envDe(t));
   assert.match(r.sortie, /^ARRIVEES_PLUS_TARD essai sans service$/m);
 });
+
+// Audit du 21/11 : la vérification de la clé Zernio ne lisait que les publications. Deux clés réelles passaient
+// alors qu'elles cassaient le studio : l'ancienne clé du Mac (groupes « comptes » et « statistiques » coupés) et une
+// clé en lecture seule. Faux Zernio local qui répond comme le vrai (réponses relevées le 21/11/2026).
+const FAUX_ZERNIO = `
+const http = require("node:http");
+const genre = process.argv[1];
+const coupe = (g) => ({ error: "This API key has the '" + g + "' resource group disabled." });
+const s = http.createServer((q, r) => {
+  const u = q.url.split("?")[0];
+  const rep = (c, b) => { r.writeHead(c, { "content-type": "application/json" }); r.end(JSON.stringify(b)); };
+  if (!/^Bearer .+/.test(q.headers.authorization || "")) return rep(401, { error: "Unauthorized" });
+  if (/^\\/v1\\/(accounts\\/[^/]+\\/)?posts$/.test(u) && q.method === "GET") return rep(200, { posts: [] });
+  if (u === "/v1/accounts") return genre === "sans-comptes" ? rep(403, coupe("accounts")) : rep(200, { accounts: [] });
+  if (u === "/v1/analytics") return genre === "sans-comptes" ? rep(403, coupe("analytics")) : rep(200, { posts: [] });
+  if (u === "/v1/media/presign" && q.method === "POST") return genre === "lecture"
+    ? rep(403, { error: "This API key has read-only permission. Use a read-write key to perform this action." })
+    : rep(400, { error: "filename is required", code: "missing_required_field" });
+  rep(404, { error: "inconnu" });
+});
+s.listen(0, "127.0.0.1", () => console.log(s.address().port));
+`;
+async function avecFauxZernio(genre, f) {
+  const { spawn } = await import("node:child_process");
+  const p = spawn(process.execPath, ["-e", FAUX_ZERNIO, genre], { stdio: ["ignore", "pipe", "inherit"] });
+  const port = await new Promise((ok) => p.stdout.once("data", (d) => ok(String(d).trim())));
+  try { return await f(`http://127.0.0.1:${port}`); } finally { p.kill(); }
+}
+function lanceAsync(script, args, env, input) {
+  return import("node:child_process").then(({ spawn }) => new Promise((ok) => {
+    const c = spawn("/bin/bash", [script, ...args], { env });
+    let sortie = "";
+    c.stdout.on("data", (d) => { sortie += d; }); c.stderr.on("data", (d) => { sortie += d; });
+    c.on("close", (code) => ok({ code, sortie }));
+    c.stdin.end(input);
+  }));
+}
+
+test("cles.sh zernio : une clé sans comptes ni statistiques, ou en lecture seule, est dite limitée ; la bonne passe", async () => {
+  for (const [genre, attendu] of [
+    ["complete", /^CLE_OK zernio$/m],
+    ["sans-comptes", /^CLE_LIMITEE zernio sans droit : comptes, statistiques$/m],
+    ["lecture", /^CLE_LIMITEE zernio sans droit : publication \(clé en lecture seule\)$/m],
+  ]) {
+    await avecFauxZernio(genre, async (api) => {
+      const maison = path.join(tmp(), "maison");
+      fs.mkdirSync(maison, { recursive: true });
+      const env = envDe(maison, { ZERNIO_API_TEST: api, NO_PROXY: "127.0.0.1", no_proxy: "127.0.0.1" });
+      const r = await lanceAsync(path.join(INST, "cles.sh"), ["--stdin", "zernio"], env, `${FAUX.zernio}\n`);
+      assert.match(r.sortie, attendu, `${genre} : ${r.sortie}`);
+      assert.doesNotMatch(r.sortie, new RegExp(FAUX.zernio));
+      assert.equal(fs.readFileSync(path.join(maison, ".montage-yoan/zernio.env"), "utf8"), `ZERNIO_API_KEY=${FAUX.zernio}\n`);
+    });
+  }
+});
+
+test("cles.sh zernio : ZERNIO_API_TEST n'est suivie que vers cette machine", () => {
+  const s = fs.readFileSync(path.join(INST, "cles.sh"), "utf8");
+  assert.ok(/case "\$\{ZERNIO_API_TEST:-\}" in http:\/\/127\.0\.0\.1:\*\|http:\/\/localhost:\*\)/.test(s), "ZERNIO_API_TEST limitée à 127.0.0.1 et localhost");
+});

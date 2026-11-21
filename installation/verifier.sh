@@ -199,9 +199,23 @@ import zernio
 c = (getattr(zernio, "COMPTES", {}).get(sys.argv[2]) or {}).get("compte")
 r = zernio.appel("GET", "/v1/accounts/%s/posts" % c if c else "/v1/posts", {"limit": 1})
 print("LECTURE_OK %d" % len(r.get("posts") or []))
+# Les droits dont le studio a besoin, sans rien publier ni créer (cles.sh, verifier_zernio, même contrôle).
+for nom, chemin, params in (("comptes", "/v1/accounts", None), ("statistiques", "/v1/analytics", {"limit": 1, "accountId": c})):
+    try:
+        zernio.appel("GET", chemin, params)
+    except zernio.ErreurApi as e:
+        if e.statut in (401, 403):
+            print("DROIT_MANQUANT %s" % nom)
+try:
+    zernio.appel("POST", "/v1/media/presign", corps={})
+except zernio.ErreurApi as e:
+    if e.statut in (401, 403) and "read-only" in str(e).lower():
+        print("DROIT_MANQUANT publication (clé en lecture seule)")
 PYEOF
 )"
-      if echo "$r" | grep -q LECTURE_OK; then okv "publier (clé de publication valide, lecture seule de son compte)"; else kov "publier : $(echo "$r" | tail -1 | cut -c1-160)"; fi
+      if ! echo "$r" | grep -q LECTURE_OK; then kov "publier : $(echo "$r" | tail -1 | cut -c1-160)"
+      elif echo "$r" | grep -q DROIT_MANQUANT; then kov "publier : clé Zernio sans droit : $(echo "$r" | sed -n 's/^DROIT_MANQUANT //p' | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
+      else okv "publier (clé de publication valide : comptes, statistiques et écriture vérifiés sans rien envoyer)"; fi
     fi
     cz=""
   else
