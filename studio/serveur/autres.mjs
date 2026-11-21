@@ -7,9 +7,13 @@ import path from "node:path";
 import { dedans } from "./outils.mjs";
 
 // Les fichiers du haut du dossier que le studio montre déjà (Idée, Brief, Ressource gratuite) ou qui
-// sont techniques (etat.json ; reference.md, la vidéo d'origine lue par le head of content pour lui et le
-// monteur, 21/11).
-export const FICHIERS_CONNUS = new Set(["idee.md", "etat.json", "script.md", "carrousel.md", "ressource.md", "reference.md"]);
+// servent aux agents et au studio, jamais au client : etat.json ; reference.md, la vidéo d'origine lue par
+// le head of content pour lui et le monteur (21/11) ; stock.json, les plans du brief comparés à la Galerie,
+// et stock-choix.json, les choix du client sur ces plans (lot 15).
+export const FICHIERS_CONNUS = new Set(["idee.md", "etat.json", "script.md", "carrousel.md", "ressource.md", "reference.md",
+  "stock.json", "stock-choix.json"]);
+// Un JSON, où qu'il soit dans le dossier, est une donnée d'outil (état, comparaison, choix) : jamais montré.
+const interne = (nom) => path.extname(nom).toLowerCase() === ".json";
 const IMAGES = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]);
 const TEXTES = new Set([".md", ".txt"]);
 const PROFONDEUR = 6;
@@ -41,7 +45,7 @@ export function autresFichiers(dossier, { max = MAX_FICHIERS } = {}) {
       if (e.name.startsWith(".") || e.isSymbolicLink()) continue;
       const relE = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) { parcourir(path.join(abs, e.name), relE, niveau + 1); continue; }
-      if (!e.isFile() || (!rel && FICHIERS_CONNUS.has(e.name))) continue;
+      if (!e.isFile() || (!rel && FICHIERS_CONNUS.has(e.name)) || interne(e.name)) continue;
       let s;
       try { s = fs.statSync(path.join(abs, e.name)); } catch { continue; }
       r.push({ chemin: relE, dossier: rel || null, nom: nomLisible(e.name), genre: genreDe(e.name), taille: s.size, maj: Math.round(s.mtimeMs) });

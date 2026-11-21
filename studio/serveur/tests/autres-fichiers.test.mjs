@@ -62,6 +62,11 @@ before(async () => {
   m.ecrire("depot/contenus/simple/script.md", "# Simple\n\n## Texte complet\nSalut\n");
   m.ecrire("depot/contenus/simple/.gitkeep", "");
   m.ecrire("depot/contenus/simple/reference.md", "# Référence : pour les agents seulement\n");
+  // Les fichiers internes des agents et du studio (21/11) : comparaison à la Galerie, choix du client, tout JSON.
+  m.ecrire("depot/contenus/simple/stock.json", '{"version":1,"plans":[]}');
+  m.ecrire("depot/contenus/simple/stock-choix.json", '{"plans":{}}');
+  m.ecrire("depot/contenus/simple/suivi.json", "{}");
+  m.ecrire("depot/contenus/simple/icones/index.json", "{}");
   s = await demarrer({ env: { ...process.env, STUDIO_HOME: m.home, HOME: m.maison }, silencieux: true });
   port = s.config.port;
   const bon = await requete(`/?t=${s.jeton}`);
