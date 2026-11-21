@@ -792,18 +792,25 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 /* Tes contenus : reels puis carrousels. Tous les chiffres sur une ligne, le tiret de chaque étape juste dessous (comme
    la barre de l'arborescence), son nom sous le tiret. Tiret plein : au moins un contenu à cette étape. */
 .etapes-formats { display: grid; gap: 26px; }
+/* Chaque format mesure sa propre ligne : le nombre de cases se règle sur la place qu'elle a vraiment, pas sur la fenêtre
+   (la colonne du milieu rétrécit quand les panneaux s'ouvrent). Une case garde au moins 76 px : « programmés », le plus
+   long mot d'un libellé, y tient avec de l'air avant le suivant. */
+.etapes { container-type: inline-size; }
 .etapes-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; font-weight: 750; }
 .etapes-total { font-size: 13px; font-weight: 500; color: var(--encre-3); }
 .etapes-ligne { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 6px; row-gap: 18px; }
-.etp { display: grid; grid-template-rows: auto 4px auto; row-gap: 8px; min-width: 0; align-content: start; }
+.etp { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 4px auto; row-gap: 8px; min-width: 0; align-content: start; }
 .etp-n { font-size: 26px; font-weight: 700; line-height: 1; padding-left: 1px; }
 .etp.zero .etp-n { color: var(--encre-3); font-weight: 500; }
 .etp-tiret { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--encre) 16%, transparent); }
 .etp:not(.zero) .etp-tiret { background: var(--encre-2); }
-.etp-nom { font-size: 12px; line-height: 1.3; color: var(--encre-2); padding-right: 8px; overflow-wrap: break-word; hyphens: manual; }
+.etp-nom { font-size: 12px; line-height: 1.3; color: var(--encre-2); padding-right: 4px; overflow-wrap: break-word; hyphens: manual; }
 .etp.zero .etp-nom { color: var(--encre-3); }
-@container (max-width: 640px) { .etapes-ligne { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-@container (max-width: 430px) { .etapes-ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); } .etp-n { font-size: 22px; } }
+/* Reels : dix étapes sur une ligne dès 820 px (10 cases de 76 px), sinon deux lignes de cinq. */
+@container (max-width: 819px) { .f-reel .etapes-ligne { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container (max-width: 640px) { .etapes .etapes-ligne { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container (max-width: 430px) { .etapes .etapes-ligne { grid-template-columns: repeat(4, minmax(0, 1fr)); } .etp-n { font-size: 22px; } }
+@container (max-width: 339px) { .etapes .etapes-ligne { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* Poster (ex « Publier sur Instagram ») : une carte par contenu prêt (préfixe pub-). L'image du hook en haut, cadrée en haut (le titre
    du hook y est), le titre, puis « Préparer à poster ». Choisir plusieurs cartes ouvre la barre du groupe. */
