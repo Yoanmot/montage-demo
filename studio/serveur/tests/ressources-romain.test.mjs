@@ -12,14 +12,16 @@ const { monde } = await import("./aide.mjs");
 
 let m, s, port, cookie, journal;
 
-function requete(chemin) {
+function requete(chemin, { methode = "GET", corps } = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: "127.0.0.1", port, path: chemin, headers: { Host: `127.0.0.1:${port}`, ...(cookie ? { Cookie: cookie } : {}) } }, (res) => {
+    const req = http.request({ host: "127.0.0.1", port, path: chemin, method: methode, headers: { Host: `127.0.0.1:${port}`, ...(cookie ? { Cookie: cookie } : {}),
+      ...(methode !== "GET" ? { Origin: `http://127.0.0.1:${port}`, "Content-Type": "application/json" } : {}) } }, (res) => {
       const morceaux = [];
       res.on("data", (x) => morceaux.push(x));
       res.on("end", () => resolve({ statut: res.statusCode, entetes: res.headers, texte: Buffer.concat(morceaux).toString("utf8") }));
     });
     req.on("error", reject);
+    if (corps !== undefined) req.write(JSON.stringify(corps));
     req.end();
   });
 }
@@ -56,6 +58,8 @@ test("Romain : pas de ressources dans l'état, pas de fichier « Ressource gratu
 test("Romain : routes des ressources fermées, aucun outil lancé", async () => {
   assert.equal((await requete("/api/ressources")).statut, 404);
   assert.equal((await requete("/api/ressources/un-reel/apercu")).statut, 404);
+  assert.equal((await requete("/api/ressources/fiche-seule/supprimer", { methode: "POST", corps: {} })).statut, 404);
+  assert.ok(fs.existsSync(path.join(m.depot, "contenus", "fiche-seule", "ressource.md")), "rien n'est effacé chez Romain");
   assert.ok(!fs.existsSync(journal), "aucun outil des ressources n'a tourné");
 });
 

@@ -82,6 +82,7 @@ export function creerApiServeur() {
     reessayer: (slug, plateforme) => appel("POST", "/api/publication/reessayer", { slug, plateforme }),
     poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
     ressources: () => appel("GET", "/api/ressources"),
+    supprimerRessource: (slug) => appel("POST", `/api/ressources/${enc(slug)}/supprimer`, {}),
     stats: () => appel("GET", "/api/stats"),
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),
     ecouter: ecouterServeur,

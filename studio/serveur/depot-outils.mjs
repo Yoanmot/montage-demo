@@ -56,6 +56,9 @@ const PHRASES = {
   ENTREE: `Ça n'a pas marché. Réessaie, et si ça recommence, préviens ${contact()}.`,
 };
 
+// La phrase d'un BLOQUE des outils du dépôt (les causes de mise à jour : pas d'internet, occupé...).
+export const phraseBloque = (code) => PHRASES[code] || MESSAGE_GENERIQUE;
+
 export async function outilDepot(config, script, args, { delaiMs = 120000 } = {}) {
   const fichier = path.join(config.depot, "outils", script);
   if (!existe(fichier)) throw new ErreurStudio("OUTIL_ABSENT", ABSENT, 503);

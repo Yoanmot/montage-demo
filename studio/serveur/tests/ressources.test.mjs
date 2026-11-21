@@ -28,7 +28,31 @@ def fiche_monteur():
     return os.path.join(os.environ["FAUX_DEPOT"], "contenus", "le-monteur", "ressource.md")
 def valide_monteur():
     return "- Validé par Yoan : \n" not in open(fiche_monteur(), encoding="utf-8").read()
-if outil == "ressource.py" and cmd == "lister":
+def supprimees():
+    p = os.path.join(os.environ["FAUX_DEPOT"], ".supprimees")
+    return open(p).read().split() if os.path.exists(p) else []
+_print = print
+def print(x, *a, **k):
+    # Une ressource supprimée ne figure plus dans les listes des outils.
+    if isinstance(x, str) and x.startswith('{"version": 1') and supprimees():
+        d = json.loads(x)
+        d["ressources"] = [r for r in d["ressources"] if r["slug"] not in supprimees()]
+        x = json.dumps(d)
+    _print(x, *a, **k)
+if outil == "ressource.py" and cmd == "supprimer":
+    import shutil
+    slug = sys.argv[2]
+    if mode == "hors-ligne-echec":
+        print("BLOQUE SYNCHRO mise à jour impossible : rien n'a changé")
+        sys.exit(2)
+    d = os.environ["FAUX_DEPOT"]
+    for x in (os.path.join(d, "site", slug), os.path.join(d, "site", "_brouillons", slug)):
+        shutil.rmtree(x, ignore_errors=True)
+    os.remove(os.path.join(d, "contenus", slug, "ressource.md"))
+    with open(os.path.join(d, ".supprimees"), "a") as f:
+        f.write(slug + "\n")
+    print("OK supprimée %s" % slug)
+elif outil == "ressource.py" and cmd == "lister":
     print(json.dumps({"version": 1, "site": "https://ressources.yoanmottier.com", "ressources": [
         {"slug": "messages-a-23h", "titre": "Le tableur", "statut": "à vérifier", "fiche": True, "brouillon": True,
          "page_en_ligne": False, "en_ligne": False, "mot": "TABLEUR", "lien": "https://ressources.yoanmottier.com/messages-a-23h/",
@@ -326,4 +350,77 @@ test("serveur yoan : message pas validé : le récapitulatif le montre, le clic 
   } finally {
     s.config.simulation = true;
   }
+});
+
+// Le bouton « Supprimer » (21/11/2026). Ces tests passent en dernier : ils effacent des fichiers.
+const supprimer = (slug) => requete(`/api/ressources/${slug}/supprimer`, { methode: "POST", corps: {} });
+const appelsSupprimer = () => appels().filter((a) => a.outil === "ressource.py" && a.argv[0] === "supprimer");
+
+test("supprimer : la liste dit ce qui retient une ressource offerte par un post", async () => {
+  const l = (await requete("/api/ressources")).json.ressources;
+  assert.equal(l.find((x) => x.slug === "le-carnet").garder,
+    "Je la garde : ceux qui commentent CARNET sous ton post « Le carnet de séance » reçoivent son lien. Sans elle, ils tomberaient sur une page qui n'existe plus.");
+  assert.equal(l.find((x) => x.slug === "le-monteur").garder, null);
+  assert.equal(l.find((x) => x.slug === "messages-a-23h").garder, null);
+});
+
+test("supprimer : une ressource inconnue : 404, aucun outil lancé", async () => {
+  const r = await supprimer("nulle-part");
+  assert.equal(r.statut, 404, r.texte);
+  assert.match(r.json.message, /Je ne trouve plus cette ressource/);
+  assert.equal((await supprimer("..%2Fsite")).statut, 404);
+  assert.equal(appelsSupprimer().length, 0);
+});
+
+test("supprimer : une ressource reliée à un post programmé ou publié est gardée, Zernio jamais touché", async () => {
+  const n = appels().length;
+  const r = await supprimer("le-carnet");
+  assert.equal(r.statut, 409, r.texte);
+  assert.match(r.json.message, /^Je la garde : ceux qui commentent CARNET sous ton post « Le carnet de séance »/);
+  assert.equal(appelsSupprimer().length, 0, "refusé avant l'outil");
+  assert.ok(fs.existsSync(path.join(m.depot, "site", "le-carnet", "index.html")));
+  // Publié aussi ; un envoi raté ne la retient plus.
+  const reg = path.join(m.depot, "publications", "registre.json");
+  const avant = fs.readFileSync(reg, "utf8");
+  try {
+    const d = JSON.parse(avant);
+    d.publications["le-carnet"].statut = "publié";
+    d.publications["video-montee"] = { statut: "publié", ressource: "le-carnet" };
+    fs.writeFileSync(reg, JSON.stringify(d));
+    const r2 = await supprimer("le-carnet");
+    assert.equal(r2.statut, 409);
+    assert.match(r2.json.message, /sous tes posts « Le carnet de séance » et « Cette vidéo a été montée »/);
+  } finally {
+    fs.writeFileSync(reg, avant);
+  }
+  assert.deepEqual(appels().slice(n), [], "aucun outil lancé, Zernio compris");
+});
+
+test("supprimer : la mise hors ligne échoue : rien n'a changé, la phrase le dit", async () => {
+  fs.writeFileSync(modeFichier, "hors-ligne-echec");
+  try {
+    const r = await supprimer("messages-a-23h");
+    assert.equal(r.statut, 409, r.texte);
+    assert.match(r.json.message, /^Elle n'est pas supprimée\. Je n'arrive pas à me mettre à jour/);
+    assert.ok(!/[\/]|\.py|ressource\.md/.test(r.json.message), r.json.message);
+  } finally {
+    fs.unlinkSync(modeFichier);
+  }
+  assert.ok(fs.existsSync(path.join(m.depot, "contenus", "messages-a-23h", "ressource.md")));
+});
+
+test("supprimer : succès : l'outil retire la page par le push, la ressource disparaît du studio", async () => {
+  const r = await supprimer("messages-a-23h");
+  assert.equal(r.statut, 200, r.texte);
+  const a = appelsSupprimer().at(-1);
+  assert.deepEqual(a.argv, ["supprimer", "messages-a-23h", "--oui", "--pousser"]);
+  assert.deepEqual(a.ecriture, [], "jamais de variable d'écriture Zernio");
+  const l = (await requete("/api/ressources")).json.ressources;
+  assert.ok(!l.some((x) => x.slug === "messages-a-23h"));
+  const e = (await requete("/api/etat")).json;
+  const c = e.cartes.find((x) => x.slug === "messages-a-23h");
+  assert.ok(c, "le contenu reste");
+  assert.ok(!c.fichiers.includes("ressource"), c.fichiers.join(","));
+  const recap = await requete("/api/publication/recap", { methode: "POST", corps: { elements: [{ slug: "video-montee", quand: `${DANS_3_JOURS} 18:30` }] } });
+  assert.ok(!recap.json.ressources.some((x) => x.slug === "messages-a-23h"));
 });

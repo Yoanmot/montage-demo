@@ -12,11 +12,15 @@
 //                                                        (« en_ligne_reel » : 200 et contenu identique
 //                                                        au dépôt, sinon ce que l'hébergeur a dit)
 //   outils/zernio.py ressources --format json            mot, message, prête pour un post
-// Jamais de variable d'écriture Zernio.
+//   outils/ressource.py supprimer <slug> --oui --pousser  bouton « Supprimer » (21/11/2026) : la page
+//                                                        quitte le site par le push (même chemin que la
+//                                                        mise en ligne), brouillon et fiche effacés
+// Jamais de variable d'écriture Zernio : une ressource qu'un post offre encore n'est pas supprimée.
 import path from "node:path";
-import { executer } from "./commandes.mjs";
+import fs from "node:fs";
+import { executer, lireVerdict } from "./commandes.mjs";
 import { existe, lireJson, SLUG_RE } from "./outils.mjs";
-import { ErreurStudio } from "./depot-outils.mjs";
+import { ErreurStudio, phraseBloque } from "./depot-outils.mjs";
 import { VARIABLES_ECRITURE, contact } from "./client.mjs";
 import { pageRessource } from "./vignettes.mjs";
 
@@ -109,6 +113,24 @@ export function etatEnLigne(reel) {
   return { etat, code: reel.code || null, texte: ETATS_EN_LIGNE[etat], detail: null, http: reel.http ?? null };
 }
 
+// Un post qui offre encore la ressource : son mot en commentaire (règle attachée au post) enverrait le
+// lien. Seul un envoi raté ne compte plus (même règle que outils/ressource.py supprimer).
+const STATUTS_RELIES = ["programmé", "envoyé", "publié"];
+export const postActif = (p) => STATUTS_RELIES.includes(p?.statut);
+
+const listeTitres = (l) => (l.length === 1 ? l[0] : `${l.slice(0, -1).join(", ")} et ${l[l.length - 1]}`);
+
+// Pourquoi on garde une ressource qu'on voudrait supprimer, ou null si rien ne la retient.
+export function raisonDeGarder(posts, mot) {
+  const actifs = (posts || []).filter(postActif);
+  if (!actifs.length) return null;
+  mot = mot || actifs.find((p) => p.mot)?.mot || null;
+  const titres = actifs.map((p) => `« ${p.titre} »`);
+  const ceux = mot ? `ceux qui commentent ${mot} sous ` : "ceux qui commentent sous ";
+  const ou = actifs.length === 1 ? `ton post ${titres[0]}` : `tes posts ${listeTitres(titres)}`;
+  return `Je la garde : ${ceux}${ou} reçoivent son lien. Sans elle, ils tomberaient sur une page qui n'existe plus.`;
+}
+
 export class Ressources {
   constructor({ config, journal = () => {}, cartes = () => [] }) {
     this.config = config;
@@ -197,6 +219,8 @@ export class Ressources {
       bloquants: [...new Set((fiche?.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))],
       contenu: carte ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
       posts,
+      // Le bouton « Supprimer » (21/11/2026) : refusé tant qu'un post programmé ou publié l'offre.
+      garder: raisonDeGarder(posts, fiche?.mot || page?.mot || null),
       // Le petit aperçu de la page sur sa carte (lot 10) : capture fabriquée à la demande, l'adresse change avec la page.
       vignette_url: (() => { const p = pageRessource(this.config, slug); return p ? `/api/ressources/${encodeURIComponent(slug)}/vignette?v=${p.version}` : null; })(),
     };
@@ -229,6 +253,49 @@ export class Ressources {
       note = "Aucune ressource ne peut être offerte pour l'instant : la raison est sous la liste.";
     }
     return { ressources, note };
+  }
+
+  // Les posts du registre qui offrent cette ressource (titres des cartes), lus dans les fichiers.
+  postsRelies(slug) {
+    const registre = lireJson(path.join(this.config.depot, "publications", "registre.json"), {})?.publications || {};
+    const cartes = new Map(this.cartes().filter((c) => c.slug).map((c) => [c.slug, c]));
+    return Object.entries(registre).filter(([, e]) => e && e.ressource === slug)
+      .map(([s, e]) => ({ slug: s, titre: cartes.get(s)?.titre || s, statut: e.statut || null, mot: e.mot || e.regle_mot?.mot || null }));
+  }
+
+  // Le bouton « Supprimer » (21/11/2026) : la page quitte le site (le push la met hors ligne, comme la
+  // mise en ligne), son brouillon et sa fiche sont effacés, puis elle disparaît du studio (tout se relit
+  // dans les fichiers). Refusé si un post l'offre encore : on ne touche jamais au mot chez Zernio.
+  async supprimer(slug) {
+    this.exiger();
+    if (!SLUG_RE.test(String(slug || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus cette ressource : elle a peut-être déjà été supprimée.", 404);
+    const d = this.config.depot;
+    const existeEncore = existe(path.join(d, "contenus", slug, "ressource.md"))
+      || existe(path.join(d, "site", slug, "index.html")) || existe(path.join(d, "site", "_brouillons", slug, "index.html"));
+    if (!existeEncore) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus cette ressource : elle a peut-être déjà été supprimée.", 404);
+    const mot = () => {
+      const t = (() => { try { return fs.readFileSync(path.join(d, "contenus", slug, "ressource.md"), "utf8"); } catch { return ""; } })();
+      return /^-\s*Mot\s*:\s*`?([A-Za-z]+)`?/mi.exec(t)?.[1]?.toUpperCase() || null;
+    };
+    const garder = raisonDeGarder(this.postsRelies(slug), mot());
+    if (garder) throw new ErreurStudio("RELIEE", garder, 409);
+    const fichier = path.join(d, "outils", "ressource.py");
+    if (!existe(fichier)) throw new ErreurStudio("OUTIL_ABSENT", phraseBloque("OUTIL_ABSENT"), 503);
+    const r = await executer("python3", [fichier, "supprimer", slug, "--oui", "--pousser"],
+      { cwd: d, env: environnement(this.config), delaiMs: 120000 });
+    const v = lireVerdict(r.sortie);
+    if (!v) throw new ErreurStudio("ECHEC", phraseBloque("ECHEC"), 500);
+    if (!v.ok) {
+      this.journal("ressource_suppression_refusee", { slug, code: v.code });
+      if (v.code === "RELIEE") throw new ErreurStudio("RELIEE", raisonDeGarder(this.postsRelies(slug), mot()) || "Je la garde : un de tes posts l'offre encore.", 409);
+      if (v.code === "INCONNUE") throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus cette ressource : elle a peut-être déjà été supprimée.", 404);
+      throw new ErreurStudio(v.code, `Elle n'est pas supprimée. ${phraseBloque(v.code)}`, 409);
+    }
+    // Les petits aperçus de sa page ne servent plus.
+    const apercus = path.join(this.config.home || "", "apercus-ressources");
+    try { for (const n of fs.readdirSync(apercus)) if (n.startsWith(`${slug}--`)) fs.rmSync(path.join(apercus, n), { force: true }); } catch { /* pas d'aperçu */ }
+    this.journal("ressource_supprimee", { slug });
+    return { slug };
   }
 
   fermer() { /* plus de processus à arrêter (l'aperçu local n'existe plus) */ }
