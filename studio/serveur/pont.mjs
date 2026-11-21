@@ -103,6 +103,8 @@ export class Pont extends EventEmitter {
     this.etats = new Map();     // chat_id -> dernier état
     // Décide l'état de fin de tour ("fini" ou "a_toi"), branché par la file.
     this.resoudreFin = () => "a_toi";
+    // Un message de Romain peut-il lancer sa session tout de suite ? Branché par la file (au plus deux montages).
+    this.placeLibre = () => true;
     fs.mkdirSync(this.dossierChats, { recursive: true });
     this.nettoyerOrphelins();
     this.marquerCoupes();
@@ -325,13 +327,38 @@ export class Pont extends EventEmitter {
       this.emit("actives", this.actives());
       return { nouveau: false, attend: true };
     }
+    if (!parFile && !this.placeLibre(chatId)) {
+      // Deux montages tournent déjà (celui de la file et une correction) : celui-ci attend qu'une place se libère,
+      // jamais trois rendus à la fois sur le Mac. Il part tout seul ensuite, dans l'ordre d'arrivée.
+      this.differes.set(chatId, { lignes: [ligne], opts: { parFile, besoin, sansEtat: true }, minuterie: null, place: true });
+      this.noter(chatId, { n: this.prochainN(chatId), le, role: "studio", type: "etat", etat: "en_cours" });
+      this.noter(chatId, { n: this.prochainN(chatId), le, role: "studio", type: "activite", texte: "J'attends qu'un autre montage se termine, puis je m'y mets." });
+      this.journal("message_attend_place", { chat_id: chatId });
+      this.emit("actives", this.actives());
+      return { nouveau: false, attend: true };
+    }
     this.lancer(chatId, [ligne], { parFile, besoin });
     return { nouveau: true };
+  }
+
+  // Les chats qui occupent une session de Claude ou en attendent une (tour, processus encore vivant, message en attente).
+  chatsActifs() {
+    return [...new Set([...this.processus.keys(), ...this.vivants.keys(), ...this.differes.keys()])];
+  }
+
+  // Les messages qui attendaient une place partent quand elle se libère, le plus ancien d'abord.
+  lancerEnAttenteDePlace() {
+    for (const [chatId, d] of [...this.differes]) {
+      if (!d.place || d.minuterie || this.vivants.has(chatId)) continue;
+      if (!this.placeLibre(chatId)) break;
+      this.lancerDifferes(chatId);
+    }
   }
 
   lancerDifferes(chatId) {
     const d = this.differes.get(chatId);
     if (!d || this.vivants.has(chatId)) return;
+    if (d.place && !this.placeLibre(chatId)) return;
     this.differes.delete(chatId);
     if (d.minuterie) clearTimeout(d.minuterie);
     this.lancer(chatId, d.lignes, d.opts);
@@ -405,6 +432,8 @@ export class Pont extends EventEmitter {
         if (!l) continue;
         let evt;
         try { evt = JSON.parse(l); } catch { continue; }
+        // La consommation de l'abonnement (haut du studio) : chaque événement de limite, refusé ou non.
+        if (evt?.type === "rate_limit_event") { try { this.emit("conso", evt.rate_limit_info); } catch { /* rien */ } }
         try { this.traiter(chatId, p, evt); } catch (e) { this.journal("evenement_ignore", { chat_id: chatId, erreur: String(e?.message || e) }); }
       }
     });
@@ -432,6 +461,8 @@ export class Pont extends EventEmitter {
       }
       // Un message arrivé pendant que ce processus finissait part maintenant.
       if (this.differes.get(chatId) && !this.differes.get(chatId).minuterie) this.lancerDifferes(chatId);
+      // Une place de montage s'est peut-être libérée pour un message qui attendait.
+      this.lancerEnAttenteDePlace();
       this.emit("actives", this.actives());
       // Le chat est libre : une action de la file qui l'attendait peut partir.
       if (!this.actif(chatId)) this.emit("libre", { chat_id: chatId });
