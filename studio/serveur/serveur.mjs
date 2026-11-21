@@ -24,6 +24,7 @@ import {
   ErreurStudio, MESSAGE_GENERIQUE, outilDepot, lancerRangement, placerManuel, retirerRush, changerTypeRush, lancerArchivage,
 } from "./depot-outils.mjs";
 import { alertes as lireAlertes } from "./alertes.mjs";
+import { Conso } from "./conso.mjs";
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
@@ -442,6 +443,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       rangementsTournage.delete(id);
       apresGalerie();
       rafraichir();
+      // Le regard du rangement a pu noter la consommation de l'abonnement (conso-claude.json).
+      consoDuStudio();
     }
   }
 
@@ -557,6 +560,20 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   };
   const veilleAlertes = setInterval(alertesDuStudio, 5 * 60000);
   veilleAlertes.unref?.();
+  // Consommation de l'abonnement Claude : retenue depuis le dernier événement de limite (fichier), effacée après
+  // l'heure de remise à zéro (relue chaque minute).
+  const conso = new Conso({ home: config.home, journal });
+  let consoJson = JSON.stringify(conso.vue());
+  const consoDuStudio = () => {
+    const v = conso.vue();
+    const j = JSON.stringify(v);
+    if (j !== consoJson) { consoJson = j; diffuser("conso", { conso: v }); }
+    return v;
+  };
+  pont.on("conso", (info) => { if (conso.noter(info)) consoDuStudio(); });
+  pont.on("fin", ({ motif, reprise }) => { if (motif === "limite" && conso.noterLimite(reprise)) consoDuStudio(); });
+  const veilleConso = setInterval(consoDuStudio, 60000);
+  veilleConso.unref?.();
 
   // ------------------------------------------------------------ routes API
 
@@ -793,6 +810,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         file_pause: file.vuePause?.() || null,
         version: VERSION,
         alertes: alertesDuStudio(),
+        conso: consoDuStudio(),
         sync: synchro.etat,
         tournages: listeTournages(config),
         config: {
@@ -1586,6 +1604,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     clearInterval(periodique);
     clearInterval(ping);
     clearInterval(attentes);
+    clearInterval(veilleConso);
     clearTimeout(attente);
     for (const w of veilleurs) { try { w.close(); } catch { /* rien */ } }
     for (const c of clients) { try { c.end(); } catch { /* rien */ } }

@@ -92,6 +92,8 @@ input[type="checkbox"] { accent-color: var(--encre); width: 16px; height: 16px; 
 .barre-droite { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .file-zone { position: relative; }
 .pop { position: absolute; top: calc(100% + 8px); right: 0; white-space: normal; background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); box-shadow: var(--ombre-pop); z-index: 20; }
+.conso { font-size: 13px; color: var(--encre-3); text-wrap: balance; }
+.conso-proche, .conso-atteinte { color: var(--ambre); font-weight: 600; }
 .sync { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--encre-3); }
 .sync .ico { width: 15px; height: 15px; }
 .sync-cours .ico, .sync-reconnexion .ico { animation: tourne 1.2s linear infinite; }

@@ -13,6 +13,8 @@
 //                         | surcharge (« API Error: 529 ... overloaded », texte <synthetic> et résultat en erreur)
 //                         | perdue (--resume d'une conversation effacée : « No conversation found » puis sortie 1)
 //                         | intermediaire (textes entre deux outils, dont un en anglais, puis une question finale)
+//                         | rendu (faux monteur : un faux rendu par message, limite possible en plein rendu ; voir rendu() ;
+//                           les descriptions de la Galerie y sont répondues comme en normal)
 //   FAUX_CLAUDE_ECHECS    fichier : nombre d'échecs restants pour limite et surcharge (décompté ; à 0, réponse normale)
 //   FAUX_CLAUDE_REPRISE   secondes epoch de reprise annoncées par le scénario limite (défaut : dans 2 h)
 //   FAUX_CLAUDE_DELAI_LONG ms entre deux morceaux du scénario long (défaut 60)
@@ -37,7 +39,7 @@ const session = iResume >= 0 ? argv[iResume + 1] : crypto.randomUUID();
 
 function noter(evt) {
   const f = process.env.FAUX_CLAUDE_JOURNAL;
-  if (f) fs.appendFileSync(f, JSON.stringify({ pid: process.pid, ...evt }) + "\n");
+  if (f) fs.appendFileSync(f, JSON.stringify({ pid: process.pid, t: Date.now(), ...evt }) + "\n");
 }
 
 noter({
@@ -101,9 +103,19 @@ async function repondre(message) {
     : (message?.content || []).map((b) => b.text || "").join("");
   const images = Array.isArray(message?.content) ? message.content.filter((b) => b.type === "image").length : 0;
   noter({ evenement: "message", texte, ...(images ? { images } : {}) });
-  if (images && /Galerie de/.test(texte) && scenario === "normal") {
+  if (images && /Galerie de/.test(texte) && (scenario === "normal" || scenario === "rendu")) {
     if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
     premier = false;
+    // FAUX_CLAUDE_LIMITE_DESCRIPTION (fichier marque) : la première description qui passe se heurte à la limite.
+    const marque = process.env.FAUX_CLAUDE_LIMITE_DESCRIPTION;
+    if (marque && !fs.existsSync(marque)) {
+      fs.writeFileSync(marque, "1");
+      const reprise = Number(process.env.FAUX_CLAUDE_REPRISE) || Math.floor(Date.now() / 1000) + 7200;
+      ecrire({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: reprise, rateLimitType: "five_hour" }, session_id: session });
+      ecrire({ type: "assistant", message: { id: `msg_${crypto.randomUUID()}`, model: "<synthetic>", role: "assistant", type: "message", content: [{ type: "text", text: "You've hit your session limit · resets 3pm" }] }, parent_tool_use_id: null, session_id: session });
+      ecrire({ type: "result", subtype: "success", is_error: true, api_error_status: 429, result: "You've hit your session limit · resets 3pm", session_id: session });
+      return;
+    }
     // FAUX_CLAUDE_ATTENTE_DESCRIPTION (ms) : la description tarde (captures de l'état « je le décris »).
     if (process.env.FAUX_CLAUDE_ATTENTE_DESCRIPTION) await pause(Number(process.env.FAUX_CLAUDE_ATTENTE_DESCRIPTION));
     const rep = descriptionFausse(texte);
@@ -124,6 +136,7 @@ async function repondre(message) {
     ecrire({ type: "result", subtype: "success", is_error: true, api_error_status: limite ? 429 : 529, result: texteErreur, session_id: session });
     return;
   }
+  if (scenario === "rendu") return rendu(texte);
   if (scenario === "intermediaire") {
     if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
     premier = false;
@@ -195,6 +208,44 @@ async function repondre(message) {
     if (delai) await pause(delai);
   }
   premier = false;
+}
+
+// Scénario rendu (montages en lot) : un faux monteur dans le dossier du contenu (MEDIA/<slug>). Chaque message lance
+// un faux rendu, processus à part dans son propre groupe (comme rendu.py), noté dans FAUX_CLAUDE_RENDUS (début, fin)
+// et qui écrit face/<slug>-monte.mp4 en finissant. Une vidéo déjà montée ne se refait pas, sauf message « corrige ».
+// FAUX_CLAUDE_LIMITE_SLUG : la limite tombe une fois sur ce contenu, au milieu du montage, le rendu en cours en fond :
+// Claude refuse la suite, reste en vie tant que le rendu tourne (comme une tâche de fond), puis s'arrête.
+async function rendu(texte) {
+  const slug = path.basename(process.cwd());
+  const journalRendus = process.env.FAUX_CLAUDE_RENDUS;
+  const duree = Number(process.env.FAUX_CLAUDE_RENDU_MS || 300);
+  const video = path.join(process.cwd(), "face", `${slug}-monte.mp4`);
+  if (premier) ecrire(modele.find((e) => e.type === "system" && e.subtype === "init"));
+  premier = false;
+  const fin = (t, erreur = false) => ecrire({ type: "result", subtype: "success", is_error: erreur, ...(erreur ? { api_error_status: 429 } : {}), result: t, session_id: session });
+  if (fs.existsSync(video) && !/corrige/i.test(texte)) { fin("La vidéo est déjà faite."); return; }
+  const code = `const fs=require("fs");const [j,s,v,d]=process.argv.slice(1);const n=(e)=>j&&fs.appendFileSync(j,JSON.stringify({e,s,pid:process.pid,t:Date.now()})+"\\n");`
+    + `n("debut");setTimeout(()=>{fs.mkdirSync(require("path").dirname(v),{recursive:true});fs.writeFileSync(v,"mp4");n("fin");},Number(d));`;
+  const enfant = spawn(process.execPath, ["-e", code, journalRendus || "", slug, video, String(duree)], { detached: true, stdio: "ignore" });
+  const termine = new Promise((r) => enfant.once("exit", r));
+  const marque = journalRendus ? `${journalRendus}.limite-${slug}` : null;
+  if (process.env.FAUX_CLAUDE_LIMITE_SLUG === slug && marque && !fs.existsSync(marque)) {
+    fs.writeFileSync(marque, "1");
+    const reprise = Number(process.env.FAUX_CLAUDE_REPRISE) || Math.floor(Date.now() / 1000) + 7200;
+    const refus = () => {
+      ecrire({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: reprise, rateLimitType: "five_hour" }, session_id: session });
+      ecrire({ type: "assistant", message: { id: `msg_${crypto.randomUUID()}`, model: "<synthetic>", role: "assistant", type: "message", content: [{ type: "text", text: "You've hit your session limit · resets 3pm" }] }, parent_tool_use_id: null, session_id: session });
+      fin("You've hit your session limit · resets 3pm", true);
+    };
+    await pause(Math.min(50, duree / 4));
+    refus();
+    // Le rendu continue en fond ; à sa fin, Claude voudrait reprendre la main et se heurte encore à la limite.
+    await termine;
+    refus();
+    return;
+  }
+  await termine;
+  fin("Ta vidéo est prête.");
 }
 
 const rl = readline.createInterface({ input: process.stdin });

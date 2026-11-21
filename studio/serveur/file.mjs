@@ -13,6 +13,10 @@ import { messageDescription, ecrireDescriptionDeSession, noterEchecDescription }
 import { plansEffectifs, Galerie, dossierGalerie } from "../rangement/lib/galerie.mjs";
 
 const TYPES_CLAUDE = new Set(["script", "tournage", "montage", "mise_en_page", "description"]);
+// Au plus deux sessions de montage à la fois sur le Mac (celle de la file et une correction de Romain) : un rendu
+// prend tout le processeur, trois en même temps ralentiraient tout le Mac.
+export const MONTAGES_MAX = 2;
+const estMonteur = (chatId) => /:monteur$/.test(String(chatId || ""));
 const GARDER_TERMINEES = 300;
 const DOSSIER_GABARITS = path.join(path.dirname(fileURLToPath(import.meta.url)), "gabarits");
 
@@ -126,7 +130,8 @@ export function messageAction(a, config) {
 
 const REPRISES = {
   redemarrage: "Le studio a redémarré pendant que tu travaillais sur ce contenu : reprends où tu en étais.",
-  limite: "La limite d'utilisation de l'abonnement Claude est repassée : reprends ce travail où tu en étais.",
+  limite: "La limite d'utilisation de l'abonnement Claude est repassée : reprends ce travail où tu en étais. "
+    + "Regarde d'abord ce qui est déjà fait dans le dossier : un calcul déjà fini (une vidéo, un aperçu) ne se refait pas.",
   connexion: "Le studio est de nouveau connecté au compte Claude : reprends ce travail où tu en étais.",
   relance: "On relance ce travail, qui avait coincé la dernière fois : reprends où tu en étais.",
 };
@@ -157,9 +162,16 @@ export class File extends EventEmitter {
     this.pause = null;   // { motif, jusqua: ms | null }
     this.minuteriePause = null;
     pont.resoudreFin = (chatId) => this.resoudreFin(chatId);
+    pont.placeLibre = (chatId) => this.placeLibre(chatId);
+    this.correction = false;
     pont.on("fin", (e) => this.surFin(e));
     // Un processus qui finit après son tour (lot 12 : un chat reste occupé tant que son processus vit) libère le chat.
     pont.on("libre", () => setImmediate(() => this.tick()));
+    // Une correction qui commence ou finit change ce que la file montre (« ta correction passe d'abord »).
+    pont.on("actives", () => {
+      const c = this.correctionEnCours();
+      if (c !== this.correction) { this.correction = c; this.emit("change", this.liste()); }
+    });
   }
 
   charger() {
@@ -223,11 +235,42 @@ export class File extends EventEmitter {
     this.emit("change", this.liste());
   }
 
+  // Chaque travail en attente dit combien passent avant lui (ceux en cours et ceux arrivés avant), et s'il attend
+  // qu'une correction se termine.
   liste() {
+    const correction = this.correctionEnCours();
+    let devant = this.actions.filter((a) => a.statut === "en_cours" && TYPES_CLAUDE.has(a.type)).length;
     return this.actions.filter((a) => a.statut !== "efface").map((a) => {
       const { reprise, ...reste } = a;
+      if (a.statut === "en_file" && TYPES_CLAUDE.has(a.type)) {
+        reste.avant = devant;
+        devant += 1;
+        if (correction && a.type === "montage") reste.attend_montage = true;
+      }
       return reste;
     });
+  }
+
+  // ------------------------------------------------------------ montages et corrections
+
+  // Les chats du monteur occupés hors de la file : une correction (message, note sur l'aperçu, « Fabrique la
+  // vidéo »), ou un montage de la file dont le tour est clos mais dont le processus vit encore (rendu en fond).
+  monteursHorsFile() {
+    const parFile = new Set(this.actions.filter((a) => a.statut === "en_cours" && this.lancesParFile.has(a.id)).map((a) => a.session));
+    return this.pont.chatsActifs().filter((c) => estMonteur(c) && !parFile.has(c));
+  }
+
+  // Une correction passe en priorité : tant qu'elle tourne (ou attend sa place), la file ne lance pas de montage.
+  correctionEnCours() {
+    return this.monteursHorsFile().length > 0;
+  }
+
+  // Une session de montage peut-elle démarrer pour ce chat ? Seulement s'il en tourne moins de deux ailleurs.
+  placeLibre(chatId) {
+    if (!estMonteur(chatId)) return true;
+    const enRoute = [...new Set([...this.pont.processus.keys(), ...this.pont.vivants.keys()])]
+      .filter((c) => estMonteur(c) && c !== chatId);
+    return enRoute.length < MONTAGES_MAX;
   }
 
   // ------------------------------------------------------------ pause (limite d'abonnement, déconnexion)
@@ -478,8 +521,9 @@ export class File extends EventEmitter {
       for (;;) {
         if (this.pauseActive()) break;
         if (this.enCoursParFile() >= this.config.parallele) break;
+        const correction = this.correctionEnCours();
         const a = this.actions.find((x) => x.statut === "en_file" && TYPES_CLAUDE.has(x.type)
-          && !this.pont.actif(chatDeAction(x)));
+          && !this.pont.actif(chatDeAction(x)) && !(x.type === "montage" && (correction || !this.placeLibre(chatDeAction(x)))));
         if (!a) break;
         try {
           await this.avant(a);

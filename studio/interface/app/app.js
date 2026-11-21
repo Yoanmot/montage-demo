@@ -64,7 +64,7 @@ class Studio {
         if (e === "ok" && avant === "coupe") { this.recharger(); this.chargerStats(); for (const c of this.chats.values()) c.charger(); }
       },
     });
-    setInterval(() => this.dessinerSync(), 30000);
+    setInterval(() => { this.dessinerSync(); this.dessinerConso(); }, 30000);
     window.addEventListener("hashchange", () => { if (this.lireAdresse()) this.toutDessiner(); });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape" || e.defaultPrevented || document.activeElement?.closest("textarea, input")) return;
@@ -101,7 +101,7 @@ class Studio {
       this.cartes.clear();
       for (const c of e.cartes || []) this.cartes.set(cle(c), c);
       this.a_ranger = e.a_ranger || []; this.file = e.file || []; this.sync = syncHonnete(e.sync); this.tournages = e.tournages || [];
-      this.filePause = e.file_pause || null; this.alertes = e.alertes || [];
+      this.filePause = e.file_pause || null; this.alertes = e.alertes || []; this.conso = e.conso || null;
       if (e.config) this.config = { ...this.config, ...e.config };
       // Le code du studio a changé (mise à jour, retour arrière) : la page se recharge pour parler au bon serveur.
       if (this.version && e.version && e.version !== this.version) { this.rechargerQuandLibre(); return; }
@@ -132,7 +132,18 @@ class Studio {
     this._rechargement = setInterval(() => { if (!occupe()) location.reload(); }, 3000);
   }
 
-  toutDessiner() { this.arbre.dessiner(); this.vue.afficher(); this.majChat(); this.dessinerFile(); this.dessinerSync(); this.dessinerAlertes(); }
+  toutDessiner() { this.arbre.dessiner(); this.vue.afficher(); this.majChat(); this.dessinerFile(); this.dessinerSync(); this.dessinerAlertes(); this.dessinerConso(); }
+
+  // ---------- Consommation de l'abonnement Claude : une ligne discrète, ambre quand la limite approche ----------
+  dessinerConso() {
+    const z = this.q(".conso");
+    const c = this.conso;
+    // Effacée d'elle-même après l'heure de remise à zéro, même sans nouvelle du serveur.
+    const passee = c?.jusqua && Date.parse(c.jusqua) <= Date.now();
+    z.hidden = !c || passee;
+    z.className = `conso conso-${c?.niveau || "large"}`;
+    z.textContent = c && !passee ? c.phrase : "";
+  }
 
   // « Nouvelle conversation » : seulement dans le chat général, quand il a un fil et qu'il ne travaille pas.
   majNouvelle(id = this.porteeChat().id) {
@@ -179,6 +190,7 @@ class Studio {
       if (d.chat_id === "general") this.majNouvelle();
     } else if (type === "chat_reinitialise") { this.chats.get(d.chat_id)?.charger(); }
     else if (type === "alertes") { this.alertes = d.alertes || []; this.dessinerAlertes(); }
+    else if (type === "conso") { this.conso = d.conso || null; this.dessinerConso(); }
     else if (type === "file") { this.file = d.actions || []; this.filePause = d.pause || null; this.dessinerFile(); }
     else if (type === "a_ranger") { this.a_ranger = d.fichiers || []; this.arbre.dessiner(); this.vue.transverseChangee(); }
     else if (type === "sync") { this.sync = syncHonnete(d); this.dessinerSync(); }
@@ -329,9 +341,13 @@ class Studio {
             RELANCABLES.has(a.type) ? bouton("Relancer", () => this.api.relancerAction(a.id)) : null,
             bouton("Effacer", () => this.api.effacerAction(a.id)));
         }
+        // Sa place dans la file : combien de travaux passent avant lui (le serveur les compte).
+        const place = !a.avant ? (a.attend_montage ? "en attente, un autre montage se termine d'abord" : "en attente, c'est le prochain")
+          : `en attente, ${a.avant} avant lui`;
         const statut = a.statut === "erreur" && a.erreur ? a.erreur
           : a.statut === "en_file" && pause?.motif === "limite" ? "en pause, reprend tout seul"
-            : a.statut === "en_file" && pause ? "en pause, en attente de la connexion" : STATUT[a.statut];
+            : a.statut === "en_file" && pause ? "en pause, en attente de la connexion"
+              : a.statut === "en_file" && typeof a.avant === "number" ? place : STATUT[a.statut];
         return el("div", { class: `file-ligne file-${a.statut}` },
           el("div", {}, el("p", { class: "file-quoi" }, `${(NOMS_ACTION[a.type]?.[0] || "action").replace(/^./, (x) => x.toUpperCase())} : ${titre(a)}`),
             el("p", { class: "file-statut" }, statut)),

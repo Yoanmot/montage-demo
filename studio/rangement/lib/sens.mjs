@@ -8,6 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { noterConso } from '../../serveur/conso.mjs';
 import { lancer, outil, lireJson, ecrireJson } from './commun.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -115,7 +116,11 @@ export async function regarder(prompt, images, config) {
     const r = await lancer(config.claude.binaire, args, { cwd: vide, entree: message, delaiS: 180 });
     let texte = null;
     for (const l of r.out.split('\n')) {
-      try { const j = JSON.parse(l); if (j.type === 'result' && !j.is_error) texte = String(j.result ?? ''); } catch {}
+      let j = null;
+      try { j = JSON.parse(l); } catch { continue; }
+      if (j?.type === 'result' && !j.is_error) texte = String(j.result ?? '');
+      // La consommation de l'abonnement, montrée en haut du studio : même relevé que les sessions du pont.
+      if (j?.type === 'rate_limit_event' && config.home) noterConso(config.home, j.rate_limit_info);
     }
     return texte != null ? { ok: true, texte } : { ok: false, detail: `claude : code ${r.code}` };
   } finally {
