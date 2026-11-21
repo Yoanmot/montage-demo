@@ -113,7 +113,9 @@ describe('récapitulatif : les deux cases', () => {
     assert.equal(t.possible, true);
     assert.equal(t.limite, 4000);
     assert.deepEqual(t.interactions, { commentaires: true, duo: null, collage: null });
-    assert.equal(t.legende_modifiable, false);
+    // Bug du 21/11 : la légende d'un carrousel ne se retouchait pas au récapitulatif (ni Instagram ni TikTok).
+    assert.equal(t.legende_modifiable, true);
+    assert.equal(r.elements[0].legende_modifiable, true);
   });
 });
 
@@ -210,6 +212,49 @@ describe('confirmer : rien ne part sur une plateforme pas cochée', () => {
     assert.ok(a.includes('--carrousel'));
     assert.ok(!a.includes('--tiktok-sans-duo'), 'pas de duo sur un carrousel');
     assert.equal(c.resultats[0].envoi.legende_tiktok, 'Trois erreurs.');
+  });
+});
+
+describe('carrousel : légendes retouchées au récapitulatif (bug du 21/11)', () => {
+  const cfg = () => ({ ...config, carrousels: path.join(racine, 'Carrousels') });
+  const textes = { 'trois-erreurs': { legende: 'Trois erreurs, retouchée.\n\n#coach', legende_tiktok: 'Trois erreurs pour TikTok #fyp' } };
+  for (const [nom, plats] of [['Instagram seul', ['instagram']], ['TikTok seul', ['tiktok']], ['les deux', ['instagram', 'tiktok']]]) {
+    test(`simulation, ${nom} : ce qui partirait est la légende retouchée de chaque plateforme cochée`, async () => {
+      const r = await recap([{ slug: 'trois-erreurs', quand: quand() }], cfg(), { tiktok: ETAT_TIKTOK });
+      const c = await confirmer(r.recap_id, cfg(), { plateformes: { 'trois-erreurs': plats }, tiktok: { 'trois-erreurs': { consentement: true } }, textes });
+      assert.equal(c.resultats[0].statut, 'simulation', c.resultats[0].message);
+      const envoi = c.resultats[0].envoi;
+      assert.deepEqual(envoi.plateformes, plats);
+      assert.equal(envoi.legende, plats.includes('instagram') ? 'Trois erreurs, retouchée.\n\n#coach' : undefined);
+      assert.equal(envoi.legende_tiktok, plats.includes('tiktok') ? 'Trois erreurs pour TikTok #fyp' : undefined);
+      assert.match(c.resultats[0].message, /retouchée/);
+      // Le texte du carrousel dans le dépôt n'est pas touché (ses slides sont déjà mises en page).
+      assert.equal(fs.readFileSync(path.join(depot, 'rendus', 'carrousels', 'trois-erreurs.md'), 'utf8'), '# 3 erreurs\n\n## Légende\n\nTrois erreurs.\n');
+    });
+  }
+
+  test('pour de vrai : la légende retouchée part par fichier avec --envoyer, sans écrire le brief', async () => {
+    const vrai = { ...cfg(), publication: { simulation: false } };
+    const vus = [];
+    let lue = null;
+    const executer = async (args, o) => {
+      vus.push({ args, o });
+      const i = args.indexOf('--legende-fichier');
+      const leg = i >= 0 ? fs.readFileSync(args[i + 1], 'utf8').trim() : 'Trois erreurs.';
+      if (args[0] === 'verifier') {
+        return { code: 0, sortie: `CONTENU trois-erreurs (carrousel) sur @fitavecromain\nPLATEFORMES instagram\nLEGENDE (rendus/carrousels/trois-erreurs.md, ${Array.from(leg).length} caractères) :\n${leg}\nMOT aucun\nOK instagram\nOK prêt\n` };
+      }
+      if (args[0] === 'publier') lue = leg;
+      return { code: 0, sortie: 'PLATEFORME instagram statut=programmé lien=à venir\nPOST 6ab statut=programmé lien=à\nFAIT\n' };
+    };
+    const r = await recap([{ slug: 'trois-erreurs', quand: quand() }], vrai, { executer });
+    assert.equal(r.elements[0].legende_modifiable, true);
+    const c = await confirmer(r.recap_id, vrai, { executer, plateformes: { 'trois-erreurs': ['instagram'] }, textes });
+    assert.ok(['programmé', 'publié'].includes(c.resultats[0].statut), JSON.stringify(c.resultats[0]));
+    assert.ok(!vus.some((v) => v.o?.script === 'brief.py'), 'aucune écriture du brief pour un carrousel');
+    const pub = vus.find((v) => v.args[0] === 'publier');
+    assert.ok(pub.args.includes('--envoyer'));
+    assert.equal(lue, 'Trois erreurs, retouchée.\n\n#coach');
   });
 });
 

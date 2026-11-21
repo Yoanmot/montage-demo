@@ -470,7 +470,7 @@ function argsPlateformes(el, plats) {
   return a;
 }
 
-// Simulation avec une légende retouchée : elle n'est pas enregistrée, zernio.py la lit dans un fichier.
+// Une légende retouchée pas enregistrée (simulation, ou carrousel) : zernio.py la lit dans un fichier.
 function argsLegende(el, plats) {
   const a = el.legende_fichier ? ['--legende-fichier', el.legende_fichier] : [];
   if (el.legende_tiktok_fichier && (!plats || plats.includes('tiktok'))) a.push('--legende-tiktok-fichier', el.legende_tiktok_fichier);
@@ -717,8 +717,9 @@ function versApi(el) {
   if (el.message_dm) {
     o.message_dm = { mot: el.message_dm.mot, message: versClient(el.message_dm.message), bouton: el.message_dm.bouton, a_valider: el.message_dm.a_valider };
   }
-  // Seule la légende d'un reel se retouche ici (celle d'un carrousel part avec ses slides mises en page).
-  o.legende_modifiable = el.type === 'reel' && Boolean(el.script_empreinte) && el.legende !== null;
+  // La légende se retouche ici : celle d'un reel est enregistrée dans son script, celle d'un carrousel part telle
+  // qu'elle est tapée (ses slides sont déjà mises en page, son texte ne change pas).
+  o.legende_modifiable = el.legende !== null && (el.type === 'carrousel' || Boolean(el.script_empreinte));
   // La case « Reel d'essai » (client qui l'a activée, reels seulement) et le choix fait.
   if (el.essai_propose) o.reel_essai = { choix: el.essai || null };
   if (el.type === 'carrousel') o.slides_urls = el.slides_urls || [];
@@ -731,7 +732,7 @@ function versApi(el) {
     tiktok: t.possible
       ? { possible: true, nom: t.nom, verdict: verdictTiktok(el), messages: [...el.messages_commun, ...t.messages],
         legende: t.legende ?? null, legende_source: t.legende_source || null,
-        legende_modifiable: el.type === 'reel' && Boolean(el.script_empreinte),
+        legende_modifiable: el.type === 'carrousel' || Boolean(el.script_empreinte),
         limite: LIMITES_TIKTOK[el.type] || LIMITES_TIKTOK.reel, interactions: t.interactions }
       : { possible: false, raison: t.raison },
   };
@@ -1041,8 +1042,9 @@ export async function confirmer(recapOuId, config, opts = {}) {
 
 // Ce que le clic a enregistré (pour la phrase de simulation).
 function phraseEcrits(el) {
-  const quoi = [el.legende_retouchee ? 'ta légende retouchée serait enregistrée' : null,
-    el.legende_tiktok_retouchee ? 'ta légende TikTok retouchée serait enregistrée' : null,
+  const verbe = el.type === 'carrousel' ? 'partirait telle quelle' : 'serait enregistrée';
+  const quoi = [el.legende_retouchee ? `ta légende retouchée ${verbe}` : null,
+    el.legende_tiktok_retouchee ? `ta légende TikTok retouchée ${verbe}` : null,
     el.message_retouche ? 'ton message retouché serait enregistré et validé' : el.message_dm?.a_valider && el.choisies.includes('instagram') ? 'le message serait validé' : null].filter(Boolean);
   return quoi.length ? ` Et ${quoi.join(', ')}.` : '';
 }
@@ -1081,11 +1083,9 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
   const tk = el.choisies.includes('tiktok');
   const retouches = {};
   if (ig && typeof t.legende === 'string' && legendePropre(t.legende) !== legendePropre(el.legende)) {
-    if (el.type !== 'reel') return 'La légende d\'un carrousel se retouche dans son brief : refais le récapitulatif.';
     retouches.legende = t.legende;
   }
   if (tk && typeof t.legende_tiktok === 'string' && legendePropre(t.legende_tiktok) !== legendePropre(el.tiktok.legende)) {
-    if (el.type !== 'reel') return 'La légende TikTok d\'un carrousel se retouche dans son brief : refais le récapitulatif.';
     const x = erreurLegendeTiktok(t.legende_tiktok, el.type);
     if (x) return x;
     retouches.legende_tiktok = t.legende_tiktok;
@@ -1102,7 +1102,9 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
     const e = {};
     if (retouches.legende !== undefined) { e.legende = legendePropre(retouches.legende); el.legende_retouchee = true; }
     if (retouches.legende_tiktok !== undefined) { e.legende_tiktok = legendePropre(retouches.legende_tiktok); el.legende_tiktok_retouchee = true; }
-    if (simulation) {
+    // Simulation, ou carrousel (en vrai aussi) : rien n'est écrit dans le dépôt, zernio.py lit la légende dans un
+    // fichier. Le texte d'un carrousel mis en page reste tel quel : réécrire son brief le renverrait en mise en page.
+    if (simulation || el.type === 'carrousel') {
       const d = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'studio-legende-'));
       temporaires.push(d);
       if (e.legende !== undefined) { el.legende_fichier = path.join(d, 'legende.txt'); fs.writeFileSync(el.legende_fichier, e.legende + '\n'); }

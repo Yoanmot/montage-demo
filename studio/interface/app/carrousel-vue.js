@@ -118,7 +118,7 @@ export function proportionCadre(largeur, hauteur) {
   return Math.min(1.91, Math.max(4 / 5, largeur / hauteur));
 }
 
-// L'aperçu du post. compte : le nom du compte (sans @) ; legende : celle qui part. Rend { noeud, tiktok(on) }.
+// L'aperçu du post. compte : le nom du compte (sans @) ; legende : celle qui part. Rend { noeud, tiktok(on), legende(texte) }.
 let numeroApercu = 0;
 export function apercuPost({ urls, compte, legende, titre = "", slug, api }) {
   const id = `ig-${++numeroApercu}`;
@@ -167,16 +167,23 @@ export function apercuPost({ urls, compte, legende, titre = "", slug, api }) {
   const regler = () => { cadre.style.aspectRatio = String(proportionCadre(premiere.naturalWidth, premiere.naturalHeight)); };
   if (premiere.complete && premiere.naturalWidth) regler(); else premiere.addEventListener("load", regler, { once: true });
 
-  const { court, coupee } = legendeCoupee(legende);
-  const texte = el("span", { class: "ig-legende-texte" }, court);
-  const plus = coupee ? el("button", { class: "ig-plus", type: "button", "aria-expanded": "false" }, "plus") : null;
-  plus?.addEventListener("click", () => {
-    const ouvert = plus.getAttribute("aria-expanded") === "true";
-    texte.textContent = ouvert ? court : String(legende).trim();
-    plus.textContent = ouvert ? "plus" : "moins";
-    plus.setAttribute("aria-expanded", String(!ouvert));
-    texte.parentElement.classList.toggle("ouverte", !ouvert);
-  });
+  // La légende sous le post : celle qui part, redessinée pendant qu'elle se retouche au récapitulatif.
+  const legendeZone = el("figcaption", { class: "ig-legende" });
+  const majLegende = (t) => {
+    const { court, coupee } = legendeCoupee(t);
+    legendeZone.classList.remove("ouverte");
+    if (!court) { legendeZone.replaceChildren(el("span", { class: "doux" }, "Pas de légende.")); return; }
+    const texte = el("span", { class: "ig-legende-texte" }, court);
+    const plus = coupee ? el("button", { class: "ig-plus", type: "button", "aria-expanded": "false" }, "plus") : null;
+    plus?.addEventListener("click", () => {
+      const ouvert = plus.getAttribute("aria-expanded") === "true";
+      texte.textContent = ouvert ? court : String(t).trim();
+      plus.textContent = ouvert ? "plus" : "moins";
+      plus.setAttribute("aria-expanded", String(!ouvert));
+      legendeZone.classList.toggle("ouverte", !ouvert);
+    });
+    legendeZone.replaceChildren(el("strong", { class: "ig-legende-compte" }, nomCompte), " ", texte, ...(coupee ? [/[.!?…]$/.test(court) ? " " : "… ", plus] : []));
+  };
   const lettre = (nomCompte.match(/[\p{L}\p{N}]/u) || ["?"])[0].toUpperCase();
   const tiktok = el("p", { class: "ig-tiktok doux", hidden: true },
     `Sur TikTok : les mêmes ${urls.length} images, dans le même ordre. La première sert de couverture.`);
@@ -184,10 +191,9 @@ export function apercuPost({ urls, compte, legende, titre = "", slug, api }) {
     el("figure", { class: "ig-post", "aria-label": `Aperçu du post « ${titre} » sur Instagram` },
       el("div", { class: "ig-tete" }, el("span", { class: "ig-avatar", "aria-hidden": "true" }, lettre), el("span", { class: "ig-compte" }, nomCompte)),
       cadre, annonce, points,
-      el("figcaption", { class: "ig-legende" },
-        ...(legende ? [el("strong", { class: "ig-legende-compte" }, nomCompte), " ", texte, ...(coupee ? [/[.!?…]$/.test(court) ? " " : "… ", plus] : [])]
-          : [el("span", { class: "doux" }, "Pas de légende.")]))),
+      legendeZone),
     tiktok);
   aller(0);
-  return { noeud, tiktok: (on) => { tiktok.hidden = !on; } };
+  majLegende(legende);
+  return { noeud, tiktok: (on) => { tiktok.hidden = !on; }, legende: majLegende };
 }

@@ -239,7 +239,7 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
   const blocIg = el("div", { class: "rp-bloc rp-bloc-instagram" });
   const blocTk = el("div", { class: "rp-bloc rp-bloc-tiktok" });
   const majMot = (legende) => {
-    if (legende !== undefined) legendeIg = legende;
+    if (legende !== undefined) { legendeIg = legende; post?.legende(legende); }
     const manque = Boolean(absent) && motAbsent(legendeIg, absent.mot);
     messages.replaceChildren(...base.map((m) => el("li", {}, m)), ...(manque ? [el("li", { class: "recap-mot-absent" }, absent.message)] : []));
     messages.hidden = !messages.children.length || !c.instagram;
@@ -333,7 +333,7 @@ function champsTiktok(e, tk, c, ctx) {
   } else {
     majCompteur(tk.legende);
     legende = el("div", { class: "recap-texte-bloc" }, el("p", { class: "recap-legende" }, tk.legende || "Pas de légende."), compteur,
-      el("p", { class: "doux rp-note" }, "La légende d'un carrousel se retouche dans son brief."));
+      el("p", { class: "doux rp-note" }, "Elle se retouche dans le brief de ce contenu."));
   }
   const reglage = (cle, texte) => {
     if (c.reglages[cle] === null) return null;
