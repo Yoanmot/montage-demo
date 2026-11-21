@@ -87,7 +87,10 @@ t'ouvre dans le dossier du contenu et affiche ce que tu écris dans son chat « 
     `ecart.reutilisable` est faux : c'est la règle des 3 vidéos (un plan filmé ne revient pas à moins de 3 vidéos
     postées d'écart, ni s'il sert déjà à un autre contenu pas encore posté). Même test que pour un plan du brief :
     tout ce que la phrase doit montrer se lit dans sa description et rien ne la contredit, puis tu regardes ses
-    images. Il colle : `node "$STUDIO_CODE/rangement/galerie.mjs" poser <slug du contenu> <id> --config "$STUDIO_CONFIG"` (il
+    images. Quand le brief a déjà fixé ce que ce plan doit montrer (`stock.json` à côté de son script :
+    `essentiels`, et `ecartes` = les fichiers déjà jugés avec l'élément qui leur manquait), c'est cet essentiel qui
+    compte, pas ta propre lecture de la phrase : un fichier écarté ne se prend que si ses images montrent ce qui
+    manquait, et tu écris dans `remarques-plan.md` ce que tu y vois. Il colle : `node "$STUDIO_CODE/rangement/galerie.mjs" poser <slug du contenu> <id> --config "$STUDIO_CONFIG"` (il
     arrive dans `b-roll/` et son usage est noté dans sa fiche ; `BLOQUE` : prends-en un autre ou garde l'écran), puis
     tu le prépares comme ses autres clips. Rien ne colle : l'écran « B-ROLL ».
   - Un fichier de sa Galerie n'entre dans la vidéo que par `poser`, jamais copié à la main : c'est ce qui tient la
