@@ -74,6 +74,8 @@ export function creerApiServeur() {
     noteApercu: (slug, note) => appel("POST", `/api/cartes/${enc(slug)}/apercu/notes`, note),
     fabriquer: (slug) => appel("POST", `/api/cartes/${enc(slug)}/apercu/fabriquer`, {}),
     telecharger: (slug) => appel("POST", `/api/cartes/${enc(slug)}/telecharger`, {}),
+    // Une slide (n, à partir de 1) ou toutes dans un zip (n absent) : déposées dans Téléchargements.
+    telechargerSlides: (slug, n = null) => appel("POST", `/api/cartes/${enc(slug)}/slides/telecharger`, n ? { slide: n } : {}),
     placer: (fichier, slug, type, arrivee = false) => appel("POST", "/api/rangement/placer", { fichier, slug, type, ...(arrivee ? { arrivee: true } : {}) }),
     relancerRangement: () => appel("POST", "/api/rangement/relancer", {}),
     recap: (elements) => appel("POST", "/api/publication/recap", { elements }),

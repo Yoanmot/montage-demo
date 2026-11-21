@@ -12,6 +12,7 @@ import { barresSemaines, etapesFormat, nombreFr } from "./graphiques.js";
 import { PERIODES, periode, resumer } from "./tableau.js";
 import { comptesParFormat } from "./etapes.js";
 import { AjoutVideos } from "./ajout.js";
+import { ouvrirVisionneuse, barreTelechargement } from "./carrousel-vue.js";
 import { VueGalerie, Selecteur, AjoutGalerie, phraseEcart, minutes } from "./galerie.js";
 
 // Réglages de cet écran retenus par ce Mac (la période du tableau de bord) : le navigateur seulement, rien d'écrit
@@ -842,10 +843,17 @@ export class Vue {
     return el("div", { class: "telechargement" }, b, info);
   }
 
+  // Les slides mises en page : un clic en ouvre une en grand (flèches, Échap, téléchargement) ; « Tout télécharger » dessous.
   vueSlides(d) {
     const urls = d.medias?.slides || [];
     return el("div", {}, this.etapePublication(d),
-      el("div", { class: "slides-grille" }, ...urls.map((u, i) => el("figure", {}, el("img", { src: u, alt: `Image ${i + 1} du carrousel`, width: "300", height: "375", loading: "lazy" }), el("figcaption", {}, `Image ${i + 1}`)))));
+      el("ul", { class: "slides-grille", "aria-label": "Les slides, dans l'ordre" }, ...urls.map((u, i) => {
+        const b = el("button", { class: "cv-vignette", type: "button", "aria-label": `Voir la slide ${i + 1} en grand` },
+          el("img", { src: u, alt: "", width: "300", height: "375", loading: "lazy" }), el("span", {}, `Slide ${i + 1}`));
+        b.addEventListener("click", () => ouvrirVisionneuse({ urls, depart: i, titre: d.titre, slug: d.slug, api: this.api, retour: b }));
+        return el("li", {}, b);
+      })),
+      urls.length ? barreTelechargement(this.api, d.slug, urls.length) : null);
   }
 
   // ---------- Autres fichiers (19/11) : ce que le head of content a rangé dans le dossier à ta demande ----------
@@ -1606,10 +1614,20 @@ export class Vue {
         ? el("img", { class: "pub-image", src: c.vignette, alt: c.format === "reel" ? `Le début de la vidéo « ${c.titre} »` : `La première image du carrousel « ${c.titre} »`, width: c.format === "reel" ? "180" : "200", height: c.format === "reel" ? "320" : "250", loading: "lazy" })
         : el("span", { class: "pub-image pub-image-vide" }, c.format === "reel" ? "Pas encore d'image de la vidéo" : "Pas encore d'image du carrousel");
       if (c.vignette) image.addEventListener("error", () => image.replaceWith(el("span", { class: "pub-image pub-image-vide" }, "Image pas disponible")), { once: true });
+      // Un carrousel : sa première image ouvre toutes ses slides en grand, dans l'ordre.
+      const media = c.format === "carrousel" && c.vignette ? el("button", { class: "pub-voir", type: "button", "aria-label": `Voir les slides de « ${c.titre} » en grand` }, image) : image;
+      if (media !== image) {
+        media.addEventListener("click", async () => {
+          try {
+            const d = await this.api.carte(c.slug);
+            ouvrirVisionneuse({ urls: d.medias?.slides || [], titre: c.titre, slug: c.slug, api: this.api, retour: media });
+          } catch (e) { annoncer(e.message, "erreur"); }
+        });
+      }
       const bouton = el("button", { class: "bouton bouton-plein pub-preparer", type: "button", html: `${icone("envoi")}<span>Préparer à poster</span>` });
       bouton.addEventListener("click", () => preparer([c]));
       const carte = el("article", { class: `pub-carte f-${c.format}`, dataset: { slug: c.slug } },
-        el("div", { class: `pub-media pub-media-${c.format}` }, image,
+        el("div", { class: `pub-media pub-media-${c.format}` }, media,
           el("label", { class: "pub-choix", for: `pub-${c.slug}` }, caseC, el("span", {}, "Choisir"))),
         el("div", { class: "pub-corps" },
           el("span", { class: `tag tag-format f-${c.format}` }, el("span", { class: `pastille pastille-${c.format}`, "aria-hidden": "true" }), c.format === "reel" ? "Reel monté" : "Carrousel mis en page"),

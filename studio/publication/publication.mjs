@@ -445,6 +445,12 @@ function urlMedia(slug, ...parties) {
   return '/api/media/' + [slug, ...parties].map(encodeURIComponent).join('/');
 }
 
+// Les noms des slides, dans l'ordre des lignes « MEDIA <chemin> (<taille> Mo) » de verifier.
+export function slidesEnvoyees(medias) {
+  return (medias || []).map((m) => path.basename(String(m).replace(/\s+\([\d.,]+ Mo\)\s*$/, '')))
+    .filter((n) => /^slide-\d+\.(png|jpe?g)$/i.test(n));
+}
+
 // ------------------------------------------------------------------ recap
 
 // --pousser : la copie des scripts se remet d'abord au niveau du dépôt en ligne (texte validé depuis
@@ -629,6 +635,12 @@ async function verifierUn(demande, config, maintenant, executer, pretes, tiktokE
 
   const { code, sortie } = await executer(argsVerifier(el), { ecriture: false });
   const v = lireVerifier(sortie);
+  // L'ordre des slides montré au récapitulatif est celui que zernio.py enverra (ses lignes MEDIA, la liste même qu'il
+  // envoie à Zernio), jamais une autre lecture du dossier ; sans elles (vérification impossible), la lecture du lien.
+  if (el.type === 'carrousel') {
+    const ordre = slidesEnvoyees(v.medias);
+    if (ordre.length) el.slides_urls = ordre.map((n) => urlMedia(slug, 'slides', n));
+  }
   el.legende = v.legende;
   el.mot = v.mot;
   if (code !== 0 && code !== 1 && !v.bloque.length) {

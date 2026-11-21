@@ -34,7 +34,7 @@ import { Ressources, ressourcesActives } from "./ressources.mjs";
 import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
-import { telechargerVideo } from "./telecharger.mjs";
+import { telechargerVideo, telechargerSlides } from "./telecharger.mjs";
 import {
   vueGalerie, ficheGalerie, galerieSansChemins, outilGalerie, aDecrire, retoucherDescription, galerieDe, cheminVignette, ID_GALERIE,
 } from "./galerie.mjs";
@@ -817,6 +817,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           prenom: config.prenom,
           contact: config.contact,
           appli: config.appli?.nom || "Studio",
+          // Le nom du compte Instagram, pour l'aperçu d'un post au récapitulatif (null : le prénom à la place).
+          compte: config.client?.zernio?.compte || null,
           // Ressources gratuites (site réglé pour ce client) : entrée du menu, fichier du dossier, choix au
           // récapitulatif. Faux = rien de tout ça n'apparaît.
           ressources: ressourcesActives(config),
@@ -852,6 +854,17 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         const r = await telechargerVideo(config, slug, { montrer: process.env.STUDIO_SANS_FINDER !== "1" });
         if (!r) throw new ErreurStudio("INTROUVABLE", "Pas encore de vidéo montée pour ce contenu.", 404);
         journal("video_telechargee", { slug, nom: r.nom });
+        return envoyerJson(res, 200, { nom: r.nom });
+      }
+      // « Télécharger cette slide » ({ slide: n }) ou « Tout télécharger » (sans slide : un zip au nom du contenu) :
+      // dans Téléchargements, comme la vidéo. Aucun chemin n'est reçu ni rendu : le nom du fichier seulement.
+      if (m === "POST" && p[2] === "slides" && p[3] === "telecharger" && p.length === 4) {
+        const n = corps.slide === undefined || corps.slide === null ? null : corps.slide;
+        if (n !== null && !(Number.isInteger(n) && n >= 1 && n <= 99)) throw new ErreurStudio("REQUETE", "Je ne trouve pas cette slide.", 400);
+        const titre = [...cartes.values()].find((c) => c.slug === slug)?.titre || null;
+        const r = await telechargerSlides(config, slug, { n, titre, montrer: process.env.STUDIO_SANS_FINDER !== "1" });
+        if (!r) throw new ErreurStudio("INTROUVABLE", n === null ? "Ce carrousel n'a pas encore d'images." : "Je ne trouve pas cette slide.", 404);
+        journal("slides_telechargees", { slug, slide: n, nom: r.nom });
         return envoyerJson(res, 200, { nom: r.nom });
       }
       if (m === "POST" && p[2] === "valider") {

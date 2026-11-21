@@ -100,7 +100,13 @@ before(() => {
   png(path.join(slides, 'slide-02.png'), 1080, 1350);
   png(path.join(slides, 'slide-10.png'), 1080, 1350);
   ecrire(path.join(depot, 'rendus', 'carrousels', 'trois-erreurs.md'), '# 3 erreurs\n\n## Légende\n\nTrois erreurs que je vois tout le temps.\n');
-  ecrire(path.join(depot, 'rendus', 'registre.json'), JSON.stringify({ version: 1, carrousels: { 'trois-erreurs': { dossier: slides } } }));
+  // 11 slides aux numéros sans zéro (slide-1 ... slide-11) : l'ordre alphabétique mettrait slide-10 avant slide-2.
+  contenu('onze-slides', { format: 'carrousel', titre: 'Onze slides' });
+  const onze = path.join(racine, 'Pictures', 'Carrousels', 'carrousel-onze-slides');
+  for (const i of [7, 10, 1, 2, 11, 3, 9, 4, 8, 5, 6]) png(path.join(onze, `slide-${i}.png`), 1080, 1350);
+  ecrire(path.join(depot, 'rendus', 'carrousels', 'onze-slides.md'), '# Onze\n\n## Légende\n\nOnze images.\n');
+  ecrire(path.join(depot, 'rendus', 'registre.json'), JSON.stringify({ version: 1, carrousels: {
+    'trois-erreurs': { dossier: slides }, 'onze-slides': { dossier: onze } } }));
 });
 
 after(() => { if (racine) fs.rmSync(racine, { recursive: true, force: true }); });
@@ -164,6 +170,28 @@ describe('recap', () => {
     assert.deepEqual(e.slides_urls, ['/api/media/trois-erreurs/slides/slide-01.png', '/api/media/trois-erreurs/slides/slide-02.png', '/api/media/trois-erreurs/slides/slide-10.png']);
     assert.ok(fs.lstatSync(path.join(media, 'trois-erreurs', 'slides')).isSymbolicLink());
     assert.deepEqual(appels()[0].argv, ['verifier', 'trois-erreurs', '--carrousel', '--pousser']);
+  });
+});
+
+describe('ordre des slides', () => {
+  test('carrousel de 11 slides : l\'ordre montré au récapitulatif est l\'ordre envoyé à Zernio, numérique', async () => {
+    const r = await recap([{ slug: 'onze-slides', quand: `${DEMAIN} 12:15` }], config);
+    const [e] = r.elements;
+    assert.equal(e.verdict, 'OK', JSON.stringify(e.messages));
+    const montre = e.slides_urls.map((u) => decodeURIComponent(u.split('/').pop()));
+    assert.deepEqual(montre, Array.from({ length: 11 }, (_, i) => `slide-${i + 1}.png`));
+    // Ce que publier enverrait, dans l'ordre des envois de fichiers (simulation : rien ne part).
+    const { code, sortie } = await lancerZernio(config, ['publier', 'onze-slides', '--carrousel', '--quand', `${DEMAIN} 12:15`]);
+    assert.equal(code, 0, sortie);
+    const envoye = [...sortie.matchAll(/^REQUETE 2-envoi PUT \S+ \S+ \((slide-\d+\.png),/gm)].map((x) => x[1]);
+    assert.equal(envoye.length, 11, sortie);
+    assert.deepEqual(montre, envoye);
+  });
+
+  test('l\'ordre vient des lignes MEDIA de la vérification, pas d\'une autre lecture du dossier', async () => {
+    const { slidesEnvoyees } = await import('../publication.mjs');
+    assert.deepEqual(slidesEnvoyees(['~/Pictures/Carrousels/carrousel-a b/slide-10.png (0,4 Mo)', '/x/slide-2.jpg (1,2 Mo)', '/x/autre.png (1 Mo)']),
+      ['slide-10.png', 'slide-2.jpg']);
   });
 });
 

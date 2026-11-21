@@ -477,6 +477,7 @@ export function creerApiMaquette() {
     async noteApercu() { await attendre(200); return {}; },
     async fabriquer() { await attendre(200); return {}; },
     async telecharger(slug) { await attendre(200); return { nom: `${slug}.mp4` }; },
+    async telechargerSlides(slug, n) { await attendre(200); return { nom: n ? `${slug} ${String(n).padStart(2, "0")}.png` : `${slug}.zip` }; },
     async retirerRush(slug, id) {
       await attendre(300);
       const c = parSlug(slug); const m = montageDe(c);

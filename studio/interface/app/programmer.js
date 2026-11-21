@@ -23,6 +23,7 @@
 
 import { el, icone, annoncer, quandLisible, pluriel } from "./outils.js";
 import { motAbsent } from "./mot-absent.js";
+import { apercuPost } from "./carrousel-vue.js";
 
 const VERDICTS = {
   OK: { cls: "ok", texte: "Prêt à partir" },
@@ -105,7 +106,9 @@ function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
   const retouches = retouchesDe.get(conteneur); // slug -> { legende?, legende_tiktok?, message?, bouton?, ressource? }
   const erreurs = new Map(); // "slug:champ" -> phrase
   const verdicts = new Map(); // slug -> () => "ok" | "attention" | "bloque" | null (rien de coché)
-  const ctx = { recap, retouches, erreurs, quands, choix, verdicts, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false, maj: () => { if (ctx.pret) majPied(); } };
+  const ctx = { recap, retouches, erreurs, quands, choix, verdicts, limites: recap.limites || { legende: 2200, message: 640, bouton: 20 }, pret: false,
+    // L'aperçu d'un post carrousel : le nom du compte en tête, et les téléchargements de la visionneuse.
+    compte: studio.config?.compte || (studio.config?.prenom || "").toLowerCase() || null, api: studio.api, maj: () => { if (ctx.pret) majPied(); } };
   const lignes = els.map((e) => ligne(e, modifs, retires, () => majPied(), recap.ressources, choixRessource, ctx, choixEssai));
   const resume = el("p", { class: "recap-resume" });
   const ouListe = el("ul", { class: "rp-ou", "aria-label": "Où part chaque contenu" });
@@ -206,10 +209,14 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
     if (r) retires.add(e.slug); else retires.delete(e.slug);
     n.classList.toggle("retiree", r); retirer.textContent = r ? "Remettre" : "Retirer"; auChangement();
   });
+  // Un carrousel : l'aperçu du post, slides dans l'ordre que le serveur a lu dans ce qui part vraiment (slides_urls).
+  const post = !e.video_url && e.slides_urls?.length
+    ? apercuPost({ urls: e.slides_urls, compte: ctx.compte, legende: e.legende, titre: e.titre, slug: e.slug, api: ctx.api }) : null;
   const media = e.video_url
     ? el("video", { class: "recap-video", src: e.video_url, controls: true, preload: "metadata", width: "110", height: "196" })
-    : e.slides_urls?.length ? el("div", { class: "recap-slides" }, ...e.slides_urls.slice(0, 4).map((u, i) => el("img", { src: u, alt: `Image ${i + 1}`, width: "54", height: "68", loading: "lazy" }))) : null;
+    : post ? post.noeud : null;
   if (!media) n.classList.add("sans-media");
+  if (post) n.classList.add("avec-post");
   // Les messages du serveur, et l'avertissement du mot absent qui suit la légende telle qu'elle est tapée.
   const absent = e.mot_absent || null;
   const base = (e.messages || []).filter((m) => !absent || m !== absent.message);
@@ -284,8 +291,9 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
   if (tk.possible) blocTk.append(el("p", { class: "rp-bloc-titre" }, `TikTok${tk.nom ? ` (@${tk.nom})` : ""}`), messagesTiktok, champsTiktok(e, tk, c, ctx));
 
   for (const [k, x] of [["instagram", caseIg], ["tiktok", caseTk]]) {
-    x.addEventListener("change", () => { c[k] = x.checked; majMot(); majRessource(); ctx.maj(); });
+    x.addEventListener("change", () => { c[k] = x.checked; majMot(); majRessource(); post?.tiktok(Boolean(c.tiktok)); ctx.maj(); });
   }
+  post?.tiktok(Boolean(c.tiktok));
   majMot(e.legende);
   majRessource();
   n.append(
