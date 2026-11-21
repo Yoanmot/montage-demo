@@ -41,7 +41,7 @@ test("conso : l'événement réel donne un pourcentage (la fenêtre la plus remp
   let v = c.vue(t0);
   assert.equal(v.niveau, "large");
   assert.match(v.phrase, /^Claude : 63 % de ta limite de la semaine, remise à zéro (demain vers|le .+ vers) \d+ h/);
-  assert.ok(!/—/.test(v.phrase));
+  assert.ok(!/\u2014/.test(v.phrase), "aucun tiret cadratin");
   // Relu après un redémarrage : c'est un fichier, pas une mémoire.
   assert.deepEqual(new Conso({ home: m.home }).vue(t0), v);
   // La semaine repasse à zéro : reste la fenêtre de 5 h (ici, on simule l'heure).
