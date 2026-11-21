@@ -52,6 +52,20 @@ ul.slides-grille { list-style: none; padding: 0; }
 
 /* ---------- Aperçu du post, au récapitulatif ---------- */
 .recap-ligne.avec-post { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); }
+/* À côté de l'aperçu du post, la colonne des réglages est étroite (moins de 460 px de 1280 à 1600 px avec le chat
+   ouvert) : chaque intitulé passe au-dessus de son champ, sinon le jour et l'heure sortaient de la carte, cachés. */
+.recap-ligne.avec-post .recap-infos { container-type: inline-size; }
+@container (max-width: 459px) {
+  .recap-ligne.avec-post .recap-champs { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .recap-ligne.avec-post .recap-champs dd + dt { margin-top: 8px; }
+}
+.recap-ligne.avec-post .quand-champs { flex-wrap: wrap; }
+/* Colonne du milieu trop étroite pour l'aperçu et les réglages côte à côte (1280 px, chat ouvert) : l'aperçu passe
+   au-dessus. Mesuré sur la vue, pas sur l'écran : les panneaux de côté prennent leur part. */
+@container (max-width: 659px) {
+  .recap-ligne.avec-post { grid-template-columns: minmax(0, 1fr); }
+  .recap-ligne.avec-post .recap-media { max-width: 360px; width: 100%; }
+}
 .ig-zone { display: grid; gap: 8px; }
 .ig-post { margin: 0; background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden; }
 .ig-tete { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }

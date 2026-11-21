@@ -36,7 +36,10 @@ function sansCommentaires(t) {
 test("fichiers de client : même format pour les deux, Romain = les valeurs d'avant", () => {
   const r = chargerClient({ id: "romain" });
   const y = chargerClient({ id: "yoan" });
-  const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).sort();
+  // « appareil » (21/11, installation livrée) : Romain filme à l'iPhone, l'installation ne lui pose plus la question ;
+  // clé facultative, absente chez Yoan.
+  const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).filter((k) => k !== "appareil").sort();
+  assert.equal(JSON.parse(fs.readFileSync(r.fichier, "utf8")).appareil, "iPhone");
   assert.deepEqual(cles(y), cles(r));
   assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "claude", "config_claude", "contact", "head_of_content", "id", "label_launchd",
     "monteur", "polices_locales", "port", "prenom", "racine", "reels_essai", "ressources", "skill_carrousel", "theme", "zernio"]);
