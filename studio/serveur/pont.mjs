@@ -296,12 +296,13 @@ export class Pont extends EventEmitter {
 
   // ------------------------------------------------------------ envoyer
 
-  // texte : ce que voit Romain (noté dans l'historique si `romain`) ; envoi : ce qui part au modèle.
-  envoyer(chatId, { texte, envoi, romain = true, parFile = false, besoin = {} }) {
+  // texte : ce que voit Romain (noté dans l'historique si `romain`) ; envoi : ce qui part au modèle ; joints : les
+  // fichiers joints à son message ({ nom, fichier, genre, taille }), montrés sous sa bulle.
+  envoyer(chatId, { texte, envoi, romain = true, parFile = false, besoin = {}, joints = [] }) {
     if (!typeDeChat(chatId)) throw new Error(`chat inconnu : ${chatId}`);
     const le = isoZurich();
-    if (romain && texte) {
-      this.noter(chatId, { n: this.prochainN(chatId), le, role: "romain", type: "texte", texte });
+    if (romain && (texte || joints.length)) {
+      this.noter(chatId, { n: this.prochainN(chatId), le, role: "romain", type: "texte", texte: texte || "", ...(joints.length ? { joints } : {}) });
     }
     const ligne = ligneUtilisateur(envoi ?? texte);
     const p = this.processus.get(chatId);

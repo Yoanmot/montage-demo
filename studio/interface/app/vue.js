@@ -886,7 +886,7 @@ export class Vue {
             el("span", { class: "af-liste-nom" }, f.nom), el("span", { class: "af-taille" }, tailleLisible(f.taille))))) : null),
         { aide: pluriel(fs.length, "fichier", "fichiers") });
       });
-    return el("div", {}, el("p", { class: "af-intro" }, `Ce que ton head of content a ajouté à ce dossier quand tu le lui as demandé.${d.format === "reel" ? " Ton monteur les retrouve aussi." : ""}`), ...blocs);
+    return el("div", {}, el("p", { class: "af-intro" }, `Ce que ton head of content a ajouté à ce dossier quand tu le lui as demandé, et les fichiers que tu as joints dans le chat.${d.format === "reel" ? " Ton monteur les retrouve aussi." : ""}`), ...blocs);
   }
 
   // Un texte du dossier, lu à l'ouverture (un très long fichier ne s'affiche pas en entier ici).

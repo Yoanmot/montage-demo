@@ -59,7 +59,10 @@ export function creerApiServeur() {
     lancer: (type, slugs) => appel("POST", "/api/actions", { type, slugs }),
     arreterAction: (id) => appel("POST", `/api/actions/${enc(id)}/arreter`, {}),
     chat: (chatId) => appel("GET", `/api/chats/${enc(chatId)}`),
-    envoyer: (chatId, texte) => appel("POST", `/api/chats/${enc(chatId)}/messages`, { texte }),
+    envoyer: (chatId, texte, joints = []) => appel("POST", `/api/chats/${enc(chatId)}/messages`, { texte, ...(joints.length ? { joints } : {}) }),
+    envoyerJoint,
+    retirerJoint: (chatId, id) => appel("POST", `/api/chats/${enc(chatId)}/joints/${enc(id)}/retirer`, {}),
+    urlJoint: (chatId, fichier) => `/api/chats/${enc(chatId)}/joints/${enc(fichier)}`,
     arreterChat: (chatId) => appel("POST", `/api/chats/${enc(chatId)}/arreter`, {}),
     nouvelleConversation: (chatId) => appel("POST", `/api/chats/${enc(chatId)}/nouvelle`, {}),
     relancerAction: (id) => appel("POST", `/api/actions/${enc(id)}/relancer`, {}),
@@ -134,6 +137,34 @@ function envoyerFichier(slug, fichier, type, onProgres = () => {}) {
 function envoyerGalerie(fichier, { slug = null, slide = null } = {}, onProgres = () => {}) {
   let xhr = null; let arrete = false;
   const route = (q) => `/api/galerie/envoyer?${new URLSearchParams({ nom: fichier.name, ...(slug ? { slug } : {}), ...(slide ? { slide: String(slide) } : {}), ...q })}`;
+  const fin = (async () => {
+    await appel("POST", route({ verifier: "1", taille: String(fichier.size) }));
+    if (arrete) throw new ErreurStudio("ARRETE", "Envoi arrêté.", 0);
+    return new Promise((resolve, reject) => {
+      xhr = new XMLHttpRequest();
+      xhr.open("POST", route({}));
+      xhr.withCredentials = true;
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgres(Math.min(100, Math.floor((e.loaded / e.total) * 100))); };
+      xhr.onabort = () => reject(new ErreurStudio("ARRETE", "Envoi arrêté.", 0));
+      xhr.onerror = () => reject(new ErreurStudio("RESEAU", MESSAGE_RESEAU, 0));
+      xhr.onload = () => {
+        let d = null; try { d = JSON.parse(xhr.responseText); } catch { d = null; }
+        if (xhr.status === 401) window.dispatchEvent(new CustomEvent("studio-deconnecte"));
+        if (xhr.status >= 200 && xhr.status < 300) return resolve(d || {});
+        reject(new ErreurStudio(d?.erreur || "ERREUR", d?.message || `Ça n'a pas marché. Réessaie, et si ça recommence, ${previens()}.`, xhr.status));
+      };
+      xhr.send(fichier);
+    });
+  })();
+  return { fin, arreter: () => { arrete = true; xhr?.abort(); } };
+}
+
+// Un fichier joint à un message du chat (22/11) : mêmes contrôles d'abord, puis le fichier en flux, avec sa progression.
+// Rend { fin, arreter } ; fin donne { id, nom, genre }, l'identifiant à joindre au message.
+function envoyerJoint(chatId, fichier, onProgres = () => {}) {
+  let xhr = null; let arrete = false;
+  const route = (q) => `/api/chats/${enc(chatId)}/joints?${new URLSearchParams({ nom: fichier.name, ...q })}`;
   const fin = (async () => {
     await appel("POST", route({ verifier: "1", taille: String(fichier.size) }));
     if (arrete) throw new ErreurStudio("ARRETE", "Envoi arrêté.", 0);

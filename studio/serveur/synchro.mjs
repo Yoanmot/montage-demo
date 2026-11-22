@@ -318,13 +318,16 @@ export class Synchro extends EventEmitter {
     return false;
   }
 
-  // Enregistre et pousse un seul fichier écrit par le studio (bibliothèque). Rejoue une fois.
+  // Enregistre et pousse un fichier écrit par le studio (bibliothèque), ou une liste (fichiers joints d'un message,
+  // ajoutés un par un : un fichier que le .gitignore écarte ne bloque pas les autres). Rejoue une fois.
   async pousserFichier(relatif, message) {
     if (!fs.existsSync(path.join(this.depot, ".git"))) return false;
-    await this.git(["add", "--", relatif]);
-    const diff = await this.git(["diff", "--cached", "--quiet", "--", relatif]);
+    const liste = [];
+    for (const f of [].concat(relatif)) if ((await this.git(["add", "--", f])).code === 0 || !Array.isArray(relatif)) liste.push(f);
+    if (!liste.length) return true;
+    const diff = await this.git(["diff", "--cached", "--quiet", "--", ...liste]);
     if (diff.code === 0) return true;
-    const c = await this.git(["commit", "-q", "-m", message, "--", relatif]);
+    const c = await this.git(["commit", "-q", "-m", message, "--", ...liste]);
     if (c.code !== 0) return false;
     if (!(await this.aUnAmont())) return true;
     return this.envoyer();

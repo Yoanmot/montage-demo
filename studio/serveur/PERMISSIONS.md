@@ -52,6 +52,11 @@ claude -p --input-format stream-json --output-format stream-json --verbose --inc
     verrous du rangement et de la Galerie.
   La consigne du studio et la tête de chaque agent posent le principe (« le déroulé dit ce que tu
   fais quand on ne demande rien, jamais une limite ») et la liste de ce qui reste fermé.
+- **Fichiers joints** (2026-11-22) : un fichier joint dans le chat est rangé par le serveur (pas par la session) dans
+  `DEPOT/contenus/<slug>/fichiers-joints/` (chat d'un contenu, head of content ou monteur) ou `DEPOT/fichiers-joints/`
+  (chat général, tournage), puis son chemin absolu part dans le message. Rien à ouvrir en plus : `Read` est permis
+  partout sauf les refus, le dépôt est le dossier des sessions du head of content, et `DEPOT/contenus` est déjà ouvert
+  au monteur (`--add-dir`). Voir `joints.mjs`.
 - **Modèle** (2026-11-19) : `--model` vient de `claude.modele` de `studio.config.json`, sinon de
   `claude.modele` du fichier du client (`clients/<id>.json`), sinon rien (l'abonnement choisit).
   `claude.modele_sous_agents` du client pose `CLAUDE_CODE_SUBAGENT_MODEL` (sous-agents intégrés

@@ -34,6 +34,7 @@ import { Ressources, ressourcesActives, motParLeServeur } from "./ressources.mjs
 import { adresser, clientActif } from "./client.mjs";
 import { vignetteReel, apercuRessource } from "./vignettes.mjs";
 import { fichierAutre } from "./autres.mjs";
+import { nomJoint, genreJoint, refusJoint, dossierJoints, placerJoint, ligneJoints, JOINTS_PAR_MESSAGE } from "./joints.mjs";
 import { telechargerVideo, telechargerSlides } from "./telecharger.mjs";
 import {
   vueGalerie, ficheGalerie, galerieSansChemins, outilGalerie, aDecrire, retoucherDescription, galerieDe, cheminVignette, ID_GALERIE,
@@ -754,6 +755,62 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     }
   }
 
+  // POST /api/chats/<chat>/joints?nom=<nom>[&verifier=1&taille=<octets>] , corps = le fichier brut (22/11/2026) : un
+  // fichier joint à un message, gardé dans STUDIO_HOME/envois/ jusqu'à l'envoi du message, qui le range dans le dépôt
+  // (joints.mjs). Rend { id, nom, genre }. Un fichier jamais envoyé part avec le ménage des envois (un jour).
+  const jointsAttente = new Map(); // id -> { chatId, dossier, chemin, nom, genre, taille }
+  async function recevoirJoint(req, res, chatId, url) {
+    const verifier = url.searchParams.get("verifier") === "1";
+    const refuser = (statut, code, message) => {
+      res.setHeader("Connection", "close");
+      erreur(res, statut, code, message);
+      res.on("finish", () => req.destroy());
+    };
+    const t = typeDeChat(chatId);
+    if (!t || t.genre === "galerie" || (t.slug && !existe(path.join(config.depot, "contenus", t.slug)))) {
+      return refuser(404, "INTROUVABLE", "Je ne trouve pas cette conversation.");
+    }
+    const nom = nomJoint(url.searchParams.get("nom"));
+    const taille = Number(verifier ? url.searchParams.get("taille") : req.headers["content-length"]);
+    const refus = refusJoint(nom, taille, { contenu: Boolean(t.slug) });
+    if (refus) return refuser(refus.statut, refus.code, refus.message);
+    const envois = path.join(config.home, "envois");
+    fs.mkdirSync(envois, { recursive: true });
+    if (placeLibre(envois) < taille + ENVOI_MARGE || placeLibre(config.depot) < taille + ENVOI_MARGE) {
+      return refuser(507, "PLUS_DE_PLACE", "Ton Mac n'a plus assez de place pour ce fichier. Libère de la place, puis réessaie.");
+    }
+    if (verifier) return envoyerJson(res, 200, {});
+    const recu = await recevoirFlux(req, res, { nom, taille, refuser, slug: t.slug || null });
+    if (!recu) return undefined;
+    const id = path.basename(recu.dossier);
+    const genre = genreJoint(nom);
+    jointsAttente.set(id, { chatId, ...recu, nom, genre, taille });
+    journal("joint_recu", { chat: chatId, genre, taille });
+    return envoyerJson(res, 200, { id, nom, genre });
+  }
+
+  // Les fichiers joints d'un message, au moment de l'envoyer : rangés dans le dépôt, enregistrés (git), puis rendus
+  // pour l'historique ({ fichier, genre, taille }) avec la ligne qui donne leurs chemins à l'agent.
+  async function rangerJoints(t, enAttente) {
+    const rel = dossierJoints(t);
+    const places = [];
+    for (const j of enAttente) {
+      const p = placerJoint(config.depot, rel, j.chemin, j.nom);
+      let taille = j.taille;
+      try { taille = fs.statSync(path.join(config.depot, p.relatif)).size; } catch { /* rien */ }
+      places.push({ ...p, genre: genreJoint(p.fichier), taille });
+      fs.rmSync(j.dossier, { recursive: true, force: true });
+      jointsAttente.delete(path.basename(j.dossier));
+    }
+    await synchro.pousserFichier(places.map((p) => p.relatif), `Studio : fichiers joints${t.slug ? ` (${t.slug})` : ""}`).catch(() => false);
+    journal("joints_ranges", { slug: t.slug || undefined, n: places.length });
+    rafraichir();
+    return {
+      joints: places.map((p) => ({ fichier: p.fichier, genre: p.genre, taille: p.taille })),
+      ligne: ligneJoints(config.client?.prenom || config.prenom, config.depot, places),
+    };
+  }
+
   async function avantAction() {
     try { await synchro.tirer(); } catch { /* hors ligne : on travaille avec ce qu'on a */ }
   }
@@ -797,7 +854,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     const m = req.method;
     // L'envoi d'une vidéo (plusieurs Go) se lit en flux : la limite de 1 Mo des routes JSON ne s'y applique pas.
     const estEnvoi = m === "POST" && ((p[0] === "cartes" && p[2] === "rushs" && p[3] === "envoyer" && p.length === 4)
-      || (p[0] === "galerie" && p[1] === "envoyer" && p.length === 2));
+      || (p[0] === "galerie" && p[1] === "envoyer" && p.length === 2)
+      || (p[0] === "chats" && p[2] === "joints" && p.length === 3));
     const corps = m === "POST" && !estEnvoi ? await lireCorps(req) : {};
 
     if (m === "GET" && p[0] === "etat" && p.length === 1) {
@@ -1272,7 +1330,25 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
 
     if (p[0] === "chats" && p.length >= 2) {
       const chatId = decodeURIComponent(p[1]);
+      // Un fichier joint (22/11) : lu en flux, avant tout contrôle qui répondrait sans couper la connexion.
+      if (m === "POST" && p[2] === "joints" && p.length === 3) return recevoirJoint(req, res, chatId, url);
       const t = exigerChat(chatId);
+      // Retirer un fichier joint avant l'envoi (la croix de sa pastille).
+      if (m === "POST" && p[2] === "joints" && p[4] === "retirer" && p.length === 5) {
+        const j = jointsAttente.get(String(p[3]));
+        if (j && j.chatId === chatId) {
+          fs.rmSync(j.dossier, { recursive: true, force: true });
+          jointsAttente.delete(String(p[3]));
+        }
+        return envoyerJson(res, 200, {});
+      }
+      // La vignette d'une image jointe, dans l'historique : seulement dans le dossier des fichiers joints de ce chat.
+      if (m === "GET" && p[2] === "joints" && p.length === 4) {
+        const seg = segmentsSurs([p[3]]);
+        const f = seg && genreJoint(seg[0]) === "image" ? fichierAutre(path.join(config.depot, dossierJoints(t)), seg) : null;
+        if (!f) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce fichier.", 404);
+        return servirFichier(req, res, f, { cache: "private, max-age=86400" });
+      }
       if (m === "GET" && p.length === 2) {
         return envoyerJson(res, 200, { messages: pont.historique(chatId), etat: pont.etat(chatId) });
       }
@@ -1283,7 +1359,15 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
       if (m === "POST" && p[2] === "messages") {
         const texte = typeof corps.texte === "string" ? corps.texte.trim().slice(0, 20000) : "";
-        if (!texte) throw new ErreurStudio("VIDE", "Écris ton message avant de l'envoyer.", 400);
+        // Les fichiers joints (22/11) : des identifiants rendus par l'envoi de chaque fichier, pour ce chat.
+        const ids = Array.isArray(corps.joints) ? [...new Set(corps.joints.map(String))] : [];
+        if (ids.length > JOINTS_PAR_MESSAGE) throw new ErreurStudio("TROP_DE_FICHIERS", `Tu peux joindre ${JOINTS_PAR_MESSAGE} fichiers au plus par message.`, 400);
+        const enAttente = ids.map((id) => {
+          const j = jointsAttente.get(id);
+          if (!j || j.chatId !== chatId || !existe(j.chemin)) throw new ErreurStudio("JOINT_PERDU", "Un fichier joint n'est plus là : retire-le, puis joins-le à nouveau.", 409);
+          return j;
+        });
+        if (!texte && !enAttente.length) throw new ErreurStudio("VIDE", "Écris ton message avant de l'envoyer.", 400);
         // Retour après une pause : le chat général repart sur une conversation neuve (l'ancienne est archivée).
         if (t.genre === "general" && !pont.actif(chatId)) {
           const dernier = pont.dernierMessage(chatId);
@@ -1296,8 +1380,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         if (!pont.actif(chatId)) await avantAction();
         file.repriseParRomain(chatId);
         const action = file.actionDuChat(chatId, ["en_cours"]);
+        const { joints = [], ligne = "" } = enAttente.length ? await rangerJoints(t, enAttente) : {};
         pont.envoyer(chatId, {
-          texte, envoi: messagePourModele(chatId, t, texte), romain: true,
+          texte, envoi: messagePourModele(chatId, t, [texte, ligne].filter(Boolean).join("\n\n")), romain: true, joints,
           besoin: { miseEnPage: action?.type === "mise_en_page", slug: t.slug },
         });
         return envoyerJson(res, 200, {});

@@ -526,6 +526,14 @@ export function creerApiMaquette() {
     },
     async chat(id) { await attendre(100); const ch = chatDe(id); return { messages: ch.messages.map((m) => ({ ...m })), etat: ch.etat }; },
     async envoyer(id, texte) { await attendre(150); repondre(id, texte); return {}; },
+    // Fichiers joints (22/11) : progression simulée, rien n'est rangé.
+    envoyerJoint(chatId, fichier, onProgres = () => {}) {
+      let t = null; let n = 0;
+      const fin = new Promise((ok) => { t = setInterval(() => { n += 25; onProgres(Math.min(100, n)); if (n >= 100) { clearInterval(t); ok({ id: `m-${Date.now()}`, nom: fichier.name, genre: "autre" }); } }, 150); });
+      return { fin, arreter: () => clearInterval(t) };
+    },
+    async retirerJoint() { return {}; },
+    urlJoint: () => "",
     async arreterChat(id) {
       await attendre(150); enCours[id] = null;
       const ch = chatDe(id); const n = (ch.messages.at(-1)?.n || 0) + 1;

@@ -551,6 +551,34 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .chat.attend .chat-champ { border-color: var(--orange); }
 .chat-envoyer, .chat-stop { height: 44px; }
 .chat-aide { font-size: 12px; color: var(--encre-3); }
+/* Fichiers joints (22/11) : trombone, pastilles avant l'envoi, pièces jointes d'un message. Préfixe pj-. */
+.chat-joindre { flex: none; width: 40px; height: 44px; }
+.chat-joindre .ico { width: 19px; height: 19px; }
+.chat-joindre:focus-visible, .pj-retirer:focus-visible, .pj-msg-image:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.chat.pj-survol { outline: 2px dashed var(--orange); outline-offset: -6px; }
+.pj-pastilles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pj-pastilles[hidden] { display: none; }
+.pj-pastille { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 4px 2px 4px 4px; border: 1px solid var(--trait); border-radius: var(--rayon-petit); background: var(--surface); font-size: 13px; }
+.pj-pastille.pj-etat-erreur { border-color: color-mix(in srgb, var(--rouge) 55%, transparent); }
+.pj-vignette { flex: none; width: 36px; height: 36px; border-radius: var(--rayon-mini); object-fit: contain; background: var(--fond-2); }
+.pj-icone { display: grid; place-items: center; color: var(--encre-2); }
+.pj-icone .ico { width: 18px; height: 18px; }
+.pj-texte { display: grid; gap: 2px; min-width: 0; }
+.pj-nom { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.pj-poids { color: var(--encre-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pj-erreur { color: var(--rouge); font-size: 12px; }
+.pj-pastille .pj-erreur { max-width: 260px; }
+.pj-progres { width: 120px; height: 6px; accent-color: var(--orange); }
+.pj-retirer { flex: none; width: 30px; height: 30px; }
+.pj-retirer .ico { width: 15px; height: 15px; }
+.pj-msg { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 100%; }
+.pj-msg-image { display: block; padding: 0; border: 1px solid var(--trait); border-radius: var(--rayon-petit); background: var(--fond-2); overflow: hidden; cursor: zoom-in; }
+.pj-msg-image img { display: block; width: 120px; height: 120px; object-fit: contain; }
+.pj-msg-fichier { display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 7px 11px; border: 1px solid var(--trait); border-radius: var(--rayon-petit); background: var(--surface); font-size: 13px; }
+.pj-msg-ico { display: grid; color: var(--encre-2); }
+.pj-msg-ico .ico { width: 16px; height: 16px; }
+.pj-msg-nom { overflow-wrap: anywhere; }
+@media (max-width: 860px) { .pj-retirer { width: 44px; height: 44px; } .chat-joindre { width: 44px; } }
 .chat-note { margin: 12px 16px 0; padding: 9px 12px; font-size: 13px; color: var(--encre-2); background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon-petit); }
 .chat-planche { flex: none; display: flex; gap: 10px; align-items: center; margin: 12px 16px 0; padding: 8px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent); border-radius: var(--rayon-petit); font-size: 13px; }
 

@@ -190,6 +190,8 @@ const P = {
   galerie: '<rect x="3.5" y="4.5" width="13" height="11" rx="2"/><path d="M3.5 13l4-3.5 3.5 3 2.5-2 3 2.6"/><circle cx="13" cy="8.2" r="1.3"/>',
   chercher: '<circle cx="9" cy="9" r="5"/><path d="M13 13l3.5 3.5"/>',
   corbeille: '<path d="M4 6.5h12M8 6.5V4.5h4v2M5.5 6.5l.8 9a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-9"/>',
+  // Joindre un fichier au chat (22/11) : un trombone.
+  trombone: '<path d="M15 9.2l-5.6 5.6a3.3 3.3 0 0 1-4.7-4.7l6.2-6.2a2.2 2.2 0 0 1 3.1 3.1l-6 6a1.1 1.1 0 0 1-1.6-1.6l5.5-5.5"/>',
   maison: '<path d="M3.5 9.5L10 4l6.5 5.5"/><path d="M5.5 8v8h9V8"/>',
   ecarter: '<path d="M4 6.5h12M8 6.5V4.5h4v2M5.5 6.5l.8 9a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-9"/>',
 };
