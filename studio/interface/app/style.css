@@ -935,3 +935,9 @@ video:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* Télécharger la vidéo montée (19/11) */
 .telechargement { margin-top: 16px; max-width: 340px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* Image jointe : damier derrière, pour qu'un logo blanc ou noir sur fond transparent se voie dans les deux thèmes. */
+img.pj-vignette, .pj-msg-image img {
+  background-color: #d9d6d0;
+  background-image: conic-gradient(#b9b5ad 25%, transparent 0 50%, #b9b5ad 0 75%, transparent 0);
+  background-size: 12px 12px;
+}
