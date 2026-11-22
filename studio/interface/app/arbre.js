@@ -37,9 +37,11 @@ function etatFichier(c, f, etatsRessources = null) {
     if (s === "planche") return c.activite === "en_cours" ? ["en cours", false] : ["aperçu à valider", true];
   }
   if (f === "ressource") {
+    if (c.ressource === "aucune") return ["aucune", false];
     if (c.ressource === "en_ligne") {
       // Dans le site, mais lue à son adresse ? L'état réel s'il est connu (liste des ressources déjà lue).
-      const reel = etatsRessources?.get(c.slug);
+      // La ressource reliée peut vivre ailleurs (22/11/2026) : son état se lit sous son nom à elle.
+      const reel = etatsRessources?.get(c.ressource_slug || c.slug);
       if (reel === "mise_a_jour") return ["mise en ligne", false];
       if (reel === "erreur") return ["en erreur", true];
       return ["en ligne", false];

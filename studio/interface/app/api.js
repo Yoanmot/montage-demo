@@ -88,6 +88,8 @@ export function creerApiServeur() {
     poserMot: (slug, ressource) => appel("POST", "/api/publication/poser-mot", { slug, ressource }),
     ressources: () => appel("GET", "/api/ressources"),
     supprimerRessource: (slug) => appel("POST", `/api/ressources/${enc(slug)}/supprimer`, {}),
+    relierRessource: (contenu, ressource, textes = {}) => appel("POST", "/api/ressources/relier", { contenu, ressource, ...textes }),
+    delierRessource: (contenu) => appel("POST", "/api/ressources/delier", { contenu }),
     // La Galerie (lot 15).
     galerie: (pour = null) => appel("GET", `/api/galerie${pour ? `?pour=${enc(pour)}` : ""}`),
     ficheGalerie: (id) => appel("GET", `/api/galerie/${enc(id)}`),

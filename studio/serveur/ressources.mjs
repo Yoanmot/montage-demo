@@ -18,11 +18,13 @@
 // Jamais de variable d'écriture Zernio : une ressource qu'un post offre encore n'est pas supprimée.
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { executer, lireVerdict } from "./commandes.mjs";
 import { existe, lireJson, SLUG_RE } from "./outils.mjs";
 import { ErreurStudio, phraseBloque } from "./depot-outils.mjs";
 import { VARIABLES_ECRITURE, contact } from "./client.mjs";
 import { pageRessource } from "./vignettes.mjs";
+import { liaisonsPossibles, ressourceDuContenu } from "./liaisons.mjs";
 
 export const ressourcesActives = (config) => Boolean(config?.apercuRessources);
 // Le studio pose-t-il lui-même le mot en commentaire (choix de la ressource au moment de poster, règle
@@ -88,6 +90,17 @@ export function etatRessourceRapide(config, slug) {
   if (existe(path.join(config.depot, "site", slug, "index.html"))) return "en_ligne";
   if (existe(path.join(config.depot, "site", "_brouillons", slug, "index.html"))) return "brouillon";
   return "fiche";
+}
+
+// La ressource qu'offre un contenu (22/11/2026) : celle de sa liaison, sinon sa propre fiche ; et son état
+// lu sur le disque. { slug, etat } ou null. Un contenu sans ressource, chez un client qui peut en relier
+// (le studio pose le mot, l'outil de liaison est là) : { slug: null, etat: "aucune" }, pour que son dossier
+// montre l'entrée « Ressource gratuite » d'où la relier.
+export function ressourceDuDossier(config, contenu) {
+  const r = ressourceDuContenu(config.depot, contenu);
+  const etat = r ? etatRessourceRapide(config, r) : null;
+  if (r && etat) return { slug: r, etat };
+  return motParLeStudio(config) && liaisonsPossibles(config.depot) ? { slug: null, etat: "aucune" } : null;
 }
 
 // La page lue à son adresse (ressource.py, « en_ligne_reel »), en mots pour le client. Le détail donné
@@ -166,6 +179,13 @@ export function raisonDeGarder(posts, mot) {
     const ta = actifs.length === 1 ? `ta vidéo ${titres[0]}` : `tes vidéos ${listeTitres(titres)}`;
     return `Je la garde : ${mot ? `le mot ${mot}` : "son mot"} attend ${ta} pour envoyer son lien. Sans elle, ceux qui le commenteront tomberaient sur une page qui n'existe plus.`;
   }
+  // Plusieurs posts avec chacun leur mot (22/11/2026) : chaque mot sous son post.
+  const mots = [...new Set(actifs.map((p) => p.mot).filter(Boolean))];
+  if (mots.length > 1) {
+    const parties = actifs.map((p) => `${p.mot || mot || "son mot"} sous ton post « ${p.titre} »`);
+    return `Je la garde : ceux qui commentent ${listeTitres(parties).replace(/ et ([^,]*)$/, " ou $1")} reçoivent son lien. Sans elle, ils tomberaient sur une page qui n'existe plus.`;
+  }
+  mot = mots[0] || mot;
   const ceux = mot ? `ceux qui commentent ${mot} sous ` : "ceux qui commentent sous ";
   const ou = actifs.length === 1 ? `ton post ${titres[0]}` : `tes posts ${listeTitres(titres)}`;
   return `Je la garde : ${ceux}${ou} reçoivent son lien. Sans elle, ils tomberaient sur une page qui n'existe plus.`;
@@ -195,6 +215,7 @@ export class Ressources {
       // Mot posé par le serveur : la fiche du mot vient de ressource.py (mot, message, mot chez le serveur).
       serveur ? null : outilJson(this.config, "zernio.py", ["ressources", "--format", "json"]),
     ]);
+    this.liaisons = Boolean(fiches?.liaisons) && liaisonsPossibles(this.config.depot);
     if (!pages && !fiches) {
       throw new ErreurStudio("RESSOURCES_ILLISIBLES", `Je n'arrive pas à lire tes ressources gratuites pour l'instant. Réessaie, et si ça recommence, préviens ${contact()}.`, 503);
     }
@@ -261,7 +282,21 @@ export class Ressources {
       problemes: [...new Set((fiche?.problemes || []).map(phraseProbleme))],
       // Ce qui empêche un post de l'offrir, hors validation du message (le clic sur Programmer la fait).
       bloquants: [...new Set((fiche?.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))],
-      contenu: carte ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
+      // Le contenu dont le dossier a la fiche, s'il l'offre encore (son dossier montre la ressource).
+      contenu: carte && (!fiche?.contenus || fiche.contenus.some((x) => x.contenu === slug))
+        ? { slug, titre: carte.titre, format: carte.format, stade: carte.stade } : null,
+      // Tous les contenus qui l'offrent (22/11/2026), chacun avec son mot et son message.
+      contenus: (fiche?.contenus || []).filter((x) => x && SLUG_RE.test(x.contenu || "")).map((x) => {
+        const c = cartes.get(x.contenu);
+        return { slug: x.contenu, titre: c?.titre || x.contenu, format: c?.format || null, stade: c?.stade || null,
+          mot: x.mot || null, bouton: x.bouton || null,
+          message: x.message ? x.message.replace(/\{\{\s*first_name\s*\}\}/g, "[son prénom]") : null,
+          valide: Boolean(x.valide), empreinte: x.empreinte || null, propre: Boolean(x.propre), offert: Boolean(x.offert),
+          problemes: [...new Set((x.problemes || []).map(phraseProbleme))],
+          bloquants: [...new Set((x.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))] };
+      }),
+      // On peut la relier à un contenu depuis le studio (l'outil du head of content le sait).
+      liaisons: Boolean(this.liaisons),
       posts,
       // Le bouton « Supprimer » (21/11/2026) : refusé tant qu'un post programmé ou publié l'offre.
       garder: raisonDeGarder(posts, fiche?.mot || page?.mot || null),
@@ -306,6 +341,12 @@ export class Ressources {
       const o = { slug: r.slug, titre: r.titre, mot: r.mot, disponible: !raisons.length };
       if (o.disponible) Object.assign(o, { a_valider: !r.valide, message: r.message, bouton: r.bouton, empreinte: r.empreinte });
       else o.probleme = raisons[0];
+      // Le mot et le message de chaque contenu qui l'offre : le récapitulatif montre ceux du contenu qu'on poste.
+      if (r.liaisons) {
+        o.liaisons = true;
+        o.contenus = r.contenus.map((c) => ({ slug: c.slug, mot: c.mot, message: c.message, bouton: c.bouton,
+          a_valider: !c.valide, empreinte: c.empreinte, probleme: c.bloquants[0] || null }));
+      }
       ressources.push(o);
     }
     let note = null;
@@ -366,6 +407,61 @@ export class Ressources {
     try { for (const n of fs.readdirSync(apercus)) if (n.startsWith(`${slug}--`)) fs.rmSync(path.join(apercus, n), { force: true }); } catch { /* pas d'aperçu */ }
     this.journal("ressource_supprimee", { slug });
     return { slug };
+  }
+
+  // Relier une ressource à un contenu, depuis son dossier (22/11/2026) : `zernio.py relier`, avec le mot, le message
+  // et le bouton affichés (ceux de la fiche par défaut). Le clic sur « Enregistrer » vaut validation de ce message,
+  // comme le clic pour poster. Rien chez Zernio : la règle du mot se pose toujours au moment de programmer.
+  async relier(contenu, { ressource, mot, message, bouton, empreinte } = {}) {
+    this.exiger();
+    if (!motParLeStudio(this.config) || !liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
+    if (!SLUG_RE.test(String(contenu || "")) || !SLUG_RE.test(String(ressource || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne retrouve pas ce contenu ou cette ressource.", 404);
+    const args = ["relier", contenu, "--ressource", ressource, "--pousser"];
+    const entree = {};
+    if (typeof message === "string") entree.message = message;
+    if (typeof bouton === "string") entree.bouton = bouton;
+    if (typeof mot === "string") entree.mot = mot.trim();
+    let dossier = null;
+    if (Object.keys(entree).length) {
+      dossier = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "studio-liaison-"));
+      fs.writeFileSync(path.join(dossier, "entree.json"), JSON.stringify(entree));
+      args.push("--depuis", path.join(dossier, "entree.json"), "--valider");
+    }
+    if (empreinte && /^sha256:[0-9a-f]{16}$/.test(empreinte)) args.push("--empreinte", empreinte);
+    try {
+      return await this.outilLiaison(args, { contenu, ressource });
+    } finally {
+      if (dossier) fs.rmSync(dossier, { recursive: true, force: true });
+    }
+  }
+
+  async delier(contenu) {
+    this.exiger();
+    if (!motParLeStudio(this.config) || !liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
+    if (!SLUG_RE.test(String(contenu || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne retrouve pas ce contenu.", 404);
+    return this.outilLiaison(["delier", contenu, "--pousser"], { contenu });
+  }
+
+  async outilLiaison(args, quoi) {
+    const fichier = path.join(this.config.depot, "outils", "zernio.py");
+    if (!existe(fichier)) throw new ErreurStudio("OUTIL_ABSENT", phraseBloque("OUTIL_ABSENT"), 503);
+    const r = await executer("python3", [fichier, ...args], { cwd: this.config.depot, env: environnement(this.config), delaiMs: 120000 });
+    const v = lireVerdict(r.sortie);
+    if (!v) throw new ErreurStudio("ECHEC", phraseBloque("ECHEC"), 500);
+    if (!v.ok) {
+      this.journal("liaison_refusee", { ...quoi, code: v.code });
+      const texte = v.message || "";
+      if (v.code === "MESSAGE") {
+        const phrases = [...new Set(texte.split(" ; ").map(phraseProbleme))];
+        throw new ErreurStudio("MESSAGE", `Ce n'est pas enregistré : ${phrases.join(" ")}`, 409);
+      }
+      if (v.code === "OFFERTE") throw new ErreurStudio("OFFERTE", "Ce n'est pas enregistré : ton post l'offre déjà, avec le mot et le message partis avec lui. Ils ne se changent plus ici.", 409);
+      if (v.code === "CHANGE") throw new ErreurStudio("CHANGE", "Le message a changé entre-temps (le chat l'a peut-être retouché) : je te remontre le nouveau, revérifie avant d'enregistrer.", 409);
+      if (v.code === "INTROUVABLE" || v.code === "CONTENU") throw new ErreurStudio("INTROUVABLE", "Je ne retrouve plus ce contenu ou cette ressource.", 404);
+      throw new ErreurStudio(v.code, `Ce n'est pas enregistré. ${phraseBloque(v.code)}`, 409);
+    }
+    this.journal(args[0] === "delier" ? "ressource_deliee" : "ressource_reliee", quoi);
+    return { ...quoi, fait: true };
   }
 
   fermer() { /* plus de processus à arrêter (l'aperçu local n'existe plus) */ }
