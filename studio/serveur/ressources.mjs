@@ -66,6 +66,9 @@ const PROBLEMES = [
   [/^message vide ou trop long/, "Le message que reçoivent ceux qui commentent est vide ou trop long."],
   [/^texte du bouton/, "Le texte du bouton du message manque, ou il est trop long."],
   [/tiret long/, "Le message contient un tiret long."],
+  // Mot posé par le serveur (Romain) : un mot n'attend qu'une vidéo à la fois.
+  [/est déjà en attente pour/, "Ce mot attend déjà une autre de tes vidéos : un mot ne peut attendre qu'une vidéo à la fois. Choisis-en un autre pour celle-ci."],
+  [/^déjà branché sur/, "Ce mot est déjà branché sur ta vidéo : pour changer de message, demande à ton head of content de couper ce mot et d'en faire un nouveau."],
 ];
 
 export function phraseProbleme(texte) {
@@ -96,11 +99,13 @@ export function etatRessourceRapide(config, slug) {
 // lu sur le disque. { slug, etat } ou null. Un contenu sans ressource, chez un client qui peut en relier
 // (le studio pose le mot, l'outil de liaison est là) : { slug: null, etat: "aucune" }, pour que son dossier
 // montre l'entrée « Ressource gratuite » d'où la relier.
+// Chez Romain (mot posé par le serveur, 22/11/2026) : pareil, et un contenu dont le script donne le lien d'une
+// ressource l'offre aussi (c'est ce que son serveur envoie).
 export function ressourceDuDossier(config, contenu) {
-  const r = ressourceDuContenu(config.depot, contenu);
+  const r = ressourceDuContenu(config.depot, contenu, motParLeServeur(config) ? { site: config.apercuRessources } : {});
   const etat = r ? etatRessourceRapide(config, r) : null;
   if (r && etat) return { slug: r, etat };
-  return motParLeStudio(config) && liaisonsPossibles(config.depot) ? { slug: null, etat: "aucune" } : null;
+  return ressourcesActives(config) && liaisonsPossibles(config.depot) ? { slug: null, etat: "aucune" } : null;
 }
 
 // La page lue à son adresse (ressource.py, « en_ligne_reel »), en mots pour le client. Le détail donné
@@ -166,7 +171,30 @@ function etatMotServeur(r, mots) {
   if (actifs.length) return { etat: "en_attente", texte: "En attente : il se branchera tout seul sur ta vidéo qui annonce le mot, quelques minutes après sa sortie, d'où que tu la postes." };
   if (!r.en_ligne) return { etat: "sans_page", texte: "Pas encore : elle doit d'abord être en ligne." };
   if (!r.valide) return { etat: "a_valider", texte: "Pas encore : valide d'abord la page, puis le message, avec ton head of content." };
-  return { etat: "libre", texte: "Pas encore relié à une vidéo : ton head of content met le mot en attente quand tu valides le message de la vidéo qui l'offre." };
+  return { etat: "libre", texte: "Pas encore en attente : ouvre le contenu qui l'offre et enregistre son mot, ou demande-le à ton head of content." };
+}
+
+// Les contenus d'une ressource chez Romain (ressource.py lister, « contenus »), au format de l'interface. Le mot de
+// chacun : en attente de sa vidéo (« a_jour » : c'est bien ce message qui attend), branché (parti, figé), ou rien.
+export function contenusDuServeur(liste, cartes) {
+  return (Array.isArray(liste) ? liste : []).filter((x) => x && SLUG_RE.test(x.contenu || "")).map((x) => {
+    const c = cartes.get(x.contenu);
+    const problemes = [...new Set((x.problemes || []).map(phraseProbleme))];
+    const statut = x.statut_serveur || null;
+    const etat = statut === "branché" ? "branche" : statut === "en attente" && x.a_jour ? "en_attente" : statut === "en attente" ? "a_remettre" : "a_mettre";
+    return { slug: x.contenu, titre: c?.titre || x.contenu, format: c?.format || null, stade: c?.stade || null,
+      mot: x.mot || null, bouton: x.bouton || null,
+      message: x.message ? x.message.replace(/\{\{\s*first_name\s*\}\}/g, "[son prénom]") : null,
+      valide: Boolean(x.valide), empreinte: x.empreinte || null, propre: Boolean(x.propre), offert: statut === "branché",
+      problemes,
+      bloquants: [...new Set((x.problemes || []).filter((p) => !/^message pas validé/.test(p)).map(phraseProbleme))],
+      mot_serveur: { etat, video: x.video || null, texte: {
+        branche: "Branché : ceux qui commentent ce mot sous ta vidéo reçoivent la page.",
+        en_attente: "En attente : il se branchera tout seul sur ta vidéo qui annonce ce mot, quelques minutes après sa sortie, d'où que tu la postes.",
+        a_remettre: "Ce mot attend ta vidéo avec un autre message : clique sur Enregistrer pour qu'il parte avec celui-ci.",
+        a_mettre: "Pas encore en attente : clique sur Enregistrer pour que ce mot se branche tout seul sur ta vidéo qui l'annonce.",
+      }[etat] } };
+  });
 }
 
 export function raisonDeGarder(posts, mot) {
@@ -215,7 +243,7 @@ export class Ressources {
       // Mot posé par le serveur : la fiche du mot vient de ressource.py (mot, message, mot chez le serveur).
       serveur ? null : outilJson(this.config, "zernio.py", ["ressources", "--format", "json"]),
     ]);
-    this.liaisons = Boolean(fiches?.liaisons) && liaisonsPossibles(this.config.depot);
+    this.liaisons = Boolean(serveur ? pages?.liaisons : fiches?.liaisons) && liaisonsPossibles(this.config.depot);
     if (!pages && !fiches) {
       throw new ErreurStudio("RESSOURCES_ILLISIBLES", `Je n'arrive pas à lire tes ressources gratuites pour l'instant. Réessaie, et si ça recommence, préviens ${contact()}.`, 503);
     }
@@ -320,6 +348,9 @@ export class Ressources {
     r.bloquants = [];
     r.posts = postsDuServeur(mots, cartes);
     r.garder = raisonDeGarder(r.posts, r.mot);
+    // Les contenus qui l'offrent (22/11/2026), chacun avec son mot, son message et où en est son mot chez le serveur.
+    r.contenus = this.liaisons ? contenusDuServeur(page?.contenus, cartes) : [];
+    if (this.liaisons && r.contenu && !r.contenus.some((x) => x.slug === slug)) r.contenu = null;
     // Ce que le serveur fera du mot, en une phrase (lue dans les fichiers, jamais supposée).
     r.mot_serveur = etatMotServeur(r, mots);
     return r;
@@ -358,6 +389,23 @@ export class Ressources {
       note = "Aucune ressource ne peut être offerte pour l'instant : la raison est sous la liste.";
     }
     return { ressources, note };
+  }
+
+  // Chez Romain (le serveur pose le mot) : le mot, le message et le bouton de chaque contenu qui offre une
+  // ressource, pour « Préparer à poster » (22/11/2026). slug -> { ressource, titre, ...contenu }. Lecture seule.
+  async motsPourUnPost() {
+    if (!motParLeServeur(this.config) || !liaisonsPossibles(this.config.depot)) return new Map();
+    if (!existe(path.join(this.config.depot, "outils", "ressource.py"))) return new Map();
+    const pages = await outilJson(this.config, "ressource.py", ["lister", "--format", "json"], 60000);
+    if (!pages?.liaisons) return new Map();
+    const cartes = new Map(this.cartes().filter((c) => c.slug).map((c) => [c.slug, c]));
+    const out = new Map();
+    for (const p of pages.ressources || []) {
+      if (!SLUG_RE.test(p.slug || "")) continue;
+      const titre = (p.titre || p.slug).replace(/^Ressource gratuite\s*:\s*/i, "").trim();
+      for (const c of contenusDuServeur(p.contenus, cartes)) out.set(c.slug, { ressource: p.slug, ressource_titre: titre, en_ligne: Boolean(p.page_en_ligne), ...c });
+    }
+    return out;
   }
 
   // Les posts du registre qui offrent cette ressource (titres des cartes), lus dans les fichiers.
@@ -412,9 +460,11 @@ export class Ressources {
   // Relier une ressource à un contenu, depuis son dossier (22/11/2026) : `zernio.py relier`, avec le mot, le message
   // et le bouton affichés (ceux de la fiche par défaut). Le clic sur « Enregistrer » vaut validation de ce message,
   // comme le clic pour poster. Rien chez Zernio : la règle du mot se pose toujours au moment de programmer.
+  // Chez Romain (le serveur pose le mot, 22/11/2026) : le clic sur « Enregistrer » met aussi ce mot en attente pour son
+  // serveur (`relier --attendre`, liaison et publications/a-brancher.json au même commit) ; rien chez Zernio.
   async relier(contenu, { ressource, mot, message, bouton, empreinte } = {}) {
     this.exiger();
-    if (!motParLeStudio(this.config) || !liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
+    if (!liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
     if (!SLUG_RE.test(String(contenu || "")) || !SLUG_RE.test(String(ressource || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne retrouve pas ce contenu ou cette ressource.", 404);
     const args = ["relier", contenu, "--ressource", ressource, "--pousser"];
     const entree = {};
@@ -426,6 +476,7 @@ export class Ressources {
       dossier = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "studio-liaison-"));
       fs.writeFileSync(path.join(dossier, "entree.json"), JSON.stringify(entree));
       args.push("--depuis", path.join(dossier, "entree.json"), "--valider");
+      if (motParLeServeur(this.config)) args.push("--attendre");
     }
     if (empreinte && /^sha256:[0-9a-f]{16}$/.test(empreinte)) args.push("--empreinte", empreinte);
     try {
@@ -437,7 +488,7 @@ export class Ressources {
 
   async delier(contenu) {
     this.exiger();
-    if (!motParLeStudio(this.config) || !liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
+    if (!liaisonsPossibles(this.config.depot)) throw new ErreurStudio("INTROUVABLE", "Je ne trouve pas ce que tu demandes.", 404);
     if (!SLUG_RE.test(String(contenu || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne retrouve pas ce contenu.", 404);
     return this.outilLiaison(["delier", contenu, "--pousser"], { contenu });
   }
@@ -452,10 +503,14 @@ export class Ressources {
       this.journal("liaison_refusee", { ...quoi, code: v.code });
       const texte = v.message || "";
       if (v.code === "MESSAGE") {
-        const phrases = [...new Set(texte.split(" ; ").map(phraseProbleme))];
-        throw new ErreurStudio("MESSAGE", `Ce n'est pas enregistré : ${phrases.join(" ")}`, 409);
+        const phrases = [...new Set(texte.split(" ; ").map(phraseProbleme))].join(" ");
+        throw new ErreurStudio("MESSAGE", `Ce n'est pas enregistré : ${phrases.charAt(0).toLowerCase()}${phrases.slice(1)}`, 409);
       }
-      if (v.code === "OFFERTE") throw new ErreurStudio("OFFERTE", "Ce n'est pas enregistré : ton post l'offre déjà, avec le mot et le message partis avec lui. Ils ne se changent plus ici.", 409);
+      if (v.code === "OFFERTE") {
+        throw new ErreurStudio("OFFERTE", motParLeServeur(this.config)
+          ? "Ce n'est pas enregistré : ce mot est déjà branché sur ta vidéo, avec le message parti avec lui. Pour en changer, demande à ton head of content de couper ce mot et d'en faire un nouveau."
+          : "Ce n'est pas enregistré : ton post l'offre déjà, avec le mot et le message partis avec lui. Ils ne se changent plus ici.", 409);
+      }
       if (v.code === "CHANGE") throw new ErreurStudio("CHANGE", "Le message a changé entre-temps (le chat l'a peut-être retouché) : je te remontre le nouveau, revérifie avant d'enregistrer.", 409);
       if (v.code === "INTROUVABLE" || v.code === "CONTENU") throw new ErreurStudio("INTROUVABLE", "Je ne retrouve plus ce contenu ou cette ressource.", 404);
       throw new ErreurStudio(v.code, `Ce n'est pas enregistré. ${phraseBloque(v.code)}`, 409);

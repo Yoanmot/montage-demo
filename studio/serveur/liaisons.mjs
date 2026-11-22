@@ -23,11 +23,27 @@ export function lireLiaison(depot, contenu) {
   return d;
 }
 
-// Le slug de la ressource qu'offre ce contenu, ou null.
-export function ressourceDuContenu(depot, contenu) {
+// La ressource dont la section « Message automatique » du script donne le lien (<site>/<slug>/), si elle a sa fiche
+// (même lecture que outils/liaison.py de Romain, lien_du_script).
+function lienDuScript(depot, contenu, site) {
+  let t;
+  try { t = fs.readFileSync(path.join(depot, "contenus", contenu, "script.md"), "utf8"); } catch { return null; }
+  const s = /^##\s+Message automatique[^\n]*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m.exec(t);
+  const l = s && /^-[ \t]*Lien[ \t]*:[ \t]*(.+)$/im.exec(s[1]);
+  if (!l) return null;
+  const base = String(site || "").replace(/\/+$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const m = base && new RegExp(`^${base}/([a-z0-9]+(?:-[a-z0-9]+)*)/$`).exec(l[1].trim().replace(/^`|`$/g, ""));
+  return m && existe(path.join(depot, "contenus", m[1], "ressource.md")) ? m[1] : null;
+}
+
+// Le slug de la ressource qu'offre ce contenu, ou null. `site` (client dont le serveur pose le mot, Romain) : sans
+// liaison, un contenu dont le script donne le lien d'une ressource l'offre aussi (c'est ce que lit son serveur).
+export function ressourceDuContenu(depot, contenu, { site = null } = {}) {
   if (!depot || !SLUG.test(String(contenu || ""))) return null;
   const l = lireLiaison(depot, contenu);
   if (l) return l.ressource;
   const d = path.join(depot, "contenus", contenu);
-  return existe(path.join(d, "ressource.md")) && FICHIERS_CONTENU.some((n) => existe(path.join(d, n))) ? contenu : null;
+  if (!FICHIERS_CONTENU.some((n) => existe(path.join(d, n)))) return null;
+  if (existe(path.join(d, "ressource.md"))) return contenu;
+  return site ? lienDuScript(depot, contenu, site) : null;
 }

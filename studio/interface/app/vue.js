@@ -1571,7 +1571,10 @@ export class Vue {
     if (r.liaisons && !dansUnContenu) {
       blocs.push(this.bloc("Contenus qui l'offrent", r.contenus.length ? el("div", { class: "accueil-liste" }, ...r.contenus.map((x) => {
         const c = s.cartes.get(x.slug);
-        const meta = [x.mot ? `mot ${x.mot}` : "pas encore de mot", x.offert ? "offerte par son post" : x.valide ? "message validé" : "message à valider"].join(" · ");
+        // Chez Romain, où en est le mot chez son serveur ; ailleurs, si le message est validé.
+        const ou = x.mot_serveur ? { branche: "mot branché", en_attente: "mot en attente de sa vidéo", a_remettre: "mot à remettre en attente", a_mettre: "mot pas encore en attente" }[x.mot_serveur.etat]
+          : x.offert ? "offerte par son post" : x.valide ? "message validé" : "message à valider";
+        const meta = [x.mot ? `mot ${x.mot}` : "pas encore de mot", ou].join(" · ");
         return el("button", { class: `accueil-ligne${c ? ` f-${c.format}` : ""}`, type: "button", disabled: c ? null : true,
           onclick: c ? () => s.selectionner({ genre: "dossier", cle: cle(c), fichier: "ressource" }) : null },
           el("span", { class: "ligne-corps" }, el("strong", {}, x.titre), el("span", { class: "ligne-meta" }, meta)),
@@ -1608,7 +1611,9 @@ export class Vue {
           } catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
         });
         blocs.push(this.bloc("L'offrir avec un autre contenu", el("div", { class: "res-reutiliser" },
-          el("p", { class: "vide-doux" }, "Choisis le contenu : la ressource apparaît dans son dossier, où tu peux lui donner son propre mot et son propre message. Elle est choisie d'office quand tu le prépares à poster."),
+          el("p", { class: "vide-doux" }, s.config.ressources_mot === "serveur"
+            ? "Choisis le contenu : la ressource apparaît dans son dossier, où tu peux lui donner son propre mot et son propre message. Son mot se branche tout seul sur la vidéo qui l'annonce."
+            : "Choisis le contenu : la ressource apparaît dans son dossier, où tu peux lui donner son propre mot et son propre message. Elle est choisie d'office quand tu le prépares à poster."),
           el("div", { class: "programmer-ligne" }, choix, go))));
       }
     } else if (r.prete && !dansUnContenu) {
@@ -1640,8 +1645,10 @@ export class Vue {
 
   // Le mot et le message d'UN contenu qui offre la ressource (sa liaison) : retouchables tant que son post ne
   // l'offre pas. « Enregistrer » vaut validation de ce qui est affiché, comme le clic pour poster.
+  // Chez Romain (le serveur pose le mot, 22/11/2026) : « Enregistrer » met aussi ce mot en attente de sa vidéo.
   motDuContenu(r, carte) {
     const s = this.studio;
+    const serveur = s.config.ressources_mot === "serveur";
     const c = r.contenus.find((x) => x.slug === carte.slug) || { mot: r.mot, message: r.message, bouton: r.bouton, valide: r.valide, empreinte: r.empreinte, propre: false, offert: false, bloquants: [] };
     const delier = () => {
       const b = el("button", { class: "bouton bouton-discret", type: "button", html: `${icone("croix")}<span>Ne plus l'offrir avec ce contenu</span>` });
@@ -1660,7 +1667,9 @@ export class Vue {
         el("dl", { class: "recap-champs res-champs" },
           el("dt", {}, "Mot à commenter"), el("dd", {}, c.mot ? el("strong", { class: "mot-com" }, c.mot) : el("span", { class: "doux" }, "Aucun")),
           el("dt", {}, "Message envoyé"), el("dd", {}, el("div", { class: "res-message" }, el("p", {}, c.message || ""), c.bouton ? el("span", { class: "res-bouton" }, c.bouton) : null))),
-        el("p", { class: "vide-doux" }, "Ton post l'offre déjà : ce mot et ce message sont partis avec lui, ils ne se changent plus ici.")));
+        el("p", { class: "vide-doux" }, serveur
+          ? "Ce mot est déjà branché sur ta vidéo : ce mot et ce message sont partis avec elle, ils ne se changent plus ici."
+          : "Ton post l'offre déjà : ce mot et ce message sont partis avec lui, ils ne se changent plus ici.")));
     }
     const erreurs = new Map();
     const champ = (nom, valeur, { multi = false, label }) => {
@@ -1681,14 +1690,14 @@ export class Vue {
     const message = champ("message", c.message, { multi: true, label: "Message privé envoyé à ceux qui commentent le mot" });
     const bouton = champ("bouton", c.bouton, { label: "Texte du bouton du message" });
     const tous = [mot, message, bouton];
-    const change = () => tous.some((x) => x.n.value !== x.initiale) || !c.valide;
+    const change = () => tous.some((x) => x.n.value !== x.initiale) || !c.valide || (serveur && c.mot_serveur?.etat !== "en_attente");
     for (const x of tous) x.verifier();
     enregistrer.addEventListener("click", async () => {
       enregistrer.disabled = true;
       try {
         await this.api.relierRessource(carte.slug, r.slug, { mot: mot.n.value.trim().toUpperCase(), message: message.n.value, bouton: bouton.n.value, empreinte: c.empreinte });
         this.edition = null;
-        annoncer("C'est enregistré : c'est ce message qui part avec ce contenu.");
+        annoncer(serveur ? "C'est enregistré : ce mot attend ta vidéo qui l'annonce, avec ce message." : "C'est enregistré : c'est ce message qui part avec ce contenu.");
         this.afficher();
       } catch (e) { annoncer(e.message, "erreur"); enregistrer.disabled = false; }
     });
@@ -1704,6 +1713,10 @@ export class Vue {
       (c.bloquants || []).length ? el("ul", { class: "res-liste" }, ...c.bloquants.map((x) => el("li", {}, x))) : null,
       !r.repond ? el("p", { class: "doux" }, "Pas encore offerte : la page doit d'abord répondre à son adresse.")
         : (c.bloquants || []).length ? el("p", { class: "doux" }, "Pas encore offerte : corrige d'abord ce qui est dit au-dessus.")
+        : serveur ? el("div", {},
+          el("p", { class: c.mot_serveur?.etat === "en_attente" ? "res-ok" : "recap-dm-note a-valider" }, c.mot_serveur?.texte
+            || "Pas encore en attente : clique sur Enregistrer pour que ce mot se branche tout seul sur ta vidéo qui l'annonce."),
+          r.valide ? null : el("p", { class: "doux" }, "Il ne se branchera qu'une fois la page validée : dis à ton head of content qu'elle est bonne."))
         : c.valide ? el("p", { class: "res-ok" }, "Validé et prêt : quand tu prépareras ce contenu à poster, cette ressource sera choisie d'office avec ce mot et ce message. Tu peux encore les retoucher ici ou à ce moment-là.")
         : el("p", { class: "recap-dm-note a-valider" }, "Reste à valider le mot et le message : clique sur Enregistrer, ou valide-les au moment de poster ce contenu, où cette ressource sera choisie d'office."),
       el("div", { class: "programmer-ligne" }, enregistrer, delier())));

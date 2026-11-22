@@ -77,7 +77,7 @@ const ou = (plats) => (plats.length > 1 ? `${plats.slice(0, -1).map((p) => NOMS[
 // La phrase de TikTok : il exige, sur chaque post, que tu aies relu le post et que tu acceptes sa publication.
 export const PHRASE_ACCORD_TIKTOK = "En cliquant, tu confirmes avoir relu ce post et tu acceptes qu'il parte sur ton TikTok, visible par tout le monde, en suivant les règles de TikTok (dont celles sur la musique).";
 // Le champ d'une erreur -> la plateforme qu'il concerne (le reste vaut pour toutes).
-const CHAMP_PLATEFORME = { legende: "instagram", message: "instagram", bouton: "instagram", mot: "instagram", legende_tiktok: "tiktok" };
+const CHAMP_PLATEFORME = { legende: "instagram", message: "instagram", bouton: "instagram", mot: "instagram", mot_serveur: "instagram", legende_tiktok: "tiktok" };
 
 function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
   const els = recap.elements || [];
@@ -147,6 +147,8 @@ function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
     accord.hidden = !restants.some((e) => plats(e).includes("tiktok"));
   }
 
+  // Après « Enregistrer le mot » (chez Romain) : on revérifie, pour voir le mot en attente.
+  ctx.reverifier = () => maj.click();
   maj.addEventListener("click", () => {
     const elements = els.filter((e) => !retires.has(e.slug)).map((e) => {
       const r = choixRessource.has(e.slug) ? choixRessource.get(e.slug) : e.ressource;
@@ -300,7 +302,8 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
     el("dl", { class: "recap-champs" },
       el("dt", {}, "Légende"), el("dd", {}, legende),
       ...(e.reel_essai ? champEssai(e, choixEssai, auChangement) : []),
-      ...(Array.isArray(ressources) ? [] : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])));
+      ...(Array.isArray(ressources) ? [] : e.mot_serveur ? champMotServeur(e, ctx)
+        : [el("dt", {}, "Mot en commentaire"), el("dd", {}, e.mot ? el("strong", { class: "mot-com" }, e.mot) : el("span", { class: "doux" }, "Aucun : pas de message automatique"))])));
   if (tk.possible) blocTk.append(el("p", { class: "rp-bloc-titre" }, `TikTok${tk.nom ? ` (@${tk.nom})` : ""}`), messagesTiktok, champsTiktok(e, tk, c, ctx));
 
   for (const [k, x] of [["instagram", caseIg], ["tiktok", caseTk]]) {
@@ -556,6 +559,76 @@ function champRessource(e, ressources, choixRessource, auChangement, ctx) {
   });
   majPhrase();
   return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, choix, raisons, note, phrase, message)];
+}
+
+// Chez Romain (le serveur pose le mot, 22/11/2026) : la ressource reliée à ce contenu, son mot, son message et son
+// bouton, retouchables ici. « Enregistrer le mot » les met en attente pour son serveur, qui les branche tout seul
+// sur la vidéo qui annonce le mot ; rien ne part chez Instagram à ce clic. Une retouche pas encore enregistrée
+// bloque le bouton pour poster : sinon c'est l'ancien mot qui partirait.
+function champMotServeur(e, ctx) {
+  const m = e.mot_serveur;
+  const phrase = el("p", { class: "recap-mot" }, "Ceux qui commentent ", el("strong", { class: "mot-com" }, m.mot || "son mot"), " reçoivent : ",
+    el("span", {}, m.ressource_titre || "la ressource"), ".");
+  if (m.offert) {
+    return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, phrase,
+      el("div", { class: "recap-dm" }, el("p", { class: "recap-dm-titre" }, "Le message privé qu'ils reçoivent"),
+        el("p", { class: "recap-legende" }, m.message || ""), m.bouton ? el("p", { class: "doux" }, `Bouton : ${m.bouton}`) : null,
+        el("p", { class: "recap-dm-note" }, m.texte || "Ce mot est déjà branché sur ta vidéo : il ne se change plus ici.")))];
+  }
+  const cle = `${e.slug}:mot_serveur`;
+  const pasEnregistre = el("p", { class: "recap-champ-erreur", role: "alert", hidden: true });
+  const etat = el("p", { class: `recap-dm-note${m.etat === "en_attente" ? "" : " a-valider"}` }, m.texte || "");
+  const enregistrer = el("button", { class: "bouton bouton-petit", type: "button" }, "Enregistrer le mot");
+  const champs = [];
+  const champ = (nom, initiale, { multi, label }) => {
+    const n = multi
+      ? el("textarea", { class: `champ recap-texte recap-texte-${nom}`, rows: String(Math.min(10, Math.max(2, String(initiale || "").split("\n").length + 1))), "aria-label": label, spellcheck: "true" }, initiale || "")
+      : el("input", { type: "text", class: `champ recap-texte recap-texte-${nom}`, value: initiale || "", "aria-label": label });
+    const err = el("p", { class: "recap-champ-erreur", role: "alert", hidden: true });
+    const x = { nom, n, err, initiale: initiale || "", faux: null };
+    n.addEventListener("input", () => majTout());
+    champs.push(x);
+    return x;
+  };
+  const mot = champ("mot", m.mot, { multi: false, label: `Mot à commenter sous « ${e.titre} »` });
+  const message = champ("message", m.message, { multi: true, label: "Message privé envoyé à ceux qui commentent le mot" });
+  const bouton = champ("bouton", m.bouton, { multi: false, label: "Texte du bouton du message" });
+  function majTout() {
+    for (const x of champs) {
+      x.faux = erreurTexte(x.nom, x.n.value, ctx.limites);
+      x.err.textContent = x.faux || ""; x.err.hidden = !x.faux; x.n.classList.toggle("faux", Boolean(x.faux));
+    }
+    const s = phrase.querySelector(".mot-com");
+    if (s) s.textContent = mot.n.value.trim().toUpperCase() || m.mot || "son mot";
+    const retouche = champs.some((x) => x.n.value !== x.initiale);
+    const faux = champs.some((x) => x.faux);
+    const aEnregistrer = retouche || m.etat !== "en_attente";
+    enregistrer.disabled = faux || !aEnregistrer || (m.bloquants || []).length > 0;
+    // Une retouche pas enregistrée : le bouton pour poster attend (sinon c'est l'ancien mot qui partirait).
+    if (retouche) { ctx.erreurs.set(cle, "Enregistre d'abord le mot."); pasEnregistre.textContent = "Enregistre le mot avant de poster : sinon c'est l'ancien qui partirait."; pasEnregistre.hidden = false; }
+    else { ctx.erreurs.delete(cle); pasEnregistre.hidden = true; }
+    ctx.maj();
+  }
+  enregistrer.addEventListener("click", async () => {
+    enregistrer.disabled = true; enregistrer.textContent = "J'enregistre";
+    try {
+      await ctx.api.relierRessource(e.slug, m.ressource, { mot: mot.n.value.trim().toUpperCase(), message: message.n.value, bouton: bouton.n.value, empreinte: m.empreinte });
+      ctx.erreurs.delete(cle);
+      annoncer("C'est enregistré : ce mot attend ta vidéo qui l'annonce, avec ce message. Je revérifie.");
+      ctx.reverifier?.();
+    } catch (err) { annoncer(err.message, "erreur"); enregistrer.textContent = "Enregistrer le mot"; majTout(); }
+  });
+  majTout();
+  return [el("dt", {}, "Ressource gratuite"), el("dd", { class: "recap-ressource-champ" }, phrase,
+    el("div", { class: "recap-dm" },
+      el("label", { class: "recap-dm-bouton recap-dm-mot" }, el("span", {}, "Mot"), mot.n), mot.err,
+      el("p", { class: "recap-dm-titre" }, "Le message privé qu'ils reçoivent"),
+      message.n, message.err,
+      el("label", { class: "recap-dm-bouton" }, el("span", {}, "Bouton"), bouton.n), bouton.err,
+      (m.bloquants || []).length ? el("ul", { class: "recap-ressource-raisons" }, ...m.bloquants.map((x) => el("li", {}, x))) : null,
+      etat, pasEnregistre,
+      el("p", { class: "recap-dm-aide doux" }, "[son prénom] est remplacé par le prénom de la personne qui commente. Le mot se branche tout seul sur ta vidéo qui l'annonce, d'où que tu la postes."),
+      el("div", { class: "programmer-ligne" }, enregistrer)))];
 }
 
 // Un bouton qui fait une action une fois, au clic, puis se remplace par la phrase du résultat.

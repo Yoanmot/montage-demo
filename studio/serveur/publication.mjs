@@ -4,7 +4,7 @@
 import * as pub from "../publication/publication.mjs";
 import { construireCartes } from "./lecture.mjs";
 import { ErreurStudio, MESSAGE_GENERIQUE } from "./depot-outils.mjs";
-import { motParLeStudio } from "./ressources.mjs";
+import { motParLeStudio, motParLeServeur } from "./ressources.mjs";
 
 const STATUT_HTTP = { RESSOURCES_ABSENTES: 404, RIEN_A_POSER: 400, RIEN_A_REESSAYER: 400, PAS_DE_POST: 409, REFUS: 409, ARRET: 409, REESSAI_IMPOSSIBLE: 409, RIEN_A_PUBLIER: 409, DATE_ILLISIBLE: 400, RECAP_INCONNU: 409, RECAP_EXPIRE: 409, RECAP_DEJA_UTILISE: 409 };
 
@@ -87,6 +87,18 @@ export class Publication {
       const c = await this.choixRessources();
       const tiktok = await this.etatTiktok();
       const r = await pub.recap(elements, configBrute(this.config), { ressources: c.ressources, ressourcesNote: c.note, tiktok: tiktok || { relie: null } });
+      // Chez Romain (le serveur pose le mot, 22/11/2026) : le mot, le message et le bouton de la ressource reliée à chaque
+      // contenu, retouchables ici ; « Enregistrer » les met en attente pour son serveur (route ressources/relier).
+      if (motParLeServeur(this.config) && this.ressources) {
+        let mots = new Map();
+        try { mots = await this.ressources.motsPourUnPost(); } catch { mots = new Map(); }
+        for (const e of r.elements) {
+          const m = mots.get(e.slug);
+          if (!m) continue;
+          e.mot_serveur = { ressource: m.ressource, ressource_titre: m.ressource_titre, mot: m.mot, message: m.message, bouton: m.bouton,
+            empreinte: m.empreinte, valide: m.valide, offert: m.offert, bloquants: m.bloquants, etat: m.mot_serveur.etat, texte: m.mot_serveur.texte };
+        }
+      }
       this.journal("recap_publication", { recap_id: r.recap_id, n: r.elements.length });
       return r;
     } catch (e) {
