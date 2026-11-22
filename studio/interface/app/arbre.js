@@ -6,6 +6,8 @@ import { el, icone } from "./outils.js";
 import { cle, NOMS_FICHIERS, ICONES_FICHIERS, fichierParDefaut } from "./commun.js";
 import { position } from "./etapes.js";
 
+// Du moins avancé au plus avancé (libellés : serveur/stades.mjs, LIBELLES).
+const AVANCEMENT = ["gardee", "script_ecrit", "valide", "tournage_prevu", "rushs_recus", "planche", "monte", "mis_en_page", "programme"];
 const GROUPES = [
   { id: "proposees", titre: "Idées proposées", ok: (c) => c.stade === "proposee", vide: "Demande « fais-moi 10 idées » dans le chat : chaque idée arrive ici dans son dossier." },
   { id: "en-cours", titre: "En cours", ok: (c) => c.slug && !["publie", "abandonne"].includes(c.stade), tags: true },
@@ -79,7 +81,9 @@ export class Arbre {
     this.connus ||= new Set();
     const enfants = [this.dessinerEntrees()];
     const toutes = [...s.cartes.values()].filter((c) => this.visible(c));
-    const ordre = (a, b) => (b.a_toi - a.a_toi)
+    // En cours, le plus avancé en haut (Yoan, 22/11/2026) ; à stade égal, ce qui attend une réponse, puis le jour prévu.
+    const rang = (c) => { const i = AVANCEMENT.indexOf(c.stade); return i < 0 ? -1 : i; };
+    const ordre = (a, b) => (rang(b) - rang(a)) || (b.a_toi - a.a_toi)
       || String(a.jour_prevu || "9999").localeCompare(String(b.jour_prevu || "9999")) || a.titre.localeCompare(b.titre, "fr");
     for (const g of GROUPES) {
       const cs = toutes.filter(g.ok);
