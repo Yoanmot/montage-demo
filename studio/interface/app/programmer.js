@@ -605,8 +605,9 @@ function champMotServeur(e, ctx) {
     const aEnregistrer = retouche || m.etat !== "en_attente";
     enregistrer.disabled = faux || !aEnregistrer || (m.bloquants || []).length > 0;
     // Une retouche pas enregistrée : le bouton pour poster attend (sinon c'est l'ancien mot qui partirait).
-    if (retouche) { ctx.erreurs.set(cle, "Enregistre d'abord le mot."); pasEnregistre.textContent = "Enregistre le mot avant de poster : sinon c'est l'ancien qui partirait."; pasEnregistre.hidden = false; }
-    else { ctx.erreurs.delete(cle); pasEnregistre.hidden = true; }
+    // Un seul message à la fois (22/11/2026) : la retouche pas enregistrée remplace l'état du mot.
+    if (retouche) { ctx.erreurs.set(cle, "Enregistre d'abord le mot."); pasEnregistre.textContent = "Enregistre le mot avant de poster : sinon c'est l'ancien qui partirait."; pasEnregistre.hidden = false; etat.hidden = true; }
+    else { ctx.erreurs.delete(cle); pasEnregistre.hidden = true; etat.hidden = !etat.textContent; }
     ctx.maj();
   }
   enregistrer.addEventListener("click", async () => {
