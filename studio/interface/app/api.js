@@ -100,6 +100,7 @@ export function creerApiServeur() {
     poserGalerie: (slug, id, slide = null) => appel("POST", `/api/cartes/${enc(slug)}/galerie/poser`, { id, ...(slide ? { slide } : {}) }),
     retirerGalerie: (slug, id, slide = null) => appel("POST", `/api/cartes/${enc(slug)}/galerie/retirer`, { id, ...(slide ? { slide } : {}) }),
     choixPlan: (slug, n, corps) => appel("POST", `/api/cartes/${enc(slug)}/plans/${enc(String(n))}`, corps),
+    retirerPlan: (slug, n, corps) => appel("POST", `/api/cartes/${enc(slug)}/plans/${enc(String(n))}/retirer`, corps),
     envoyerGalerie,
     stats: () => appel("GET", "/api/stats"),
     actualiserStats: () => appel("POST", "/api/stats/actualiser", {}),

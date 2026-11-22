@@ -518,6 +518,105 @@ export function empreintePlans(texte) {
   return `sha256:${crypto.createHash('sha256').update(lignes.join('\n')).digest('hex').slice(0, 16)}`;
 }
 
+// Les plans d'un brief, numérotés comme outils/stock.py du head of content (plans_du_script) : la section « Plans à
+// tourner » (sinon, dans un ancien script, « À filmer en plus » puis « Photos à envoyer »), une entrée par ligne qui
+// commence par « Vidéo » ou « Photo », dans l'ordre ; les lignes vides et les autres lignes ne comptent pas.
+const sansAccentsMin = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/’/g, "'").toLowerCase();
+export function plansDuScript(texte) {
+  const sections = {};
+  let cle = null, code = false;
+  for (const l of String(texte || '').replace(/\r\n/g, '\n').split('\n')) {
+    if (l.startsWith('```')) code = !code;
+    const m = code ? null : /^##\s+(.+?)\s*$/.exec(l);
+    if (m) {
+      const t = sansAccentsMin(m[1]).replace(/\s+/g, ' ').trim();
+      cle = t.startsWith('plans a tourner') ? 'plans' : t.startsWith('a filmer en plus') ? 'a_filmer' : t.startsWith('photos a envoyer') ? 'photos' : null;
+      if (cle && sections[cle]) cle = `_${cle}`;   // seule la première section de ce nom compte (comme brief.py)
+      if (cle) sections[cle] = [];
+      continue;
+    }
+    if (cle) sections[cle].push(l);
+  }
+  let lignes;
+  if (sections.plans) lignes = sections.plans;
+  else {
+    const photos = (sections.photos || []).map((l) => l.trim()).filter((l) => l && !/^[-*\s(]*rien[\s.)]*$/i.test(l))
+      .map((l) => l.replace(/^[-*]\s*/, '')).map((l) => (sansAccentsMin(l).startsWith('photo') ? l : `Photo : ${l}`));
+    lignes = [...(sections.a_filmer || []), ...photos];
+  }
+  const plans = [];
+  for (const l of lignes) {
+    const s = l.replace(/^\s*[-*]\s*/, '').trim();
+    const tete = sansAccentsMin(s.slice(0, 12)).replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!tete.startsWith('video') && !tete.startsWith('photo')) continue;
+    const d = /^vid[ée]o\s*,\s*(\d+(?:[.,]\d+)?)\s*s\b/i.exec(s);
+    const pour = /\bPour\b(.*)$/.exec(s);
+    const q = pour ? /[«"“]\s*(.+?)\s*[»"”]/.exec(pour[1]) : null;
+    plans.push({ n: plans.length + 1, type: tete.startsWith('photo') ? 'photo' : 'b-roll', texte: s,
+      phrase: q ? q[1] : null, duree_s: d ? Number(d[1].replace(',', '.')) : null });
+  }
+  return plans;
+}
+
+// Les plans que le client a retirés de son brief (outils/brief.py, « retires » de stock-choix.json) et qui n'y sont pas
+// revenus depuis : le plan de tournage déjà écrit ne les demande plus.
+export function plansRetires(depot, slug) {
+  const retires = lireJson(path.join(depot, 'contenus', slug, 'stock-choix.json'), null)?.retires;
+  if (!Array.isArray(retires) || !retires.length) return [];
+  let script = '';
+  try { script = fs.readFileSync(path.join(depot, 'contenus', slug, 'script.md'), 'utf8'); } catch { return []; }
+  const actuels = plansDuScript(script);
+  const cle = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  return retires.filter((r) => r && (r.type === 'photo' || r.phrase)
+    && !actuels.some((p) => cle(p.texte) === cle(r.texte) || (r.type !== 'photo' && p.type === r.type && memePhrase(p.phrase, r.phrase))));
+}
+
+// Retire d'un plan de tournage ce qui ne sert plus qu'à des plans retirés du brief : une phrase d'une prise, le
+// mouvement qui ne servait qu'elle, la prise entière s'il ne lui reste rien ; une photo par photo retirée (la plus
+// proche de sa description). Les prises déjà filmées ne passent pas par ici : le studio refuse de retirer leur plan.
+function sansRetires(config, prises, contenus) {
+  let r = prises;
+  for (const slug of contenus) {
+    if (!SLUG.test(String(slug || ''))) continue;
+    let retires;
+    try { retires = plansRetires(config.depot, slug); } catch { retires = []; }
+    if (!retires.length) continue;
+    const phrases = retires.filter((x) => x.type !== 'photo').map((x) => x.phrase);
+    r = r.flatMap((p) => {
+      if (p.type !== 'b-roll' || p.deja_en_bibliotheque) return [p];
+      const avaient = new Set((p.contenus || []).flatMap((c) => (c.usages || []).map((u) => u.mouvement || 1)));
+      const contenusP = (p.contenus || []).map((c) => c.slug !== slug ? c
+        : { ...c, usages: (c.usages || []).filter((u) => !phrases.some((ph) => memePhrase(ph, u.phrase))) });
+      const ont = new Set(contenusP.flatMap((c) => (c.usages || []).map((u) => u.mouvement || 1)));
+      const gardes = (p.mouvements || []).map((m, i) => i + 1).filter((i) => !avaient.has(i) || ont.has(i));
+      if (!ont.size && avaient.size) return [];
+      if (gardes.length === (p.mouvements || []).length && contenusP.every((c, i) => c.usages.length === (p.contenus[i].usages || []).length)) return [p];
+      const nouveau = new Map(gardes.map((i, k) => [i, k + 1]));
+      return [{ ...p, mouvements: gardes.map((i) => p.mouvements[i - 1]),
+        contenus: contenusP.filter((c) => c.slug !== slug || c.usages.length || !(p.contenus.find((x) => x.slug === slug)?.usages || []).length)
+          .map((c) => ({ ...c, usages: (c.usages || []).map((u) => ({ ...u, mouvement: nouveau.get(u.mouvement || 1) || 1 })) })) }];
+    });
+    const photosRetirees = retires.filter((x) => x.type === 'photo');
+    if (photosRetirees.length) {
+      let script = '';
+      try { script = fs.readFileSync(path.join(config.depot, 'contenus', slug, 'script.md'), 'utf8'); } catch { /* rien */ }
+      const voulues = plansDuScript(script).filter((x) => x.type === 'photo').length;
+      const pp = r.filter((p) => p.type === 'photo' && !p.deja_en_bibliotheque && (p.contenus || []).length === 1 && p.contenus[0].slug === slug);
+      const mots = (t) => new Set(normPhrase(t).split(' ').filter((m) => m.length > 3));
+      const enlever = new Set();
+      for (const x of photosRetirees.slice(0, Math.max(0, pp.length - voulues))) {
+        const mx = mots(String(x.texte || '').replace(/^\s*photo\s*:?\s*/i, ''));
+        const choix = pp.filter((p) => !enlever.has(p))
+          .map((p) => ({ p, score: [...mots(p.ce_qu_on_voit)].filter((m) => mx.has(m)).length }))
+          .sort((a, b) => b.score - a.score)[0];
+        if (choix) enlever.add(choix.p);
+      }
+      r = r.filter((p) => !enlever.has(p));
+    }
+  }
+  return r;
+}
+
 export function plansEffectifs(config, slug, { galerie = new Galerie(dossierGalerie(config)), maintenant = Date.now(), reservations = null } = {}) {
   const dossier = path.join(config.depot, 'contenus', slug);
   const stock = stockAJour(config.depot, slug);
@@ -594,8 +693,9 @@ function sujetDuPlan(texte) {
 // ne couvre devient une prise ajoutée (ajoutee, numéro stable : 1000 + 100 x rang du contenu + numéro du plan).
 // B-rolls : par la phrase du plan (comme tournage.py verifier) ; photos : par leur nombre. Sans stock.json : rien ne change.
 export function prisesEffectives(config, t, { galerie = null } = {}) {
-  const prises = (t?.prises || []).map((p) => ({ ...p }));
   const contenus = Array.isArray(t?.contenus) ? t.contenus : [];
+  // Les plans retirés du brief après coup (bouton « Retirer » ou retouche) ne se tournent plus.
+  const prises = sansRetires(config, (t?.prises || []).map((p) => ({ ...p })), contenus);
   const g = galerie || new Galerie(dossierGalerie(config));
   let resa = null;
   const couverts = new Map();   // n -> slugs pour lesquels la prise n'a plus rien à montrer

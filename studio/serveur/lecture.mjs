@@ -13,7 +13,7 @@ import { ressourcesActives, dossiersDeContenus, ressourceDuDossier } from "./res
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 import { autresFichiers } from "./autres.mjs";
 import { listePlateformes } from "../publication/plateformes.mjs";
-import { Galerie, dossierGalerie, lienVersId, prisesEffectives } from "../rangement/lib/galerie.mjs";
+import { Galerie, dossierGalerie, lienVersId, prisesEffectives, plansDuScript } from "../rangement/lib/galerie.mjs";
 import { stockDuBrief, photosDuCarrousel, urlVignette } from "./galerie.mjs";
 
 export function urlMedia(...segments) {
@@ -688,6 +688,11 @@ export function blocJson(texte) {
   try { return JSON.parse(m[1]); } catch { return null; }
 }
 
+// L'outil du head of content sait-il retirer un plan (brief.py retirer-plan) ? Un dépôt pas encore à jour : pas de bouton.
+export function retraitPossible(config) {
+  return /\bretirer-plan\b/.test(lireTexte(path.join(config.depot, "outils", "brief.py"), "") || "");
+}
+
 export function briefDe(config, slug, format) {
   const f = fichierBrief(config, slug, format);
   if (!f) return null;
@@ -710,6 +715,9 @@ export function briefDe(config, slug, format) {
   const retenue = accrocheRetenue(texte);
   return {
     genre: "reel", empreinte, texte: textes.script || null, plans: textes.plans || null, legende: textes.legende || null,
+    // Les plans un par un, numérotés comme l'outil du head of content : chacun se retire d'un clic (22/11/2026).
+    plans_liste: plansDuScript(texte).map(({ n, type, texte: t }) => ({ n, type, texte: t })),
+    plans_retirables: retraitPossible(config),
     // Lot 12 : les accroches proposées, et celle par laquelle le texte commence (sinon celle de l'en-tête).
     accroches, accroche: dans ?? (accroches.some((a) => a.n === retenue) ? retenue : null),
     message_auto: textes.message_auto || null, a_verifier: textes.a_verifier || null,

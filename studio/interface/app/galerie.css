@@ -124,6 +124,11 @@
 .gal-plan-stock strong { color: var(--encre); font-weight: 700; }
 .gal-plan-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .gal-plan.sans-stock { grid-template-columns: minmax(0, 1fr); }
+.plan-retrait { display: flex; }
+.gal-plan-actions .plan-retrait:has(.plan-confirmer) { flex-basis: 100%; }
+.plan-confirmer { display: grid; gap: 8px; width: 100%; padding: 10px 12px; border-radius: var(--rayon-mini); border: 1px solid var(--rouge); background: var(--fond); }
+.plan-confirmer p { margin: 0; font-size: 13.5px; color: var(--encre-2); line-height: 1.5; }
+.plan-confirmer strong { color: var(--encre); }
 .gal-plan-note { font-size: 13px; color: var(--encre-3); margin-top: 10px; }
 
 @media (max-width: 1280px) { .gal-fiche { grid-template-columns: 220px minmax(0, 1fr); gap: 20px; } }

@@ -427,7 +427,7 @@ export class Vue {
       r.push(this.sectionModifiable(d, "texte", "Ton texte", b.texte, { aide: b.duree || null, classe: "bloc-texte", prose: "prose prose-texte", lignes: 14,
         debut: b.accroche ? b.accroches.find((a) => a.n === b.accroche)?.texte : null }));
       r.push(this.sectionModifiable(d, "plans", "Plans à tourner", b.plans, { aide: "en plus de ta vidéo face caméra", vide: "Rien à filmer en plus.", lignes: 6,
-        contenu: d.stock?.length ? this.plansStock(d) : null }));
+        contenu: d.stock?.length ? this.plansStock(d) : this.plansListe(d) }));
       r.push(this.sectionModifiable(d, "legende", "Légende", b.legende, { lignes: 8 }));
       if (b.message_auto) r.push(this.bloc("Mot en commentaire", el("div", { class: "prose", html: markdown(b.message_auto) })));
     } else {
@@ -504,6 +504,64 @@ export class Vue {
     return sec;
   }
 
+  // ---------- Retirer un plan du brief (22/11/2026) ----------
+  // Un clic sur « Retirer », puis une confirmation dans la carte. Le brief est réécrit par l'outil du dépôt ; ce qui en
+  // dépend suit (Galerie, plan de tournage). Tant que la vidéo n'est pas tournée.
+  plansRetirables(d) {
+    return Boolean(d.brief?.plans_retirables) && !enCours(d) && ["script_ecrit", "valide", "tournage_prevu"].includes(d.stade);
+  }
+
+  boutonRetirer(d, n, texte) {
+    const zone = el("div", { class: "plan-retrait" });
+    const depart = () => {
+      const bt = el("button", { class: "bouton bouton-discret bouton-petit", type: "button", html: `${icone("corbeille")}<span>Retirer</span>` });
+      bt.addEventListener("click", () => confirmer());
+      zone.replaceChildren(bt);
+      return bt;
+    };
+    const confirmer = () => {
+      const oui = el("button", { class: "bouton bouton-danger bouton-petit", type: "button", html: `${icone("corbeille")}<span>Oui, retirer</span>` });
+      const non = el("button", { class: "bouton bouton-petit", type: "button" }, "Garder");
+      // Pendant la confirmation, un changement venu du serveur ne redessine pas la vue (comme pendant une retouche).
+      this.edition = `retrait:${n}`;
+      const garder = () => { this.edition = null; if (this.aRecharger) { this.aRecharger = false; this.afficher(); return null; } return depart(); };
+      non.addEventListener("click", () => garder()?.focus());
+      const suite = d.stade === "tournage_prevu" ? " Ton plan de tournage ne le demandera plus."
+        : d.stade === "valide" ? " Ton brief sera à revalider." : "";
+      oui.addEventListener("click", async () => {
+        oui.disabled = true; non.disabled = true;
+        try {
+          await this.api.retirerPlan(d.slug, n, { texte, empreinte: d.brief.empreinte });
+          annoncer(d.stade === "tournage_prevu" ? "C'est retiré, de ton brief et de ton plan de tournage."
+            : d.stade === "valide" ? "C'est retiré. Relis ton brief, puis revalide-le." : "C'est retiré.");
+        } catch (e) { annoncer(e.message, "erreur"); }
+        this.edition = null; this.aRecharger = false;
+        this.afficher();
+      });
+      const boite = el("div", { class: "plan-confirmer", role: "group", "aria-label": "Retirer ce plan" },
+        el("p", {}, el("strong", {}, "Retirer ce plan de ton brief ?"), ` Tu n'auras pas à le filmer.${suite}`),
+        el("div", { class: "gal-plan-actions" }, oui, non));
+      boite.addEventListener("keydown", (e) => { if (e.key === "Escape" && !oui.disabled) { e.preventDefault(); e.stopPropagation(); garder()?.focus(); } });
+      zone.replaceChildren(boite);
+      oui.focus();
+    };
+    depart();
+    return zone;
+  }
+
+  // Les plans du brief un par un, quand ils n'ont pas encore été comparés à la Galerie : chacun se retire d'un clic.
+  plansListe(d) {
+    const liste = d.brief?.plans_liste || [];
+    if (!liste.length || !this.plansRetirables(d)) return null;
+    // Une ligne de la section qui n'est pas un plan (une note) reste montrée telle quelle, sous les plans.
+    const cle = (t) => String(t || "").replace(/\s+/g, " ").trim();
+    const textes = new Set(liste.map((p) => cle(p.texte)));
+    const reste = String(d.brief.plans || "").split("\n").filter((l) => l.trim() && !textes.has(cle(l.replace(/^\s*[-*]\s*/, "")))).join("\n");
+    return el("div", {}, el("div", { class: "gal-plans-groupe" }, ...liste.map((p) => el("article", { class: "gal-plan sans-stock" },
+      el("div", { class: "gal-plan-corps" }, el("p", { class: "gal-plan-texte" }, p.texte), this.boutonRetirer(d, p.n, p.texte))))),
+    reste ? el("div", { class: "prose", html: markdown(reste) }) : null);
+  }
+
   // ---------- Lot 15 : les plans du brief, déjà en stock ou à tourner ----------
   resteATourner(d) {
     const a = (d.stock || []).filter((p) => p.etat === "a_tourner");
@@ -569,6 +627,7 @@ export class Vue {
       nouveau.addEventListener("click", () => { nouveau.disabled = true; this.choisirPlan(d, p.n, { choix: "tourner" }, "C'est noté : ce plan va dans ton plan de tournage."); });
       actions.append(nouveau);
     }
+    if (this.plansRetirables(d)) actions.append(this.boutonRetirer(d, p.n, p.texte));
     return el("article", { class: "gal-plan" }, vignette,
       el("div", { class: "gal-plan-corps" },
         el("p", { class: "gal-plan-texte" }, p.texte),
@@ -592,6 +651,7 @@ export class Vue {
         revenir.addEventListener("click", () => { revenir.disabled = true; this.choisirPlan(d, p.n, { choix: "proposition" }, "C'est noté : je reprends celui de ta Galerie."); });
         actions.append(revenir);
       }
+      if (this.plansRetirables(d)) actions.append(this.boutonRetirer(d, p.n, p.texte));
       corps.append(actions);
       if (this.ouvertsGalerie.get(cle) === "selecteur") {
         const sel = new Selecteur({ api: this.api, type: p.type === "photo" ? "photo" : "b-roll", pour: d.slug,

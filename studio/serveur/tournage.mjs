@@ -14,7 +14,7 @@ import { estOriginale } from "./stades.mjs";
 import { arriveesPertinentes, voixAttendues } from "../rangement/lib/commun.mjs";
 import { enTeteEnMorceaux } from "../interface/app/morceaux.js";
 import { contact } from "./client.mjs";
-import { Galerie, dossierGalerie, lienVersId, prisesEffectives } from "../rangement/lib/galerie.mjs";
+import { Galerie, dossierGalerie, lienVersId, prisesEffectives, memePhrase } from "../rangement/lib/galerie.mjs";
 
 const VIDE = { version: 1, coches: [], sautees: [], envoi: false, verification: null, valide_le: null, rangement: null };
 
@@ -227,3 +227,25 @@ export function suiviPublic(suivi, enCours = false) {
     a_finir: !enCours && aFinir(suivi),
   };
 }
+
+// Retirer un plan du brief (22/11/2026) : refusé quand il est déjà filmé, c'est-à-dire quand une prise qui le sert est
+// cochée dans un plan de tournage, ou que la fin de ce tournage est validée (ses vidéos sont rangées). `retires` : les
+// plans qui partent du brief ({ type, phrase }). Une photo : toute prise photo cochée de ce contenu compte (on ne sait
+// pas laquelle des photos elle était).
+export function dejaFilme(config, tournages, slug, retires) {
+  for (const t of tournages || []) {
+    if (!(t.contenus || []).includes(slug)) continue;
+    const id = t.id || String(t.fichier || "").replace(/\.json$/, "");
+    const suivi = lireSuivi(config, id);
+    const coches = new Set(suivi.coches);
+    for (const p of t.prises || []) {
+      const c = (p.contenus || []).find((x) => x.slug === slug);
+      if (!c || p.deja_en_bibliotheque) continue;
+      const sert = retires.some((r) => (r.type === "photo" ? p.type === "photo"
+        : p.type === "b-roll" && (!r.phrase || (c.usages || []).some((u) => memePhrase(u.phrase, r.phrase)))));
+      if (sert && (coches.has(p.n) || suivi.valide_le)) return true;
+    }
+  }
+  return false;
+}
+

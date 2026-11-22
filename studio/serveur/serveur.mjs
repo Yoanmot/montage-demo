@@ -9,7 +9,7 @@ import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { CODE } from "./config.mjs";
 import {
-  SLUG_RE, existe, dedans, lireJson, ecrireJson, etendre, isoZurich,
+  SLUG_RE, existe, dedans, lireJson, ecrireJson, etendre, isoZurich, lireTexte,
 } from "./outils.mjs";
 import {
   construireCartes, detail, aRanger, cleCarte, indexSansChemins, videoFace, listeTournages, lireTournage, dateBrief,
@@ -28,7 +28,7 @@ import { Conso } from "./conso.mjs";
 import { Publication } from "./publication.mjs";
 import { Stats } from "./stats.mjs";
 import { executer } from "./commandes.mjs";
-import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible, planEffectif } from "./tournage.mjs";
+import { lireSuivi, ecrireSuivi, verifierArrivees, bulles, suiviPublic, receptionDuPlan, resteARanger, tailleLisible, planEffectif, dejaFilme } from "./tournage.mjs";
 import { arriveesPertinentes, typeFichier, verrouPris, voixAttendues } from "../rangement/lib/commun.mjs";
 import { Ressources, ressourcesActives, motParLeServeur } from "./ressources.mjs";
 import { adresser, clientActif } from "./client.mjs";
@@ -39,7 +39,10 @@ import { telechargerVideo, telechargerSlides } from "./telecharger.mjs";
 import {
   vueGalerie, ficheGalerie, galerieSansChemins, outilGalerie, aDecrire, retoucherDescription, galerieDe, cheminVignette, ID_GALERIE,
 } from "./galerie.mjs";
-import { lienVersId } from "../rangement/lib/galerie.mjs";
+import { lienVersId, plansDuScript } from "../rangement/lib/galerie.mjs";
+
+const DEJA_FILME = "Tu as déjà filmé ce plan : je ne le retire plus d'ici. Si tu ne veux pas t'en servir, dis-le au montage.";
+const PHRASE_CHANGE = "Ton brief a changé entre-temps. Je te remets la dernière version : regarde si ce plan y est encore.";
 
 const TYPES_MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -482,6 +485,13 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
   // Après tout changement de la Galerie : l'interface relit, les fichiers pas encore décrits partent dans la file, la
   // copie sans chemins du head of content est refaite (un peu plus tard, une seule fois pour plusieurs changements).
   let exportGalerie = null;
+  // Les plans du brief qu'une retouche fait partir (ligne enlevée ou changée), lus sur le fichier et sur le texte envoyé.
+  function plansPartis(slug, corpsPlans) {
+    const avant = plansDuScript(lireTexte(path.join(config.depot, "contenus", slug, "script.md"), "") || "");
+    const apres = new Set(plansDuScript(`## Plans à tourner\n${corpsPlans}\n`).map((x) => x.texte.replace(/\s+/g, " ").trim()));
+    return avant.filter((x) => !apres.has(x.texte.replace(/\s+/g, " ").trim()));
+  }
+
   function apresGalerie({ slug = null } = {}) {
     try { for (const id of aDecrire(config)) file.ajouterDescription(id); } catch (e) { journal("galerie_illisible", { erreur: String(e.message || e) }); }
     diffuser("galerie", { le: isoZurich(), ...(slug ? { slug } : {}) });
@@ -962,6 +972,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           });
         }
         if (!Object.keys(entree).length) throw new ErreurStudio("RIEN", "Rien à enregistrer.", 400);
+        // Une ligne de plan enlevée à la main : refusée si ce plan est déjà filmé (comme le bouton « Retirer »).
+        const partis = entree.plans === undefined ? [] : plansPartis(slug, entree.plans);
+        if (partis.length && dejaFilme(config, lireDepot(config.depot).tournages, slug, partis)) throw new ErreurStudio("DEJA_FILME", DEJA_FILME, 409);
         const empreinte = typeof corps.empreinte === "string" && /^sha256:[0-9a-f]{64}$/.test(corps.empreinte) ? corps.empreinte : null;
         const dossierTmp = path.join(config.home, "tmp");
         fs.mkdirSync(dossierTmp, { recursive: true });
@@ -974,8 +987,38 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         } finally {
           fs.rmSync(tmp, { force: true });
         }
+        if (entree.plans !== undefined) apresGalerie({ slug });   // un plan retiré ne réserve plus rien dans la Galerie
         rafraichir();
         return envoyerJson(res, 200, { empreinte: /empreinte=(sha256:[0-9a-f]+)/.exec(r.sortie)?.[1] || null });
+      }
+      // Retirer un plan du brief d'un clic (22/11/2026) : réécrit par outils/brief.py retirer-plan, jamais par le modèle.
+      // Sa comparaison à la Galerie et les choix du client suivent les autres plans ; un plan de tournage déjà écrit ne
+      // le demande plus (prisesEffectives). Refusé une fois la vidéo tournée, ou quand ce plan est déjà filmé.
+      if (m === "POST" && p[2] === "plans" && p.length === 5 && p[4] === "retirer") {
+        const n = Number(p[3]);
+        const texte = typeof corps.texte === "string" ? corps.texte.slice(0, 4000) : "";
+        if (!Number.isInteger(n) || n < 1 || n > 99 || !texte.trim()) throw new ErreurStudio("PLAN", "Je ne trouve plus ce plan dans ton brief : recharge.", 400);
+        const occupe = pont.actif(`${slug}:hoc`)
+          || file.liste().some((a) => a.slug === slug && ["script", "tournage"].includes(a.type) && ["en_cours", "en_file"].includes(a.statut))
+          || file.liste().some((a) => a.type === "tournage" && (a.slugs || []).includes(slug) && ["en_cours", "en_file"].includes(a.statut));
+        if (occupe) throw new ErreurStudio("OCCUPE", "Je travaille encore sur ce brief ou sur son plan de tournage : attends que j'aie fini pour retirer un plan.", 409);
+        const lu = lireDepot(config.depot);
+        const inst = instantane(config, slug, lu);
+        if (inst.contenu.format !== "reel") throw new ErreurStudio("FORMAT", "Ce contenu n'a pas de plans à tourner.", 400);
+        const st = stadeDe(inst.contenu, inst.fichiers, etatLocal()).stade;
+        if (!["script_ecrit", "valide", "tournage_prevu"].includes(st)) {
+          throw new ErreurStudio("TROP_TARD", "Ta vidéo est déjà tournée : ce plan ne se retire plus d'ici. Si tu ne veux pas t'en servir, dis-le au montage.", 409);
+        }
+        const plan = plansDuScript(lireTexte(path.join(config.depot, "contenus", slug, "script.md"), "") || "").find((x) => x.n === n);
+        if (!plan || plan.texte.replace(/\s+/g, " ").trim() !== texte.replace(/\s+/g, " ").trim()) throw new ErreurStudio("CHANGE", PHRASE_CHANGE, 409);
+        if (dejaFilme(config, lu.tournages, slug, [plan])) throw new ErreurStudio("DEJA_FILME", DEJA_FILME, 409);
+        const empreinte = typeof corps.empreinte === "string" && /^sha256:[0-9a-f]{64}$/.test(corps.empreinte) ? corps.empreinte : null;
+        await avantAction();
+        const r = await outilDepot(config, "brief.py", ["retirer-plan", slug, String(n), "--texte", plan.texte, ...(empreinte ? ["--empreinte", empreinte] : []), "--pousser"]);
+        journal("plan_retire", { slug, n, type: plan.type });
+        apresGalerie({ slug });
+        rafraichir();
+        return envoyerJson(res, 200, { empreinte: /empreinte=(sha256:[0-9a-f]+)/.exec(r.sortie)?.[1] || null, stade: st });
       }
       if (m === "POST" && p[2] === "accroche" && p.length === 3) {
         // Romain choisit son accroche (lot 12) : écrite par outils/brief.py, jamais par le modèle.
