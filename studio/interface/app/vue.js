@@ -1640,14 +1640,12 @@ export class Vue {
       el("label", { class: "res-champ res-champ-long" }, el("span", {}, "Message privé qu'ils reçoivent"), message.n), message.err,
       el("p", { class: "recap-dm-aide doux" }, "[son prénom] est remplacé par le prénom de la personne qui commente."),
       el("label", { class: "res-champ" }, el("span", {}, "Bouton"), bouton.n), bouton.err,
-      el("p", { class: "recap-dm-note" + (c.valide ? "" : " a-valider") }, c.valide
-        ? "Validé : il part tel qu'il est ici quand tu postes ce contenu. Tu peux encore le retoucher ici ou au moment de poster."
-        : "Pas encore validé : en cliquant sur Enregistrer (ou pour poster ce contenu), tu le valides tel qu'il est ici."),
+      // Un seul état (22/11/2026) : avant, « Pas encore validé » et « Prête » s'affichaient l'un sous l'autre.
       (c.bloquants || []).length ? el("ul", { class: "res-liste" }, ...c.bloquants.map((x) => el("li", {}, x))) : null,
-      el("p", { class: r.repond && !(c.bloquants || []).length ? "res-ok" : "doux" }, !r.repond
-        ? "Pas encore offerte : la page doit d'abord répondre à son adresse."
-        : (c.bloquants || []).length ? "Pas encore offerte : corrige d'abord ce qui est dit au-dessus."
-        : "Prête : elle sera choisie d'office quand tu prépareras ce contenu à poster."),
+      !r.repond ? el("p", { class: "doux" }, "Pas encore offerte : la page doit d'abord répondre à son adresse.")
+        : (c.bloquants || []).length ? el("p", { class: "doux" }, "Pas encore offerte : corrige d'abord ce qui est dit au-dessus.")
+        : c.valide ? el("p", { class: "res-ok" }, "Validé et prêt : quand tu prépareras ce contenu à poster, cette ressource sera choisie d'office avec ce mot et ce message. Tu peux encore les retoucher ici ou à ce moment-là.")
+        : el("p", { class: "recap-dm-note a-valider" }, "Reste à valider le mot et le message : clique sur Enregistrer, ou valide-les au moment de poster ce contenu, où cette ressource sera choisie d'office."),
       el("div", { class: "programmer-ligne" }, enregistrer, delier())));
   }
 
