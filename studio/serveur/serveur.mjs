@@ -1358,6 +1358,16 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         if (!f) throw new ErreurStudio("INTROUVABLE", "Pas d'aperçu pour cette page.", 404);
         return servirFichier(req, res, f, { cache: "private, max-age=86400" });
       }
+      // Relier une ressource à un contenu, ou la délier, depuis le dossier du contenu (22/11/2026) : écrit par
+      // l'outil du head of content, poussé ; la règle du mot ne se pose qu'au moment de programmer.
+      if (m === "POST" && p.length === 2 && (p[1] === "relier" || p[1] === "delier")) {
+        await avantAction();
+        const r = p[1] === "relier"
+          ? await ressources.relier(corps.contenu, { ressource: corps.ressource, mot: corps.mot, message: corps.message, bouton: corps.bouton, empreinte: corps.empreinte })
+          : await ressources.delier(corps.contenu);
+        rafraichir();
+        return envoyerJson(res, 200, r);
+      }
       // Le bouton « Supprimer » (21/11/2026) : la page quitte le site par le push, la ressource disparaît
       // du studio ; refusé tant qu'un post programmé ou publié l'offre.
       if (m === "POST" && p.length === 3 && p[2] === "supprimer") {

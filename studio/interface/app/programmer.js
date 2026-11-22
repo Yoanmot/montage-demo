@@ -77,7 +77,7 @@ const ou = (plats) => (plats.length > 1 ? `${plats.slice(0, -1).map((p) => NOMS[
 // La phrase de TikTok : il exige, sur chaque post, que tu aies relu le post et que tu acceptes sa publication.
 export const PHRASE_ACCORD_TIKTOK = "En cliquant, tu confirmes avoir relu ce post et tu acceptes qu'il parte sur ton TikTok, visible par tout le monde, en suivant les règles de TikTok (dont celles sur la musique).";
 // Le champ d'une erreur -> la plateforme qu'il concerne (le reste vaut pour toutes).
-const CHAMP_PLATEFORME = { legende: "instagram", message: "instagram", bouton: "instagram", legende_tiktok: "tiktok" };
+const CHAMP_PLATEFORME = { legende: "instagram", message: "instagram", bouton: "instagram", mot: "instagram", legende_tiktok: "tiktok" };
 
 function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
   const els = recap.elements || [];
@@ -151,7 +151,8 @@ function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
     const elements = els.filter((e) => !retires.has(e.slug)).map((e) => {
       const r = choixRessource.has(e.slug) ? choixRessource.get(e.slug) : e.ressource;
       const essai = choixEssai.has(e.slug) ? choixEssai.get(e.slug) : e.reel_essai?.choix || null;
-      return { slug: e.slug, quand: modifs.get(e.slug) || e.quand, ...(r ? { ressource: r } : {}), ...(essai ? { essai } : {}) };
+      // « Aucune ressource » part en texte vide : sans rien, le serveur reprendrait la ressource reliée au contenu.
+      return { slug: e.slug, quand: modifs.get(e.slug) || e.quand, ...(Array.isArray(recap.ressources) ? { ressource: r || "" } : r ? { ressource: r } : {}), ...(essai ? { essai } : {}) };
     });
     if (!elements.length) { conteneur.replaceChildren(); fermer?.(); return; }
     recapDans(studio, conteneur, () => (chercher.length ? chercher(elements) : studio.api.recap(elements)), { apres, fermer });
@@ -178,6 +179,7 @@ function dessiner(studio, conteneur, recap, apres, chercher, fermer) {
         if (p.includes("instagram") && e.message_dm && t.ressource === e.ressource) {
           if (typeof t.message === "string") o.message = t.message;
           if (typeof t.bouton === "string") o.bouton = t.bouton;
+          if (typeof t.mot === "string" && e.message_dm.mot_modifiable) o.mot = t.mot;
         }
         if (Object.keys(o).length) textes[e.slug] = o;
       }
@@ -224,9 +226,18 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
   const messagesTiktok = el("ul", { class: "recap-messages" });
   const verdict = el("span", { class: "verdict" });
   let legendeIg = e.legende;
+  // Le mot retouché au récapitulatif (22/11/2026) : la légende doit le citer, l'avertissement le suit aussi.
+  const absentDe = () => {
+    const t = ctx.retouches.get(e.slug);
+    const m = t && typeof t.mot === "string" && t.ressource === e.ressource ? t.mot.trim().toUpperCase() : "";
+    if (!m || m === absent?.mot || m === e.message_dm?.mot && !absent) return absent;
+    return { mot: m, message: `La légende ne cite pas le mot ${m} : dis-le bien dans la vidéo, sinon personne ne saura quoi commenter.`,
+      verdict_sinon: absent ? absent.verdict_sinon : e.verdict };
+  };
   const verdictIg = () => {
-    const manque = Boolean(absent) && motAbsent(legendeIg, absent.mot);
-    return VERDICTS[absent ? (manque && absent.verdict_sinon === "OK" ? "ATTENTION" : absent.verdict_sinon) : e.verdict] || VERDICTS.ATTENTION;
+    const a = absentDe();
+    const manque = Boolean(a) && motAbsent(legendeIg, a.mot);
+    return VERDICTS[a ? (manque && a.verdict_sinon === "OK" ? "ATTENTION" : a.verdict_sinon) : e.verdict] || VERDICTS.ATTENTION;
   };
   const verdictTk = () => VERDICTS[tk.verdict] || VERDICTS.ATTENTION;
   // Le verdict du contenu : le pire des endroits cochés ; rien de coché, rien à dire encore.
@@ -240,8 +251,9 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
   const blocTk = el("div", { class: "rp-bloc rp-bloc-tiktok" });
   const majMot = (legende) => {
     if (legende !== undefined) { legendeIg = legende; post?.legende(legende); }
-    const manque = Boolean(absent) && motAbsent(legendeIg, absent.mot);
-    messages.replaceChildren(...base.map((m) => el("li", {}, m)), ...(manque ? [el("li", { class: "recap-mot-absent" }, absent.message)] : []));
+    const a = absentDe();
+    const manque = Boolean(a) && motAbsent(legendeIg, a.mot);
+    messages.replaceChildren(...base.map((m) => el("li", {}, m)), ...(manque ? [el("li", { class: "recap-mot-absent" }, a.message)] : []));
     messages.hidden = !messages.children.length || !c.instagram;
     messagesTiktok.replaceChildren(...(tk.messages || []).map((m) => el("li", {}, m)));
     messagesTiktok.hidden = !messagesTiktok.children.length;
@@ -259,6 +271,7 @@ function ligne(e, modifs, retires, auChangement, ressources, choixRessource, ctx
       }
     });
   };
+  (ctx.majMot ||= new Map()).set(e.slug, () => majMot());
 
   // Les deux cases, décochées tant que tu n'as pas choisi. TikTok grisé, avec sa raison, s'il n'est pas relié.
   const caseIg = el("input", { type: "checkbox", id: `rp-ig-${e.slug}`, checked: c.instagram || null });
@@ -430,6 +443,10 @@ const TIRET_LONG = "\u2014";
 function erreurTexte(champ, valeur, limites) {
   const v = champ === "bouton" ? String(valeur).split(/\s+/).filter(Boolean).join(" ") : String(valeur).trim();
   const nom = { legende: "La légende", legende_tiktok: "La légende pour TikTok", message: "Le message", bouton: "Le texte du bouton" }[champ];
+  if (champ === "mot") {
+    if (!v) return "Il faut un mot à commenter.";
+    return /^[A-Z]{5,14}$/.test(v.toUpperCase()) ? null : "Le mot doit être un seul mot sans accent, de 5 à 14 lettres.";
+  }
   if (champ === "legende_tiktok") {
     if (!v) return `${nom} ne peut pas être vide.`;
     if (v.includes(TIRET_LONG)) return `${nom} contient un tiret long : remplace-le par une virgule ou deux points.`;
@@ -466,7 +483,7 @@ function champTexte(e, ctx, champ, initiale, { multi = true, label, ressource, a
   n.addEventListener("input", () => {
     ajuster();
     const r = ctx.retouches.get(e.slug) || {};
-    if (ressource !== undefined && r.ressource !== ressource) { delete r.message; delete r.bouton; r.ressource = ressource; }
+    if (ressource !== undefined && r.ressource !== ressource) { delete r.message; delete r.bouton; delete r.mot; r.ressource = ressource; }
     r[champ] = n.value;
     ctx.retouches.set(e.slug, r);
     verifier(); aChaqueFrappe?.(n.value); ctx.maj();
@@ -505,18 +522,25 @@ function champRessource(e, ressources, choixRessource, auChangement, ctx) {
   let champsDm = [];
   const majPhrase = () => {
     const r = triees.find((x) => x.slug === choix.value && offrable(x));
-    phrase.replaceChildren(...(r ? ["Ceux qui commentent ", el("strong", { class: "mot-com" }, r.mot), " reçoivent : ", el("span", {}, r.titre)]
+    const motVu = r && r.slug === e.ressource && e.message_dm?.mot ? e.message_dm.mot : r?.mot;
+    phrase.replaceChildren(...(r ? ["Ceux qui commentent ", el("strong", { class: "mot-com" }, motVu), " reçoivent : ", el("span", {}, r.titre),
+      ...(r.slug === e.ressource && e.ressource_par_defaut ? [el("span", { class: "doux" }, ". C'est la ressource reliée à ce contenu.")] : [])]
       : [el("span", { class: "doux" }, triees.some(offrable) ? "Aucun mot : personne ne reçoit de message." : "Personne ne reçoit de message.")]));
     for (const c of champsDm) c.oublier();
     champsDm = [];
     // Le message exact du DM : celui vérifié au récapitulatif si c'est la ressource choisie, sinon celui de la liste.
     const dm = r && r.slug === e.ressource && e.message_dm ? e.message_dm : r && typeof r.message === "string" ? { mot: r.mot, message: r.message, bouton: r.bouton || "", a_valider: r.a_valider } : null;
     if (!dm) { message.replaceChildren(); message.hidden = true; ctx.maj(); return; }
+    // Le mot de ce contenu (22/11/2026) : retouchable ici, pour ce post seulement ; la phrase au-dessus le suit.
+    const motModifiable = Boolean(dm.mot_modifiable);
+    const mo = motModifiable ? champTexte(e, ctx, "mot", dm.mot || "", { multi: false, label: "Mot à commenter sous ce post", ressource: r.slug,
+      aChaqueFrappe: (v) => { const s = phrase.querySelector(".mot-com"); if (s) s.textContent = String(v).trim().toUpperCase() || dm.mot; ctx.majMot?.get(e.slug)?.(); } }) : null;
     const m = champTexte(e, ctx, "message", dm.message, { label: `Message privé envoyé à ceux qui commentent ${dm.mot}`, ressource: r.slug });
     const b = champTexte(e, ctx, "bouton", dm.bouton, { multi: false, label: "Texte du bouton du message", ressource: r.slug });
-    champsDm = [m, b];
+    champsDm = [m, b, ...(mo ? [mo] : [])];
     message.hidden = false;
     message.replaceChildren(
+      mo ? el("label", { class: "recap-dm-bouton recap-dm-mot" }, el("span", {}, "Mot"), mo.champ) : null, mo ? mo.erreur : null,
       el("p", { class: "recap-dm-titre" }, "Le message privé qu'ils reçoivent"),
       m.champ, m.erreur,
       el("label", { class: "recap-dm-bouton" }, el("span", {}, "Bouton"), b.champ), b.erreur,

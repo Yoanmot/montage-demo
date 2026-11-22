@@ -46,6 +46,7 @@ import { developper, lierSlides, slidesDe, slugValide } from './carrousels.mjs';
 import { contact, clientActif, VARIABLES_ECRITURE, variablesEcriture } from '../serveur/client.mjs';
 import { motAbsent } from '../interface/app/mot-absent.js';
 import { enRouteEntree } from './plateformes.mjs';
+import { ressourceDuContenu } from '../serveur/liaisons.mjs';
 export { motAbsent };
 
 export const RECAP_MINUTES = 30;
@@ -325,6 +326,8 @@ const BLOQUES = [
   [/^aucune ressource gratuite pour /, () => "Je ne trouve plus la ressource choisie : choisis-en une autre, ou aucune."],
   [/^la ressource \S+ n'est pas en ligne/, () => "La ressource choisie n'est pas encore en ligne : mets-la en ligne dans « Ressources gratuites », ou choisis-en une autre."],
   [/^ressource \S+ : message pas validé/, () => "Tu n'as pas encore validé le message que reçoivent ceux qui commentent : valide-le avec ton head of content, ou choisis une autre ressource."],
+  [/^ressource \S+ : mot trop courant : (\S+)/, (m) => `Le mot ${m[1]} est trop courant : des gens l'écriraient sans avoir vu ton post. Choisis un mot propre à cette vidéo.`],
+  [/^ressource \S+ : mot invalide/, () => "Le mot à commenter doit être un seul mot sans accent, de 5 à 14 lettres."],
   [/^ressource \S+ : /, () => "Le message automatique de la ressource choisie n'est pas prêt : demande à ton head of content de le finir, ou choisis une autre ressource."],
   [/^reel d'essai : seulement pour un reel/, () => "Un carrousel ne peut pas partir en reel d'essai : décoche la case."],
   [/^le mot du script \((\S+)\) n'est pas celui en attente \((\S+)\)/, (m) => `Le mot de ton script (${m[1]}) n'est pas celui qui attend (${m[2]}) : demande à ton head of content de remettre le bon mot en attente.`],
@@ -500,8 +503,13 @@ export const PLATEFORMES = ['instagram', 'tiktok'];
 const TIRET_LONG = '\u2014';
 
 // Ce qui empêche une retouche de partir, en phrases (le studio montre la même chose sous le champ).
-export function erreursTextes({ legende, message, bouton } = {}) {
+export function erreursTextes({ legende, message, bouton, mot } = {}) {
   const e = {};
+  if (mot !== undefined) {
+    const m = String(mot ?? '').trim().toUpperCase();
+    if (!m) e.mot = 'Il faut un mot à commenter.';
+    else if (!/^[A-Z]{5,14}$/.test(m)) e.mot = 'Le mot doit être un seul mot sans accent, de 5 à 14 lettres.';
+  }
   if (legende !== undefined) {
     const l = legendePropre(legende);
     if (!l) e.legende = 'La légende ne peut pas être vide.';
@@ -578,15 +586,27 @@ async function verifierUn(demande, config, maintenant, executer, pretes, tiktokE
   // Ce qui empêche le contenu de partir où que ce soit (pas de vidéo, nom, date, vérification impossible).
   const bloquerTout = (m) => { el.messages.push(m); el.messages_commun.push(m); el.bloque = true; el.bloque_commun = true; };
   if (config.ressources) {
-    const r = demande && typeof demande.ressource === 'string' ? demande.ressource.trim() : '';
+    // Rien de choisi encore (première préparation) : la ressource reliée au contenu, si elle peut être offerte
+    // (22/11/2026). Un choix « Aucune ressource » arrive en texte vide et reste aucune.
+    let r = demande && typeof demande.ressource === 'string' ? demande.ressource.trim() : null;
+    if (r === null) {
+      const liee = slugValide(slug) ? ressourceDuContenu(chemins(config).depot, slug) : null;
+      r = liee && (pretes || []).some((y) => y.slug === liee && y.disponible !== false) ? liee : '';
+      if (r) el.ressource_par_defaut = true;
+    }
     el.ressource = r && slugValide(r) ? r : null;
     const x = el.ressource ? (pretes || []).find((y) => y.slug === el.ressource) : null;
     el.ressource_titre = x?.titre || null;
+    // Le mot et le message de CE contenu s'il est relié à la ressource (sa liaison), sinon ceux de la fiche.
+    const propre = x && Array.isArray(x.contenus) ? x.contenus.find((c) => c.slug === slug) : null;
+    el.liaisons = Boolean(x?.liaisons);
     // Ressource offrable : son message (validé ou non) est montré, et peut être retouché, au récapitulatif.
-    if (x && x.disponible !== false && typeof x.message === 'string') {
-      el.message_dm = { mot: x.mot || null, message: x.message, bouton: x.bouton || '', empreinte: x.empreinte || null, a_valider: Boolean(x.a_valider) };
+    const dm = propre && typeof propre.message === 'string' ? propre : x;
+    if (x && x.disponible !== false && dm && typeof dm.message === 'string') {
+      el.message_dm = { mot: dm.mot || null, message: dm.message, bouton: dm.bouton || '', empreinte: dm.empreinte || null, a_valider: Boolean(dm.a_valider) };
     }
     if (x && x.disponible === false) el.ressource_probleme = x.probleme || null;
+    else if (propre?.probleme) el.ressource_probleme = propre.probleme;
   }
 
   el.tiktok = { possible: false, raison: PHRASE_TIKTOK_ABSENT, messages: [], bloque: false, attention: false };
@@ -713,9 +733,11 @@ function versApi(el) {
     messages: absent ? [...el.messages, absent.message] : el.messages,
   };
   if (el.mot_absent) o.mot_absent = { mot: el.mot_absent.mot, message: el.mot_absent.message, verdict_sinon: sansMot };
-  if ('ressource' in el) { o.ressource = el.ressource; o.ressource_titre = el.ressource_titre; }
+  if ('ressource' in el) { o.ressource = el.ressource; o.ressource_titre = el.ressource_titre; if (el.ressource_par_defaut) o.ressource_par_defaut = true; }
   if (el.message_dm) {
-    o.message_dm = { mot: el.message_dm.mot, message: versClient(el.message_dm.message), bouton: el.message_dm.bouton, a_valider: el.message_dm.a_valider };
+    o.message_dm = { mot: el.message_dm.mot, message: versClient(el.message_dm.message), bouton: el.message_dm.bouton, a_valider: el.message_dm.a_valider,
+      // Le mot se retouche aussi, pour ce contenu seulement (sa liaison) : seulement si l'outil sait le faire.
+      ...(el.liaisons ? { mot_modifiable: true } : {}) };
   }
   // La légende se retouche ici : celle d'un reel est enregistrée dans son script, celle d'un carrousel part telle
   // qu'elle est tapée (ses slides sont déjà mises en page, son texte ne change pas).
@@ -1093,9 +1115,10 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
   if (ig && el.message_dm) {
     if (typeof t.message === 'string' && messagePropre(versFiche(t.message)) !== messagePropre(el.message_dm.message)) retouches.message = t.message;
     if (typeof t.bouton === 'string' && t.bouton.split(/\s+/).filter(Boolean).join(' ') !== el.message_dm.bouton) retouches.bouton = t.bouton;
+    if (el.liaisons && typeof t.mot === 'string' && t.mot.trim().toUpperCase() !== (el.message_dm.mot || '')) retouches.mot = t.mot.trim().toUpperCase();
   }
-  const err = erreursTextes({ legende: retouches.legende, message: retouches.message, bouton: retouches.bouton });
-  const premiere = err.legende || err.message || err.bouton;
+  const err = erreursTextes({ legende: retouches.legende, message: retouches.message, bouton: retouches.bouton, mot: retouches.mot });
+  const premiere = err.legende || err.mot || err.message || err.bouton;
   if (premiere) return premiere;
 
   if (retouches.legende !== undefined || retouches.legende_tiktok !== undefined) {
@@ -1122,14 +1145,20 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
     if (e.legende_tiktok !== undefined) el.tiktok.legende = e.legende_tiktok;
   }
 
-  if (ig && el.message_dm && (el.message_dm.a_valider || retouches.message !== undefined || retouches.bouton !== undefined)) {
-    el.message_retouche = retouches.message !== undefined || retouches.bouton !== undefined;
-    const args = ['valider-message', el.ressource];
+  // Avec l'outil de liaison (22/11/2026), la validation et les retouches vont dans la liaison de CE contenu
+  // (--contenu) : le message des autres contenus qui offrent la même ressource ne bouge pas. Au même clic, le
+  // contenu se retrouve relié à la ressource choisie.
+  const parContenu = ig && el.message_dm && el.liaisons;
+  const relier = parContenu && el.ressource && ressourceDuContenu(chemins(config).depot, el.slug) !== el.ressource;
+  if (ig && el.message_dm && (el.message_dm.a_valider || relier || retouches.message !== undefined || retouches.bouton !== undefined || retouches.mot !== undefined)) {
+    el.message_retouche = retouches.message !== undefined || retouches.bouton !== undefined || retouches.mot !== undefined;
+    const args = ['valider-message', el.ressource, ...(parContenu ? ['--contenu', el.slug] : [])];
     if (el.message_dm.empreinte) args.push('--empreinte', el.message_dm.empreinte);
     if (el.message_retouche) {
       const e = {};
       if (retouches.message !== undefined) e.message = retouches.message;
       if (retouches.bouton !== undefined) e.bouton = retouches.bouton;
+      if (retouches.mot !== undefined) e.mot = retouches.mot;
       args.push('--depuis', fichierEntree(temporaires, e));
     }
     args.push(simulation ? '--essai' : '--pousser');
@@ -1145,8 +1174,11 @@ async function enregistrerTextes(el, t, config, executer, simulation, temporaire
       const e = {};
       if (retouches.message !== undefined) e.message = retouches.message;
       if (retouches.bouton !== undefined) e.bouton = retouches.bouton;
+      if (retouches.mot !== undefined) e.mot = retouches.mot;
       el.message_fichier = fichierEntree(temporaires, e);
     }
+    // Ce qui part : le mot retouché (la phrase de résultat le cite).
+    if (retouches.mot !== undefined) el.mot = retouches.mot;
   }
 
   // Après une écriture : la vérification relit le dépôt en ligne ; ce qui part doit être ce qui était affiché.

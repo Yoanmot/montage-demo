@@ -30,6 +30,18 @@ const ETATS_RESSOURCE = {
   en_preparation: { texte: "en préparation", groupe: "En préparation" },
   sans_page: { texte: "sans page", groupe: "Sans page" },
 };
+// Les contrôles d'un mot, d'un message ou d'un bouton de ressource (mêmes règles que le récapitulatif et l'outil :
+// le mot trop courant n'est connu que de l'outil, qui le refuse à l'enregistrement).
+function erreurChampRessource(nom, valeur) {
+  const v = nom === "bouton" ? String(valeur).split(/\s+/).filter(Boolean).join(" ") : String(valeur).trim();
+  if (nom === "mot") return !v ? "Il faut un mot à commenter." : /^[A-Z]{5,14}$/.test(v.toUpperCase()) ? null : "Le mot doit être un seul mot sans accent, de 5 à 14 lettres.";
+  if (!v) return nom === "bouton" ? "Le bouton a besoin d'un texte." : "Le message ne peut pas être vide.";
+  if (v.includes("\u2014")) return `${nom === "bouton" ? "Le texte du bouton" : "Le message"} contient un tiret long : remplace-le par une virgule ou deux points.`;
+  const n = nom === "message" ? v.replace(/\[\s*son\s+pr[ée]nom\s*\]/gi, "{{first_name}}").length : v.length;
+  const max = nom === "message" ? 640 : 20;
+  return n > max ? `${nom === "bouton" ? "Le texte du bouton" : "Le message"} est trop long (${n} caractères, ${max} au plus).` : null;
+}
+
 // « 12 Ko », « 3,4 Mo ».
 const tailleLisible = (o) => {
   const n = Number(o) || 0;
@@ -1402,7 +1414,9 @@ export class Vue {
     this.api.ressources().then((l) => {
       if (jeton !== this.jeton) return;
       const liste = this.noterEtatsRessources(l.ressources || []);
-      const r = liste.find((x) => x.slug === slug);
+      // La ressource reliée au contenu (22/11/2026) : elle peut vivre ailleurs et servir plusieurs contenus.
+      if (carte && carte.ressource === "aucune") { zone.replaceChildren(...this.relierUneRessource(carte, liste)); return; }
+      const r = liste.find((x) => x.slug === (carte?.ressource_slug || slug));
       zone.replaceChildren(...(r ? this.corpsRessource(r, jeton, liste, carte)
         : [el("p", { class: "vide-doux" }, "Je ne trouve pas encore cette ressource : demande-la à ton head of content dans le chat.")]));
       if (r?.etat === "mise_a_jour") this.relireRessources(jeton);
@@ -1412,7 +1426,8 @@ export class Vue {
 
   corpsRessource(r, jeton, liste, carte = null) {
     const s = this.studio;
-    const chatId = r.contenu ? `${r.contenu.slug}:hoc` : "general";
+    const chatId = carte?.slug ? `${carte.slug}:hoc` : r.contenu ? `${r.contenu.slug}:hoc` : "general";
+    const dansUnContenu = Boolean(carte?.slug && r.liaisons);
     const envoyer = async (texte, bouton) => {
       bouton.disabled = true;
       try { await this.api.envoyer(chatId, texte); annoncer(`C'est demandé à ton head of content : sa réponse arrive dans le chat ${ouChat()}.`); return true; }
@@ -1487,7 +1502,23 @@ export class Vue {
             : !r.mot ? "Pas encore : il lui faut un mot à commenter." : "Pas encore : le message doit être complet."),
           surLeSite && (r.bloquants || []).length ? el("ul", { class: "res-liste" }, ...r.bloquants.map((x) => el("li", {}, x))) : null)),
     ];
-    blocs.push(this.bloc("Le mot en commentaire", el("dl", { class: "recap-champs res-champs" }, ...champs)));
+    // Dans le dossier d'un contenu : SON mot et SON message, retouchables (22/11/2026). Ailleurs : ceux de la fiche.
+    if (dansUnContenu) blocs.push(this.motDuContenu(r, carte));
+    else blocs.push(this.bloc(r.liaisons && r.contenus.length > 1 ? "Le mot et le message par défaut" : "Le mot en commentaire",
+      el("dl", { class: "recap-champs res-champs" }, ...champs)));
+
+    // Les contenus qui l'offrent, chacun avec son mot.
+    if (r.liaisons && !dansUnContenu) {
+      blocs.push(this.bloc("Contenus qui l'offrent", r.contenus.length ? el("div", { class: "accueil-liste" }, ...r.contenus.map((x) => {
+        const c = s.cartes.get(x.slug);
+        const meta = [x.mot ? `mot ${x.mot}` : "pas encore de mot", x.offert ? "offerte par son post" : x.valide ? "message validé" : "message à valider"].join(" · ");
+        return el("button", { class: `accueil-ligne${c ? ` f-${c.format}` : ""}`, type: "button", disabled: c ? null : true,
+          onclick: c ? () => s.selectionner({ genre: "dossier", cle: cle(c), fichier: "ressource" }) : null },
+          el("span", { class: "ligne-corps" }, el("strong", {}, x.titre), el("span", { class: "ligne-meta" }, meta)),
+          c ? el("span", { html: icone("fleche") }) : null);
+      })) : el("p", { class: "vide-doux" }, "Aucun contenu ne l'offre encore. Relie-la à un contenu plus bas, ou depuis le dossier du contenu."),
+      { aide: r.contenus.length ? pluriel(r.contenus.length, "contenu", "contenus") : null }));
+    }
 
     // 4. Les posts qui l'offrent (registre des publications).
     blocs.push(this.bloc("Posts reliés", r.posts.length ? el("div", { class: "accueil-liste" }, ...r.posts.map((p) => {
@@ -1499,8 +1530,28 @@ export class Vue {
         c ? el("span", { html: icone("fleche") }) : null);
     })) : el("p", { class: "vide-doux" }, "Aucun post ne l'offre encore."), { aide: r.posts.length ? pluriel(r.posts.length, "post", "posts") : null }));
 
-    // 5. La réutiliser avec un autre contenu : la légende de ce contenu doit annoncer le mot.
-    if (r.prete) {
+    // 5. La relier à un autre contenu (22/11/2026) : écrit tout de suite, puis son dossier montre son mot et son message.
+    if (r.liaisons && !dansUnContenu) {
+      const deja = new Set(r.contenus.map((x) => x.slug));
+      const cibles = [...s.cartes.values()].filter((c) => c.slug && !deja.has(c.slug) && !["programme", "publie", "abandonne", "de_cote"].includes(c.stade))
+        .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
+      if (cibles.length) {
+        const choix = el("select", { class: "champ res-choix", "aria-label": "Le contenu qui offrira cette ressource" },
+          ...cibles.map((c) => el("option", { value: c.slug }, c.titre)));
+        const go = el("button", { class: "bouton", type: "button", html: `${icone("lien")}<span>Relier</span>` });
+        go.addEventListener("click", async () => {
+          const cible = choix.value; go.disabled = true;
+          try {
+            await this.api.relierRessource(cible, r.slug);
+            annoncer("C'est relié : elle apparaît dans le dossier de ce contenu, avec son mot et son message.");
+            s.selectionner({ genre: "dossier", cle: cible, fichier: "ressource" });
+          } catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
+        });
+        blocs.push(this.bloc("L'offrir avec un autre contenu", el("div", { class: "res-reutiliser" },
+          el("p", { class: "vide-doux" }, "Choisis le contenu : la ressource apparaît dans son dossier, où tu peux lui donner son propre mot et son propre message. Elle est choisie d'office quand tu le prépares à poster."),
+          el("div", { class: "programmer-ligne" }, choix, go))));
+      }
+    } else if (r.prete && !dansUnContenu) {
       const cibles = [...s.cartes.values()].filter((c) => c.slug && c.slug !== r.slug && !["programme", "publie", "abandonne", "de_cote"].includes(c.stade))
         .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
       if (cibles.length) {
@@ -1527,6 +1578,103 @@ export class Vue {
     return blocs;
   }
 
+  // Le mot et le message d'UN contenu qui offre la ressource (sa liaison) : retouchables tant que son post ne
+  // l'offre pas. « Enregistrer » vaut validation de ce qui est affiché, comme le clic pour poster.
+  motDuContenu(r, carte) {
+    const s = this.studio;
+    const c = r.contenus.find((x) => x.slug === carte.slug) || { mot: r.mot, message: r.message, bouton: r.bouton, valide: r.valide, empreinte: r.empreinte, propre: false, offert: false, bloquants: [] };
+    const delier = () => {
+      const b = el("button", { class: "bouton bouton-discret", type: "button", html: `${icone("croix")}<span>Ne plus l'offrir avec ce contenu</span>` });
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try {
+          await this.api.delierRessource(carte.slug);
+          annoncer("C'est fait : ce contenu n'offre plus cette ressource. Elle reste dans « Ressources gratuites ».");
+          s.selectionner({ genre: "dossier", cle: carte.slug, fichier: "ressource" });
+        } catch (e) { annoncer(e.message, "erreur"); b.disabled = false; }
+      });
+      return b;
+    };
+    if (c.offert) {
+      return this.bloc("Le mot en commentaire de ce contenu", el("div", {},
+        el("dl", { class: "recap-champs res-champs" },
+          el("dt", {}, "Mot à commenter"), el("dd", {}, c.mot ? el("strong", { class: "mot-com" }, c.mot) : el("span", { class: "doux" }, "Aucun")),
+          el("dt", {}, "Message envoyé"), el("dd", {}, el("div", { class: "res-message" }, el("p", {}, c.message || ""), c.bouton ? el("span", { class: "res-bouton" }, c.bouton) : null))),
+        el("p", { class: "vide-doux" }, "Ton post l'offre déjà : ce mot et ce message sont partis avec lui, ils ne se changent plus ici.")));
+    }
+    const erreurs = new Map();
+    const champ = (nom, valeur, { multi = false, label }) => {
+      const n = multi ? el("textarea", { class: `champ res-texte res-texte-${nom}`, rows: String(Math.min(10, Math.max(3, String(valeur || "").split("\n").length + 1))), "aria-label": label }, valeur || "")
+        : el("input", { type: "text", class: `champ res-texte res-texte-${nom}`, value: valeur || "", "aria-label": label });
+      const err = el("p", { class: "recap-champ-erreur", role: "alert", hidden: true });
+      const verifier = () => {
+        const x = erreurChampRessource(nom, n.value);
+        err.textContent = x || ""; err.hidden = !x; n.classList.toggle("faux", Boolean(x));
+        if (x) erreurs.set(nom, x); else erreurs.delete(nom);
+        enregistrer.disabled = erreurs.size > 0 || !change();
+      };
+      n.addEventListener("input", () => { if (n.value !== (valeur || "")) this.edition = "ressource"; verifier(); });
+      return { n, err, verifier, initiale: valeur || "" };
+    };
+    const enregistrer = el("button", { class: "bouton bouton-plein", type: "button", html: `<span>Enregistrer</span>` });
+    const mot = champ("mot", c.mot, { label: "Mot à commenter sous ce contenu" });
+    const message = champ("message", c.message, { multi: true, label: "Message privé envoyé à ceux qui commentent le mot" });
+    const bouton = champ("bouton", c.bouton, { label: "Texte du bouton du message" });
+    const tous = [mot, message, bouton];
+    const change = () => tous.some((x) => x.n.value !== x.initiale) || !c.valide;
+    for (const x of tous) x.verifier();
+    enregistrer.addEventListener("click", async () => {
+      enregistrer.disabled = true;
+      try {
+        await this.api.relierRessource(carte.slug, r.slug, { mot: mot.n.value.trim().toUpperCase(), message: message.n.value, bouton: bouton.n.value, empreinte: c.empreinte });
+        this.edition = null;
+        annoncer("C'est enregistré : c'est ce message qui part avec ce contenu.");
+        this.afficher();
+      } catch (e) { annoncer(e.message, "erreur"); enregistrer.disabled = false; }
+    });
+    return this.bloc("Le mot en commentaire de ce contenu", el("div", { class: "res-mot-contenu" },
+      el("p", { class: "vide-doux" }, r.contenus.length > 1
+        ? "Ceux qui commentent ce mot sous ce contenu reçoivent cette page. Chaque contenu qui l'offre a son mot et son message : les changer ici ne touche pas aux autres."
+        : "Ceux qui commentent ce mot sous ce contenu reçoivent cette page. Les changer ici ne touche que ce contenu."),
+      el("label", { class: "res-champ" }, el("span", {}, "Mot à commenter"), mot.n), mot.err,
+      el("label", { class: "res-champ res-champ-long" }, el("span", {}, "Message privé qu'ils reçoivent"), message.n), message.err,
+      el("p", { class: "recap-dm-aide doux" }, "[son prénom] est remplacé par le prénom de la personne qui commente."),
+      el("label", { class: "res-champ" }, el("span", {}, "Bouton"), bouton.n), bouton.err,
+      el("p", { class: "recap-dm-note" + (c.valide ? "" : " a-valider") }, c.valide
+        ? "Validé : il part tel qu'il est ici quand tu postes ce contenu. Tu peux encore le retoucher ici ou au moment de poster."
+        : "Pas encore validé : en cliquant sur Enregistrer (ou pour poster ce contenu), tu le valides tel qu'il est ici."),
+      (c.bloquants || []).length ? el("ul", { class: "res-liste" }, ...c.bloquants.map((x) => el("li", {}, x))) : null,
+      el("p", { class: r.repond && !(c.bloquants || []).length ? "res-ok" : "doux" }, !r.repond
+        ? "Pas encore offerte : la page doit d'abord répondre à son adresse."
+        : (c.bloquants || []).length ? "Pas encore offerte : corrige d'abord ce qui est dit au-dessus."
+        : "Prête : elle sera choisie d'office quand tu prépareras ce contenu à poster."),
+      el("div", { class: "programmer-ligne" }, enregistrer, delier())));
+  }
+
+  // Un contenu sans ressource : la liste des ressources, pour en relier une (22/11/2026).
+  relierUneRessource(carte, liste) {
+    const s = this.studio;
+    if (!liste.length) {
+      return [this.etape("<strong>Aucune ressource gratuite pour ce contenu.</strong> Tu n'en as pas encore : demande-en une à ton head of content dans le chat, il la relie à ce contenu.")];
+    }
+    const triees = [...liste].sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
+    const choix = el("select", { class: "champ res-choix", "aria-label": `La ressource offerte avec « ${carte.titre} »` },
+      ...triees.map((r) => el("option", { value: r.slug }, `${r.titre}${r.mot ? ` (mot ${r.mot})` : ""}${r.contenus?.length ? `, déjà offerte par ${pluriel(r.contenus.length, "contenu", "contenus")}` : ""}`)));
+    const go = el("button", { class: "bouton bouton-plein", type: "button", html: `${icone("lien")}<span>Relier</span>` });
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      try {
+        await this.api.relierRessource(carte.slug, choix.value);
+        annoncer("C'est relié : tu peux donner à ce contenu son propre mot et son propre message.");
+        s.selectionner({ genre: "dossier", cle: carte.slug, fichier: "ressource" });
+      } catch (e) { annoncer(e.message, "erreur"); go.disabled = false; }
+    });
+    return [
+      this.etape("<strong>Aucune ressource gratuite reliée à ce contenu.</strong> Choisis-en une : ceux qui commenteront son mot sous ce post recevront sa page. Une même ressource peut servir plusieurs contenus, chacun avec son mot."),
+      this.bloc("Relier une ressource", el("div", { class: "res-reutiliser" }, el("div", { class: "programmer-ligne" }, choix, go))),
+    ];
+  }
+
   supprimerRessource(r, surLeSite) {
     const s = this.studio;
     const zone = el("div", { class: "res-supprimer" });
@@ -1550,7 +1698,8 @@ export class Vue {
         try {
           await this.api.supprimerRessource(r.slug);
           annoncer(surLeSite ? "C'est supprimé. Sa page quitte le site d'ici une minute ou deux." : "C'est supprimé.");
-          if (r.contenu) s.selectionner({ genre: "dossier", cle: r.contenu.slug });
+          if (this.studio.sel?.genre === "dossier") s.selectionner({ genre: "dossier", cle: this.studio.sel.cle });
+          else if (r.contenu) s.selectionner({ genre: "dossier", cle: r.contenu.slug });
           else s.selectionner({ genre: "transverse", quoi: "ressources" });
         } catch (e) {
           annoncer(e.message, "erreur");
@@ -1563,7 +1712,8 @@ export class Vue {
         el("p", {}, surLeSite
           ? "Sa page quitte le site d'ici une minute ou deux : son lien ne mènera plus nulle part. Elle disparaît aussi de ton studio, et ça ne se défait pas."
           : "Elle disparaît de ton studio, et ça ne se défait pas."),
-        r.contenu ? el("p", {}, `Le contenu « ${r.contenu.titre} » reste là : seule sa ressource part.`) : null,
+        (r.contenus || []).length ? el("p", {}, `${r.contenus.length > 1 ? `Les contenus ${r.contenus.map((x) => `« ${x.titre} »`).join(", ")} restent là` : `Le contenu « ${r.contenus[0].titre} » reste là`} : seule la ressource part, et ils ne l'offrent plus.`)
+          : r.contenu ? el("p", {}, `Le contenu « ${r.contenu.titre} » reste là : seule sa ressource part.`) : null,
         el("div", { class: "programmer-ligne" }, oui, non));
       boite.addEventListener("keydown", (e) => { if (e.key === "Escape" && !oui.disabled) { e.preventDefault(); e.stopPropagation(); annuler(); } });
       zone.replaceChildren(boite);

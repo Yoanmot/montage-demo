@@ -446,6 +446,15 @@ input[type="radio"] { accent-color: var(--encre); width: 16px; height: 16px; mar
 .res-demande { display: grid; gap: 10px; max-width: 70ch; }
 .res-demande-champ { height: auto; min-height: 76px; padding: 8px 10px; resize: vertical; font: inherit; line-height: 1.45; }
 .res-reutiliser { display: grid; gap: 10px; }
+/* Le mot et le message d'un contenu qui offre la ressource (22/11/2026). */
+.res-mot-contenu { display: grid; gap: 8px; max-width: 70ch; }
+.res-mot-contenu > p { margin: 0; }
+.res-champ { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--encre-2); }
+.res-champ .champ { font-weight: 400; color: var(--encre); font-size: 14px; }
+.res-champ input.champ { height: 34px; max-width: 280px; }
+.res-champ textarea.champ { height: auto; min-height: 90px; padding: 8px 10px; resize: vertical; font: inherit; line-height: 1.45; }
+.res-texte-mot, .recap-texte-mot { text-transform: uppercase; letter-spacing: .02em; }
+.res-mot-contenu .res-champs { margin-top: 4px; }
 .res-choix { height: 36px; max-width: min(100%, 420px); }
 .res-supprimer { display: grid; gap: 10px; max-width: 70ch; }
 .res-supprimer p { margin: 0; }

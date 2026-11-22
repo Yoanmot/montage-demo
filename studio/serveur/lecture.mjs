@@ -9,7 +9,7 @@ import {
 } from "./outils.mjs";
 import { stade, libelle, estMonte, estOriginale, sortieAConfirmer } from "./stades.mjs";
 import { contact } from "./client.mjs";
-import { ressourcesActives, dossiersDeContenus, etatRessourceRapide } from "./ressources.mjs";
+import { ressourcesActives, dossiersDeContenus, ressourceDuDossier } from "./ressources.mjs";
 import { videoMonteeDe, versionVideo } from "./vignettes.mjs";
 import { autresFichiers } from "./autres.mjs";
 import { listePlateformes } from "../publication/plateformes.mjs";
@@ -346,11 +346,14 @@ function carteContenu(config, slug, depotLu, etatLocal) {
   const vignette = vignetteDe(config, slug, contenu.format);
   if (vignette) carte.vignette = vignette;
   // Ressource gratuite (client qui a un site de ressources) : un fichier de plus dans le dossier, et
-  // son état lu sur le disque (« fiche », « brouillon », « en_ligne »).
-  const ressource = ressourcesActives(config) ? etatRessourceRapide(config, slug) : null;
-  if (ressource) {
+  // son état lu sur le disque (« fiche », « brouillon », « en_ligne »). Depuis le 22/11/2026, c'est la ressource
+  // reliée au contenu (elle peut vivre ailleurs et servir plusieurs contenus), ou « aucune » : l'entrée reste,
+  // pour en relier une depuis le dossier (pas pour un contenu déjà programmé ou publié).
+  const ressource = ressourcesActives(config) ? ressourceDuDossier(config, slug) : null;
+  if (ressource && (ressource.slug || !["programme", "publie"].includes(carte.stade))) {
     carte.fichiers.push("ressource");
-    carte.ressource = ressource;
+    carte.ressource = ressource.etat;
+    if (ressource.slug) carte.ressource_slug = ressource.slug;
   }
   // Les autres fichiers (19/11) : ce que le head of content a rangé dans le dossier hors de la liste connue.
   if (autresFichiers(dossier, { max: 1 }).length) carte.fichiers.push("autres");
@@ -550,8 +553,9 @@ export function detail(config, slug, etatLocal) {
     if (sortieAConfirmer(pub)) r.publication.a_confirmer = true;
     if (pub.statut === "failed") r.publication.refuse = true;
   }
-  if (config.apercuRessources && existe(path.join(config.depot, "site", slug, "index.html"))) {
-    r.ressource_url = `${config.apercuRessources.replace(/\/$/, "")}/${slug}/`;
+  const res = carte.ressource_slug || slug;
+  if (config.apercuRessources && existe(path.join(config.depot, "site", res, "index.html"))) {
+    r.ressource_url = `${config.apercuRessources.replace(/\/$/, "")}/${res}/`;
   }
   return r;
 }
