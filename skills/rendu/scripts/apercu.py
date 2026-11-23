@@ -70,7 +70,7 @@ def image_camera(w, info, video, ff, C, total, A):
     """L'image de la vidéo coupée, légère, faite une fois : coupes (filtre.txt, HDR converti), mise en 1080 x 1920 comme
     le rendu, étalonnage du style, puis 720 x 1280. Sans zoom ni décalage (joués par le lecteur)."""
     cache = A / "cache"; cache.mkdir(parents=True, exist_ok=True)
-    filtre = R.filtre_coupes(w, video, ff, cache)
+    filtre = R.filtre_coupes(w, video, ff, cache, C.get("ETALONNAGE_CAMERA"))
     s = video.stat()
     cle = R.empreinte(filtre, C["ETALONNAGE"], AW, AH, CRF, GOP, str(video), s.st_size, int(s.st_mtime), total, "image-1")
     out = cache / f"image-{cle}.mp4"

@@ -22,6 +22,7 @@ TYPES = {"hook", "sous_titres", "zoom", "suivi", "mot_derriere", "plein_ecran", 
 PONCT = "«»\"“”.,;:!?…()[]"
 
 
+ECRAN_PARTAGE = False   # écran partagé (ecran-partage.json dans le dossier de montage) : les coupes restent visibles
 COMMANDE = False   # --commande : un sur_mesure sans calque est commandé au constructeur (passe 2 du planificateur)
 
 
@@ -508,7 +509,9 @@ def regles(res, A, fautes, avert):
             or (r.get("bascule") and r["bascule"]["t"] + (STYLE["demiEcran"]["bascule"]["duree"] if r["bascule"]["type"] == "pousse" else 0) <= j <= r["a"] + TOL)) for r in E)
         or any(r["type"] == "cta" and r["support"] == "fond" and r["quand"]["faisceau"] - TOL <= j <= r["a"] for r in E))
     for k, j in enumerate(res["joints"]):
-        if not caches(j): fautes.append(f"jointure {k + 1} (@coupe{k + 1}, {j:.3f} s) visible : aucun geste ne la cache")
+        # Écran partagé (monteur de Yoan) : la coupe se voit sur les deux moitiés à la fois, comme dans un tutoriel
+        # d'écran ; elle n'a pas à être cachée (un faisceau reste possible).
+        if not caches(j) and not ECRAN_PARTAGE: fautes.append(f"jointure {k + 1} (@coupe{k + 1}, {j:.3f} s) visible : aucun geste ne la cache")
     caches_cam = [(r["de"], r["a"], r["_nom"]) for r in E if r["type"] in ("plein_ecran", "broll") or (r["type"] == "motion" and r["support"] == "plein")]
     for r in E:
         if r["type"] != "zoom": continue

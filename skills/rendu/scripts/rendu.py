@@ -161,6 +161,11 @@ def constantes(node, biblio, w=None):
     C = json.loads(r.stdout)
     if w is not None:
         etalonnage_video(C, w)
+        if ecran_partage(w):
+            # Écran partagé (monteur de Yoan) : l'étalonnage ne touche que la caméra (moitié haute), posé à l'entrée par
+            # filtre_coupes ; le plan entier n'en reçoit plus (la moitié basse garde les couleurs de l'écran).
+            C["ETALONNAGE_CAMERA"] = C["ETALONNAGE"]
+            C["ETALONNAGE"] = "null"
     return C
 
 
@@ -437,12 +442,37 @@ def vers_sdr(ff, fichier, cache):
             f"setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv")
 
 
-def filtre_coupes(w, video, ff, cache):
+def filtre_coupes(w, video, ff, cache, etalonnage_camera=None):
     """filtre.txt de couper-silences ([0:v] et [0:a] -> [v] et [a], 30 i/s), avec la conversion HDR -> SDR posée à
-    l'entrée de l'image si la vidéo est en HDR. Partagé avec la planche et l'écoute des sons."""
+    l'entrée de l'image si la vidéo est en HDR. Partagé avec la planche et l'écoute des sons.
+    Écran partagé (`ecran-partage.json` dans le dossier, monteur de Yoan) : [0:v] devient l'image composée, caméra en
+    haut (HDR converti, puis `etalonnage_camera` sur elle seule) et enregistrement d'écran calé par le son en bas, avant
+    les coupes : chaque coupe s'applique aux deux moitiés. Sans ce fichier, rien ne change."""
     f = (Path(w) / "filtre.txt").read_text(encoding="utf-8-sig").strip()
     sdr = vers_sdr(ff, video, cache)
+    if ecran_partage(w):
+        EP = module_ecran_partage()
+        try:
+            return EP.substituer(f, w, sdr, etalonnage_camera)
+        except EP.Refus as e:
+            echec(e.sortie, e.message)
     return f.replace("[0:v]", f"[0:v]{sdr},", 1) if sdr else f
+
+
+def ecran_partage(w):
+    """Le dossier de montage est-il au format écran partagé (brique ecran-partage du monteur de Yoan) ?"""
+    return (Path(w) / "ecran-partage.json").exists()
+
+
+def module_ecran_partage():
+    d = SKILL.parent / "ecran-partage" / "scripts"
+    if not (d / "ecran_partage.py").exists():
+        echec(2, "BRIQUE_MANQUANTE ecran-partage : ce dossier est au format écran partagé mais la brique ecran-partage "
+                 "n'est pas installée à côté de rendu.")
+    if str(d) not in sys.path:
+        sys.path.insert(0, str(d))
+    import ecran_partage as EP
+    return EP
 
 
 # ------------------------------------------------------------------------------------------------ plan caméra
@@ -958,7 +988,7 @@ def main():
     k = 1
     if brolls:
         entrees += brolls["entrees"]; k += len(brolls["entrees"]) // 6
-    lignes = [filtre_coupes(w, video, ff, cache), "[a]anullsink"]
+    lignes = [filtre_coupes(w, video, ff, cache, C.get("ETALONNAGE_CAMERA")), "[a]anullsink"]
     cur = plan_camera(lignes, info, OW, OH, zooms, geo, calques, C, w)
 
     def entree_calque(c, etq):

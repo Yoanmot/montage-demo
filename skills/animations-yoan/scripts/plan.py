@@ -263,6 +263,7 @@ def resoudre(w, commande=False):
     tl["_rush"] = ""
     tl["_prep"] = str(w)
     VT.COMMANDE = commande
+    VT.ECRAN_PARTAGE = ecran_partage(w)
     for x in ("edl.json", "words.cut.json"):
         if not (w / x).exists(): raise PlanFaux(f"COUPES_INTROUVABLES : {x} manque (couper-silences d'abord).")
     edl = json.loads((w / "edl.json").read_text()); wc = json.loads((w / "words.cut.json").read_text())
@@ -278,7 +279,31 @@ def resoudre(w, commande=False):
     res, fautes, avert = VT.resoudre(tl)
     if res is not None and not fautes:
         fautes += contraintes_moteur(res)
+        if VT.ECRAN_PARTAGE:
+            f2, a2 = contraintes_ecran_partage(res)
+            fautes += f2; avert += a2
     return res, fautes, avert, tl
+
+
+# ------------------------------------------------------------------------------------------------ écran partagé
+def ecran_partage(w):
+    """Format écran partagé : sa caméra en haut, son écran en bas (brique ecran-partage, ecran-partage.json)."""
+    return (Path(w) / "ecran-partage.json").exists()
+
+
+def contraintes_ecran_partage(res):
+    """Ce que le format écran partagé ne permet pas : un zoom recadrerait aussi l'écran du bas, un demi-écran pousserait
+    toute l'image composée. Un geste sur la caméra se pose dans la moitié haute (le bas est son écran)."""
+    fautes, avert = [], []
+    for r in res["elements"]:
+        if r["type"] == "zoom":
+            fautes.append(f"{r['_nom']} : pas de zoom en écran partagé (il recadrerait aussi son écran) ; enlève-le")
+        elif r["type"] == "demi_ecran":
+            fautes.append(f"{r['_nom']} : pas de demi-écran en écran partagé (la moitié basse est déjà son écran) ; enlève-le")
+        elif r["type"] == "motion" and r.get("support") == "camera":
+            avert.append(f"{r['_nom']} : en écran partagé, un geste sur la caméra se pose dans la moitié haute (y sous 900), "
+                         "jamais sur son écran")
+    return fautes, avert
 
 
 # ------------------------------------------------------------------------------------------------ moteur de Romain

@@ -41,22 +41,39 @@ def _fusion(cible, ajout):
 
 
 def appliquer_style_video(w):
-    """Applique la clé « style » de <w>/style-video.json au style. Rend le dict appliqué (ou None)."""
+    """Applique la clé « style » de <w>/style-video.json au style. Rend le dict appliqué (ou None).
+    Écran partagé (<w>/ecran-partage.json, brique ecran-partage) : sa clé « style » (le format : sous-titres sur la
+    jointure...) passe d'abord, la demande de Yoan pour cette vidéo par-dessus ; les pages lisent alors la fusion des
+    deux, écrite dans <w>/animations-yoan/style-applique.json."""
     p = Path(w) / STYLE_VIDEO
-    if not p.exists():
+    fmt = Path(w) / "ecran-partage.json"
+    couches = []
+    for f in (fmt, p):
+        if not f.exists():
+            continue
+        d = json.loads(f.read_text(encoding="utf-8"))
+        sv = d.get("style") if isinstance(d, dict) else None
+        if not sv:
+            continue
+        inconnues = [k for k in sv if k not in STYLE and not k.startswith("_")]
+        if inconnues:
+            raise ValueError(f"STYLE_VIDEO_CLE_INCONNUE {', '.join(inconnues)} dans {f} (clés de style.json : {', '.join(k for k in STYLE if not k.startswith('_'))})")
+        for k in ("format",):
+            if k in sv:
+                raise ValueError(f"STYLE_VIDEO_CLE_INTERDITE {k} dans {f} : le format de la vidéo ne change pas")
+        couches.append((f, sv))
+    if not couches:
         os.environ.pop("STYLE_VIDEO", None)
         return None
-    d = json.loads(p.read_text(encoding="utf-8"))
-    sv = d.get("style") if isinstance(d, dict) else None
-    if not sv:
-        os.environ.pop("STYLE_VIDEO", None)
-        return None
-    inconnues = [k for k in sv if k not in STYLE and not k.startswith("_")]
-    if inconnues:
-        raise ValueError(f"STYLE_VIDEO_CLE_INCONNUE {', '.join(inconnues)} dans {p} (clés de style.json : {', '.join(k for k in STYLE if not k.startswith('_'))})")
-    for k in ("format",):
-        if k in sv:
-            raise ValueError(f"STYLE_VIDEO_CLE_INTERDITE {k} dans {p} : le format de la vidéo ne change pas")
-    _fusion(STYLE, sv)
-    os.environ["STYLE_VIDEO"] = str(p.resolve())
-    return sv
+    total = {}
+    for _, sv in couches:
+        _fusion(STYLE, sv)
+        _fusion(total, json.loads(json.dumps(sv)))
+    if len(couches) == 1 and couches[0][0] == p:
+        os.environ["STYLE_VIDEO"] = str(p.resolve())
+    else:
+        a = Path(w) / "animations-yoan"; a.mkdir(exist_ok=True)
+        out = a / "style-applique.json"
+        out.write_text(json.dumps({"style": total}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        os.environ["STYLE_VIDEO"] = str(out.resolve())
+    return total

@@ -157,7 +157,7 @@ def images_camera(ff, w, info, OW, OH, zooms, brolls, calques, C, voulues, dest)
     le masque de Romain)."""
     geo = [c for c in calques if c["decalage"]]
     video = R.video_de(w, info)
-    lignes = [R.filtre_coupes(w, video, R.trouve_ffmpeg() if ff is None else ff, dest), "[a]anullsink"]
+    lignes = [R.filtre_coupes(w, video, R.trouve_ffmpeg() if ff is None else ff, dest, C.get("ETALONNAGE_CAMERA")), "[a]anullsink"]
     cur = R.plan_camera(lignes, info, OW, OH, zooms, geo, calques, C, w, brut="brut")
     entrees = ["-i", str(video)]
     if brolls:
@@ -374,7 +374,7 @@ def main():
     (P / "vignettes").mkdir(parents=True, exist_ok=True)
 
     # 1. empreintes : plan caméra (graphe commun + flou actif) et calques actifs, par vignette
-    socle = R.empreinte(R.filtre_coupes(w, R.video_de(w, info), ff, cache / "plan"), zooms or "", json.dumps(brolls or {}), "tete-1",
+    socle = R.empreinte(R.filtre_coupes(w, R.video_de(w, info), ff, cache / "plan", C.get("ETALONNAGE_CAMERA")), zooms or "", json.dumps(brolls or {}), "tete-1",
                         C["ETALONNAGE"], OW, OH, json.dumps([[c["debut"], c["images"], c["decalage"]] for c in calques if c["decalage"]]))
     emp = {c["id"]: R.empreinte_dossier(c["dossier"]) for c in calques}
     for v in vignettes:

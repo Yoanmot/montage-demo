@@ -148,6 +148,8 @@ def mot_de(A, ancre):
 
 
 def cmd_zooms(w):
+    if P.ecran_partage(w):   # le hook garde son cadre fixe, et aucun zoom ne recadre l'écran du bas
+        echec(3, "ÉCRAN_PARTAGÉ : pas de zoom dans ce format (ni dézoom d'ouverture du hook) ; passe aux animations.")
     res, tl = resolu(w)
     edl = lit(w / "edl.json"); A = VT.Ancres(lit(w / "words.cut.json")["words"], edl)
     zooms, notes = [], []
@@ -192,6 +194,15 @@ def echelle_zoom(w, n):
     return 1.0, W / 2, H / 2
 
 
+def module_ecran_partage():
+    d = SK / "ecran-partage" / "scripts"
+    if not (d / "ecran_partage.py").exists():
+        echec(2, "BRIQUE_MANQUANTE ecran-partage : ce dossier est au format écran partagé mais la brique n'est pas installée.")
+    if str(d) not in sys.path: sys.path.insert(0, str(d))
+    import ecran_partage as EP
+    return EP
+
+
 class Tete:
     """Haut des cheveux et centre du visage sur des images de la vidéo coupée (Apple Vision sur l'original, puis la
     transformation du zoom de la brique zooms), en px de l'image finale 1080 x 1920."""
@@ -212,6 +223,13 @@ class Tete:
         seg = next((s for s in self.segs if s["outInF"] <= n < s["outOutF"]), self.segs[-1])
         t = (seg["srcInF"] + min(n, seg["outOutF"] - 1) - seg["outInF"]) / FPS
         png = self.tmp / f"i{n}.png"
+        if P.ecran_partage(self.w):   # écran partagé : l'image composée (caméra en haut, écran en bas), celle du rendu
+            EP = module_ecran_partage()
+            try:
+                EP.image(self.w, t, png)
+            except EP.Refus as e:
+                echec(5, f"MESURE_IMPOSSIBLE : image {n} : {e.message}")
+            return np.asarray(Image.open(png).convert("RGB"))
         r = subprocess.run([self.ff, "-nostdin", "-v", "error", "-y", "-ss", f"{t:.4f}", "-i", str(self.video), "-frames:v", "1",
                             "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}", str(png)], capture_output=True)
         if r.returncode != 0 or not png.exists(): echec(5, f"MESURE_IMPOSSIBLE : image {n} illisible ({r.stderr.decode(errors='replace')[-200:]})")
@@ -532,7 +550,7 @@ def suivre_ouverture(w, dc, dy):
 
 def cmd_calques(w):
     res, tl = resolu(w)
-    if any(r["type"] == "hook" for r in res["elements"]) and not (w / "ouverture.json").exists():
+    if any(r["type"] == "hook" for r in res["elements"]) and not (w / "ouverture.json").exists() and not P.ecran_partage(w):
         dire("AVERTISSEMENT ouverture.json absent : lance d'abord « yoan.py zooms » puis la brique zooms, le titre du hook suit le dézoom")
     C = Calques(w, res, tl)
     C.construire()
