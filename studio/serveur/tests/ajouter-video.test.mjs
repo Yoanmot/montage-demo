@@ -130,6 +130,10 @@ test("refus : jeton, origine, contenu, format, type, taille, envoi coupé ; rien
   assert.deepEqual([r.statut, r.json.erreur], [400, "TYPE"]);
   r = await api("POST", route({ nom: "a.mov", type: "autre" }), brut);
   assert.equal(r.statut, 400);
+  // L'enregistrement d'écran (écran partagé) n'existe que chez un client qui a ce format (Yoan), jamais chez Romain.
+  r = await api("POST", route({ nom: "a.mov", type: "ecran" }), brut);
+  assert.equal(r.statut, 400);
+  assert.equal((await api("GET", "/api/etat")).json.config.ecran_partage, false);
   r = await api("POST", route({ nom: "a.mov", type: "b-roll", verifier: "1", taille: String(21 * 1024 ** 3) }));
   assert.deepEqual([r.statut, r.json.erreur], [413, "TROP_GROS"]);
   assert.match(r.json.message, /20 Go/);

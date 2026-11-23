@@ -20,6 +20,9 @@ Variables :
                 vide pour une face caméra.
   {{tournage}}  « Plan de tournage groupé : <chemin absolu> » pour chaque DEPOT/tournages/*.json dont
                 `contenus` contient le slug (une ligne chacun, le plus récent d'abord) ; vide s'il n'y en a pas.
+  {{ecran}}     (23/11, studio de Yoan) un saut de ligne puis l'enregistrement d'écran du format écran partagé
+                (MEDIA/<slug>/ecran/<nom>), ou la phrase qui dit qu'il manque quand un plan de tournage du contenu a
+                une prise `genre: "ecran_partage"` ; vide sinon (toujours chez Romain).
   {{stock}}     (lot 15) les plans du brief pris dans la Galerie : une ligne par plan effectif « stock »
                 (plan, phrase, chemin du lien dans MEDIA/<slug>/b-roll/ ou photos/, passage proposé, ce que le
                 plan doit montrer et le détail qui peut différer) ; vide s'il n'y en a pas.
@@ -29,7 +32,7 @@ de Romain tel quel avec --resume.
 -->
 Monte la vidéo du contenu {{slug}} : « {{titre}} » (mode studio).
 
-Vidéo face caméra : {{video}}{{genre}}
+Vidéo face caméra : {{video}}{{genre}}{{ecran}}
 
 Ses clips filmés en plus pour ce contenu (liens vers sa bibliothèque et sa Galerie) :
 {{clips}}

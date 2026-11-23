@@ -2,7 +2,7 @@
 // Rangement des rushs d'un tournage groupé (lot 4 du studio, CONTRAT-STUDIO.md sections 2, 5 et 11).
 //
 //   node ranger.mjs --config <studio.config.json> [--tournage <id>] [--simulation]
-//   node ranger.mjs placer <nom> <slug> <face|b-roll|photo> [--config ...]     placement à la main (glisser sur une carte)
+//   node ranger.mjs placer <nom> <slug> <face|b-roll|photo|ecran> [--config ...] placement à la main (ecran : enregistrement d'écran)
 //   node ranger.mjs placer <nom> <slug> <type> --arrivee <tournage>          idem, pour une vidéo ou une photo encore dans
 //                                                                             le dossier d'arrivée (arrivée après ce plan)
 //   node ranger.mjs placer <nom> <slug> <type> --envoi <chemin>              idem, pour un fichier envoyé depuis le studio
@@ -404,6 +404,14 @@ function entrerGalerie(media, config, f, type, origine) {
 // Place un fichier : face dans le dossier du contenu ; photo et b-roll dans la Galerie (lot 15), avec un lien physique
 // dans le contenu (une photo : le premier contenu ; un b-roll : chaque contenu servi).
 function placer(media, config, f, type, slugs, { tournage = null, prise = null, vu = null, source = null } = {}) {
+  // Un enregistrement d'écran (format écran partagé, studio de Yoan) : dans le dossier du contenu, à côté de sa face
+  // caméra, jamais dans la Galerie (il ne sert qu'à cette vidéo).
+  if (type === 'ecran') {
+    const dossier = path.join(config.media, slugs[0], 'ecran');
+    fs.mkdirSync(dossier, { recursive: true });
+    media.deplacer(f.chemin, path.join(dossier, nomLibre(dossier, f.nom)), type);
+    return null;
+  }
   if (type === 'face') {
     const dossier = path.join(config.media, slugs[0], 'face');
     fs.mkdirSync(dossier, { recursive: true });
@@ -433,8 +441,8 @@ async function placerALaMain(o) {
   const config = lireConfig(o.config);
   const media = new Media(config.media);
   const bloque = (code, phrase) => { say(`BLOQUE ${code} ${phrase}`); return 2; };
-  if (!nom || !slug || !type) return bloque('USAGE', 'placer <nom> <slug> <face|b-roll|photo>');
-  if (!['face', 'b-roll', 'photo'].includes(type)) return bloque('TYPE', 'le type est face, b-roll ou photo');
+  if (!nom || !slug || !type) return bloque('USAGE', 'placer <nom> <slug> <face|b-roll|photo|ecran>');
+  if (!['face', 'b-roll', 'photo', 'ecran'].includes(type)) return bloque('TYPE', 'le type est face, b-roll, photo ou ecran');
   if (!SLUG.test(slug) || !fs.existsSync(path.join(config.depot, 'contenus', slug))) return bloque('CONTENU', "je ne trouve pas ce contenu");
   if (nom !== path.basename(nom) || nom.startsWith('.')) return bloque('FICHIER', 'je ne trouve pas ce fichier');
   const liberer = prendreVerrou(config.media);
@@ -537,8 +545,8 @@ function retirer(o) {
   const config = lireConfig(o.config);
   const media = new Media(config.media);
   const bloque = (code, phrase) => { say(`BLOQUE ${code} ${phrase}`); return 2; };
-  if (!slug || !type || !nom) return bloque('USAGE', 'retirer <slug> <face|b-roll|photo> <nom>');
-  if (!['face', 'b-roll', 'photo'].includes(type)) return bloque('TYPE', 'le type est face, b-roll ou photo');
+  if (!slug || !type || !nom) return bloque('USAGE', 'retirer <slug> <face|b-roll|photo|ecran> <nom>');
+  if (!['face', 'b-roll', 'photo', 'ecran'].includes(type)) return bloque('TYPE', 'le type est face, b-roll, photo ou ecran');
   if (!SLUG.test(slug)) return bloque('CONTENU', 'je ne trouve pas ce contenu');
   if (nom !== path.basename(nom) || nom.startsWith('.')) return bloque('FICHIER', 'je ne trouve pas ce fichier');
   const dossier = path.join(config.media, slug, type === 'photo' ? 'photos' : type);
@@ -549,7 +557,7 @@ function retirer(o) {
   if (!liberer) return bloque('OCCUPE', 'un rangement est déjà en cours, réessaie dans un instant');
   try {
     // Un fichier de la Galerie (lot 15) : seul le lien du contenu part, le fichier reste dans la Galerie.
-    const lg = type !== 'face' && !estLien(chemin) && fs.existsSync(chemin) ? lienVersId(nom) : null;
+    const lg = type !== 'face' && type !== 'ecran' && !estLien(chemin) && fs.existsSync(chemin) ? lienVersId(nom) : null;
     const g = lg ? galerieDe(config, media) : null;
     if (lg && g.fiche(lg.id)) {
       media.ouvrir('retirer', null);

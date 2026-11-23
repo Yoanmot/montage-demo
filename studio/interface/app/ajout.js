@@ -13,10 +13,15 @@ const genre = (nom) => (VIDEOS.includes(ext(nom)) ? "video" : PHOTOS.includes(ex
 const taille = (o) => (o >= 1e9 ? `${(o / 1e9).toLocaleString("fr-CH", { maximumFractionDigits: 1 })} Go`
   : o >= 1e6 ? `${Math.round(o / 1e6)} Mo` : `${Math.max(1, Math.round(o / 1e3))} Ko`);
 const TYPES = [["b-roll", "Plan filmé en plus"], ["face", "Vidéo face caméra"]];
+// Écran partagé (studio de Yoan, 23/11) : l'enregistrement de son écran, fait sur le Mac en même temps que la caméra.
+const TYPE_ECRAN = ["ecran", "Enregistrement d'écran"];
+// Nom donné par défaut par l'enregistreur d'écran (« 2026-11-23 15-02-41.mp4 ») : proposé comme enregistrement d'écran.
+const NOM_ENREGISTREMENT = /^\d{4}-\d{2}-\d{2}[ _]\d{2}-\d{2}-\d{2}\.[a-z0-9]+$/i;
 
 export class AjoutVideos {
-  constructor({ slug, api, apres }) {
+  constructor({ slug, api, apres, ecran = false }) {
     this.slug = slug; this.api = api; this.apres = apres;
+    this.types = ecran ? [...TYPES, TYPE_ECRAN] : TYPES;
     this.lignes = [];        // { f, type, refus, etat: "pret"|"envoi"|"range"|"erreur"|"arrete", message, n }
     this.envoi = null;       // { arreter } pendant un envoi
     this.input = el("input", { type: "file", multiple: true, class: "visuel-cache", tabindex: "-1", "aria-hidden": "true",
@@ -49,7 +54,8 @@ export class AjoutVideos {
       const g = genre(f.name);
       const refus = !g ? "Je ne sais ranger que des vidéos (MOV, MP4) et des photos (JPG, HEIC, PNG)."
         : f.size > MAX ? "Trop lourd : 20 Go au plus." : f.size === 0 ? "Ce fichier est vide." : null;
-      this.lignes.push({ f, type: g === "photo" ? "photo" : "b-roll", refus, etat: refus ? "refus" : "pret", message: refus, n: 0 });
+      const ecran = g === "video" && this.types.includes(TYPE_ECRAN) && NOM_ENREGISTREMENT.test(f.name);
+      this.lignes.push({ f, type: g === "photo" ? "photo" : ecran ? "ecran" : "b-roll", refus, etat: refus ? "refus" : "pret", message: refus, n: 0 });
     }
     this.dessiner();
     this.racine.querySelector(".ajout-envoyer")?.focus();
@@ -91,7 +97,7 @@ export class AjoutVideos {
     let fin;
     if (l.etat === "pret" && l.type !== "photo") {
       const id = `ajout-${this.slug}-${i}`;
-      const sel = el("select", { class: "champ", id }, ...TYPES.map(([v, t]) => el("option", { value: v, selected: v === l.type || null }, t)));
+      const sel = el("select", { class: "champ", id }, ...this.types.map(([v, t]) => el("option", { value: v, selected: v === l.type || null }, t)));
       sel.addEventListener("change", () => { l.type = sel.value; });
       fin = el("span", { class: "ajout-type" }, el("label", { for: id, class: "visuel-cache" }, `C'est quoi, ${l.f.name}`), sel);
     } else if (l.etat === "pret") fin = el("span", { class: "ajout-etat" }, "Photo");

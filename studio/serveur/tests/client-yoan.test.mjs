@@ -41,13 +41,15 @@ test("fichiers de client : même format pour les deux, Romain = les valeurs d'av
   const cles = (c) => Object.keys(JSON.parse(fs.readFileSync(c.fichier, "utf8"))).filter((k) => k !== "appareil").sort();
   assert.equal(JSON.parse(fs.readFileSync(r.fichier, "utf8")).appareil, "iPhone");
   assert.deepEqual(cles(y), cles(r));
-  assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "claude", "config_claude", "contact", "head_of_content", "id", "label_launchd",
+  assert.deepEqual(cles(r), ["appli", "branche_mise_a_jour", "claude", "config_claude", "contact", "ecran_partage", "head_of_content", "id", "label_launchd",
     "monteur", "polices_locales", "port", "prenom", "racine", "reels_essai", "ressources", "skill_carrousel", "theme", "zernio"]);
   // Polices hors dépôt (lot 10) : Satoshi chez Yoan, depuis son fichier à lui ; rien chez Romain.
   assert.deepEqual(r.polices_locales || {}, {});
   assert.deepEqual(Object.keys(y.polices_locales), ["Satoshi-Black.woff2"]);
   // Reel d'essai : proposé chez Yoan seulement.
   assert.equal(y.reels_essai, true);
+  // Écran partagé (23/11) : chez Yoan seulement.
+  assert.deepEqual([r.ecran_partage, y.ecran_partage], [false, true]);
   assert.equal(r.reels_essai, false);
   // Les valeurs que Romain avait dans l'exemple de configuration ne bougent pas.
   const exemple = JSON.parse(fs.readFileSync(path.join(CODE, "studio.config.exemple.json"), "utf8"));

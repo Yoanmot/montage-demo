@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lireJson, ecrireJson, isoZurich, horodatage, lireTexte, existe, lister } from "./outils.mjs";
 import { attenduPresent, formatDuContenu } from "./attendus.mjs";
-import { lireDepot, videoFace, videosFace, brolls, genreDuContenu } from "./lecture.mjs";
+import { lireDepot, videoFace, videosFace, brolls, genreDuContenu, videosEcran, ecranPartagePrevu } from "./lecture.mjs";
 import { contact, clientActif } from "./client.mjs";
 import { quandReprise, PHRASE_CONNEXION } from "./normalisation.mjs";
 import { messageDescription, ecrireDescriptionDeSession, noterEchecDescription } from "./galerie.mjs";
@@ -74,6 +74,22 @@ function stockDuMontage(config, slug) {
   return `\nPlans de son brief pris dans sa Galerie (déjà parmi ses clips ci-dessus) :\n${lignes.join("\n")}\n`;
 }
 
+// Écran partagé (studio de Yoan, 23/11) : la ligne du premier message du monteur qui donne l'enregistrement d'écran
+// (le plus récent s'il y en a plusieurs), ou qui dit qu'il manque alors que le plan de tournage le prévoit. Vide sinon.
+function ligneEcran(config, slug) {
+  const ecrans = videosEcran(config, slug);
+  if (ecrans.length) {
+    const e = ecrans.map((f) => [f, fs.statSync(f).mtimeMs]).sort((x, y) => y[1] - x[1]).map((x) => x[0]);
+    return `\nCe reel est en écran partagé (sa caméra en haut, son écran en bas). Son enregistrement d'écran : ${e[0]}`
+      + `${e.length > 1 ? ` (autres : ${e.slice(1).join(", ")})` : ""}. Suis « Écran partagé » de tes consignes.`;
+  }
+  if (ecranPartagePrevu(config, slug)) {
+    return "\nSon plan de tournage prévoit ce reel en écran partagé, mais son enregistrement d'écran n'est pas encore rangé : "
+      + "suis « Écran partagé » de tes consignes (dis-lui de l'ajouter avant de monter).";
+  }
+  return "";
+}
+
 // Le premier message d'une action (gabarits/).
 export function messageAction(a, config) {
   // La description d'un fichier de la Galerie (lot 15) : la consigne et les images (null : le fichier est parti).
@@ -109,6 +125,7 @@ export function messageAction(a, config) {
       tournage: tournages.map((t) => `Plan de tournage groupé : ${path.join(config.depot, "tournages", t.fichier)}`).join("\n"),
       genre: GENRE_MONTAGE[genreDuContenu(config, a.slug)] ? `\n${GENRE_MONTAGE[genreDuContenu(config, a.slug)]}` : "",
       stock: stockDuMontage(config, a.slug),
+      ecran: ligneEcran(config, a.slug),
     });
   }
   if (a.type === "mise_en_page") {

@@ -28,6 +28,7 @@
   "skill_carrousel": "carrousel",
   "monteur": "monteur",
   "reels_essai": false,
+  "ecran_partage": false,
   "branche_mise_a_jour": "main",
   "config_claude": null,
   "polices_locales": {},

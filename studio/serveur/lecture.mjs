@@ -413,7 +413,7 @@ function fichiersDuDossier(config, slug, format, f) {
   }
   if (f.script) r.push("brief");
   const rushs = (f.face || []).some(estOriginale) || clipsBroll(path.join(base, "b-roll")).length > 0
-    || imagesDe(path.join(base, "photos")).length > 0;
+    || imagesDe(path.join(base, "photos")).length > 0 || videosEcran(config, slug).length > 0;
   if (rushs || f.planche || (f.face || []).some(estMonte)) r.push("montage");
   if ((f.face || []).some(estMonte)) r.push("video");
   return r;
@@ -612,6 +612,24 @@ export function videoMontee(config, slug) {
 function clipsBroll(dossier) {
   return lister(dossier).filter((e) => !e.name.startsWith(".") && !e.isDirectory()
     && EXT_VIDEO.has(path.extname(e.name).toLowerCase()));
+}
+
+// L'enregistrement d'écran du format écran partagé (studio de Yoan, 23/11) : MEDIA/<slug>/ecran/, rangé par
+// « Ajouter une vidéo » (type « Enregistrement d'écran »). Le monteur le colle sous la face caméra.
+export function videosEcran(config, slug) {
+  const d = path.join(config.media, slug, "ecran");
+  return lister(d).filter((e) => !e.isDirectory() && !e.name.startsWith(".") && EXT_VIDEO.has(path.extname(e.name).toLowerCase()))
+    .map((e) => path.join(d, e.name)).sort();
+}
+
+// Le reel est-il prévu en écran partagé ? Son brief le dit (ligne « - Écran partagé : mindmap » de l'en-tête de
+// script.md) ou une prise de ses plans de tournage (`genre: "ecran_partage"`) : contrat, section 5.1.
+export function ecranPartagePrevu(config, slug, lu = lireDepot(config.depot)) {
+  const script = lireTexte(path.join(config.depot, "contenus", slug, "script.md"), "") || "";
+  const entete = script.split(/^## /m)[0];
+  if (/^-\s*[ÉE]cran partag[ée]\s*:\s*mindmap\b/im.test(entete)) return true;
+  return lu.tournages.some((t) => (t.prises || []).some((p) => p.genre === "ecran_partage"
+    && (p.contenus || []).some((c) => c.slug === slug)));
 }
 
 export function brolls(config, slug) {
@@ -864,6 +882,12 @@ export function montageDe(config, slug, lu, tournage) {
     rushs.push(r);
   }
   const photos = imagesDe(path.join(base, "photos"));
+  // Écran partagé (studio de Yoan) : l'enregistrement d'écran, rangé à côté de la face caméra.
+  for (const chemin of videosEcran(config, slug)) {
+    const n = path.basename(chemin);
+    rushs.push({ id: `ecran/${n}`, url: urlMedia(slug, "ecran", n), type: "ecran", titre: "Enregistrement d'écran",
+      detail: "Il passe en bas de l'image, calé sur ta vidéo face caméra par le son.", range_par_toi: true });
+  }
   const prisesPhotos = prises.filter((p) => p.type === "photo");
   const g = new Galerie(dossierGalerie(config));
   photos.forEach((n, i) => rushs.push({
@@ -876,6 +900,9 @@ export function montageDe(config, slug, lu, tournage) {
   prisesPhotos.slice(0, photos.length).forEach((p) => servies.add(p.n));
   const manquants = [];
   if (!faces.length && prises.some((p) => p.type === "face")) manquants.push({ titre: nomFace, detail: "Pas encore arrivé." });
+  if (prises.some((p) => p.genre === "ecran_partage") && !videosEcran(config, slug).length) {
+    manquants.push({ titre: "Enregistrement d'écran", detail: "Pas encore là : ajoute-le avec « Ajouter une vidéo », type « Enregistrement d'écran »." });
+  }
   for (const p of prises) {
     if (p.type === "face" || servies.has(p.n)) continue;
     const phrases = phrasesPour(p, slug);

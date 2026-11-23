@@ -12,5 +12,5 @@ export function nomFormat(c) {
 export function nomRole(type, genre = null) {
   if (type === "face" && genre === "plans-texte") return "Vidéo du reel";
   if (type === "face" && genre === "plans-voix") return "Ta voix";
-  return { face: "Face caméra", "b-roll": "Plan en plus", photo: "Photo" }[type] || "";
+  return { face: "Face caméra", "b-roll": "Plan en plus", photo: "Photo", ecran: "Écran" }[type] || "";
 }

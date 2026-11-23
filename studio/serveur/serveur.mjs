@@ -636,7 +636,9 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
     };
     if (!existe(path.join(config.depot, "contenus", slug))) return refuser(404, "INTROUVABLE", "Je ne trouve pas ce contenu.");
     const type = url.searchParams.get("type");
-    if (!["face", "b-roll", "photo"].includes(type)) return refuser(400, "TYPE", MESSAGE_GENERIQUE);
+    // « ecran » : l'enregistrement d'écran du format écran partagé, seulement chez un client qui a ce format.
+    const types = ["face", "b-roll", "photo", ...(config.client?.ecran_partage ? ["ecran"] : [])];
+    if (!types.includes(type)) return refuser(400, "TYPE", MESSAGE_GENERIQUE);
     const nom = nomEnvoi(url.searchParams.get("nom"));
     const genre = typeFichier(nom);
     if (genre !== "video" && genre !== "photo") {
@@ -893,6 +895,8 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
           // Qui pose le mot en commentaire : « studio » (choix au récapitulatif) ou « serveur » (Romain : rien à
           // choisir au moment de poster, le serveur le branche sur la vidéo qui l'annonce). Null sans ressources.
           ressources_mot: ressourcesActives(config) ? (motParLeServeur(config) ? "serveur" : "studio") : null,
+          // Écran partagé (studio de Yoan, 23/11) : « Enregistrement d'écran » dans « Ajouter une vidéo ».
+          ecran_partage: Boolean(config.client?.ecran_partage),
           jours_par_defaut: config.publication?.jours_par_defaut || [],
           heures_par_defaut: config.publication?.heures_par_defaut || {},
         },
@@ -1055,7 +1059,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
       }
       if (m === "POST" && p[2] === "rushs" && p[3] === "retirer" && p.length === 4) {
         const id = String(corps.id || "");
-        const mm = /^(face|b-roll|photos)\/([^/\\]+)$/.exec(id);
+        const mm = /^(face|b-roll|photos|ecran)\/([^/\\]+)$/.exec(id);
         if (!mm || mm[2].startsWith(".")) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus ce fichier.", 404);
         const lu = lireDepot(config.depot);
         const inst = instantane(config, slug, lu);
@@ -1067,7 +1071,7 @@ export function creerServeur({ config, jeton, pont, file, synchro, journal = () 
         }
         const type = mm[1] === "photos" ? "photo" : mm[1];
         // Un fichier de la Galerie (lot 15) : seul son lien part, il reste dans la Galerie (l'interface le dit).
-        const lg = type !== "face" ? lienVersId(mm[2]) : null;
+        const lg = type !== "face" && type !== "ecran" ? lienVersId(mm[2]) : null;
         const deGalerie = Boolean(lg && galerieDe(config).fiche(lg.id));
         await file.suivre("rangement", { slug }, () => retirerRush(config, { slug, type, nom: mm[2] }));
         await copierBibliotheque().catch(() => {});

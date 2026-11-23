@@ -809,7 +809,7 @@ export class Vue {
     // Ajouter une vidéo du Mac (19/11) : tant que le montage n'a pas commencé, ou pendant un envoi déjà lancé.
     let ajout = this.ajouts.get(d.slug);
     if (!ajout && !montageLance && !enCours(d)) {
-      ajout = new AjoutVideos({ slug: d.slug, api: this.api, apres: () => this.afficher() });
+      ajout = new AjoutVideos({ slug: d.slug, api: this.api, apres: () => this.afficher(), ecran: Boolean(this.studio.config?.ecran_partage) });
       this.ajouts.set(d.slug, ajout);
     }
     const avecAjout = ajout && (ajout.actif || (!montageLance && !enCours(d)));
