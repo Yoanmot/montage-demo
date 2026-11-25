@@ -11,6 +11,17 @@ const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const FICHIERS_CONTENU = ["idee.md", "etat.json", "script.md", "carrousel.md"];
 const existe = (p) => { try { fs.accessSync(p); return true; } catch { return false; } };
 
+// La fiche d'une ressource (25/11/2026, même règle que outils/commun.py de Romain, fiche_ressource) : celle du
+// contenu du même slug (contenus/<slug>/ressource.md) si elle existe, sinon la fiche d'une ressource générale,
+// offerte sans contenu à elle (ressources/<slug>.md). Aucune des deux : null.
+export function ficheRessource(depot, slug) {
+  if (!depot || !SLUG.test(String(slug || ""))) return null;
+  const c = path.join(depot, "contenus", slug, "ressource.md");
+  if (existe(c)) return c;
+  const g = path.join(depot, "ressources", `${slug}.md`);
+  return existe(g) ? g : null;
+}
+
 // Le dépôt sait-il relier une ressource à un contenu (outil présent) ?
 export const liaisonsPossibles = (depot) => Boolean(depot) && existe(path.join(depot, "outils", "liaison.py"));
 
@@ -33,7 +44,7 @@ function lienDuScript(depot, contenu, site) {
   if (!l) return null;
   const base = String(site || "").replace(/\/+$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const m = base && new RegExp(`^${base}/([a-z0-9]+(?:-[a-z0-9]+)*)/$`).exec(l[1].trim().replace(/^`|`$/g, ""));
-  return m && existe(path.join(depot, "contenus", m[1], "ressource.md")) ? m[1] : null;
+  return m && ficheRessource(depot, m[1]) ? m[1] : null;
 }
 
 // Le slug de la ressource qu'offre ce contenu, ou null. `site` (client dont le serveur pose le mot, Romain) : sans
