@@ -24,7 +24,7 @@ import { existe, lireJson, SLUG_RE } from "./outils.mjs";
 import { ErreurStudio, phraseBloque } from "./depot-outils.mjs";
 import { VARIABLES_ECRITURE, contact } from "./client.mjs";
 import { pageRessource } from "./vignettes.mjs";
-import { liaisonsPossibles, ressourceDuContenu } from "./liaisons.mjs";
+import { liaisonsPossibles, ressourceDuContenu, ficheRessource } from "./liaisons.mjs";
 
 export const ressourcesActives = (config) => Boolean(config?.apercuRessources);
 // Le studio pose-t-il lui-même le mot en commentaire (choix de la ressource au moment de poster, règle
@@ -89,7 +89,7 @@ export function ressourceSeule(config, slug) {
 
 // L'état d'une ressource tel que l'arborescence le montre, déduit des fichiers seuls (rapide).
 export function etatRessourceRapide(config, slug) {
-  if (!existe(path.join(config.depot, "contenus", slug, "ressource.md"))) return null;
+  if (!ficheRessource(config.depot, slug)) return null;
   if (existe(path.join(config.depot, "site", slug, "index.html"))) return "en_ligne";
   if (existe(path.join(config.depot, "site", "_brouillons", slug, "index.html"))) return "brouillon";
   return "fiche";
@@ -429,11 +429,11 @@ export class Ressources {
     this.exiger();
     if (!SLUG_RE.test(String(slug || ""))) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus cette ressource : elle a peut-être déjà été supprimée.", 404);
     const d = this.config.depot;
-    const existeEncore = existe(path.join(d, "contenus", slug, "ressource.md"))
+    const existeEncore = Boolean(ficheRessource(d, slug))
       || existe(path.join(d, "site", slug, "index.html")) || existe(path.join(d, "site", "_brouillons", slug, "index.html"));
     if (!existeEncore) throw new ErreurStudio("INTROUVABLE", "Je ne trouve plus cette ressource : elle a peut-être déjà été supprimée.", 404);
     const mot = () => {
-      const t = (() => { try { return fs.readFileSync(path.join(d, "contenus", slug, "ressource.md"), "utf8"); } catch { return ""; } })();
+      const t = (() => { try { return fs.readFileSync(ficheRessource(d, slug), "utf8"); } catch { return ""; } })();
       return /^-\s*Mot\s*:\s*`?([A-Za-z]+)`?/mi.exec(t)?.[1]?.toUpperCase() || null;
     };
     const garder = raisonDeGarder(this.postsRelies(slug), mot());
